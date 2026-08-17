@@ -44,6 +44,72 @@ function candidateSets(rows, useCandidates = true) {
 
 const pct = (a, b) => b ? (100 * a / b).toFixed(2) + '%' : 'n/a';
 
+/**
+ * Reconstruction metrics with explicit denominators. "Recovery" is ambiguous on its own — a system
+ * that pins many bench statuses but few starters is not the same as one that pins 14% of everything.
+ * `truth` maps game -> Set of true starter ids; omit it when there is no ground truth.
+ */
+function metrics(edges, truth = null) {
+  const m = {
+    candidateEdges: edges.length,
+    forcedTrue: 0, forcedFalse: 0, ambiguous: 0,
+    trueStarterEdges: 0, trueBenchEdges: 0,
+    trueStarterForcedTrue: 0, trueBenchForcedFalse: 0,
+    falseForcedTrue: 0, falseForcedFalse: 0,
+    teamGamesFullyIdentified: 0, teamGamesPartial: 0, teamGamesFullyAmbiguous: 0,
+  };
+  const byGame = new Map();
+  for (const e of edges) {
+    if (e.status === 'FORCED_TRUE') m.forcedTrue++;
+    else if (e.status === 'FORCED_FALSE') m.forcedFalse++;
+    else m.ambiguous++;
+    const g = byGame.get(e.game) || { n: 0, amb: 0, ft: 0 };
+    g.n++;
+    if (e.status === 'AMBIGUOUS') g.amb++;
+    if (e.status === 'FORCED_TRUE') g.ft++;
+    byGame.set(e.game, g);
+    if (truth) {
+      const isTrue = truth.get(e.game).has(e.playerId);
+      if (isTrue) {
+        m.trueStarterEdges++;
+        if (e.status === 'FORCED_TRUE') m.trueStarterForcedTrue++;
+        if (e.status === 'FORCED_FALSE') m.falseForcedFalse++;
+      } else {
+        m.trueBenchEdges++;
+        if (e.status === 'FORCED_FALSE') m.trueBenchForcedFalse++;
+        if (e.status === 'FORCED_TRUE') m.falseForcedTrue++;
+      }
+    }
+  }
+  for (const g of byGame.values()) {
+    // "Fully identified" means every candidate in the team-game has a determined status, which is
+    // exactly when all five starters are known AND every other candidate is excluded.
+    if (g.amb === 0) m.teamGamesFullyIdentified++;
+    else if (g.amb === g.n) m.teamGamesFullyAmbiguous++;
+    else m.teamGamesPartial++;
+  }
+  m.teamGames = byGame.size;
+  return m;
+}
+
+function printMetrics(m, indent = '  ') {
+  const i = indent;
+  console.log(`${i}candidate edges                                   ${m.candidateEdges}`);
+  console.log(`${i}  FORCED_TRUE                                     ${m.forcedTrue}  ${pct(m.forcedTrue, m.candidateEdges)}`);
+  console.log(`${i}  FORCED_FALSE                                    ${m.forcedFalse}  ${pct(m.forcedFalse, m.candidateEdges)}`);
+  console.log(`${i}  AMBIGUOUS                                       ${m.ambiguous}  ${pct(m.ambiguous, m.candidateEdges)}`);
+  console.log(`${i}identifiable share of all candidate edges         ${pct(m.forcedTrue + m.forcedFalse, m.candidateEdges)}`);
+  if (m.trueStarterEdges) {
+    console.log(`${i}true STARTER edges pinned FORCED_TRUE             ${m.trueStarterForcedTrue}/${m.trueStarterEdges}  ${pct(m.trueStarterForcedTrue, m.trueStarterEdges)}`);
+    console.log(`${i}true BENCH edges pinned FORCED_FALSE              ${m.trueBenchForcedFalse}/${m.trueBenchEdges}  ${pct(m.trueBenchForcedFalse, m.trueBenchEdges)}`);
+    console.log(`${i}false FORCED_TRUE  (asserted start, was bench)    ${m.falseForcedTrue}`);
+    console.log(`${i}false FORCED_FALSE (asserted bench, was start)    ${m.falseForcedFalse}`);
+  }
+  console.log(`${i}team-games fully identified                       ${m.teamGamesFullyIdentified}/${m.teamGames}  ${pct(m.teamGamesFullyIdentified, m.teamGames)}`);
+  console.log(`${i}team-games partially identified                   ${m.teamGamesPartial}  ${pct(m.teamGamesPartial, m.teamGames)}`);
+  console.log(`${i}team-games completely ambiguous                   ${m.teamGamesFullyAmbiguous}  ${pct(m.teamGamesFullyAmbiguous, m.teamGames)}`);
+}
+
 /* ==================================================================== HYPOTHESIS */
 if (mode === 'hypothesis') {
   const { rows, officialStarts } = load(season);
@@ -59,6 +125,27 @@ if (mode === 'hypothesis') {
   console.log('--- candidate-set size distribution ---');
   for (const k of Object.keys(sizes).map(Number).sort((a, b) => a - b)) {
     console.log(`  ${String(k).padStart(3)} candidates  ${String(sizes[k]).padStart(5)} team-games  ${pct(sizes[k], tgs.length)}`);
+  }
+  const ns = tgs.map((t) => t.players.length).sort((a, b) => a - b);
+  const q = (p) => ns[Math.min(ns.length - 1, Math.floor(p * ns.length))];
+  console.log(`  min ${ns[0]} · p5 ${q(0.05)} · median ${q(0.5)} · mean ${(ns.reduce((a, b) => a + b, 0) / ns.length).toFixed(2)}` +
+    ` · p95 ${q(0.95)} · max ${ns[ns.length - 1]}`);
+  console.log(`  => mean spurious candidates per team-game: +${(ns.reduce((a, b) => a + b, 0) / ns.length - 5).toFixed(2)}`);
+
+  // Does the corruption vary by team? A uniform defect points at a league-wide feed problem;
+  // a team-dependent one would mean the degradation experiment must be stratified by team.
+  const byTeam = new Map();
+  for (const t of tgs) {
+    const tid = t.game.split('|')[1];
+    if (!byTeam.has(tid)) byTeam.set(tid, []);
+    byTeam.get(tid).push(t.players.length);
+  }
+  const teamMeans = [...byTeam.entries()].map(([tid, l]) => ({ tid, mean: l.reduce((a, b) => a + b, 0) / l.length }))
+    .sort((a, b) => a.mean - b.mean);
+  if (teamMeans.length) {
+    console.log(`  by team: lowest mean ${teamMeans[0].mean.toFixed(2)} (team ${teamMeans[0].tid}), ` +
+      `highest ${teamMeans[teamMeans.length - 1].mean.toFixed(2)} (team ${teamMeans[teamMeans.length - 1].tid}), ` +
+      `spread ${(teamMeans[teamMeans.length - 1].mean - teamMeans[0].mean).toFixed(2)}`);
   }
 
   console.log('\n--- prediction 1: no team-game may have fewer than 5 candidates ---');
@@ -88,7 +175,14 @@ if (mode === 'hypothesis') {
   console.log(`  sum(official starts)  ${supply}`);
   console.log(`  5 x team-games        ${demand}   (${tgs.length} team-games)`);
   console.log(`  difference            ${supply - demand}`);
-  console.log(`  => ${supply === demand ? 'identity holds; splits are complete and start-counting' : 'MISMATCH — splits are incomplete or GP is not starts'}`);
+  console.log(`  => ${supply === demand
+    ? 'the Starters split is exactly aggregate-consistent with five starters per team-game'
+    : 'MISMATCH — splits are incomplete or GP is not starts'}`);
+  // What this does and does not establish. It strongly supports reading Starters GP as games
+  // started and shows the split is complete in aggregate. It does NOT prove any individual
+  // player total is correct — offsetting per-player errors would still sum correctly — and it
+  // says nothing about whether the true starters lie inside the corrupted candidate sets.
+  console.log('     (aggregate consistency; offsetting per-player errors would still sum correctly)');
 
   console.log('\n--- prediction 4: the constraint system admits a solution ---');
   const r = solve(tgs, officialStarts);
@@ -119,38 +213,53 @@ if (mode === 'validate') {
     byTG.get(k).push(r);
   }
 
-  console.log('  extra   candidate   FORCED_TRUE   of which   FORCED_FALSE   AMBIGUOUS   true starters');
-  console.log('  /game   edges       correct       WRONG      correct        edges       recovered');
-  for (const extra of [1, 2, 3, 4, 5]) {
-    const degraded = [];
-    const truth = new Map();
+  // Official starts recomputed from the clean subset so the constraint is exactly consistent.
+  const starts = new Map();
+  for (const t of clean) for (const p of t.players) starts.set(p, (starts.get(p) || 0) + 1);
+
+  /** Degrade every clean team-game by adding `pickExtra()` spurious candidates, then classify. */
+  function trial(label, pickExtra) {
+    const degraded = [], truth = new Map();
     for (const t of clean) {
-      const all = byTG.get(t.game) || [];
       const truthSet = new Set(t.players);
-      const bench = all.filter((r) => !truthSet.has(r.playerId) && r.minutes !== null && r.minutes !== '')
+      // Spurious candidates come only from players who genuinely appeared in that team-game.
+      // Selection is uniform among them: minutes and performance are never consulted.
+      const bench = (byTG.get(t.game) || [])
+        .filter((r) => !truthSet.has(r.playerId) && r.minutes !== null && r.minutes !== '')
         .map((r) => r.playerId);
-      // sample `extra` distinct bench players without replacement
-      const picked = [];
-      const pool = bench.slice();
-      for (let i = 0; i < extra && pool.length; i++) picked.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+      const pool = bench.slice(), picked = [];
+      const want = pickExtra();
+      for (let i = 0; i < want && pool.length; i++) picked.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
       degraded.push({ game: t.game, players: [...t.players, ...picked] });
       truth.set(t.game, truthSet);
     }
-    // Official starts recomputed from the clean subset so the constraint is exactly consistent.
-    const starts = new Map();
-    for (const t of clean) for (const p of t.players) starts.set(p, (starts.get(p) || 0) + 1);
-
     const r = solve(degraded, starts);
-    let ft = 0, ftWrong = 0, ff = 0, ffWrong = 0, amb = 0, recovered = 0;
-    for (const e of r.edges) {
-      const isTrue = truth.get(e.game).has(e.playerId);
-      if (e.status === 'FORCED_TRUE') { ft++; if (!isTrue) ftWrong++; if (isTrue) recovered++; }
-      else if (e.status === 'FORCED_FALSE') { ff++; if (isTrue) ffWrong++; }
-      else amb++;
+    console.log(`\n--- ${label} ---`);
+    if (!r.feasible) { console.log(`  INFEASIBLE (flow ${r.flow}/${r.demand}) — degradation broke the constraints`); return; }
+    const m = metrics(r.edges, truth);
+    printMetrics(m);
+    if (m.falseForcedTrue || m.falseForcedFalse) {
+      console.log(`  !! UNSOUND: ${m.falseForcedTrue} false FORCED_TRUE, ${m.falseForcedFalse} false FORCED_FALSE`);
     }
-    const totalTrue = clean.length * 5;
-    console.log(`  ${String(extra).padStart(5)}   ${String(r.candidateEdges).padStart(9)}   ${String(ft).padStart(11)}   ${String(ftWrong).padStart(8)}   ${String(ff).padStart(12)}   ${String(amb).padStart(9)}   ${pct(recovered, totalTrue).padStart(7)}`);
-    if (ftWrong || ffWrong) console.log(`        !! ${ftWrong} FORCED_TRUE and ${ffWrong} FORCED_FALSE contradict ground truth — the classifier is unsound`);
+  }
+
+  // Controlled stress tests: a fixed number of spurious candidates per team-game.
+  for (const extra of [1, 2, 3, 4]) trial(`controlled stress test: +${extra} spurious candidates per team-game`, () => extra);
+
+  // Empirically matched: sample the extra-candidate count from a real corrupted season, so the
+  // experiment resembles the data we actually have to reconstruct.
+  const distArg = process.argv[4];
+  if (distArg && fs.existsSync(path.join(HIST, 'starters', `${distArg}_regular.json`))) {
+    const old = JSON.parse(fs.readFileSync(path.join(HIST, 'starters', `${distArg}_regular.json`), 'utf8'));
+    const counts = Object.values(old.invalid).map((a) => a.length).filter((n) => n >= 5).map((n) => n - 5);
+    if (counts.length) {
+      const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+      console.log(`\nEmpirical extra-candidate distribution from ${distArg}: n=${counts.length}, mean +${mean.toFixed(2)}`);
+      trial(`EMPIRICALLY MATCHED to ${distArg} corruption`, () => counts[Math.floor(rnd() * counts.length)]);
+    }
+  } else {
+    console.log('\n(Pass a corrupted season as the 4th argument once crawled, e.g. `validate 2023-24 2015-16`,');
+    console.log(' to repeat the experiment with that season\'s real extra-candidate distribution.)');
   }
   console.log('\n  FORCED_* must NEVER contradict ground truth. Any nonzero WRONG column invalidates');
   console.log('  the method. A high AMBIGUOUS count is not an error — it is the honest answer.');
@@ -181,21 +290,8 @@ if (mode === 'solve') {
     console.log('  is false or the season splits disagree with the box scores. Nothing is written.');
     process.exit(1);
   }
-  const counts = { FORCED_TRUE: 0, FORCED_FALSE: 0, AMBIGUOUS: 0 };
-  const byGame = new Map();
-  for (const e of r.edges) {
-    counts[e.status]++;
-    const g = byGame.get(e.game) || { forcedTrue: 0, amb: 0 };
-    if (e.status === 'FORCED_TRUE') g.forcedTrue++;
-    if (e.status === 'AMBIGUOUS') g.amb++;
-    byGame.set(e.game, g);
-  }
-  const fully = [...byGame.values()].filter((g) => g.amb === 0).length;
-  console.log(`\n  FORCED_TRUE       ${counts.FORCED_TRUE}   ${pct(counts.FORCED_TRUE, r.candidateEdges)}`);
-  console.log(`  FORCED_FALSE      ${counts.FORCED_FALSE}   ${pct(counts.FORCED_FALSE, r.candidateEdges)}`);
-  console.log(`  AMBIGUOUS         ${counts.AMBIGUOUS}   ${pct(counts.AMBIGUOUS, r.candidateEdges)}`);
-  console.log(`  uniquely identifiable edges   ${pct(counts.FORCED_TRUE + counts.FORCED_FALSE, r.candidateEdges)}`);
-  console.log(`  fully identified team-games   ${fully} of ${byGame.size}  ${pct(fully, byGame.size)}`);
+  console.log('');
+  printMetrics(metrics(r.edges));
 
   const out = r.edges.map((e) => ({
     season, seasonType: 'Regular Season',

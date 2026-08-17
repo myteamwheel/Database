@@ -111,7 +111,7 @@ export function scc(n, adj) {
  * @param {Map<number,number>} officialStarts  playerId -> season starts
  * @returns classification per candidate edge plus feasibility diagnostics
  */
-export function solve(teamGames, officialStarts) {
+export function solve(teamGames, officialStarts, perGame = 5) {
   const players = [...new Set(teamGames.flatMap((t) => t.players))];
   const pIdx = new Map(players.map((p, i) => [p, i]));
   const P = players.length, G = teamGames.length;
@@ -119,10 +119,10 @@ export function solve(teamGames, officialStarts) {
   const mf = new MaxFlow(P + G + 2);
 
   // Necessary conditions, checked before spending time on the flow.
-  const demand = 5 * G;
+  const demand = perGame * G;
   let supply = 0;
   for (const p of players) supply += officialStarts.get(p) || 0;
-  const thin = teamGames.filter((t) => t.players.length < 5);
+  const thin = teamGames.filter((t) => t.players.length < perGame);
   const overClaim = players.filter((p) => (officialStarts.get(p) || 0) >
     teamGames.filter((t) => t.players.includes(p)).length);
 
@@ -135,10 +135,21 @@ export function solve(teamGames, officialStarts) {
       edgeId.push(mf.addEdge(i, P + g, 1));
       edges.push({ p, g, pi: i });
     }
-    mf.addEdge(P + g, T, 5);
+    mf.addEdge(P + g, T, perGame);
   }
   const flow = mf.run(S, T);
   const feasible = flow === demand && supply === demand;
+  // An infeasible system has no feasible solutions, so "the same in every feasible solution" is
+  // vacuous and any label would be meaningless. Refuse to classify rather than emit something
+  // that reads like a result.
+  if (!feasible) {
+    return {
+      feasible: false, flow, demand, supply,
+      thinTeamGames: thin.length, overClaimingPlayers: overClaim.length,
+      players: P, teamGames: G, candidateEdges: edges.length,
+      edges: edges.map((e) => ({ playerId: e.p, game: teamGames[e.g].game, status: 'INFEASIBLE', started: null })),
+    };
+  }
 
   // Alternating digraph: selected edges point game->player, unselected point player->game.
   const adj = Array.from({ length: P + G }, () => []);
