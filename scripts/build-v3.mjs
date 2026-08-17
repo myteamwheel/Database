@@ -21,6 +21,8 @@ import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
 import { skillProfiles, archetypes, similarity, teamNeeds, teamFit, translationFactors,
          translationFactorsPer36, translate, SKILL_AXES, ARCHETYPES, SIMILARITY_WEIGHTS,
          NEED_AXES } from './lib/analysis.mjs';
+import { tulipCard, frontier, optimiseRotation, evidenceTier, ROLE_BANDS, TULIP_CONFIG }
+  from './lib/tulip.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -515,6 +517,37 @@ for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   }
 }
 
+/* ------------------------------------------------------------------- TULIP */
+// Role-change projection. Comparison-based and heavily abstaining: every card either carries
+// real evidence or says so.
+for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
+  const played = side.records.filter((r) => r.appeared && r.skillProfile);
+  const pool = played.filter((r) => (r.minutes || 0) >= TULIP_CONFIG.minMinutes);
+  const opts = { weights: SIMILARITY_WEIGHTS, config: TULIP_CONFIG };
+  const rosters = {};
+  for (const r of played) {
+    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    for (const t of new Set(teams.filter(Boolean))) (rosters[t] = rosters[t] || []).push(r);
+  }
+  for (const r of played) {
+    // Default scenario: a meaningful but realistic expansion of the current role.
+    const target = Math.min(34, Math.max(r.mpg + 6, 20));
+    const card = tulipCard(r, pool, rosters[r.team] || played, target, opts);
+    r.tulip = {
+      defaultTarget: round(target, 1),
+      card,
+      frontier: frontier(r, pool, opts).map((f) => ({
+        mpg: f.mpg, abstain: !!f.abstain,
+        projectedImpact: f.projectedImpact ?? null,
+        interval: f.interval ?? null, support: f.support ?? 0,
+        comparables: f.comparables ?? 0,
+      })),
+    };
+  }
+  side.rotationSuggestions = Object.fromEntries(Object.entries(rosters).map(([team, roster]) =>
+    [team, optimiseRotation(roster, pool, opts)]));
+}
+
 // G League -> NBA translation, measured on this season's crossover players only.
 const glById = new Map(gl.records.filter((r) => r.appeared).map((r) => [r.nbaPersonId, r]));
 const pairs = nba.records.filter((r) => r.appeared && glById.has(r.nbaPersonId))
@@ -640,6 +673,27 @@ const out = {
       rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',
     },
   },
+  tulip: {
+    name: 'TULIP — Targeted Utilization, Lineup & Impact Projection',
+    principle: 'TULIP does not rank bench players. It evaluates a role change: if this player\'s job changes in a specific way and the minutes come from specific team-mates, what is the expected change in team performance, and how much evidence exists for that answer?',
+    method: 'Comparison-based. For a candidate and a target role, comparables are players who actually occupied that role band and resemble the candidate on the 16-axis skill profile. Projected impact is their similarity-weighted mean on-court differential, with an 80% interval from their dispersion, widened when support is thin.',
+    config: TULIP_CONFIG,
+    roleBands: ROLE_BANDS.map((b) => b.mpg),
+    supportIsNotAbility: 'Support is never multiplied into the projection. An uncertain projection keeps its point estimate and widens its interval rather than being dragged toward zero.',
+    evidenceTiers: {
+      A: 'Shock-induced expansion (injury, trade, suspension). NOT PRODUCIBLE HERE — needs game logs and transaction data.',
+      B: 'Observed role change: the player himself has 10+ games starting and 10+ off the bench, and the target sits inside that span. PRODUCIBLE.',
+      C: 'Ordinary high-minute games. NOT PRODUCIBLE HERE — needs game logs.',
+      D: 'Pure statistical extrapolation from comparables. PRODUCIBLE, and the weakest tier.',
+    },
+    limitations: [
+      'Lineup Interaction Adjustment is always null: no possession or lineup data exists here, so it is reported unavailable rather than guessed, and contributes nothing to the Rotation Delta.',
+      'One season only. TULIP Forecast (aging priors, multi-season trajectory) is NOT implemented; only TULIP Evidence exists.',
+      'Comparables who played a role are a selected group. No correction for that selection is applied, so these are associations, not causal effects.',
+      'On-court differential is a team result while the player is on the floor, not isolated individual value.',
+      'No claim is made about a player\'s ideal minutes, physical capacity, or whether he "deserves" minutes independent of whose minutes he would take.',
+    ],
+  },
   analysis: {
     skillAxes: Object.keys(SKILL_AXES),
     archetypeDefinitions: ARCHETYPES,
@@ -647,6 +701,7 @@ const out = {
     similarityMethod: 'Weighted Euclidean distance over the skill percentile profile: d = sqrt(sum w_i (a_i - b_i)^2 / sum w_i), similarity = 100 * (1 - d/100). Percentiles put every axis on a common 0-100 footing, so the metric is symmetric and needs no further normalisation.',
     needAxes: NEED_AXES,
     teams: teamProfiles,
+    rotationSuggestions: { NBA: nba.rotationSuggestions, GLEAGUE: gl.rotationSuggestions },
     translation: {
       factors, factorsPer36,
       crossoverSample: pairs.length,
