@@ -740,7 +740,12 @@ const out = {
     historical: historicalReadiness({}),
     requiredBaselines: REQUIRED_BASELINES,
     schemas: { game: GAME_ROW_SCHEMA, availability: AVAILABILITY_ROW_SCHEMA, transaction: TRANSACTION_ROW_SCHEMA },
-    outcomeCaveat: 'Projected impact is measured on on-court differential, a team result while the player is on the floor. Ranking robustness was checked against PIE, a rate composite from independent grade components, and Rate Grade: Spearman 0.79-0.91 and 16/20 top-20 overlap, so the candidate list is not a NetRtg artefact — but the magnitude remains unreliable.',
+    outcomeCaveat: 'Projected impact is measured on on-court differential, a team result while the player is on the floor. Candidate rankings are reasonably ROBUST to several alternative outcome definitions (PIE, a rate composite from grade components, a raw box-score composite): Spearman 0.79-0.91 with 16/20 top-20 overlap. That is robustness testing, NOT predictive validation and NOT causal identification. All of those outcomes are correlated basketball-quality measures computed inside the same selected-comparable framework, so their agreement says the ranking does not hinge on one noisy outcome; it says nothing about whether the counterfactual is right. Rate Grade in particular is ALSO the quality-matching variable, so using it as an alternative outcome is partly mechanical and is not independent evidence.',
+    evidenceVocabulary: {
+      robustness: 'Does the answer change when an arbitrary modelling choice changes? Tested and largely no.',
+      predictiveValidation: 'Does the model beat simpler baselines on unseen future data? NOT TESTED - requires historical seasons.',
+      causalIdentification: 'Would this player actually produce this if given the role? NOT IDENTIFIED - the comparables are a selected group and common support is thin.',
+    },
   },
   fieldCatalog: { ...buildCatalog({ NBA: nba.records, GLEAGUE: gl.records }), _topLevel: TOP_LEVEL_CATALOG },
   provenance: {

@@ -488,7 +488,8 @@ test.describe('TULIP', () => {
     await open(page);
     const r = await page.evaluate(() => {
       const rules = [[/Already plays/, 'large'], [/only .* minutes above/, 'close'],
-        [/comparable players have played/, 'few'], [/Support .* below/, 'support']];
+        [/comparable players have played/, 'few'], [/Support .* below/, 'support'],
+        [/do not cover this candidate/, 'nosupport']];
       const out = {};
       for (const lg of ['NBA', 'GLEAGUE']) {
         const cards = DATA.leagues[lg].filter((p) => p.appeared && p.tulip);

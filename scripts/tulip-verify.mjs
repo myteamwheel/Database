@@ -40,6 +40,7 @@ const REASON_RULES = [
   ['target too close to current role', /only .* minutes above/],
   ['too few comparables', /comparable players have played/],
   ['support below threshold', /Support .* below/],
+  ['insufficient counterfactual support', /do not cover this candidate/],
 ];
 for (const lg of ['NBA', 'GLEAGUE']) {
   const cards = d.leagues[lg].filter((p) => p.appeared && p.tulip);

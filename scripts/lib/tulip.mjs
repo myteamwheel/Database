@@ -62,8 +62,11 @@ export const TULIP_CONFIG = {
   // comparables 56%. Matching on ability alone left starter-vs-reserve CONTEXT wide open, which
   // is one of the confounds the design explicitly set out to avoid. Comparables must now be
   // reachable in role terms too.
-  // Swept 45/30/20/15/10. Band 20 minimises BOTH the pooled starter SMD (-0.008) and the worst
-  // per-band SMD (0.798); tighter bands lose common support without improving balance.
+  // FROZEN, HEURISTIC. Swept 45/30/20/15/10; band 20 minimised both the pooled starter SMD
+  // (-0.008) and the worst per-band SMD (0.798), and tighter bands were worse on both. That
+  // sweep also showed the problem is STRUCTURAL POSITIVITY, not threshold choice: no setting
+  // brings within-band balance near 0.1 because the required comparables barely exist. This
+  // value is not to be re-tuned; the remedy is longitudinal data.
   starterShareBand: 20,     // max percentage-point gap in share of games started
 };
 
@@ -98,6 +101,79 @@ export function starterShare(p) {
   const s = p.stats?.sit_starter_gp;
   if (!fin(s) || !fin(p.gp) || !p.gp) return null;
   return (100 * s) / p.gp;
+}
+
+/**
+ * Balance thresholds. Conventional practice treats |SMD| < 0.10 as good and < 0.25 as tolerable;
+ * above 0.50 a matched comparison is generally considered unreliable. Those conventions are used
+ * as-is rather than tuned to preserve coverage, and the measured values are always exposed.
+ */
+export const BALANCE_THRESHOLDS = { good: 0.10, warn: 0.25, refuse: 0.50 };
+
+/** Covariates whose imbalance would undermine a role-expansion counterfactual. */
+export const BALANCE_COVARIATES = {
+  starterShare: (p) => starterShare(p),
+  usage: (p) => p.usg,
+  age: (p) => p.ageOpeningNight ?? p.age,
+  size: (p) => p.heightInches,
+  selfCreation: (p) => p.skillProfile?.selfCreation,
+};
+
+function smdOf(a, b) {
+  const A = a.filter(fin), B = b.filter(fin);
+  if (A.length < 3 || B.length < 3) return null;
+  const m = (x) => x.reduce((s, v) => s + v, 0) / x.length;
+  const sdv = (x) => { const mu = m(x); return Math.sqrt(x.reduce((s, v) => s + (v - mu) ** 2, 0) / (x.length - 1)); };
+  const pooled = Math.sqrt((sdv(A) ** 2 + sdv(B) ** 2) / 2);
+  return pooled ? (m(A) - m(B)) / pooled : 0;
+}
+
+/**
+ * Scenario-level counterfactual support: is this candidate actually comparable to the players
+ * who occupy the target role, on the covariates that matter?
+ *
+ * This is a DIFFERENT failure from having too few comparables. Eight statistical comparables who
+ * all started 80% of their games are not a counterfactual for a bench player, however many of
+ * them there are.
+ */
+export function counterfactualSupport(candidate, comparables) {
+  // This is a POSITIVITY / common-support test, not an outlier test. An earlier version compared
+  // the candidate's value to the pool's standard deviation and refused above 1 SD; across five
+  // covariates almost every individual is more than 1 SD from a pool mean on SOMETHING, so it
+  // refused 90% of scenarios and the refusals were driven by height and age rather than by role
+  // context. It also divided by a near-zero SD and produced gaps of 1.4e10.
+  //
+  // The question is whether the candidate lies INSIDE the region the comparables actually cover.
+  // Inside the central 90% of the pool is full support; outside the pool's observed range
+  // entirely is no support; between them is a warning.
+  const detail = {};
+  let worstFrac = 0, worstOn = null, outside = 0;
+  for (const [name, f] of Object.entries(BALANCE_COVARIATES)) {
+    const cv = f(candidate);
+    const present = comparables.map(f).filter(fin).sort((a, b) => a - b);
+    if (!fin(cv) || present.length < 8) { detail[name] = null; continue; }
+    const q = (t) => { const pos = (present.length - 1) * t, lo = Math.floor(pos), hi = Math.ceil(pos);
+      return present[lo] + (present[hi] - present[lo]) * (pos - lo); };
+    const p05 = q(0.05), p95 = q(0.95), lo = present[0], hi = present[present.length - 1];
+    const inCentral = cv >= p05 && cv <= p95;
+    const inRange = cv >= lo && cv <= hi;
+    // How far outside the central 90%, expressed as a fraction of that band's width.
+    const band = (p95 - p05) || 1e-9;
+    const excess = inCentral ? 0 : (cv < p05 ? (p05 - cv) : (cv - p95)) / band;
+    detail[name] = { candidate: round(cv, 2), pool5th: round(p05, 2), pool95th: round(p95, 2),
+      insideCentral90: inCentral, insideRange: inRange, excessBands: round(excess, 3) };
+    if (!inRange) outside++;
+    if (excess > worstFrac) { worstFrac = excess; worstOn = name; }
+  }
+  // Refuse when the candidate is outside the comparables' observed range on any covariate, or
+  // far outside the central band on one.
+  const status = outside > 0 || worstFrac >= 1.0 ? 'INSUFFICIENT'
+    : worstFrac >= 0.25 ? 'WARN' : 'OK';
+  return { status, worstExcessBands: round(worstFrac, 3), worstCovariate: worstOn,
+    covariatesOutsidePoolRange: outside, detail,
+    thresholds: { warnAboveExcessBands: 0.25, refuseAboveExcessBands: 1.0,
+      refuseIfOutsidePoolRange: true },
+    note: 'Common-support (positivity) check: is the candidate inside the region the comparables actually cover? Being outside their observed range on any covariate means the comparison has no counterfactual, which is a different failure from having too few comparables.' };
 }
 
 /** Similarity between two skill profiles, on the same documented basis the app uses elsewhere. */
@@ -181,7 +257,9 @@ export function projectRole(candidate, pool, targetMpg, { weights, config = TULI
     cands.push({ q, sim });
   }
   if (cands.length < config.minComparables) {
-    return { abstain: true, reason: `Only ${cands.length} comparable players have played at ${targetMpg} mpg; ${config.minComparables} are required.`, comparables: cands.length };
+    return { abstain: true, abstainClass: 'INSUFFICIENT_SAMPLE_SIZE',
+      reason: `Only ${cands.length} comparable players have played at ${targetMpg} mpg; ${config.minComparables} are required.`,
+      comparables: cands.length };
   }
   cands.sort((a, b) => b.sim - a.sim);
   const top = cands.slice(0, 40);
@@ -192,6 +270,12 @@ export function projectRole(candidate, pool, targetMpg, { weights, config = TULI
   const usage = weightedStats(top.map((c) => c.q.usg), w);
   if (!impact) return { abstain: true, reason: 'Comparables lack an impact measure.', comparables: top.length };
 
+  const cfSupport = counterfactualSupport(candidate, top.map((c) => c.q));
+  if (cfSupport.status === 'INSUFFICIENT') {
+    return { abstain: true, abstainClass: 'INSUFFICIENT_COUNTERFACTUAL_SUPPORT',
+      reason: `Comparables at ${targetMpg} mpg do not cover this candidate: ${cfSupport.covariatesOutsidePoolRange ? `outside their observed range on ${cfSupport.covariatesOutsidePoolRange} covariate(s)` : `${cfSupport.worstCovariate} sits ${cfSupport.worstExcessBands} bands beyond their central 90%`}. Sample size is adequate (${top.length} comparables); common support is not.`,
+      comparables: top.length, counterfactualSupport: cfSupport };
+  }
   const effectiveN = w.reduce((a, v) => a + v, 0) ** 2 / w.reduce((a, v) => a + v * v, 0);
   const meanSimilarity = top.reduce((a, c, i) => a + c.sim * w[i], 0) / w.reduce((a, v) => a + v, 0);
   const support = supportScore({
@@ -212,6 +296,12 @@ export function projectRole(candidate, pool, targetMpg, { weights, config = TULI
     projectedPie: fin(pie?.mean) ? round(pie.mean, 1) : null,
     projectedUsage: fin(usage?.mean) ? round(usage.mean, 1) : null,
     support,
+    counterfactualSupport: cfSupport,
+    // 5. Three-level evidence label. DESCRIPTIVE results must never be phrased as "would be".
+    evidenceLevel: cfSupport.status === 'OK' && support >= 55 ? 'SUPPORTED_EXTRAPOLATION' : 'DESCRIPTIVE',
+    phrasing: cfSupport.status === 'OK' && support >= 55
+      ? 'Supported extrapolation, still observational.'
+      : 'Comparable-role estimate; causal role effect unknown.',
     comparables: top.length,
     effectiveN: round(effectiveN, 1),
     meanSimilarity: round(meanSimilarity, 1),
