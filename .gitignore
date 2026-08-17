@@ -7,3 +7,8 @@ playwright-report/
 # Raw historical fetch cache: 110 MB, re-fetchable and hash-verified.
 # provenance.json stays tracked so the recorded hashes live in git.
 scripts/data/history/*/
+
+# ...except the compact starter artifacts, which ARE the data product: per team-game, the five
+# starter ids (or the candidate set where the source is defective). ~150 KB per season versus
+# ~6.5 MB for the full normalized rows, which stay a regenerable cache.
+!scripts/data/history/starters/
