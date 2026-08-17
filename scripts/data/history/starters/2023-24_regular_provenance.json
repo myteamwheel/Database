@@ -1,0 +1,19 @@
+{
+ "season": "2023-24",
+ "seasonType": "Regular Season",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-17T21:21:16.533Z",
+ "gamesRequested": 1230,
+ "gamesCached": 1230,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 2460,
+  "invalid": 0,
+  "missing": 0,
+  "total": 2460
+ },
+ "playerGameRows": 32385,
+ "sha256": "2db39b782c73eeec",
+ "invalidExamples": []
+}

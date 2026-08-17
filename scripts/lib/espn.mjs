@@ -35,11 +35,39 @@ export const nbaAbbr = (espn) => ESPN_TO_NBA[espn] || espn;
  */
 export function normName(s) {
   return String(s || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // strip accents
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')    // strip accents
     .toLowerCase()
     .replace(/\b(jr|sr|ii|iii|iv|v)\.?\b/g, '')          // suffixes: ESPN "Marcus Morris Sr."
-    .replace(/[^a-z ]/g, '')                             // punctuation: "Jeff Teague", "O'Neal"
-    .replace(/\s+/g, ' ').trim();
+    // Drop EVERY non-letter, spaces included. The sources disagree on hyphenation — NBA writes
+    // "Rondae Hollis-Jefferson", ESPN writes "Rondae Hollis Jefferson" — so collapsing to letters
+    // alone makes those identical. An earlier version deleted the hyphen but kept the space, which
+    // made exactly those names fail to match.
+    .replace(/[^a-z]/g, '');
+}
+
+/** Surname key for the documented fallback below. */
+export function lastNameKey(s) {
+  const parts = String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv|v)\.?\b/g, '')
+    .split(/[^a-z]+/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+}
+
+/**
+ * Resolve an ESPN name against one team-game's NBA roster (~13 names).
+ * Exact normalised match first. Falls back to an unambiguous surname match, which covers genuine
+ * nickname divergence such as ESPN "Marcelinho Huertas" vs NBA "Marcelo Huertas". The fallback is
+ * only used when exactly one roster surname matches, and it is REPORTED, never applied silently.
+ * @returns {{match:string|null, how:'exact'|'surname'|'none', ambiguous?:string[]}}
+ */
+export function resolveName(espnName, nbaRoster) {
+  const n = normName(espnName);
+  if (nbaRoster.has(n)) return { match: n, how: 'exact' };
+  const key = lastNameKey(espnName);
+  const hits = [...nbaRoster].filter((r) => r.endsWith(key) && key.length >= 4);
+  if (hits.length === 1) return { match: hits[0], how: 'surname' };
+  return { match: null, how: 'none', ambiguous: hits };
 }
 
 export const scoreboardUrl = (yyyymmdd) =>

@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getJson, scoreboardUrl, summaryUrl, startersFromSummary, normName, nbaAbbr } from './lib/espn.mjs';
+import { getJson, scoreboardUrl, summaryUrl, startersFromSummary, normName, nbaAbbr, resolveName } from './lib/espn.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
@@ -59,9 +59,12 @@ function sample(seasonType, n) {
 const stats = {
   gamesRequested: 0, espnPagesMissing: 0, mappingFailures: 0, nbaMissing: 0,
   teamGamesTested: 0, starterEdgesTested: 0, supersetViolations: 0,
-  nbaCandidateCounts: [], espnStarterCountNot5: 0, identityMapFailures: 0,
+  nbaCandidateCounts: [], espnStarterCountNot5: 0, identityMapFailures: 0, surnameFallbacks: 0,
 };
 const violations = [];
+const idFailures = [];
+const mapFailures = [];
+const fallbacks = [];
 
 console.log('='.repeat(78));
 console.log(`SUPERSET ASSUMPTION TEST — ${season}   (ESPN explicit starters vs NBA candidate sets)`);
@@ -108,7 +111,12 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
       const abbrs = new Set((comp?.competitors || []).map((c) => nbaAbbr(c.team?.abbreviation)));
       return abbrs.size === want.size && [...want].every((w) => abbrs.has(w));
     });
-    if (!event) { stats.mappingFailures++; continue; }
+    if (!event) {
+      stats.mappingFailures++;
+      if (mapFailures.length < 10) mapFailures.push({ gameId: g.gameId, date: g.date, nbaTeams: [...want],
+        espnEventsThatDay: (sb.events || []).map((e) => (e.competitions?.[0]?.competitors || []).map((c) => nbaAbbr(c.team?.abbreviation)).join('/')) });
+      continue;
+    }
 
     const sum = await getJson(summaryUrl(event.id));
     await wait(400);
@@ -125,11 +133,25 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
       stats.nbaCandidateCounts.push(nt.candidates.size);
 
       for (const s of et.starters) {
-        const nm = normName(s.name);
         stats.starterEdgesTested++;
+        const res = resolveName(s.name, nt.roster);
+        const nm = res.match;
+        if (res.how === 'surname') {
+          stats.surnameFallbacks++;
+          if (fallbacks.length < 20) fallbacks.push({ date: g.date, team: et.team, espn: s.name, matched: nm });
+        }
         // Identity check first: an ESPN starter absent from the NBA ROSTER is a name-mapping
         // failure, not evidence about the superset assumption. Kept strictly separate.
-        if (!nt.roster.has(nm)) { stats.identityMapFailures++; continue; }
+        if (!nm) {
+          stats.identityMapFailures++;
+          if (idFailures.length < 20) {
+            // Record the NBA roster so a name-variant mismatch can be told apart from a genuine
+            // roster disagreement between the two sources.
+            idFailures.push({ gameId: g.gameId, date: g.date, team: et.team, espn: s.name,
+              espnNorm: nm, nbaRoster: [...nt.roster] });
+          }
+          continue;
+        }
         if (!nt.candidates.has(nm)) {
           stats.supersetViolations++;
           if (violations.length < 15) {
@@ -153,9 +175,22 @@ console.log(`  ESPN team-games not showing 5        ${stats.espnStarterCountNot5
 console.log(`  team-games tested                    ${stats.teamGamesTested}`);
 console.log(`  starter edges tested                 ${stats.starterEdgesTested}`);
 console.log(`  player identity mapping failures     ${stats.identityMapFailures}`);
+console.log(`  resolved via surname fallback        ${stats.surnameFallbacks}`);
 if (c.length) {
   console.log(`  NBA candidate-set size  min ${c[0]} · median ${c[Math.floor(c.length / 2)]} · max ${c[c.length - 1]}` +
     ` · mean ${(c.reduce((a, b) => a + b, 0) / c.length).toFixed(2)}`);
+}
+if (idFailures.length) {
+  console.log('\n  --- player identity mapping failures (ESPN starter not found in NBA roster) ---');
+  for (const f of idFailures) console.log(`    ${f.date} ${f.team}: ESPN "${f.espn}" -> "${f.espnNorm}" not in NBA roster`);
+}
+if (fallbacks.length) {
+  console.log('\n  --- surname fallback used (reported, never silent) ---');
+  for (const f of fallbacks) console.log(`    ${f.date} ${f.team}: ESPN "${f.espn}" -> NBA "${f.matched}"`);
+}
+if (mapFailures.length) {
+  console.log('\n  --- ESPN<->NBA game mapping failures ---');
+  for (const f of mapFailures) console.log(`    ${f.date} ${f.gameId} NBA=${f.nbaTeams.join('/')} ESPN that day: ${f.espnEventsThatDay.join(', ') || '(none)'}`);
 }
 console.log(`\n  SUPERSET VIOLATIONS                  ${stats.supersetViolations}`);
 if (violations.length) {
