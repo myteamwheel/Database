@@ -1,9 +1,14 @@
-// Generic stats.nba.com puller. Usage: node pull_league.mjs <LeagueID> <outDir>
+// Generic stats.nba.com puller. Usage: node fetch-official.mjs <LeagueID> <outDir>
+// outDir is resolved relative to the repository root, so this works from any checkout.
 //   LeagueID 00 = NBA, 20 = NBA G League
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const LEAGUE_ID = process.argv[2];
-const OUT = '/private/tmp/claude-501/-Users-bretttulip-Claude/faf6491c-6d3c-4a32-b642-07cb40815843/scratchpad/' + process.argv[3];
+const SEASON_TYPE = process.argv[4] || 'Regular Season';
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.resolve(ROOT, process.argv[3] || 'scripts/data/official');
 fs.mkdirSync(OUT, { recursive: true });
 
 const HEADERS = {
@@ -38,7 +43,7 @@ const base = (extra) => new URLSearchParams({
   LastNGames: '0', LeagueID: LEAGUE_ID, Location: '', Month: '0', OpponentTeamID: '0',
   Outcome: '', PORound: '0', PaceAdjust: 'N', Period: '0', PlayerExperience: '',
   PlayerPosition: '', PlusMinus: 'N', Rank: 'N', Season: '2025-26', SeasonSegment: '',
-  SeasonType: 'Regular Season', ShotClockRange: '', StarterBench: '', TeamID: '0',
+  SeasonType: SEASON_TYPE, ShotClockRange: '', StarterBench: '', TeamID: '0',
   TwoWay: '0', VsConference: '', VsDivision: '', Weight: '', ...extra,
 }).toString();
 
@@ -52,7 +57,7 @@ const ptDash = (type) =>
     LeagueID: LEAGUE_ID, Location: '', Month: '0', OpponentTeamID: '0', Outcome: '',
     PORound: '0', PerMode: 'PerGame', PlayerExperience: '', PlayerOrTeam: 'Player',
     PlayerPosition: '', PtMeasureType: type, Season: '2025-26', SeasonSegment: '',
-    SeasonType: 'Regular Season', StarterBench: '', TeamID: '0', VsConference: '',
+    SeasonType: SEASON_TYPE, StarterBench: '', TeamID: '0', VsConference: '',
     VsDivision: '', Weight: '',
   }).toString();
 
@@ -77,7 +82,7 @@ const jobs = [
     College: '', Conference: '', Country: '', DateFrom: '', DateTo: '', Division: '',
     DraftPick: '', DraftYear: '', Height: '', LeagueID: LEAGUE_ID, Location: '', Month: '0',
     OpponentTeamID: '0', Outcome: '', PORound: '0', PerMode: 'PerGame', PlayerExperience: '',
-    PlayerPosition: '', Season: '2025-26', SeasonSegment: '', SeasonType: 'Regular Season',
+    PlayerPosition: '', Season: '2025-26', SeasonSegment: '', SeasonType: SEASON_TYPE,
     TeamID: '0', VsConference: '', VsDivision: '', Weight: '',
   }).toString()],
   ['pt_drives', ptDash('Drives')],

@@ -10,7 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
-import { computeCustom, computeGrades, COMPONENT_WEIGHTS } from './lib/metrics.mjs';
+import { computeCustom, computeGrades, COMPONENT_WEIGHTS, COMPONENT_INGREDIENTS } from './lib/metrics.mjs';
+import { buildStints, positionFamily } from './lib/roster.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SEASON = '2025-26';
@@ -88,10 +89,54 @@ const ID_COLS = new Set(['PLAYER_ID', 'PLAYER_NAME', 'NICKNAME', 'TEAM_ID', 'TEA
   'PERSON_ID', 'PLAYER_LAST_NAME', 'PLAYER_FIRST_NAME', 'PLAYER_SLUG', 'TEAM_SLUG',
   'TEAM_CITY', 'TEAM_NAME', 'STATS_TIMEFRAME']);
 
-function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, extraFiles }) {
+/**
+ * Sum a tracking measure across both halves of the season.
+ * Regular-season-only tracking beside a combined-season headline line was an audit finding:
+ * the Shooting view showed 40 games of production next to 29 games of catch-and-shoot.
+ */
+function combinedTracking(regularDir, showcaseDir, names) {
+  const out = new Map();
+  for (const name of names) {
+    const rs = byId(loadOfficial(regularDir, `${name}_totals`));
+    const sc = showcaseDir ? byId(loadOfficial(showcaseDir, `${name}_totals`)) : new Map();
+    if (!rs.size && !sc.size) continue;
+    for (const id of new Set([...rs.keys(), ...sc.keys()])) {
+      const a = rs.get(id), b = sc.get(id);
+      const merged = {};
+      for (const key of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
+        if (key.endsWith('_RANK')) continue;
+        const x = num(a?.[key]), y = num(b?.[key]);
+        if (x === null && y === null) continue;
+        merged[key] = typeof (a?.[key] ?? b?.[key]) === 'number' ? (x || 0) + (y || 0) : (a?.[key] ?? b?.[key]);
+      }
+      // Percentages must be re-derived from the summed totals, never added.
+      const g = (k) => num(merged[k]) || 0;
+      if (name === 'pt_catchshoot') {
+        if (g('CATCH_SHOOT_FGA')) merged.CATCH_SHOOT_FG_PCT = g('CATCH_SHOOT_FGM') / g('CATCH_SHOOT_FGA');
+        if (g('CATCH_SHOOT_FG3A')) merged.CATCH_SHOOT_FG3_PCT = g('CATCH_SHOOT_FG3M') / g('CATCH_SHOOT_FG3A');
+      } else if (name === 'pt_pullup') {
+        if (g('PULL_UP_FGA')) merged.PULL_UP_FG_PCT = g('PULL_UP_FGM') / g('PULL_UP_FGA');
+        if (g('PULL_UP_FG3A')) merged.PULL_UP_FG3_PCT = g('PULL_UP_FG3M') / g('PULL_UP_FG3A');
+      }
+      if (!out.has(id)) out.set(id, {});
+      Object.assign(out.get(id), Object.fromEntries(
+        Object.entries(merged).map(([k, v]) => [`${name.replace(/^pt_/, '')}_${k}`, v])));
+    }
+  }
+  return out;
+}
+
+function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, extraFiles,
+                      stintHalves, combineTracking }) {
   const rsHalves = halvesFor(regularDir);
   const scHalves = showcaseDir ? halvesFor(showcaseDir) : new Map();
   const extras = extraFor(extraDir, extraFiles);
+  const stints = buildStints(stintHalves);
+  const trackCombined = combineTracking ? combinedTracking(regularDir, showcaseDir, combineTracking) : new Map();
+  // Official per-36 and per-100 tables were being downloaded and then discarded.
+  // Named *Rows to avoid shadowing the per-100 helper used inside the record loop.
+  const per36Rows = byId(loadOfficial(regularDir, 'base_per36'));
+  const per100Rows = byId(loadOfficial(regularDir, 'base_per100'));
 
   const bios = byId(loadOfficial(extraDir, 'bios'));
   const pindexRows = loadOfficial(extraDir, 'playerindex');
@@ -137,6 +182,11 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
       const row = m.get(id);
       if (row) Object.assign(stats, flat(f.replace(/^pt_/, 'trk_'), row, ID_COLS));
     }
+    // Season-consistent tracking overwrites the regular-season-only version above.
+    const tc = trackCombined.get(id);
+    if (tc) Object.assign(stats, flat('trk', tc, ID_COLS));
+    Object.assign(stats, flat('op36', per36Rows.get(id), ID_COLS));
+    Object.assign(stats, flat('op100', per100Rows.get(id), ID_COLS));
     // Half-season splits, so the combination is inspectable rather than asserted.
     if (rs.totals) Object.assign(stats, flat('split_reg', rs.totals, ID_COLS));
     if (sc.totals) Object.assign(stats, flat('split_showcase', sc.totals, ID_COLS));
@@ -157,6 +207,8 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
       team: anchor.TEAM_ABBREVIATION,
       teamCount: num(anchor.TEAM_COUNT),
       position, positionSource,
+      positionFamily: positionFamily(position),
+      teams: stints.get(id) || [],
       // NBA.com's listed age. Basketball-Reference's season age (age on 1 February of
       // the season) runs a year lower for anyone with a February-to-August birthday,
       // so both are carried rather than silently picking one.
@@ -169,9 +221,16 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
       college: blank(bio?.COLLEGE) || blank(pi?.COLLEGE) || blank(patch?.school) || null,
       country: blank(bio?.COUNTRY) || blank(pi?.COUNTRY) || blank(patch?.country) || null,
       jersey: pi?.JERSEY_NUMBER || null,
-      draftYear: bio?.DRAFT_YEAR || pi?.DRAFT_YEAR || patch?.draftYear || null,
-      draftRound: bio?.DRAFT_ROUND || pi?.DRAFT_ROUND || patch?.draftRound || null,
-      draftNumber: bio?.DRAFT_NUMBER || pi?.DRAFT_NUMBER || patch?.draftNumber || null,
+      // "Undrafted" is a fact; a missing record is not. Kept apart so the interface can say
+      // "draft status unknown" instead of asserting the player went undrafted.
+      draftYear: blank(bio?.DRAFT_YEAR) || blank(pi?.DRAFT_YEAR) || blank(patch?.draftYear) || null,
+      draftRound: blank(bio?.DRAFT_ROUND) || blank(pi?.DRAFT_ROUND) || blank(patch?.draftRound) || null,
+      draftNumber: blank(bio?.DRAFT_NUMBER) || blank(pi?.DRAFT_NUMBER) || blank(patch?.draftNumber) || null,
+      draftStatus: (() => {
+        const y = blank(bio?.DRAFT_YEAR) || blank(pi?.DRAFT_YEAR) || blank(patch?.draftYear);
+        if (!y) return 'unknown';
+        return String(y).toLowerCase() === 'undrafted' ? 'undrafted' : 'drafted';
+      })(),
 
       gp,
       gs: bref ? num(bref.gs) : null,
@@ -213,6 +272,14 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
 
       // Basketball-Reference impact tier — present for the NBA, absent for the G League,
       // which does not publish it. Never substituted with a neutral value.
+      //
+      // Scope warning: Basketball-Reference's G League table is regular season only, while the
+      // headline line here is Regular Season + Showcase Cup. Isaac Jones shows 40 games but his
+      // PER is computed over 29. The scope and its sample are carried explicitly so the
+      // interface can label them rather than presenting two samples as one.
+      brefGP: bref ? num(bref.stats?.adv_g ?? bref.gp) : null,
+      brefScope: bref ? (league === 'GLEAGUE' && (o.split.showcaseGP || 0) > 0
+        ? 'regular-season-only' : 'full-season') : null,
       per: bref ? num(bref.per) : null,
       ows: bref ? num(bref.ows) : null, dws: bref ? num(bref.dws) : null,
       ws: bref ? num(bref.ws) : null, ws48: bref ? num(bref.ws48) : null,
@@ -230,7 +297,7 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
   }
 
   // ---- metrics + grade
-  const { custom, norm, tsUsgFit } = computeCustom(records.map((r) => r._official));
+  const { custom, norm, K: customK, possFloor } = computeCustom(records.map((r) => r._official));
   const g = computeGrades(records, custom, norm);
   records.forEach((r, i) => {
     r.custom = custom[i];
@@ -238,13 +305,15 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
     r.gradeRaw = g.raw[i];
     r.gradeShrunk = g.shrunk[i];
     r.grade = g.grade[i];
-    r.sampleConfidence = g.confidence[i];
+    // Renamed from `sampleConfidence`: this is the weight a player's own line carried in the
+    // shrinkage, not a statistical confidence level, and it tops out well short of 100.
+    r.reliabilityWeight = g.reliability[i];
     delete r._official;
   });
   records.sort((a, b) => b.grade - a.grade);
   records.forEach((r, i) => { r.rank = i + 1; });
 
-  return { records, model: { ...g.model, tsUsgFit } };
+  return { records, model: { ...g.model, customK, possFloor } };
 }
 
 /* ------------------------------------------------------------------- assemble */
@@ -258,6 +327,7 @@ const nba = buildLeague({
   league: 'NBA', leagueLabel: 'NBA',
   regularDir: 'official_nba', showcaseDir: null,
   extraDir: 'official_nba', extraFiles: TRACK_NBA,
+  stintHalves: [{ file: 'stints_nba.json', label: 'regular' }],
 });
 console.log(`  ${nba.records.length} players`);
 
@@ -266,6 +336,11 @@ const gl = buildLeague({
   league: 'GLEAGUE', leagueLabel: 'NBA G League',
   regularDir: 'official_gleague_regular', showcaseDir: 'official_gleague_showcase',
   extraDir: 'official_gleague_regular', extraFiles: TRACK_GL,
+  stintHalves: [
+    { file: 'stints_gleague_regular.json', label: 'regular' },
+    { file: 'stints_gleague_showcase.json', label: 'showcase' },
+  ],
+  combineTracking: ['pt_catchshoot', 'pt_pullup'],
 });
 console.log(`  ${gl.records.length} players`);
 
@@ -277,22 +352,30 @@ for (const r of nba.records) { r.bothLeagues = glIds.has(r.nbaPersonId); if (r.b
 for (const r of gl.records) { r.bothLeagues = nbaIds.has(r.nbaPersonId); }
 
 const metricDefinitions = {
-  grade: 'Within-league per-game performance rating on 0.0000-9.9999. Six weighted percentile components, then shrunk toward the minutes-weighted league mean in proportion to minutes played, then percentile-ranked inside the league. NBA and G League are ranked as separate universes.',
-  sampleConfidence: 'The weight a player\'s own statistical line received in the grade, as a percentage. minutes / (minutes + K), where K is 60% of the league median. A full-season player sits near 100; a two-game call-up sits near 10.',
-  selfCreatedPts36: 'Points per 36 minutes generated without an assist: unassisted twos, unassisted threes and free throws. Separates shot creators from finishers.',
-  chaosPts36: 'Fast-break plus off-turnover plus second-chance points per 36 minutes. Scoring produced outside settled half-court offence.',
-  possessionSwing36: 'Net possessions won per 36: steals + offensive rebounds + 0.6x blocks, minus turnovers and 0.4x own shots blocked.',
-  whistleDiff36: 'Fouls drawn minus fouls committed per 36 minutes. Positive means a player puts the other team in the penalty more than his own.',
-  disruptionPerFoul: 'Steals plus blocks per personal foul. Rewards defenders who create events without fouling.',
-  creationLoad36: 'Assists plus unassisted field goals made per 36. How many scoring possessions a player finishes through his own creation, for himself or a team-mate.',
-  paintPts36: 'Points scored in the paint per 36 minutes.',
-  efficiencyOverExpected: 'True shooting percentage minus the true shooting the league averages at that usage rate, in TS points. The usage-to-efficiency curve is fitted within each league and weighted by minutes. Positive means beating the efficiency normally lost when taking on a bigger role.',
-  shotDietIndex: 'Share of scoring coming from the paint, the three-point line and the free-throw line, against long twos. 0-100, higher means a more value-efficient shot diet.',
-  versatilityIndex: 'Geometric mean of within-league percentiles for scoring, rebounding, playmaking, steals+blocks and true shooting. Geometric so that one elite category cannot mask a missing one.',
-  twoWayIndex: 'Equal blend of offensive impact percentiles (PIE, offensive rating, true shooting) and defensive percentiles (defensive rating, defensive win shares, steals+blocks, defensive rebound rate).',
+  grade: 'Within-league per-game performance rating on 0.0000-9.9999. Six weighted percentile components, shrunk toward the minutes-weighted league mean in proportion to minutes played, then stretched onto the 0-9.9999 range by an affine map. Because the last step is a stretch and not a second percentile rank, equal grade differences mean equal differences in the underlying composite. NBA and G League are separate ranking universes.',
+  reliabilityWeight: 'The weight a player\'s own line carried in the shrinkage: minutes / (minutes + K), as a percentage, where K is 60% of the league median minutes. It is NOT a statistical confidence level, and it does not reach 100 — the observed maximum is about 84. A full-season starter sits in the high seventies to low eighties; a two-game call-up sits near 10.',
+  selfCreatedPts36: 'Points per 36 minutes from unassisted twos, unassisted threes and free throws. Free throws are included whole, so the figure overstates self-creation for players who draw many off-ball, technical or intentional-foul attempts. Reliability-adjusted.',
+  situationalPts36: 'Fast-break plus points-off-turnovers plus second-chance points per 36. These are overlapping situational categories in NBA.com\'s definitions, not a partition of scoring — a transition bucket after a steal can count in two of them — so treat this as a situational-involvement index rather than a literal point total. Reliability-adjusted.',
+  possessionSwing36: 'Net possessions won per 36: steals + offensive rebounds + 0.6x blocks, minus turnovers and 0.4x own shots blocked. Spans both ends of the floor, so it is not used in the Defense grade component. Reliability-adjusted.',
+  defensiveSwing36: 'The defence-only half of possession swing: steals + 0.6x blocks + 0.2x defensive rebounds per 36. This is what feeds the Defense component, so no offensive rebound or own turnover enters a defensive rating. Reliability-adjusted.',
+  whistleDiff36: 'Fouls drawn minus fouls committed per 36 minutes. Reliability-adjusted.',
+  disruptionPerFoul: 'Steals plus blocks per personal foul. Rewards defenders who create events without fouling. Reliability-adjusted.',
+  creationLoad36: 'Assists plus unassisted field goals made per 36 — scoring possessions finished through a player\'s own creation, for himself or a team-mate. Reliability-adjusted.',
+  paintPts36: 'Points scored in the paint per 36 minutes. Reliability-adjusted.',
+  efficiencyOverExpected: 'True shooting minus the true shooting the league actually averages at that usage rate, in TS points. The reference curve is piecewise across eight minutes-weighted usage bins — not one straight line — and is fitted only on players past a 200-possession floor. Reliability-adjusted, so a one-game outlier no longer tops the sort.',
+  impactOverExpected: 'PIE minus the PIE the league averages at that usage rate, in PIE points. Replaces the earlier PIE-divided-by-usage ratio, which exploded toward zero usage and put one-game players at the top of the board. Reliability-adjusted.',
+  shotLocationValue: 'Share of scoring from the paint, the arc and the line, against long twos. 0-100. This describes WHERE a player scores, not how well — a poor shooter can score highly — so it is a shot-location profile, not an efficiency measure.',
+  versatilityIndex: 'Geometric mean of within-league percentiles for scoring, rebounding, playmaking, steals+blocks and true shooting. Geometric so one elite category cannot mask a missing one.',
+  twoWayIndex: 'Equal blend of offensive percentiles (offensive rating, true shooting, scoring) and defensive percentiles (defensive rating, DEF WS per 36, steals+blocks, defensive rebound rate). PIE is deliberately excluded: it already contains defensive rebounds, steals and blocks, so including it made defence count on both sides.',
   selfSufficiencyIndex: 'Geometric blend of unassisted-field-goal share and usage rate. High means carrying a large offensive load largely under his own power.',
-  defensiveDisruptionIndex: 'Composite of steals+blocks, defensive rebound rate, defensive rating and defensive win shares, 0-100 within league.',
-  roleAdjustedImpact: 'PIE per point of usage rate. Impact produced per unit of offensive role, which surfaces efficient low-usage contributors.',
+  defensiveDisruptionIndex: 'Composite of steals+blocks, defensive rebound rate, defensive rating and DEF WS per 36, 0-100 within league.',
+};
+
+const modelNotes = {
+  teamContext: 'Offensive rating, defensive rating, net rating and plus/minus are TEAM results while the player is on court, per NBA.com\'s own definitions — not isolated individual value. They carry real information about a player but are influenced by team-mates and lineups. They contribute to the Impact component (10% of the grade) and to Two-Way Index; nothing here is a plus/minus model like RAPM, and no such data is published for the G League.',
+  duplicateIngredients: 'Each component averages its ingredients once. An earlier version inserted points twice into Scoring and assists twice into Playmaking, which acted as undeclared extra weight.',
+  minutes: 'Minutes govern the reliability shrinkage only. Minutes per game is deliberately NOT an ingredient of any component, so two players with identical per-possession production are not separated by how large a role they were given.',
+  brefScope: 'Basketball-Reference\'s G League table covers the regular season only, while the G League headline line here combines Regular Season and Showcase Cup. PER, win shares and WS/48 therefore describe a smaller sample than the rest of the row; every record carries brefGP and brefScope so the interface can label it.',
 };
 
 const out = {
@@ -301,15 +384,23 @@ const out = {
   generatedAt: new Date().toISOString(),
   primarySource: 'stats.nba.com official league dashboards (LeagueID 00 and 20), with Basketball-Reference 2025-26 tables as a second source',
   sourceNote: 'v3 backbone is the official stats.nba.com data, which does answer from a normal machine even though it does not answer from GitHub-hosted runners. Basketball-Reference supplies PER, win shares and the BPM/VORP family for the NBA; the G League publishes no BPM/VORP family anywhere and none is invented.',
-  counts: { NBA: nba.records.length, GLEAGUE: gl.records.length, both },
+  counts: {
+    NBA: nba.records.length,
+    GLEAGUE: gl.records.length,
+    both,
+    records: nba.records.length + gl.records.length,
+    uniquePeople: new Set([...nba.records, ...gl.records].map((p) => p.nbaPersonId)).size,
+  },
   metricDefinitions,
+  modelNotes,
   gradeModel: {
-    version: '3.0',
-    scale: '0.0000-9.9999 within-league percentile of a minutes-shrunk composite',
+    version: '3.1',
+    scale: '0.0000-9.9999 affine stretch of a minutes-shrunk weighted-percentile composite',
     componentWeights: COMPONENT_WEIGHTS,
+    componentIngredients: COMPONENT_INGREDIENTS,
     shrinkage: {
       NBA: nba.model, GLEAGUE: gl.model,
-      rationale: 'v2 graded raw per-game rates with no shrinkage, so its top two G League players had played two and three games. Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists.',
+      rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',
     },
   },
   leagues: { NBA: nba.records, GLEAGUE: gl.records },

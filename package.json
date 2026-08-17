@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build": "node scripts/build-v3.mjs && node scripts/build-artifact.mjs",
     "build:data": "node scripts/build-v3.mjs",
-    "build": "node scripts/build-v3.mjs",
+    "build:standalone": "node scripts/build-artifact.mjs",
     "audit": "node scripts/audit-v3.mjs",
-    "fetch": "node scripts/fetch-official.mjs 00 data/official_nba && node scripts/fetch-official.mjs 20 data/official_gleague_regular"
+    "fetch:nba": "node scripts/fetch-official.mjs 00 scripts/data/official_nba \"Regular Season\"",
+    "fetch:gleague": "node scripts/fetch-official.mjs 20 scripts/data/official_gleague_regular \"Regular Season\"",
+    "fetch:showcase": "node scripts/fetch-official.mjs 20 scripts/data/official_gleague_showcase \"Showcase\"",
+    "fetch:stints": "node scripts/fetch-stints.mjs",
+    "fetch:bios": "node scripts/fetch-player-bios.mjs",
+    "fetch": "npm run fetch:nba && npm run fetch:gleague && npm run fetch:showcase && npm run fetch:stints",
+    "refresh": "npm run fetch && npm run build:data && npm run fetch:bios && npm run build && npm run audit"
   },
   "engines": {
     "node": ">=20"

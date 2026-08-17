@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">2025–26 REGULAR SEASON</div>
+      <div class="eyebrow" id="seasonEyebrow">2025–26</div>
       <h1>Pro Basketball Performance Database</h1>
       <p id="sourceLine">Loading official NBA + NBA G League statistics…</p>
     </div>
@@ -54,6 +54,9 @@
         <label>Minimum grade
           <input id="minGrade" type="number" min="0" max="9.9999" step="0.1" value="0" />
         </label>
+        <label title="Weight a player's own line carried in the shrinkage. Maximum observed is about 84.">Minimum reliability
+          <input id="minReliability" type="number" min="0" max="100" step="5" value="0" />
+        </label>
         <label>View
           <select id="viewPreset"></select>
         </label>
@@ -69,7 +72,6 @@
       </div>
       <div class="toggle-row">
         <label class="check"><input id="bothOnly" type="checkbox" /> Played in both NBA and G League</label>
-        <label class="check"><input id="confidenceOnly" type="checkbox" /> Sample confidence ≥ 70</label>
         <button id="resetBtn" class="text-button">Reset filters</button>
       </div>
     </section>
@@ -80,14 +82,18 @@
           <div class="eyebrow">FORMULA LAB</div>
           <h2>Build your own sortable composite</h2>
         </div>
-        <p>Choose up to four metrics and weights, from any of the 600+ source and calculated fields. The lab score uses within-league percentile values so unlike units combine cleanly. Negative weights invert a metric.</p>
+        <p>Choose up to four metrics and weights, from any of the <b id="labFieldCount">—</b> available fields. The lab score uses within-league percentile values so unlike units combine cleanly. Negative weights invert a metric.</p>
       </div>
+      <p class="tiny" id="labNote"></p>
       <div class="lab-grid">
         <select class="labMetric" id="labMetric1"></select><input class="labWeight" id="labWeight1" type="number" value="1" step="0.25" />
         <select class="labMetric" id="labMetric2"></select><input class="labWeight" id="labWeight2" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric3"></select><input class="labWeight" id="labWeight3" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric4"></select><input class="labWeight" id="labWeight4" type="number" value="0" step="0.25" />
-        <button id="applyLab" class="button">Apply Lab Score</button>
+        <select class="labMetric" id="labCohort" title="Population the percentiles are computed against">
+          <option value="league">Rank vs whole league</option>
+          <option value="filtered">Rank vs current filtered set</option>
+        </select><button id="applyLab" class="button">Apply Lab Score</button>
       </div>
     </section>
 
@@ -121,6 +127,7 @@
       <select id="ruleOp"><option value=">=">≥</option><option value="<=">≤</option><option value=">">&gt;</option><option value="<">&lt;</option></select>
       <input id="ruleValue" type="number" step="0.01" value="0" />
     </div>
+    <p class="tiny" id="ruleUnitHint"></p>
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 

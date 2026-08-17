@@ -15,11 +15,11 @@ console.log(`counts NBA=${d.counts.NBA} GLEAGUE=${d.counts.GLEAGUE} both=${d.cou
 
 const CORE = ['name', 'team', 'position', 'age', 'gp', 'mpg', 'pts', 'reb', 'ast', 'stl', 'blk',
   'tov', 'ts', 'efg', 'usg', 'astPct', 'orebPct', 'drebPct', 'rebPct', 'offRtg', 'defRtg',
-  'netRtg', 'pie', 'poss', 'grade', 'sampleConfidence', 'height', 'weight', 'country'];
-const CUSTOM = ['selfCreatedPts36', 'chaosPts36', 'possessionSwing36', 'whistleDiff36',
+  'netRtg', 'pie', 'poss', 'grade', 'reliabilityWeight', 'height', 'weight', 'country', 'positionFamily'];
+const CUSTOM = ['selfCreatedPts36', 'possessionSwing36', 'whistleDiff36',
   'disruptionPerFoul', 'creationLoad36', 'paintPts36', 'efficiencyOverExpected',
-  'shotDietIndex', 'versatilityIndex', 'twoWayIndex', 'selfSufficiencyIndex',
-  'defensiveDisruptionIndex', 'roleAdjustedImpact'];
+  'shotLocationValue', 'versatilityIndex', 'twoWayIndex', 'selfSufficiencyIndex',
+  'defensiveDisruptionIndex', 'impactOverExpected', 'situationalPts36', 'defensiveSwing36'];
 
 for (const lg of ['NBA', 'GLEAGUE']) {
   const arr = d.leagues[lg];
@@ -92,6 +92,37 @@ const flaggedN = d.leagues.NBA.filter((p) => p.bothLeagues).length;
 const flaggedG = d.leagues.GLEAGUE.filter((p) => p.bothLeagues).length;
 console.log(`  flagged in NBA panel: ${flaggedN} · flagged in G League panel: ${flaggedG}`);
 if (flaggedN !== inter.length || flaggedG !== inter.length) fails.push('bothLeagues flag inconsistent');
+
+// Regression guards for the defects a previous audit found.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const arr = d.leagues[lg];
+  const g = arr.map((p) => p.grade).sort((a, b) => b - a);
+  const gaps = g.slice(1).map((v, i) => +(g[i] - v).toFixed(4));
+  const distinct = new Set(gaps).size;
+  console.log(`${lg}: ${distinct} distinct adjacent grade gaps out of ${gaps.length}`);
+  if (distinct < gaps.length * 0.2)
+    fails.push(`${lg}: grade is evenly spaced (${distinct} distinct gaps) - it encodes rank, not magnitude`);
+
+  // No custom metric should be topped by a player with a negligible sample.
+  for (const key of CUSTOM) {
+    const top = [...arr].filter((p) => empty(p.custom?.[key]) === false)
+      .sort((a, b) => b.custom[key] - a.custom[key])[0];
+    if (top && top.gp <= 2) warn.push(`${lg}.${key} is led by ${top.name} on ${top.gp} game(s)`);
+  }
+
+  const noFamily = arr.filter((p) => p.position && !p.positionFamily).length;
+  if (noFamily) fails.push(`${lg}: ${noFamily} players have a position but no canonical family`);
+
+  const stintless = arr.filter((p) => (p.teamCount || 1) > 1 && (p.teams || []).length < 2).length;
+  if (stintless) warn.push(`${lg}: ${stintless} multi-team players have no per-team stint breakdown`);
+}
+{
+  const gl = d.leagues.GLEAGUE;
+  const mismatch = gl.filter((p) => p.showcaseGP > 0 && p.brefGP && p.brefScope !== 'regular-season-only').length;
+  if (mismatch) fails.push(`GLEAGUE: ${mismatch} rows carry a Basketball-Reference line without the regular-season-only scope label`);
+  const trackScope = gl.filter((p) => p.showcaseGP > 0 && p.stats.trk_catchshoot_GP && p.stats.trk_catchshoot_GP < p.gp * 0.8).length;
+  console.log(`GLEAGUE: ${trackScope} rows where combined tracking still trails the season line`);
+}
 
 console.log('\n--- warnings ---');
 warn.length ? warn.forEach((w) => console.log('  ! ' + w)) : console.log('  none');

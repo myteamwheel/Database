@@ -143,7 +143,7 @@ The grade deliberately excludes contract status, draft position, awards, age and
 ## Original metrics
 
 Project-defined composites — not official NBA, G League or Basketball-Reference statistics. All
-twelve are computed from fields that exist in **both** leagues, so the two panels are calculated
+fifteen are computed from fields that exist in **both** leagues, so the two panels are calculated
 identically even though they are ranked separately.
 
 **Carrying real units, readable directly:**
