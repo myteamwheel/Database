@@ -298,7 +298,7 @@ test.describe('analysis workspace', () => {
   test('mode navigation exposes every tool', async ({ page }) => {
     const errors = await open(page);
     const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
-    expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit']);
+    expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
     expect(errors).toEqual([]);
   });
 
@@ -442,5 +442,92 @@ test.describe('analysis workspace', () => {
       expect(o.scroll, `${m} overflow`).toBeLessThanOrEqual(o.client + 2);
     }
     expect(errors).toEqual([]);
+  });
+});
+
+/* ---------------------------------------------------------------- TULIP v0.1 */
+test.describe('TULIP', () => {
+  test('card shows the scenario, support, tiers and both reads', async ({ page }) => {
+    const errors = await open(page);
+    await page.click('[data-mode="tulip"]');
+    await page.waitForTimeout(900);
+    const txt = await page.$eval('#workspace', (e) => e.textContent);
+    for (const needle of ['TULIP Support', 'Evidence tier', 'Role-Scale Response',
+      'PLAYER / LEAGUE READ', 'TEAM DECISION READ', 'Candidate projection', 'Median team-mate',
+      'Lineup adjustment', 'TULIP Evidence v0.1']) {
+      expect(txt, `missing: ${needle}`).toContain(needle);
+    }
+    // The two reads must not be merged into one score.
+    expect(txt).toContain('not context-free player quality');
+    expect(await page.$('#tuCanvas')).not.toBeNull();
+    expect(errors).toEqual([]);
+  });
+
+  test('insufficient evidence is distinguished from predicted decline', async ({ page }) => {
+    await open(page);
+    await page.click('[data-mode="tulip"]');
+    await page.waitForTimeout(900);
+    expect((await page.$eval('#tuLegend', (e) => e.textContent)).toLowerCase())
+      .toContain('insufficient evidence');
+    // Select a band the model abstains on, if the current player has one.
+    const picked = await page.evaluate(() => {
+      const sel = document.getElementById('tuTarget');
+      const o = [...sel.options].find((x) => /no evidence/.test(x.textContent));
+      if (!o) return false;
+      sel.value = o.value; sel.dispatchEvent(new Event('change')); return true;
+    });
+    if (picked) {
+      await page.waitForTimeout(700);
+      const t = await page.$eval('#workspace', (e) => e.textContent);
+      expect(t).toContain('INSUFFICIENT EVIDENCE');
+      expect(t.toLowerCase()).toMatch(/not a prediction of decline|not.*prediction of decline/);
+    }
+  });
+
+  test('abstention reasons reconcile and residual bias is disclosed', async ({ page }) => {
+    await open(page);
+    const r = await page.evaluate(() => {
+      const rules = [[/Already plays/, 'large'], [/only .* minutes above/, 'close'],
+        [/comparable players have played/, 'few'], [/Support .* below/, 'support']];
+      const out = {};
+      for (const lg of ['NBA', 'GLEAGUE']) {
+        const cards = DATA.leagues[lg].filter((p) => p.appeared && p.tulip);
+        const ab = cards.filter((p) => p.tulip.card.abstain);
+        let matched = 0;
+        for (const p of ab) if (rules.some(([re]) => re.test(p.tulip.card.reason || ''))) matched++;
+        out[lg] = { cards: cards.length, abstained: ab.length, matched };
+      }
+      out.bias = DATA.tulipMeta?.knownResidualBias?.starterContext || null;
+      out.forecast = DATA.tulipMeta?.historical?.forecastAvailable;
+      out.tiers = DATA.tulipMeta?.evidenceTiers || {};
+      return out;
+    });
+    for (const lg of ['NBA', 'GLEAGUE']) {
+      expect(r[lg].matched, `${lg} unclassified abstention reasons`).toBe(r[lg].abstained);
+    }
+    // The residual starter bias must be shipped, not silently dropped.
+    expect(r.bias).not.toBeNull();
+    expect(r.bias.identified).toBe(false);
+    // No Forecast may be advertised until history exists.
+    expect(r.forecast).toBe(false);
+    expect(r.tiers.A.available).toBe(false);
+    expect(r.tiers.C.available).toBe(false);
+    expect(r.tiers.B.available).toBe(true);
+  });
+
+  test('rotation delta keeps lineup adjustment null and both deltas present', async ({ page }) => {
+    await open(page);
+    const r = await page.evaluate(() => {
+      const withRot = DATA.leagues.NBA.filter((p) => p.appeared && p.tulip
+        && !p.tulip.card.abstain && p.tulip.card.rotation && !p.tulip.card.rotation.abstain);
+      const bad = withRot.filter((p) => p.tulip.card.rotation.lineupInteractionAdjustment !== null
+        || p.tulip.card.rotation.decomposition?.lineupAdjustment !== null);
+      const missing = withRot.filter((p) => p.tulip.card.rotation.leagueReferencedDelta === undefined
+        || p.tulip.card.rotation.neutralRotationDelta === undefined);
+      return { n: withRot.length, badLineup: bad.length, missingDelta: missing.length };
+    });
+    expect(r.n).toBeGreaterThan(50);
+    expect(r.badLineup).toBe(0);      // never guessed without lineup data
+    expect(r.missingDelta).toBe(0);   // both questions always answered
   });
 });
