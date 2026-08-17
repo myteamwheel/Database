@@ -1,0 +1,27 @@
+# Trigger source probe after workflow installation
+name: Test basketball data sources
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/source-connectivity.yml']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe sources
+        shell: bash
+        run: |
+          set +e
+          probe() {
+            label="$1"; url="$2"
+            code=$(curl -L --connect-timeout 6 --max-time 15 -A 'Mozilla/5.0' -sS -o /tmp/probe.out -w '%{http_code}' "$url")
+            bytes=$(wc -c </tmp/probe.out 2>/dev/null || echo 0)
+            echo "$label | HTTP $code | $bytes bytes"
+          }
+          probe 'GitHub NBA snapshot' 'https://raw.githubusercontent.com/sumitrodatta/bball-reference-datasets/master/Data/Player%20Per%20Game.csv'
+          probe 'Basketball Reference NBA' 'https://www.basketball-reference.com/leagues/NBA_2026_advanced.html'
+          probe 'Basketball Reference G League' 'https://www.basketball-reference.com/gleague/years/gleague_2026_advanced.html'
+          probe 'NBA Stats API' 'https://stats.nba.com/stats/leaguedashplayerstats?Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=PerGame&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2025-26&SeasonSegment=&SeasonType=Regular%20Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=&VsConference=&VsDivision=&Weight='
+          probe 'G League Stats API' 'https://stats.nba.com/stats/leaguedashplayerstats?Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=20&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=PerGame&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2025-26&SeasonSegment=&SeasonType=Regular%20Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=&VsConference=&VsDivision=&Weight='

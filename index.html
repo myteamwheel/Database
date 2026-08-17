@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="2025-26 NBA and NBA G League ranked statistical performance database" />
+  <title>Pro Basketball Performance Database — 2025-26</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">2025–26 REGULAR SEASON</div>
+      <h1>Pro Basketball Performance Database</h1>
+      <p id="sourceLine">Loading official NBA + NBA G League statistics…</p>
+    </div>
+    <div class="header-actions">
+      <button id="exportBtn" class="button secondary">Export filtered CSV</button>
+      <button id="aboutBtn" class="button secondary">Metric definitions</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="league-tabs" aria-label="League selector">
+      <button class="league-tab active" data-league="NBA">NBA <span id="nbaCount"></span></button>
+      <button class="league-tab" data-league="GLEAGUE">G League <span id="gCount"></span></button>
+    </section>
+
+    <section class="summary-grid" id="summaryGrid"></section>
+
+    <section class="control-panel">
+      <div class="control-grid">
+        <label>Search player
+          <input id="searchInput" type="search" placeholder="Name, team, country, college…" />
+        </label>
+        <label>Team
+          <select id="teamFilter"><option value="">All teams</option></select>
+        </label>
+        <label>Position
+          <select id="positionFilter"><option value="">All positions</option></select>
+        </label>
+        <label>Country
+          <select id="countryFilter"><option value="">All countries</option></select>
+        </label>
+        <label>Minimum games
+          <input id="minGp" type="number" min="0" step="1" value="0" />
+        </label>
+        <label>Minimum MPG
+          <input id="minMpg" type="number" min="0" step="1" value="0" />
+        </label>
+        <label>Minimum total minutes
+          <input id="minMin" type="number" min="0" step="50" value="0" />
+        </label>
+        <label>Minimum grade
+          <input id="minGrade" type="number" min="0" max="9.9999" step="0.1" value="0" />
+        </label>
+        <label>View
+          <select id="viewPreset"></select>
+        </label>
+        <label>Rows
+          <select id="rowLimit">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="9999">All</option>
+          </select>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label class="check"><input id="bothOnly" type="checkbox" /> Played in both NBA and G League</label>
+        <label class="check"><input id="confidenceOnly" type="checkbox" /> Sample confidence ≥ 70</label>
+        <button id="resetBtn" class="text-button">Reset filters</button>
+      </div>
+    </section>
+
+    <section class="lab-panel">
+      <div class="lab-heading">
+        <div>
+          <div class="eyebrow">FORMULA LAB</div>
+          <h2>Build your own sortable composite</h2>
+        </div>
+        <p>Choose up to four metrics and weights, from any of the 600+ source and calculated fields. The lab score uses within-league percentile values so unlike units combine cleanly. Negative weights invert a metric.</p>
+      </div>
+      <div class="lab-grid">
+        <select class="labMetric" id="labMetric1"></select><input class="labWeight" id="labWeight1" type="number" value="1" step="0.25" />
+        <select class="labMetric" id="labMetric2"></select><input class="labWeight" id="labWeight2" type="number" value="0" step="0.25" />
+        <select class="labMetric" id="labMetric3"></select><input class="labWeight" id="labWeight3" type="number" value="0" step="0.25" />
+        <select class="labMetric" id="labMetric4"></select><input class="labWeight" id="labWeight4" type="number" value="0" step="0.25" />
+        <button id="applyLab" class="button">Apply Lab Score</button>
+      </div>
+    </section>
+
+    <section class="active-rules" id="activeRules"></section>
+
+    <section class="table-shell">
+      <div class="table-toolbar">
+        <div><strong id="resultCount">0</strong> players <span id="sortLabel"></span></div>
+        <div class="table-toolbar-actions">
+          <button id="addRuleBtn" class="button secondary small">+ Add numeric filter</button>
+          <button id="clearCompareBtn" class="button secondary small">Clear compare</button>
+          <button id="compareBtn" class="button small" disabled>Compare <span id="compareCount">0</span></button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="playerTable">
+          <thead><tr id="tableHead"></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="metricDialog" class="modal"><div id="metricDialogBody"></div><button class="button" data-close="metricDialog">Close</button></dialog>
+  <dialog id="playerDialog" class="modal wide"><div id="playerDialogBody"></div><button class="button" data-close="playerDialog">Close</button></dialog>
+  <dialog id="compareDialog" class="modal wide"><div id="compareDialogBody"></div><button class="button" data-close="compareDialog">Close</button></dialog>
+  <dialog id="ruleDialog" class="modal">
+    <h2>Add numeric filter</h2>
+    <div class="rule-grid">
+      <select id="ruleMetric"></select>
+      <select id="ruleOp"><option value=">=">≥</option><option value="<=">≤</option><option value=">">&gt;</option><option value="<">&lt;</option></select>
+      <input id="ruleValue" type="number" step="0.01" value="0" />
+    </div>
+    <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

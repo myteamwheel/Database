@@ -1,0 +1,14 @@
+{
+  "name": "nba-gleague-performance-database",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:data": "node scripts/build-v3.mjs",
+    "build": "node scripts/build-v3.mjs",
+    "audit": "node scripts/audit-v3.mjs",
+    "fetch": "node scripts/fetch-official.mjs 00 data/official_nba && node scripts/fetch-official.mjs 20 data/official_gleague_regular"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

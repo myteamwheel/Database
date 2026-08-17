@@ -1,0 +1,23 @@
+name: Package downloadable database
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/package-download.yml'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create ZIP
+        run: zip -r NBAGame-2025-26-audited.zip . -x '.git/*' 'NBAGame-2025-26-audited.zip'
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: NBAGame-2025-26-audited
+          path: NBAGame-2025-26-audited.zip
+          if-no-files-found: error
+          retention-days: 30
