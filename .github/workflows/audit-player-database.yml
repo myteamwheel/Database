@@ -20,6 +20,12 @@ jobs:
       - name: Audit committed player data
         run: node scripts/audit-v3.mjs
 
+      - name: Audit UI preset schema
+        run: node scripts/audit-presets.mjs
+
+      - name: Verify the published artifact is a lossless encoding
+        run: node scripts/verify-artifact.mjs
+
       - name: JavaScript syntax check
         run: |
           node --check app.js
@@ -31,18 +37,24 @@ jobs:
           const d = require('./public/data.json');
           const problems = [];
           if (!d.leagues?.NBA?.length || !d.leagues?.GLEAGUE?.length) problems.push('missing league arrays');
-          if (d.counts.NBA !== d.leagues.NBA.length) problems.push('NBA count mismatch');
-          if (d.counts.GLEAGUE !== d.leagues.GLEAGUE.length) problems.push('G League count mismatch');
-          if (d.gradeModel?.version !== '3.0') problems.push('grade model version is not 3.0');
+          // Headline counts are players who APPEARED; roster-only rows are appended after them.
+          const appeared = (lg) => d.leagues[lg].filter((p) => p.appeared).length;
+          if (d.counts.NBA !== appeared('NBA')) problems.push('NBA count does not match appeared players');
+          if (d.counts.GLEAGUE !== appeared('GLEAGUE')) problems.push('G League count does not match appeared players');
+          if (!/^3\./.test(d.gradeModel?.version || '')) problems.push(`unexpected grade model version ${d.gradeModel?.version}`);
           for (const lg of ['NBA', 'GLEAGUE']) {
             const p = d.leagues[lg][0];
             for (const k of ['playerId', 'name', 'team', 'position', 'grade', 'custom', 'components', 'stats'])
               if (p[k] === undefined) problems.push(`${lg} records missing ${k}`);
-            if (d.leagues[lg].some(x => !(x.grade >= 0 && x.grade <= 9.9999)))
+            const graded = d.leagues[lg].filter((x) => x.appeared && x.grade !== null);
+            if (graded.some(x => !(x.grade >= 0 && x.grade <= 9.9999)))
               problems.push(`${lg} has a grade outside 0.0000-9.9999`);
-            const ranks = d.leagues[lg].map(x => x.rank).sort((a, b) => a - b);
-            if (ranks[0] !== 1 || ranks[ranks.length - 1] !== d.leagues[lg].length)
-              problems.push(`${lg} ranks are not a dense 1..n sequence`);
+            // Roster-only rows intentionally carry a null rank and must not occupy one.
+            const ranks = graded.map(x => x.rank).sort((a, b) => a - b);
+            if (ranks[0] !== 1 || ranks[ranks.length - 1] !== graded.length)
+              problems.push(`${lg} graded ranks are not a dense 1..n sequence`);
+            if (d.leagues[lg].some(x => x.rosterOnly && (x.grade !== null || x.rank !== null)))
+              problems.push(`${lg} roster-only rows carry a grade or rank`);
           }
           // The G League publishes no BPM/VORP family; it must never be invented.
           if (d.leagues.GLEAGUE.some(p => p.bpm != null || p.vorp != null))

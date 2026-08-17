@@ -142,84 +142,84 @@ const BASE_COLS = {
   'stats.sit_home_reb':{label:'Home REB',type:'1'},
   'stats.sit_home_ast':{label:'Home AST',type:'1'},
   'stats.sit_home_ts':{label:'Home TS%',type:'pct'},
-  'stats.sit_home_plusMinus':{label:'Home +/-',type:'signed1'},
+  'stats.sit_home_plusminus':{label:'Home +/-',type:'signed1'},
   'stats.sit_road_gp':{label:'Road G',type:'int'},
   'stats.sit_road_mpg':{label:'Road MIN',type:'1'},
   'stats.sit_road_pts':{label:'Road PTS',type:'1'},
   'stats.sit_road_reb':{label:'Road REB',type:'1'},
   'stats.sit_road_ast':{label:'Road AST',type:'1'},
   'stats.sit_road_ts':{label:'Road TS%',type:'pct'},
-  'stats.sit_road_plusMinus':{label:'Road +/-',type:'signed1'},
+  'stats.sit_road_plusminus':{label:'Road +/-',type:'signed1'},
   'stats.sit_wins_gp':{label:'In Wins G',type:'int'},
   'stats.sit_wins_mpg':{label:'In Wins MIN',type:'1'},
   'stats.sit_wins_pts':{label:'In Wins PTS',type:'1'},
   'stats.sit_wins_reb':{label:'In Wins REB',type:'1'},
   'stats.sit_wins_ast':{label:'In Wins AST',type:'1'},
   'stats.sit_wins_ts':{label:'In Wins TS%',type:'pct'},
-  'stats.sit_wins_plusMinus':{label:'In Wins +/-',type:'signed1'},
+  'stats.sit_wins_plusminus':{label:'In Wins +/-',type:'signed1'},
   'stats.sit_losses_gp':{label:'In Losses G',type:'int'},
   'stats.sit_losses_mpg':{label:'In Losses MIN',type:'1'},
   'stats.sit_losses_pts':{label:'In Losses PTS',type:'1'},
   'stats.sit_losses_reb':{label:'In Losses REB',type:'1'},
   'stats.sit_losses_ast':{label:'In Losses AST',type:'1'},
   'stats.sit_losses_ts':{label:'In Losses TS%',type:'pct'},
-  'stats.sit_losses_plusMinus':{label:'In Losses +/-',type:'signed1'},
+  'stats.sit_losses_plusminus':{label:'In Losses +/-',type:'signed1'},
   'stats.sit_starter_gp':{label:'Starting G',type:'int'},
   'stats.sit_starter_mpg':{label:'Starting MIN',type:'1'},
   'stats.sit_starter_pts':{label:'Starting PTS',type:'1'},
   'stats.sit_starter_reb':{label:'Starting REB',type:'1'},
   'stats.sit_starter_ast':{label:'Starting AST',type:'1'},
   'stats.sit_starter_ts':{label:'Starting TS%',type:'pct'},
-  'stats.sit_starter_plusMinus':{label:'Starting +/-',type:'signed1'},
+  'stats.sit_starter_plusminus':{label:'Starting +/-',type:'signed1'},
   'stats.sit_bench_gp':{label:'Off Bench G',type:'int'},
   'stats.sit_bench_mpg':{label:'Off Bench MIN',type:'1'},
   'stats.sit_bench_pts':{label:'Off Bench PTS',type:'1'},
   'stats.sit_bench_reb':{label:'Off Bench REB',type:'1'},
   'stats.sit_bench_ast':{label:'Off Bench AST',type:'1'},
   'stats.sit_bench_ts':{label:'Off Bench TS%',type:'pct'},
-  'stats.sit_bench_plusMinus':{label:'Off Bench +/-',type:'signed1'},
+  'stats.sit_bench_plusminus':{label:'Off Bench +/-',type:'signed1'},
   'stats.sit_preallstar_gp':{label:'Pre-ASB G',type:'int'},
   'stats.sit_preallstar_mpg':{label:'Pre-ASB MIN',type:'1'},
   'stats.sit_preallstar_pts':{label:'Pre-ASB PTS',type:'1'},
   'stats.sit_preallstar_reb':{label:'Pre-ASB REB',type:'1'},
   'stats.sit_preallstar_ast':{label:'Pre-ASB AST',type:'1'},
   'stats.sit_preallstar_ts':{label:'Pre-ASB TS%',type:'pct'},
-  'stats.sit_preallstar_plusMinus':{label:'Pre-ASB +/-',type:'signed1'},
+  'stats.sit_preallstar_plusminus':{label:'Pre-ASB +/-',type:'signed1'},
   'stats.sit_postallstar_gp':{label:'Post-ASB G',type:'int'},
   'stats.sit_postallstar_mpg':{label:'Post-ASB MIN',type:'1'},
   'stats.sit_postallstar_pts':{label:'Post-ASB PTS',type:'1'},
   'stats.sit_postallstar_reb':{label:'Post-ASB REB',type:'1'},
   'stats.sit_postallstar_ast':{label:'Post-ASB AST',type:'1'},
   'stats.sit_postallstar_ts':{label:'Post-ASB TS%',type:'pct'},
-  'stats.sit_postallstar_plusMinus':{label:'Post-ASB +/-',type:'signed1'},
+  'stats.sit_postallstar_plusminus':{label:'Post-ASB +/-',type:'signed1'},
   'stats.sit_clutch_gp':{label:'Clutch G',type:'int'},
   'stats.sit_clutch_mpg':{label:'Clutch MIN',type:'1'},
   'stats.sit_clutch_pts':{label:'Clutch PTS',type:'1'},
   'stats.sit_clutch_reb':{label:'Clutch REB',type:'1'},
   'stats.sit_clutch_ast':{label:'Clutch AST',type:'1'},
   'stats.sit_clutch_ts':{label:'Clutch TS%',type:'pct'},
-  'stats.sit_clutch_plusMinus':{label:'Clutch +/-',type:'signed1'},
-  'stats.sit_month1_gp':{label:'Oct G',type:'int'},
-  'stats.sit_month1_pts':{label:'Oct PTS',type:'1'},
-  'stats.sit_month1_ts':{label:'Oct TS%',type:'pct'},
-  'stats.sit_month2_gp':{label:'Nov G',type:'int'},
-  'stats.sit_month2_pts':{label:'Nov PTS',type:'1'},
-  'stats.sit_month2_ts':{label:'Nov TS%',type:'pct'},
-  'stats.sit_month3_gp':{label:'Dec G',type:'int'},
-  'stats.sit_month3_pts':{label:'Dec PTS',type:'1'},
-  'stats.sit_month3_ts':{label:'Dec TS%',type:'pct'},
-  'stats.sit_month4_gp':{label:'Jan G',type:'int'},
-  'stats.sit_month4_pts':{label:'Jan PTS',type:'1'},
-  'stats.sit_month4_ts':{label:'Jan TS%',type:'pct'},
-  'stats.sit_month5_gp':{label:'Feb G',type:'int'},
-  'stats.sit_month5_pts':{label:'Feb PTS',type:'1'},
-  'stats.sit_month5_ts':{label:'Feb TS%',type:'pct'},
-  'stats.sit_month6_gp':{label:'Mar G',type:'int'},
-  'stats.sit_month6_pts':{label:'Mar PTS',type:'1'},
-  'stats.sit_month6_ts':{label:'Mar TS%',type:'pct'},
-  'stats.sit_month7_gp':{label:'Apr G',type:'int'},
-  'stats.sit_month7_pts':{label:'Apr PTS',type:'1'},
-  'stats.sit_month7_ts':{label:'Apr TS%',type:'pct'},
+  'stats.sit_clutch_plusminus':{label:'Clutch +/-',type:'signed1'},
+  'stats.sit_month1_gp':{label:'M1 G',type:'int',help:'Season month 1 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month1_pts':{label:'M1 PTS',type:'1',help:'Season month 1 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month1_ts':{label:'M1 TS%',type:'pct',help:'Season month 1 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month2_gp':{label:'M2 G',type:'int',help:'Season month 2 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month2_pts':{label:'M2 PTS',type:'1',help:'Season month 2 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month2_ts':{label:'M2 TS%',type:'pct',help:'Season month 2 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month3_gp':{label:'M3 G',type:'int',help:'Season month 3 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month3_pts':{label:'M3 PTS',type:'1',help:'Season month 3 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month3_ts':{label:'M3 TS%',type:'pct',help:'Season month 3 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month4_gp':{label:'M4 G',type:'int',help:'Season month 4 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month4_pts':{label:'M4 PTS',type:'1',help:'Season month 4 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month4_ts':{label:'M4 TS%',type:'pct',help:'Season month 4 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month5_gp':{label:'M5 G',type:'int',help:'Season month 5 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month5_pts':{label:'M5 PTS',type:'1',help:'Season month 5 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month5_ts':{label:'M5 TS%',type:'pct',help:'Season month 5 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month6_gp':{label:'M6 G',type:'int',help:'Season month 6 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month6_pts':{label:'M6 PTS',type:'1',help:'Season month 6 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month6_ts':{label:'M6 TS%',type:'pct',help:'Season month 6 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month7_gp':{label:'M7 G',type:'int',help:'Season month 7 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month7_pts':{label:'M7 PTS',type:'1',help:'Season month 7 \u2014 month 1 is the league opening month, not October'},
+  'stats.sit_month7_ts':{label:'M7 TS%',type:'pct',help:'Season month 7 \u2014 month 1 is the league opening month, not October'},
   labScore:{label:'Lab Score',type:'1'}
 };
 
@@ -238,8 +238,8 @@ const TRACK_LABELS = {
   'stats.hustle_contested_shots':'Contested','stats.hustle_deflections':'Deflections',
   'stats.hustle_charges_drawn':'Charges','stats.hustle_screen_assists':'Screen AST',
   'stats.hustle_loose_balls_recovered':'Loose Balls','stats.hustle_box_outs':'Box Outs',
-  'stats.trk_catchshoot_CATCH_SHOOT_PTS':'C&S Pts','stats.trk_catchshoot_CATCH_SHOOT_FGA':'C&S FGA',
-  'stats.trk_pullup_PULL_UP_PTS':'Pull-Up Pts','stats.trk_pullup_PULL_UP_FGA':'Pull-Up FGA',
+  'stats.trk_catchshoot_catch_shoot_pts':'C&S Pts','stats.trk_catchshoot_catch_shoot_fga':'C&S FGA',
+  'stats.trk_pullup_pull_up_pts':'Pull-Up Pts','stats.trk_pullup_pull_up_fga':'Pull-Up FGA',
 };
 for (const [k,label] of Object.entries(TRACK_LABELS)) BASE_COLS[k]={label,type:k.endsWith('_pct')?'pct':'1'};
 for (const [k,label] of Object.entries({
@@ -259,7 +259,7 @@ for (const [k,label] of Object.entries({
 const PRESETS = {
   overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   scoring:['select','viewRank','name','team','grade','pts','fg','fga','fgPct','fg3','fg3a','fg3Pct','ft','fta','ftPct','efg','ts','fg3Ar','ftr','usg','custom.selfCreatedPts36','custom.paintPts36','custom.efficiencyOverExpected'],
-  shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_CATCH_SHOOT_PTS','stats.trk_catchshoot_CATCH_SHOOT_FGA','stats.trk_pullup_PULL_UP_PTS','stats.trk_pullup_PULL_UP_FGA'],
+  shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_catch_shoot_pts','stats.trk_catchshoot_catch_shoot_fga','stats.trk_pullup_pull_up_pts','stats.trk_pullup_pull_up_fga'],
   playmaking:['select','viewRank','name','team','grade','ast','tov','astPct','astRatio','astTo','astPer100','tovPer100','toRatio','usg','custom.creationLoad36','custom.selfSufficiencyIndex'],
   rebounding:['select','viewRank','name','team','grade','oreb','dreb','reb','orebPct','drebPct','rebPct','custom.possessionSwing36'],
   defense:['select','viewRank','name','team','grade','stl','blk','dreb','stlPer100','blkPer100','drebPct','defRtg','defWs','custom.defensiveDisruptionIndex','custom.defensiveSwing36','custom.disruptionPerFoul'],
@@ -274,7 +274,7 @@ const PRESETS = {
   splitsExplorer:['select','viewRank','name','team','grade','gp','pts',
     'stats.sit_home_pts','stats.sit_road_pts','stats.sit_wins_pts','stats.sit_losses_pts',
     'stats.sit_starter_pts','stats.sit_bench_pts','stats.sit_preallstar_pts','stats.sit_postallstar_pts',
-    'stats.sit_clutch_gp','stats.sit_clutch_pts','stats.sit_clutch_ts','stats.sit_clutch_plusMinus'],
+    'stats.sit_clutch_gp','stats.sit_clutch_pts','stats.sit_clutch_ts','stats.sit_clutch_plusminus'],
   splitsMonthly:['select','viewRank','name','team','grade','gp','pts',
     'stats.sit_month1_gp','stats.sit_month1_pts','stats.sit_month2_pts','stats.sit_month3_pts',
     'stats.sit_month4_pts','stats.sit_month5_pts','stats.sit_month6_pts','stats.sit_month7_pts'],
@@ -401,6 +401,14 @@ function applyRules(p){
   });
 }
 
+/** A hyphenated family such as G-F satisfies a filter for either of its parts. */
+function positionMatches(p,fam){
+  if(!fam) return true;
+  const f=p.positionFamily;
+  if(!f) return false;
+  return f===fam||f.split('-').includes(fam);
+}
+
 /** Team filtering matches any team the player actually appeared for, not just the last one. */
 function playedFor(p,team){
   if(!team) return true;
@@ -413,16 +421,35 @@ function playedFor(p,team){
  * his STINT line rather than his season aggregate. Showing full-season numbers under a team
  * label is the quietly wrong answer: Harden's Cleveland row would include his Clipper games.
  */
+/**
+ * Fields the stint line actually provides. Anything NOT listed here has no stint equivalent —
+ * the source publishes advanced and tracking data per season, not per stint — so in team-only
+ * mode those are BLANKED rather than left showing season values. A row that mixed Cleveland-only
+ * points with full-season TS% was the worst outcome, because nothing on screen said so.
+ */
+const STINT_FIELDS = {gp:'gp',minutes:'min',mpg:'mpg',pts:'pts',reb:'reb',ast:'ast',
+  stl:'stl',blk:'blk',fgPct:'fgPct',fg3Pct:'fg3Pct',ftPct:'ftPct',plusMinus:'plusMinus'};
+/** Season-only fields that must not be shown beside stint numbers. */
+const SEASON_ONLY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','rank',
+  'ts','efg','usg','astPct','astRatio','orebPct','drebPct','rebPct','toRatio','tovPct',
+  'offRtg','defRtg','netRtg','pace','pie','poss','stlPer100','blkPer100','astPer100','tovPer100',
+  'defWs','per','ows','dws','ws','ws48','obpm','dbpm','bpm','vorp','stlPct','blkPct',
+  'wsPerGame','dwsPerGame','vorpPerGame','oreb','dreb','fg','fga','fg3','fg3a','fg2','fg2a',
+  'ft','fta','tov','pf','pfd','blka','dd2','td3','fg2Pct','fg3Ar','ftr','astTo',
+  'wins','losses','regularGP','showcaseGP','teamCount'];
+
 function teamScoped(p,team,mode){
   if(!team||mode!=='only') return p;
+  if((p.teamCount||1)<=1) return p;
   const stint=(p.teams||[]).find(s=>s.team===team);
   if(!stint) return p;
-  if((p.teamCount||1)<=1) return p;
-  return {...p, ...{
-    gp:stint.gp, minutes:stint.min, mpg:stint.mpg, pts:stint.pts, reb:stint.reb,
-    ast:stint.ast, stl:stint.stl, blk:stint.blk, fgPct:stint.fgPct, fg3Pct:stint.fg3Pct,
-    ftPct:stint.ftPct, plusMinus:stint.plusMinus, team:stint.team,
-  }, teamScopedTo:team, _seasonGp:p.gp};
+  const q={...p, team:stint.team, teamScopedTo:team, seasonGp:p.gp, seasonGrade:p.grade};
+  for(const [dest,src] of Object.entries(STINT_FIELDS)) q[dest]=stint[src];
+  for(const k of SEASON_ONLY) q[k]=null;
+  q.custom={}; q.components={}; q.rateComponents={};
+  // Raw source fields are season-scoped with no stint equivalent.
+  q.stats={};
+  return q;
 }
 
 function filteredPlayers(){
@@ -433,15 +460,20 @@ function filteredPlayers(){
   const minRel=Number($('minReliability').value)||0;
   const teamMode=$('teamMode')?.value||'season';
   const showRosterOnly=$('includeRosterOnly')?.checked;
-  let list=currentPlayers().filter(p=>{
-    if(p.rosterOnly&&!showRosterOnly) return false;
-    const hay=fold([p.name,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
-    const gradeOk=p.grade===null?showRosterOnly:p.grade>=minGrade;
-    return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||p.positionFamily===pos)&&(!country||p.country===country)
-      &&p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
-      &&(p.reliabilityWeight||0)>=minRel
-      &&(!$('bothOnly').checked||p.bothLeagues)&&applyRules(p);
-  }).map(p=>teamScoped(p,team,teamMode));
+  let list=currentPlayers()
+    .filter(p=>{
+      if(p.rosterOnly&&!showRosterOnly) return false;
+      const hay=fold([p.name,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
+      return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
+        &&(!$('bothOnly').checked||p.bothLeagues);
+    })
+    // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
+    .map(p=>teamScoped(p,team,teamMode))
+    .filter(p=>{
+      const gradeOk=p.grade===null?(showRosterOnly||p.teamScopedTo):p.grade>=minGrade;
+      return p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
+        &&(p.teamScopedTo||(p.reliabilityWeight||0)>=minRel)&&applyRules(p);
+    });
   list.sort((a,b)=>{
     const av=get(a,sortKey),bv=get(b,sortKey);
     if(finite(av)&&finite(bv))return (Number(av)-Number(bv))*sortDir;
@@ -511,8 +543,33 @@ function counterpart(p){
   return (DATA.leagues[other]||[]).find(x=>x.nbaPersonId===p.nbaPersonId)||null;
 }
 
+/** The row as currently displayed, including any team scoping — not the raw season record. */
+function displayedRow(id){
+  return filteredPlayers().find(x=>x.playerId===id)
+      || currentPlayers().find(x=>x.playerId===id) || null;
+}
+
 function openPlayer(id){
-  const p=currentPlayers().find(x=>x.playerId===id); if(!p)return;
+  const p=displayedRow(id); if(!p)return;
+
+  // Roster-only players have no performance to show. grade is null by design, so the normal
+  // hero would throw on p.grade.toFixed(4).
+  if(p.rosterOnly){
+    $('playerDialogBody').innerHTML=`<div class="player-hero"><div>
+        <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
+        <h2>${esc(p.name)}</h2>
+        <p>${esc(p.team||'—')} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
+        <p class="tiny">On a 2025-26 roster but never played a game.</p></div></div>
+      <div class="player-grid">
+        <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
+        <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>
+        <div class="detail-card"><div class="k">Games played</div><div class="v">0</div></div>
+      </div>
+      <p class="tiny">A grade of 0 would rank this player below everyone who did play, which is a
+      different and false claim, so no grade is assigned.</p>`;
+    $('playerDialog').showModal();
+    return;
+  }
   const c=counterpart(p);
   const crossover=c?`<div class="crossover">
       <div class="eyebrow">SAME PLAYER, OTHER LEAGUE</div>
@@ -522,6 +579,9 @@ function openPlayer(id){
       <p class="tiny">Each league is graded against its own population, so the two grades are not on a shared scale.</p>
     </div>`:'';
 
+  const scopeNote=p.teamScopedTo?`<p class="tiny"><b>Showing ${esc(p.teamScopedTo)} stint only.</b>
+      Season line: ${p.seasonGp} games, grade ${finite(p.seasonGrade)?p.seasonGrade.toFixed(4):'—'}.
+      Advanced, custom and raw fields are published per season, not per stint, so they are omitted here.</p>`:'';
   const stints=(p.teams||[]).length>1||(p.teams||[]).length===1&&(p.teamCount||1)>1?`
     <div class="crossover">
       <div class="eyebrow">TEAM HISTORY THIS SEASON</div>
@@ -552,12 +612,12 @@ function openPlayer(id){
     ? `drafted ${esc(p.draftYear)} rd ${esc(p.draftRound)} pick ${esc(p.draftNumber)}`
     : p.draftStatus==='undrafted' ? 'undrafted' : 'draft status unknown';
 
-  $('playerDialogBody').innerHTML=`<div class="player-hero"><div><div class="eyebrow">${esc(p.leagueLabel)} · RANK #${p.rank} of ${DATA.counts[p.league]}</div>
-      <h2>${esc(p.name)}</h2>
+  $('playerDialogBody').innerHTML=`<div class="player-hero"><div><div class="eyebrow">${esc(p.leagueLabel)}${finite(p.rank)?` · RANK #${p.rank} of ${DATA.counts[p.league]}`:''}</div>
+      <h2>${esc(p.name)}</h2>${scopeNote}
       <p>${esc(p.team)} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')} · ${p.weight?p.weight+' lb':'—'} · ${esc(p.country||'—')}</p>
       <p class="tiny">${p.gp} games · ${num(p.mpg)} mpg · ${p.college?esc(p.college)+' · ':''}${draft}</p>${split}</div></div>
     <div class="player-grid">
-      <div class="detail-card"><div class="k">Performance grade</div><div class="v grade ${gradeClass(p.grade)}">${p.grade.toFixed(4)}</div></div>
+      <div class="detail-card"><div class="k">Performance grade</div><div class="v grade ${gradeClass(p.grade)}">${finite(p.grade)?p.grade.toFixed(4):'N/A'}</div></div>
       <div class="detail-card"><div class="k">PTS / REB / AST</div><div class="v">${num(p.pts)}/${num(p.reb)}/${num(p.ast)}</div></div>
       <div class="detail-card"><div class="k">TS% / USG%</div><div class="v">${pct(p.ts)} / ${pctPoints(p.usg)}</div></div>
       <div class="detail-card"><div class="k">PIE / NetRtg</div><div class="v">${pct(p.pie)} / ${signed(p.netRtg)}</div></div>
@@ -565,7 +625,7 @@ function openPlayer(id){
       <div class="detail-card"><div class="k">Rate grade (per 36)</div><div class="v">${finite(p.rateGrade)?p.rateGrade.toFixed(4):'—'}</div></div>
       ${p.cohortRanks?.position?`<div class="detail-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${p.cohortRanks.position.rank} <span class="tiny">of ${p.cohortRanks.position.of}</span></div></div>`:''}
       ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
-      ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${p.age<=23?'Age 23 and under':'Age 24+'}</div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
+      ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
     </div>${stints}${crossover}
     <h3>All retained source fields</h3>${raw}`;
@@ -573,10 +633,14 @@ function openPlayer(id){
 }
 
 function openCompare(){
-  const ps=[...compared].map(id=>currentPlayers().find(p=>p.playerId===id)).filter(Boolean);
+  // Compare the rows as displayed, so team-only mode is not silently undone here either.
+  const ps=[...compared].map(id=>displayedRow(id)).filter(Boolean);
+  const scoped=ps.filter(p=>p.teamScopedTo);
   const rows=['rank','grade','gp','mpg','pts','reb','ast','stl','blk','tov','ts','efg','usg','astPct','rebPct',
     'offRtg','defRtg','netRtg','pie','per','ws48','bpm','vorp',...CUSTOM_KEYS];
-  $('compareDialogBody').innerHTML=`<h2>Player comparison</h2><div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${
+  $('compareDialogBody').innerHTML=`<h2>Player comparison</h2>`
+    +(scoped.length?`<p class="tiny">${scoped.map(p=>esc(p.name)+' — '+esc(p.teamScopedTo)+' stint only').join(' · ')}</p>`:'')
+    +`<div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${
     rows.filter(k=>ps.some(p=>finite(get(p,k)))).map(k=>`<tr><td class="left">${esc(colDef(k).label)}</td>${ps.map(p=>`<td>${fmt(get(p,k),colDef(k).type)}</td>`).join('')}</tr>`).join('')
   }</tbody></table></div>`;
   $('compareDialog').showModal();
@@ -693,15 +757,21 @@ async function exportCsv(){
   const q=v=>`"${String(v??'').replaceAll('"','""')}"`;
   // Header carries the unit, and percentage columns export as percentage points so a "%"
   // header never sits above a 0.612.
+  const anyScoped=list.some(p=>p.teamScopedTo);
   const header=cols.map(k=>{
     const d=colDef(k);
     return q(isFraction(k)?`${d.label} (pct pts)`:d.label);
-  }).join(',');
+  }).concat(anyScoped?[q('Scope')]:[]).join(',');
   const lines=[header];
-  for(const p of list) lines.push(cols.map(k=>{
-    const v=get(p,k);
-    return q(finite(v)?toDisplayUnit(k,Number(v)):v);
-  }).join(','));
+  for(const p of list){
+    const row=cols.map(k=>{
+      const v=get(p,k);
+      return q(finite(v)?toDisplayUnit(k,Number(v)):v);
+    });
+    // Every row states its own scope, so a stint line can never be mistaken for a season line.
+    if(anyScoped) row.push(q(p.teamScopedTo?`${p.teamScopedTo} stint only`:'full season'));
+    lines.push(row.join(','));
+  }
   const csv=lines.join('\n');
   const base=`${league.toLowerCase()}_2025-26_rankings`;
 

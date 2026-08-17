@@ -92,6 +92,19 @@ for (const lg of LEAGUES) {
     provenance.push({ dataset: `${lg.dir}/${name}`, rows: r.length, fetchedAt: new Date().toISOString() });
     await wait(900);
   }
+  // Month is season-relative on this API (1 = the season's opening month). Absent months are
+  // skipped rather than written empty, so the set differs by league.
+  for (let m = 1; m <= 12; m++) {
+    const mj = await get(dash(lg.id, lg.seasonType, 'Base', { Month: String(m) }), `${lg.dir}/month${m}`);
+    const mr = rows(mj);
+    if (mr.length) {
+      fs.writeFileSync(path.join(dir, `month${m}.json`), JSON.stringify(mj));
+      console.log(`  ${('month' + m).padEnd(12)} ${mr.length} rows`);
+      provenance.push({ dataset: `${lg.dir}/month${m}`, rows: mr.length, fetchedAt: new Date().toISOString() });
+    }
+    await wait(800);
+  }
+
   const cj = await get(clutch(lg.id, lg.seasonType), `${lg.dir}/clutch`);
   const cr = rows(cj);
   fs.writeFileSync(path.join(dir, 'clutch.json'), JSON.stringify(cj));

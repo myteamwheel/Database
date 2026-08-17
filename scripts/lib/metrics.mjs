@@ -169,7 +169,9 @@ export function computeCustom(rows, opts = {}) {
   const n = rows.map(normalize);
   const mins = n.map((x) => x.min || 0);
   const sortedMin = [...mins].sort((a, b) => a - b);
-  const K = opts.K ?? Math.round((sortedMin[Math.floor(sortedMin.length / 2)] || 1) * 0.6);
+  // Same K as the grade. These were 0.6 while the grade moved to 0.8, so the comment below
+  // claiming "the same correction the grade already applies" was not true.
+  const K = opts.K ?? Math.round((sortedMin[Math.floor(sortedMin.length / 2)] || 1) * (opts.kFactor ?? K_FACTOR));
   const S = (vals) => stabilize(vals, mins, K);
 
   // --- unit-carrying, before stabilisation ---------------------------------

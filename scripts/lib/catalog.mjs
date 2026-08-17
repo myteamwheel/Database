@@ -41,16 +41,45 @@ export const UNITS = {
   years: { label: 'years', suffix: '' },
 };
 
-const HIGHER_IS_WORSE = new Set(['tov', 'tovPG', 'tov36', 'pf', 'blka', 'defRtg', 'toRatio',
-  'tovPct', 'tovPer100', 'losses']);
+/** Matched against the field name with any source prefix stripped. */
+const WORSE_WHEN_HIGHER = [
+  /^tov/, /_tov$/, /turnover/, /^pf$/, /_pf$/, /^blka$/, /_blka$/,
+  /def_rating$/, /^def_?rtg/, /^losses$/, /^l$/, /opp_pts/, /_pf_pct$/,
+];
+/** Volume, role and physical descriptors: more is not better or worse, it is context. */
+const NEUTRAL = [
+  /^usg/, /usg_pct$/, /^pace/, /_pace/, /^min$/, /_min$/, /^minutes$/, /^gp$/, /_gp$/, /^g$/,
+  /^age$/, /height/, /weight/, /^poss$/, /_poss$/, /touches$/, /^fga/, /_fga$/, /^fg3a/, /_fg3a$/,
+  /^fta$/, /_fta$/, /attempts$/, /^pct_fga/, /^pct_pts/, /^pct_ast/, /^pct_uast/, /_pct_fga/,
+  /^jersey/, /^draft/, /time_of_poss/, /^w$/, /^wins$/, /_rank$/,
+];
 
+function directionOf(key) {
+  const bare = key.replace(/^(off|oadv|omisc|oscore|ousage|odef|obio|op36|op100|trk|hustle|split|bref|sit)_/, '')
+    .replace(/^(month\d+|home|road|wins|losses|starter|bench|preallstar|postallstar|clutch)_/, '');
+  if (WORSE_WHEN_HIGHER.some((r) => r.test(bare))) return 'lower is better';
+  if (NEUTRAL.some((r) => r.test(bare))) return 'context / neutral';
+  return 'higher is better';
+}
+
+/**
+ * Unit by semantics, not by whether a key happens to end in `_pct`. Derived split fields like
+ * `sit_home_ts` are shooting percentages with no `_pct` suffix, and the old regex called them
+ * counts.
+ */
 function guessUnit(key, sample) {
   if (typeof sample === 'string') return 'text';
-  if (/_pct$|^pct|Pct$/i.test(key)) return 'fraction';
+  const bare = key.replace(/^(off|oadv|omisc|oscore|ousage|odef|obio|op36|op100|trk|hustle|split|bref|sit)_/, '')
+    .replace(/^(month\d+|home|road|wins|losses|starter|bench|preallstar|postallstar|clutch)_/, '');
   if (/^op36_/.test(key)) return 'per36';
   if (/^op100_/.test(key)) return 'per100';
-  if (/rating$|_rating/i.test(key)) return 'rating';
-  if (/^(min|minutes)$|_min$/i.test(key)) return 'minutes';
+  if (/rating$|_rating$/i.test(bare)) return 'rating';
+  if (/^(ts|efg|pie)$|_pct$|^pct_|pct$/i.test(bare)) {
+    // A 0-1 sample is a fraction; a 0-100 one is already in percentage points.
+    return typeof sample === 'number' && Math.abs(sample) > 1.5 ? 'pctPoints' : 'fraction';
+  }
+  if (/^(min|mpg|minutes)$/i.test(bare)) return 'minutes';
+  if (/^(mpg|pts|reb|ast|stl|blk|tov|plusminus)$/i.test(bare) && /^sit_/.test(key)) return 'perGame';
   return 'count';
 }
 
@@ -67,6 +96,10 @@ function sourceOf(key) {
 function scopeOf(key, league, blended) {
   if (league !== 'GLEAGUE') return 'full-season';
   if (key.startsWith('bref_')) return 'regular-season-only';
+  // These two are pulled from the regular-season dashboard only and are NOT recombined across
+  // the two halves, so labelling them as the combined season would let the Formula Lab mix them
+  // with genuinely full-season fields without warning.
+  if (key.startsWith('op36_') || key.startsWith('op100_')) return 'regular-season-only';
   if (key.startsWith('split_reg_')) return 'regular-season-only';
   if (key.startsWith('split_showcase_')) return 'showcase-only';
   if (key.startsWith('sit_')) return 'situational-split';
@@ -107,7 +140,7 @@ export function buildCatalog(leagues) {
           : /^(omisc|oscore)_/.test(key) ? 'per game'
           : 'season total or rate',
         seasonScope: scopeOf(key, league, blended),
-        direction: HIGHER_IS_WORSE.has(key) ? 'lower is better' : 'higher is better',
+        direction: directionOf(key),
       };
     }
   }

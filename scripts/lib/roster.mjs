@@ -93,7 +93,10 @@ export function buildStints(halves) {
         fgPct: s.FGA ? Math.round((s.FGM / s.FGA) * 1000) / 1000 : null,
         fg3Pct: s.FG3A ? Math.round((s.FG3M / s.FG3A) * 1000) / 1000 : null,
         ftPct: s.FTA ? Math.round((s.FTM / s.FTA) * 1000) / 1000 : null,
-        plusMinus: s.PLUS_MINUS,
+        // Per game, matching the season record's `plusMinus`. Storing the raw total here made
+        // the same column change meaning when team-only mode was toggled.
+        plusMinus: s.GP ? Math.round((s.PLUS_MINUS / s.GP) * 10) / 10 : null,
+        plusMinusTotal: s.PLUS_MINUS,
         halves: s.halves,
       }))
       .sort((a, b) => b.min - a.min);   // most-used team first

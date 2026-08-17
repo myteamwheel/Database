@@ -56,7 +56,9 @@ export function buildSplits(dirs) {
         fg3Pct: s.FG3A ? s.FG3M / s.FG3A : null,
         ftPct: s.FTA ? s.FTM / s.FTA : null,
         ts: (s.FGA || s.FTA) ? s.PTS / (2 * (s.FGA + 0.44 * s.FTA)) : null,
-        plusMinus: s.PLUS_MINUS,
+        // Per game, so it matches the other per-game split fields beside it.
+        plusMinus: s.PLUS_MINUS / gp,
+        plusMinusTotal: s.PLUS_MINUS,
       };
       if (!out.has(id)) out.set(id, {});
       out.get(id)[name] = rec;

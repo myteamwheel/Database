@@ -18,8 +18,9 @@
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run verify:artifact",
-    "test:browser": "echo 'Load scripts/browser-test.js in the running page, then call window.__runAppTests()'"
+    "verify": "npm run audit && npm run audit:presets && npm run verify:artifact",
+    "test:browser": "echo 'Load scripts/browser-test.js in the running page, then call window.__runAppTests()'",
+    "audit:presets": "node scripts/audit-presets.mjs"
   },
   "engines": {
     "node": ">=20"
