@@ -22,14 +22,16 @@
   </header>
 
   <main>
+    <nav class="mode-nav" id="modeNav" aria-label="Analysis mode"></nav>
+
     <section class="league-tabs" aria-label="League selector">
       <button class="league-tab active" data-league="NBA">NBA <span id="nbaCount"></span></button>
       <button class="league-tab" data-league="GLEAGUE">G League <span id="gCount"></span></button>
     </section>
 
-    <section class="summary-grid" id="summaryGrid"></section>
+    <section class="db-only summary-grid" id="summaryGrid"></section>
 
-    <section class="control-panel">
+    <section class="db-only control-panel">
       <div class="control-grid">
         <label>Search player
           <input id="searchInput" type="search" placeholder="Name, team, country, college…" />
@@ -84,7 +86,7 @@
       </div>
     </section>
 
-    <section class="lab-panel">
+    <section class="db-only lab-panel">
       <div class="lab-heading">
         <div>
           <div class="eyebrow">FORMULA LAB</div>
@@ -106,11 +108,11 @@
       </div>
     </section>
 
-    <section class="active-rules" id="activeRules"></section>
+    <section class="db-only active-rules" id="activeRules"></section>
 
-    <section class="table-shell">
+    <section class="db-only table-shell">
       <div class="table-toolbar">
-        <div><strong id="resultCount">0</strong> players <span id="sortLabel"></span></div>
+        <div><strong id="resultCount">0</strong> players <span id="sortLabel"></span><span class="tiny" id="rowCapNote"></span></div>
         <div class="table-toolbar-actions">
           <button id="addRuleBtn" class="button secondary small">+ Add numeric filter</button>
           <button id="clearCompareBtn" class="button secondary small">Clear compare</button>
@@ -124,6 +126,7 @@
         </table>
       </div>
     </section>
+    <section id="workspace" class="workspace" style="display:none"></section>
   </main>
 
   <dialog id="catalogDialog" class="modal wide"><div id="catalogDialogBody"></div><button class="button" data-close="catalogDialog">Close</button></dialog>
@@ -142,5 +145,6 @@
   </dialog>
 
   <script src="app.js"></script>
+  <script src="workspace.js"></script>
 </body>
 </html>

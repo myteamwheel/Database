@@ -18,6 +18,9 @@ import { buildGrade, dependencyTree, effectiveConceptWeights, INGREDIENTS, MIN_C
 import { buildStints, positionFamily } from './lib/roster.mjs';
 import { buildSplits, loadRoster, ageAt, OPENING_NIGHT, FEB_FIRST } from './lib/splits.mjs';
 import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
+import { skillProfiles, archetypes, similarity, teamNeeds, teamFit, translationFactors,
+         translationFactorsPer36, translate, SKILL_AXES, ARCHETYPES, SIMILARITY_WEIGHTS,
+         NEED_AXES } from './lib/analysis.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -468,6 +471,63 @@ const gl = buildLeague({
 console.log(`  ${gl.records.length} players`);
 
 // Crossover by official NBA person id — an exact identity join, not a name or id-suffix guess.
+/* ------------------------------------------------------- analysis engines */
+
+// Skill percentile profiles, per league, then archetypes from them.
+for (const side of [nba, gl]) {
+  const played = side.records.filter((r) => r.appeared);
+  const profiles = skillProfiles(played);
+  played.forEach((r, i) => {
+    r.skillProfile = profiles[i];
+    r.archetypes = archetypes(profiles[i]);
+    r.primaryArchetype = r.archetypes[0]?.name || null;
+  });
+}
+
+// Team need profiles and per-player fit, for every team in both leagues.
+const teamProfiles = {};
+for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
+  const played = side.records.filter((r) => r.appeared && r.skillProfile);
+  const byTeam = {};
+  for (const r of played) {
+    // A player counts toward every team he actually appeared for.
+    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    for (const t of new Set(teams.filter(Boolean))) {
+      (byTeam[t] = byTeam[t] || []).push({ player: r, profile: r.skillProfile });
+    }
+  }
+  teamProfiles[league] = {};
+  for (const [team, roster] of Object.entries(byTeam)) {
+    const needs = teamNeeds(roster);
+    const ranked = played.map((r) => ({ playerId: r.playerId, name: r.name,
+      grade: r.grade, ...teamFit(r.skillProfile, needs) }))
+      .filter((x) => x.score != null)
+      .sort((a, b) => b.score - a.score);
+    teamProfiles[league][team] = {
+      team, league, rosterSize: roster.length, needs,
+      topFits: ranked.slice(0, 40),
+    };
+  }
+  // Each player's fit with his own team, for the profile page.
+  for (const r of played) {
+    const tp = teamProfiles[league][r.team];
+    if (tp) r.ownTeamFit = teamFit(r.skillProfile, tp.needs);
+  }
+}
+
+// G League -> NBA translation, measured on this season's crossover players only.
+const glById = new Map(gl.records.filter((r) => r.appeared).map((r) => [r.nbaPersonId, r]));
+const pairs = nba.records.filter((r) => r.appeared && glById.has(r.nbaPersonId))
+  .map((r) => ({ nba: r, gl: glById.get(r.nbaPersonId) }))
+  // A meaningful ratio needs a real sample on both sides.
+  .filter(({ nba: n, gl: g }) => n.gp >= 5 && g.gp >= 5);
+const factors = translationFactors(pairs);
+const factorsPer36 = translationFactorsPer36(pairs);
+for (const r of gl.records) {
+  if (!r.appeared) continue;
+  r.nbaTranslation = translate(r, factors);
+}
+
 // Crossover means APPEARED in both. A player rostered in one league without playing is not a
 // cross-league statistical comparison, which is what the flag is used for.
 const nbaIds = new Set(nba.records.filter((r) => r.appeared).map((r) => r.nbaPersonId));
@@ -578,6 +638,19 @@ const out = {
     shrinkage: {
       NBA: nba.model, GLEAGUE: gl.model,
       rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',
+    },
+  },
+  analysis: {
+    skillAxes: Object.keys(SKILL_AXES),
+    archetypeDefinitions: ARCHETYPES,
+    similarityWeights: SIMILARITY_WEIGHTS,
+    similarityMethod: 'Weighted Euclidean distance over the skill percentile profile: d = sqrt(sum w_i (a_i - b_i)^2 / sum w_i), similarity = 100 * (1 - d/100). Percentiles put every axis on a common 0-100 footing, so the metric is symmetric and needs no further normalisation.',
+    needAxes: NEED_AXES,
+    teams: teamProfiles,
+    translation: {
+      factors, factorsPer36,
+      crossoverSample: pairs.length,
+      caveat: 'Translation factors are measured from players who appeared in BOTH leagues in 2025-26 only, with at least five games on each side. That is enough to describe what happened to this cohort and NOT enough to project an NBA career. Estimates are exploratory; no NBA-success probability is offered because there are no historical outcome labels here to validate one.',
     },
   },
   fieldCatalog: { ...buildCatalog({ NBA: nba.records, GLEAGUE: gl.records }), _topLevel: TOP_LEVEL_CATALOG },

@@ -290,3 +290,157 @@ test.describe('dialogs, league switching, layout', () => {
     });
   }
 });
+
+/* ------------------------------------------------------------ v3.5 workspace */
+test.describe('analysis workspace', () => {
+  const mode = (page, m) => page.click(`[data-mode="${m}"]`);
+
+  test('mode navigation exposes every tool', async ({ page }) => {
+    const errors = await open(page);
+    const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
+    expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit']);
+    expect(errors).toEqual([]);
+  });
+
+  test('player profile shows all three grades, components, skills and archetypes', async ({ page }) => {
+    const errors = await open(page);
+    await mode(page, 'player');
+    await page.waitForTimeout(600);
+    const w = await page.$eval('#workspace', (e) => e.textContent);
+    expect(w).toContain('Rate Grade');
+    expect(w).toContain('Magnitude');
+    expect(w).toContain('Situational splits');
+    expect(await page.$$eval('#workspace .pbar', (b) => b.length)).toBeGreaterThan(15);
+    expect(await page.$$eval('#workspace .arche', (b) => b.length)).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('scatter reports correlation, sample size and outliers', async ({ page }) => {
+    const errors = await open(page);
+    await mode(page, 'scatter');
+    await page.waitForTimeout(700);
+    const stats = await page.$eval('#scStats', (e) => e.textContent);
+    expect(stats).toMatch(/r = -?\d/);
+    expect(stats).toMatch(/n = \d+/);
+    expect(await page.$eval('#scOutliers', (e) => e.textContent)).toMatch(/residual/i);
+    // switching axes must redraw without error
+    await page.$eval('#scX', (e) => { e.value = 'pts'; e.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(500);
+    expect(await page.$eval('#scStats', (e) => e.textContent)).toMatch(/r = -?\d/);
+    expect(errors).toEqual([]);
+  });
+
+  test('similarity is bounded, self-consistent and explained', async ({ page }) => {
+    const errors = await open(page);
+    await mode(page, 'similarity');
+    await page.waitForTimeout(900);
+    const rows = await page.$$eval('#workspace tbody tr', (r) => r.length);
+    expect(rows).toBeGreaterThan(10);
+
+    // Mathematical properties: bounds, symmetry, self-similarity = 100.
+    const props = await page.evaluate(() => {
+      const W = DATA.analysis.similarityWeights;
+      const sim = (a, b) => {
+        let acc = 0, w = 0;
+        for (const [ax, wt] of Object.entries(W)) {
+          const x = a?.[ax], y = b?.[ax];
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          acc += wt * (x - y) ** 2; w += wt;
+        }
+        return w ? 100 * (1 - Math.sqrt(acc / w) / 100) : null;
+      };
+      const ps = DATA.leagues.NBA.filter((p) => p.appeared && p.skillProfile).slice(0, 40);
+      let minS = 101, maxS = -1, maxAsym = 0, selfMin = 101;
+      for (const a of ps) {
+        selfMin = Math.min(selfMin, sim(a.skillProfile, a.skillProfile));
+        for (const b of ps) {
+          const s = sim(a.skillProfile, b.skillProfile);
+          if (s === null) continue;
+          minS = Math.min(minS, s); maxS = Math.max(maxS, s);
+          maxAsym = Math.max(maxAsym, Math.abs(s - sim(b.skillProfile, a.skillProfile)));
+        }
+      }
+      return { minS, maxS, maxAsym, selfMin };
+    });
+    expect(props.minS).toBeGreaterThanOrEqual(0);
+    expect(props.maxS).toBeLessThanOrEqual(100);
+    expect(props.maxAsym).toBeLessThan(1e-9);        // symmetric
+    expect(props.selfMin).toBeCloseTo(100, 6);       // self-similarity is exactly 100
+    expect(errors).toEqual([]);
+  });
+
+  test('team fit is bounded, explained, and separate from quality', async ({ page }) => {
+    const errors = await open(page);
+    await mode(page, 'teamfit');
+    await page.waitForTimeout(700);
+    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('/100');
+    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('not');
+
+    const t = await page.evaluate(() => {
+      const teams = DATA.analysis.teams.NBA;
+      const all = Object.values(teams);
+      const scores = all.flatMap((x) => x.topFits.map((f) => f.score));
+      const needs = all.flatMap((x) => Object.values(x.needs).map((n) => n.need));
+      // A lower-graded player outranking a higher-graded one on fit proves the two are distinct.
+      let inversion = false;
+      for (const x of all) {
+        for (let i = 1; i < Math.min(20, x.topFits.length); i++) {
+          if (x.topFits[i - 1].grade < x.topFits[i].grade) { inversion = true; break; }
+        }
+        if (inversion) break;
+      }
+      return { minScore: Math.min(...scores), maxScore: Math.max(...scores),
+               minNeed: Math.min(...needs), maxNeed: Math.max(...needs),
+               teams: all.length, inversion };
+    });
+    expect(t.minScore).toBeGreaterThanOrEqual(0);
+    expect(t.maxScore).toBeLessThanOrEqual(100);
+    expect(t.minNeed).toBeGreaterThanOrEqual(0);
+    expect(t.maxNeed).toBeLessThanOrEqual(100);
+    expect(t.teams).toBeGreaterThan(20);
+    expect(t.inversion).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('compare uses the selected players and marks winners', async ({ page }) => {
+    const errors = await open(page);
+    await page.$$eval('[data-compare]', (b) => b.slice(0, 3).forEach((x) => {
+      x.checked = true; x.dispatchEvent(new Event('change'));
+    }));
+    await mode(page, 'compare');
+    await page.waitForTimeout(500);
+    expect(await page.$$eval('#workspace tbody tr', (r) => r.length)).toBeGreaterThan(10);
+    expect(await page.$$eval('#workspace .winner', (w) => w.length)).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('G League translation is exploratory and carries a sample size', async ({ page }) => {
+    await open(page);
+    const tr = await page.evaluate(() => {
+      const t = DATA.analysis.translation;
+      const gl = DATA.leagues.GLEAGUE.find((p) => p.appeared && p.nbaTranslation?.pts);
+      return { sample: t.crossoverSample, caveat: t.caveat,
+               n: gl?.nbaTranslation.pts.basedOn,
+               ordered: gl && gl.nbaTranslation.pts.low <= gl.nbaTranslation.pts.estimate
+                        && gl.nbaTranslation.pts.estimate <= gl.nbaTranslation.pts.high };
+    });
+    expect(tr.sample).toBeGreaterThan(50);
+    expect(tr.caveat.toLowerCase()).toContain('not enough');
+    expect(tr.n).toBeGreaterThan(7);
+    expect(tr.ordered).toBe(true);     // low <= estimate <= high
+  });
+
+  test('workspace holds up at mobile width', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const errors = await open(page);
+    for (const m of ['player', 'scatter', 'similarity', 'teamfit']) {
+      await mode(page, m);
+      await page.waitForTimeout(500);
+      const o = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth,
+      }));
+      expect(o.scroll, `${m} overflow`).toBeLessThanOrEqual(o.client + 2);
+    }
+    expect(errors).toEqual([]);
+  });
+});

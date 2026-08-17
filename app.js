@@ -38,6 +38,7 @@ const get = (p, key) => {
   if (key.startsWith('stats.')) return p.stats?.[key.slice(6)] ?? null;
   if (key.startsWith('custom.')) return p.custom?.[key.slice(7)] ?? null;
   if (key.startsWith('components.')) return p.components?.[key.slice(11)] ?? null;
+  if (key.startsWith('skill.')) return p.skillProfile?.[key.slice(6)] ?? null;
   return p[key] ?? null;
 };
 const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
@@ -294,13 +295,7 @@ const PRESET_LABELS = {overall:'Overall',scoring:'Scoring',shooting:'Shooting',p
   teams:'Team History',bio:'Bio & Draft',splits:'Season Splits (G League)',
   tracking:'Tracking & Hustle (NBA)',all:'All Raw Stats'};
 
-const CORE_REGISTRY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','gp','mpg','minutes','pts','reb','oreb','dreb',
-  'ast','stl','blk','blka','tov','pf','pfd','plusMinus','fga','fgPct','fg3a','fg3Pct','fta','ftPct','efg','ts','fg3Ar','ftr',
-  'astTo','usg','astPct','astRatio','orebPct','drebPct','rebPct','toRatio','tovPct','offRtg','defRtg','netRtg','pace','pie','poss',
-  'stlPer100','blkPer100','astPer100','tovPer100','defWs','per','ows','dws','ws','ws48','obpm','dbpm','bpm','vorp',
-  'stlPct','blkPct','wsPerGame','dwsPerGame','vorpPerGame','age','heightInches','weight',
-  ...CUSTOM_KEYS,
-  'components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'];
+// CORE_REGISTRY removed in v3.5 — the field catalog and the records themselves are the registry.
 
 function fmt(v,type){
   if (type==='text') return esc(v || '—');
@@ -336,9 +331,29 @@ function rawMetricKeys(){
   for(const p of currentPlayers()) for(const [k,v] of Object.entries(p.stats||{})) if(finite(v)) keys.add(`stats.${k}`);
   return [...keys].sort();
 }
+/**
+ * Single metric registry, derived from the data and the published field catalog rather than a
+ * hand-maintained CORE_REGISTRY. A new field becomes available to the Formula Lab, numeric
+ * filters and the column chooser the moment the build emits it — no separate registration.
+ */
 function metricRegistryKeys(){
+  const sample=currentPlayers().slice(0,80);
   const present=new Set();
-  for(const p of currentPlayers().slice(0,60)) for(const k of CORE_REGISTRY) if(finite(get(p,k))) present.add(k);
+  const probe=(obj,prefix)=>{
+    for(const p of sample) for(const k of Object.keys(p[obj]||{})) {
+      const key=prefix+k;
+      if(!present.has(key)&&sample.some(q=>finite(get(q,key)))) present.add(key);
+    }
+  };
+  // Top-level numeric fields.
+  for(const p of sample) for(const k of Object.keys(p)){
+    if(['stats','custom','components','rateComponents','magnitudeComponents','teams','skillProfile',
+        'archetypes','cohortRanks','gradeCoverageDetail','nbaTranslation','ownTeamFit','sourceIds'].includes(k)) continue;
+    if(!present.has(k)&&sample.some(q=>finite(q[k]))) present.add(k);
+  }
+  probe('custom','custom.');
+  probe('components','components.');
+  probe('skillProfile','skill.');
   return [...present, ...rawMetricKeys()];
 }
 function allRawColumns(){
@@ -507,10 +522,22 @@ function renderRules(){
 }
 
 function render(){
-  const cols=visibleColumns(), list=filteredPlayers(), limit=Number($('rowLimit').value)||50;
+  const cols=visibleColumns(), list=filteredPlayers();
+  let limit=Number($('rowLimit').value)||50;
   viewRankOf=new Map(list.map((p,i)=>[p.playerId,i+1]));
+  // A wide view times the row count gives the real cost. All Raw Stats at 1,075 columns x 582
+  // rows is 625,000 cells and took 6.1s to lay out, so very wide views cap their rows and say so.
+  const CELL_BUDGET=120000;
+  let capped=0;
+  if(cols.length*Math.min(limit,list.length)>CELL_BUDGET){
+    const maxRows=Math.max(10,Math.floor(CELL_BUDGET/cols.length));
+    if(maxRows<Math.min(limit,list.length)){ capped=maxRows; limit=maxRows; }
+  }
   const shown=list.slice(0,limit);
   $('resultCount').textContent=list.length.toLocaleString();
+  $('rowCapNote').textContent=capped
+    ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
+    : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
   $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
@@ -521,6 +548,7 @@ function render(){
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
   document.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();});
   document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
+  document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
   document.querySelectorAll('[data-compare]').forEach(c=>c.onchange=()=>{if(c.checked){if(compared.size>=5){c.checked=false;return}compared.add(c.dataset.compare)}else compared.delete(c.dataset.compare);updateCompare();});
   renderRules(); renderSummary(list); updateCompare();
 }
@@ -530,7 +558,7 @@ function cell(p,key){
   if(key==='select')return `<td><input class="compare-check" type="checkbox" data-compare="${esc(p.playerId)}" ${compared.has(p.playerId)?'checked':''}></td>`;
   if(key==='name'){
     const multi=(p.teamCount||1)>1?`<span class="multi-badge" title="${esc((p.teams||[]).map(s=>`${s.team} ${s.gp}g`).join(' · '))}">${p.teamCount} TM</span>`:'';
-    return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${esc(p.team||'')} · ${esc(p.position||'—')}</span></td>`;
+    return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" title="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${esc(p.team||'')} · ${esc(p.position||'—')}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${fmt(v,def.type)}</td>`;
   return `<td class="${key==='viewRank'||key==='rank'?'rank':''}">${fmt(v,def.type)}</td>`;
@@ -828,6 +856,7 @@ function switchLeague(b){
   currentPlayers().forEach(p=>{delete p.labScore;delete p.labCoverage});
   $('labNote').textContent='';
   populateSelectors();fillMetricSelects();render();
+  if(window.__wsInit) window.__wsInit();
 }
 
 function bind(){
@@ -849,16 +878,27 @@ function bind(){
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 }
 
+// Bridge for workspace.js so it does not duplicate formatting, filtering or label logic.
+window.__wsLeague=()=>league;
+window.__wsRender=()=>render();
+window.__wsFiltered=()=>filteredPlayers();
+window.__wsCompared=()=>[...compared];
+window.__wsLabel=(k)=>colDef(k).label;
+window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
+
 async function init(){
   try{
     const r=await fetch('./public/data.json',{cache:'no-store'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
     DATA=rehydrate(DATA);
+    // `let DATA` at script scope is NOT a window property, so workspace.js could not see it.
+    window.DATA=DATA;
     $('nbaCount').textContent=DATA.counts.NBA.toLocaleString();$('gCount').textContent=DATA.counts.GLEAGUE.toLocaleString();
     const ro=(DATA.counts.rosterOnlyNBA||0)+(DATA.counts.rosterOnlyGLEAGUE||0);
     $('sourceLine').textContent=`${DATA.primarySource} · ${DATA.counts.records} league-season records for ${DATA.counts.uniquePeople} unique players`
       +(ro?`, plus ${ro} rostered who never played`:'')+` · generated ${new Date(DATA.generatedAt).toLocaleString()}`;
     $('seasonEyebrow').textContent=DATA.seasonType;
     populateSelectors();fillMetricSelects();bind();render();
+    if(window.__wsInit) window.__wsInit();
     if(window.claude && !(await capability('downloads'))) $('exportBtn').hidden=true;
   }catch(e){
     $('sourceLine').textContent='The data build has not completed yet.';
