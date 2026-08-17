@@ -20,7 +20,7 @@ export const SOURCES = {
   trk: { label: 'NBA Stats · Tracking', detail: 'stats.nba.com player tracking (NBA only, except catch-and-shoot / pull-up)' },
   hustle: { label: 'NBA Stats · Hustle', detail: 'stats.nba.com hustle stats (NBA only)' },
   split: { label: 'Season split', detail: 'the two halves of the G League season, kept separate for inspection' },
-  bref: { label: 'Basketball-Reference', detail: 'second source; the only source of PER, win shares and the BPM/VORP family' },
+  bref: { label: 'Basketball-Reference', detail: 'SNAPSHOT, not re-fetched by npm run refresh; the only source of PER, win shares and the BPM/VORP family. See provenance.basketballReferenceSnapshot for its date.' },
   sit: { label: 'Situational split', detail: 'home/road, win/loss, starter/bench, pre/post All-Star, clutch' },
   calc: { label: 'Project-defined', detail: 'calculated here; not an official statistic' },
 };

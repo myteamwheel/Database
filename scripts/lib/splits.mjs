@@ -24,6 +24,44 @@ function load(dir, name) {
   return rs.rowSet.map((r) => Object.fromEntries(rs.headers.map((h, i) => [h, r[i]])));
 }
 
+/** Advanced fields worth carrying per split. Rates, so they are minutes-weighted across halves. */
+const ADV_KEEP = ['USG_PCT', 'AST_PCT', 'REB_PCT', 'OREB_PCT', 'DREB_PCT', 'PIE',
+  'OFF_RATING', 'DEF_RATING', 'NET_RATING', 'PACE', 'AST_TO', 'AST_RATIO', 'TM_TOV_PCT'];
+const ADV_SUM = ['POSS'];
+
+/**
+ * Advanced measures per split. The Base pass gave PTS/REB/AST/TS only; this adds usage, assist
+ * and rebound rates, PIE, on-court ratings, pace and possessions wherever the endpoint serves
+ * them. A split the endpoint does not serve is simply absent — never written as zero.
+ */
+function buildAdvancedSplits(dirs) {
+  const out = new Map();
+  for (const name of SPLIT_NAMES) {
+    const acc = new Map();
+    for (const dir of dirs) {
+      for (const r of load(dir, `adv_${name}`)) {
+        const id = r.PLAYER_ID;
+        if (!id) continue;
+        const w = num(r.MIN) || 0;
+        if (!acc.has(id)) acc.set(id, { w: 0, sums: {}, counts: {} });
+        const a = acc.get(id);
+        a.w += w;
+        for (const f of ADV_KEEP) { const v = num(r[f]); if (v !== null) a.sums[f] = (a.sums[f] || 0) + v * w; }
+        for (const f of ADV_SUM) { const v = num(r[f]); if (v !== null) a.counts[f] = (a.counts[f] || 0) + v; }
+      }
+    }
+    for (const [id, a] of acc) {
+      if (!a.w) continue;
+      const rec = {};
+      for (const f of ADV_KEEP) if (a.sums[f] !== undefined) rec[f.toLowerCase()] = a.sums[f] / a.w;
+      for (const f of ADV_SUM) if (a.counts[f] !== undefined) rec[f.toLowerCase()] = a.counts[f];
+      if (!out.has(id)) out.set(id, {});
+      out.get(id)[name] = rec;
+    }
+  }
+  return out;
+}
+
 /**
  * Per-player split lines, summed across the supplied directories so a G League split covers the
  * same combined season the headline line does. Percentages are recomputed from summed totals.
@@ -62,6 +100,14 @@ export function buildSplits(dirs) {
       };
       if (!out.has(id)) out.set(id, {});
       out.get(id)[name] = rec;
+    }
+  }
+  // Fold the advanced measures in beside the base ones, under the same split name.
+  const adv = buildAdvancedSplits(dirs);
+  for (const [id, byName] of adv) {
+    if (!out.has(id)) out.set(id, {});
+    for (const [name, rec] of Object.entries(byName)) {
+      out.get(id)[name] = { ...(out.get(id)[name] || {}), ...rec };
     }
   }
   return out;

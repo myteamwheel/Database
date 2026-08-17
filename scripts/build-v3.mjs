@@ -12,7 +12,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
-import { computeCustom, computeGrades, cohortRanks, componentIngredients, COMPONENT_WEIGHTS, K_FACTOR, GRADE_ANCHORS } from './lib/metrics.mjs';
+import { computeCustom, cohortRanks } from './lib/metrics.mjs';
+import { buildGrade, dependencyTree, effectiveConceptWeights, INGREDIENTS, MIN_COVERAGE,
+         COMPONENT_WEIGHTS, GRADE_ANCHORS, MAGNITUDE_ANCHORS, K_FACTOR } from './lib/grades.mjs';
 import { buildStints, positionFamily } from './lib/roster.mjs';
 import { buildSplits, loadRoster, ageAt, OPENING_NIGHT, FEB_FIRST } from './lib/splits.mjs';
 import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
@@ -58,7 +60,13 @@ function extraFor(dir, files) {
 const bioPatchPath = path.join(ROOT, 'scripts/data/player_bios.json');
 const bioPatch = fs.existsSync(bioPatchPath) ? JSON.parse(fs.readFileSync(bioPatchPath, 'utf8')) : {};
 
-/** Basketball-Reference v2 build, reused as the second source (no re-scrape). */
+/**
+ * Basketball-Reference second source. This is a SNAPSHOT, not a live fetch: `npm run refresh`
+ * re-pulls stats.nba.com, bios, birthdates, stints and splits but does not re-scrape
+ * Basketball-Reference. Its own generation timestamp is carried through to provenance and shown
+ * in the interface, so a freshly built database never implies PER/WS/BPM were refreshed at the
+ * same moment as everything else.
+ */
 const brefBuild = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/data/bref_build_v2.json'), 'utf8'));
 const brefIndex = {
   NBA: new Map(brefBuild.leagues.NBA.map((p) => [resolveName(p.name), p])),
@@ -348,22 +356,33 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
 
   // ---- metrics + grade
   const { custom, norm, K: customK, possFloor } = computeCustom(records.map((r) => r._official));
-  // Two grades on two bases. The headline `grade` is per-GAME, matching the original brief;
-  // `rateGrade` is the per-36 view, which answers a different question and is kept beside it
-  // rather than substituted for it.
-  const g = computeGrades(records, custom, norm, { basis: 'perGame' });
-  const gr = computeGrades(records, custom, norm, { basis: 'per36' });
+  // THREE grades answering three different questions, all on the same cleaned ingredient set:
+  //   grade          - per-game production, standing relative to this league's population
+  //   rateGrade      - the same model per 36 minutes (on-court productivity)
+  //   magnitudeGrade - robust z-scores, so distance from normal survives instead of collapsing
+  //                    to rank order
+  const g = buildGrade(records, norm, { basis: 'perGame', mode: 'percentile' });
+  const gr = buildGrade(records, norm, { basis: 'per36', mode: 'percentile' });
+  const gm = buildGrade(records, norm, { basis: 'perGame', mode: 'robust' });
 
   records.forEach((r, i) => {
     r.custom = custom[i];
     r.components = g.components[i];
     r.rateComponents = gr.components[i];
+    r.magnitudeComponents = gm.components[i];
     r.gradeRaw = g.raw[i];
     r.gradeShrunk = g.shrunk[i];
     r.grade = g.grade[i];
     r.rateGrade = gr.grade[i];
-    // Renamed from `sampleConfidence`: this is the weight a player's own line carried in the
-    // shrinkage, not a statistical confidence level, and it tops out well short of 100.
+    r.magnitudeGrade = gm.grade[i];
+    r.magnitudeRaw = gm.raw[i];
+    // Coverage: how many declared ingredients this player actually had. Without it a missing
+    // statistic silently changes the formula from player to player.
+    r.gradeCoverage = g.overallCoverage[i].pct;
+    r.gradeCoverageDetail = Object.fromEntries(
+      Object.entries(g.coverage[i]).map(([k, v]) => [k, `${v.have}/${v.of}`]));
+    r.componentsBelowMinimum = Object.entries(g.coverage[i])
+      .filter(([k, v]) => v.have < MIN_COVERAGE[k]).map(([k]) => k);
     r.reliabilityWeight = g.reliability[i];
     delete r._official;
   });
@@ -402,7 +421,17 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
 
   return {
     records,
-    model: { ...g.model, rateModel: gr.model, customK, possFloor, positionalBias },
+    model: {
+      ...g.model, rateModel: gr.model, magnitudeModel: gm.model,
+      customK, possFloor, positionalBias,
+      coverage: {
+        median: (() => { const a = records.filter((r) => r.appeared !== false)
+          .map((r) => r.gradeCoverage).filter((v) => v != null).sort((x, y) => x - y);
+          return a.length ? a[Math.floor(a.length / 2)] : null; })(),
+        fullCoverage: records.filter((r) => r.gradeCoverage === 100).length,
+        belowMinimumSomewhere: records.filter((r) => (r.componentsBelowMinimum || []).length).length,
+      },
+    },
   };
 }
 
@@ -542,8 +571,10 @@ const out = {
     version: '3.1',
     scale: '0.0000-9.9999 affine stretch of a minutes-shrunk weighted-percentile composite',
     componentWeights: COMPONENT_WEIGHTS,
-    componentIngredients: componentIngredients(nba.model.basis),
-    rateComponentIngredients: componentIngredients('per36'),
+    dependencyTree: dependencyTree(),
+    effectiveConceptWeights: effectiveConceptWeights(),
+    minCoverage: MIN_COVERAGE,
+    magnitudeAnchors: MAGNITUDE_ANCHORS,
     shrinkage: {
       NBA: nba.model, GLEAGUE: gl.model,
       rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',
@@ -552,6 +583,14 @@ const out = {
   fieldCatalog: { ...buildCatalog({ NBA: nba.records, GLEAGUE: gl.records }), _topLevel: TOP_LEVEL_CATALOG },
   provenance: {
     buildCommit,
+    basketballReferenceSnapshot: {
+      generatedAt: brefBuild.generatedAt || null,
+      note: 'Basketball-Reference fields (PER, win shares, the BPM/VORP family, TOV%, STL%, BLK%) come from this snapshot and are NOT re-fetched by npm run refresh. Everything else is re-pulled from stats.nba.com.',
+      tables: {
+        NBA: Object.keys(brefBuild.sourceAudit?.NBA || {}),
+        GLEAGUE: Object.keys(brefBuild.sourceAudit?.GLEAGUE || {}),
+      },
+    },
     gradeModelVersion: '3.3',
     generatedAt: new Date().toISOString(),
     ageReferenceDates: { openingNight: OPENING_NIGHT, febFirst: FEB_FIRST },

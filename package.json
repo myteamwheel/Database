@@ -18,11 +18,15 @@
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run audit:presets && npm run verify:artifact",
-    "test:browser": "echo 'Load scripts/browser-test.js in the running page, then call window.__runAppTests()'",
-    "audit:presets": "node scripts/audit-presets.mjs"
+    "verify": "npm run audit && npm run audit:presets && npm run verify:artifact && npm run test:browser",
+    "test:browser": "playwright test",
+    "audit:presets": "node scripts/audit-presets.mjs",
+    "diagnostics": "node scripts/diagnostics.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

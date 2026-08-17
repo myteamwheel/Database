@@ -82,7 +82,10 @@ const BASE_COLS = {
   regularGP:{label:'RS GP',type:'int'}, showcaseGP:{label:'Cup GP',type:'int'},
   mpg:{label:'MIN',type:'1'}, minutes:{label:'Total MIN',type:'int'},
   grade:{label:'Grade',type:'grade',help:'Per-game performance grade'},
-  rateGrade:{label:'Rate Grade',type:'grade',help:'Same model on a per-36-minute basis'},
+  rateGrade:{label:'Rate Grade',type:'grade',help:'Same model per 36 minutes — on-court productivity'},
+  magnitudeGrade:{label:'Magnitude',type:'grade',help:'Robust z-score model: how far production sits from normal, not standing. 2025-26 population only.'},
+  magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
+  gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
   reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
   pts:{label:'PTS',type:'1'}, reb:{label:'REB',type:'1'}, oreb:{label:'OREB',type:'1'}, dreb:{label:'DREB',type:'1'},
@@ -257,7 +260,7 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   scoring:['select','viewRank','name','team','grade','pts','fg','fga','fgPct','fg3','fg3a','fg3Pct','ft','fta','ftPct','efg','ts','fg3Ar','ftr','usg','custom.selfCreatedPts36','custom.paintPts36','custom.efficiencyOverExpected'],
   shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_catch_shoot_pts','stats.trk_catchshoot_catch_shoot_fga','stats.trk_pullup_pull_up_pts','stats.trk_pullup_pull_up_fga'],
   playmaking:['select','viewRank','name','team','grade','ast','tov','astPct','astRatio','astTo','astPer100','tovPer100','toRatio','usg','custom.creationLoad36','custom.selfSufficiencyIndex'],
@@ -267,7 +270,7 @@ const PRESETS = {
   shotprofile:['select','viewRank','name','team','grade','pts','custom.shotLocationValue','custom.paintPts36','custom.situationalPts36','stats.oscore_pct_pts_paint','stats.oscore_pct_pts_3pt','stats.oscore_pct_pts_2pt_mr','stats.oscore_pct_pts_ft','stats.oscore_pct_pts_fb','stats.oscore_pct_uast_fgm','stats.omisc_pts_paint','stats.omisc_pts_fb','stats.omisc_pts_off_tov','stats.omisc_pts_2nd_chance'],
   custom:['select','viewRank','name','team','grade',...CUSTOM_KEYS,'labScore'],
   customraw:['select','viewRank','name','team','grade','gp','minutes','reliabilityWeight','custom.efficiencyOverExpected','custom.efficiencyOverExpectedRaw','custom.impactOverExpected','custom.impactOverExpectedRaw','custom.selfCreatedPts36','custom.selfCreatedPts36Raw','custom.situationalPts36','custom.situationalPts36Raw','custom.paintPts36','custom.paintPts36Raw'],
-  components:['select','viewRank','name','team','grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'],
+  components:['select','viewRank','name','team','grade','rateGrade','magnitudeGrade','magnitudeRaw','gradeCoverage','gradeRaw','gradeShrunk','reliabilityWeight','components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'],
   teams:['select','viewRank','name','team','teamCount','grade','gp','mpg','pts','reb','ast'],
   bio:['select','viewRank','name','team','position','positionFamily','positionSource','age','ageOpeningNight','ageFeb1','birthdate','height','weight','country','college','draftStatus','draftYear','draftRound','draftNumber','jersey','gp','grade'],
   splits:['select','viewRank','name','team','grade','gp','regularGP','showcaseGP','minutes','mpg','pts','reb','ast','brefGP','brefScope'],
@@ -623,6 +626,8 @@ function openPlayer(id){
       <div class="detail-card"><div class="k">PIE / NetRtg</div><div class="v">${pct(p.pie)} / ${signed(p.netRtg)}</div></div>
       <div class="detail-card"><div class="k">Reliability weight</div><div class="v">${num(p.reliabilityWeight,1)}</div></div>
       <div class="detail-card"><div class="k">Rate grade (per 36)</div><div class="v">${finite(p.rateGrade)?p.rateGrade.toFixed(4):'—'}</div></div>
+      <div class="detail-card"><div class="k">Magnitude grade</div><div class="v">${finite(p.magnitudeGrade)?p.magnitudeGrade.toFixed(4):'—'}</div></div>
+      <div class="detail-card"><div class="k">Ingredient coverage</div><div class="v">${num(p.gradeCoverage,1)}%<span class="tiny">${Object.entries(p.gradeCoverageDetail||{}).map(([k,v])=>`${k.slice(0,4)} ${v}`).join(' · ')}</span></div></div>
       ${p.cohortRanks?.position?`<div class="detail-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${p.cohortRanks.position.rank} <span class="tiny">of ${p.cohortRanks.position.of}</span></div></div>`:''}
       ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
       ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
@@ -678,6 +683,7 @@ function openMetricDefinitions(){
   $('metricDialogBody').innerHTML=`<div class="eyebrow">METHODS</div><h2>Grade and custom metric definitions</h2>
     <p>${esc(DATA.sourceNote||'')}</p>
     <p><strong>Season definition.</strong> ${esc(DATA.seasonType||'')}</p>
+    ${DATA.provenance?.basketballReferenceSnapshot?.generatedAt?`<p><strong>Basketball-Reference is a snapshot.</strong> Taken ${esc(new Date(DATA.provenance.basketballReferenceSnapshot.generatedAt).toLocaleString())}. PER, win shares and the BPM/VORP family come from it and are <em>not</em> re-fetched when the rest of the database is refreshed, so they can be older than every other field in the same row.</p>`:''}
     <p><strong>Counts.</strong> ${DATA.counts.records} league-season records covering ${DATA.counts.uniquePeople} unique people; ${DATA.counts.both} played in both leagues and hold two independent records.</p>
     <p><strong>Grade scale.</strong> ${esc(gm.scale||'')} — K is ${esc(String(shr.NBA?.K??'—'))} minutes in the NBA and ${esc(String(shr.GLEAGUE?.K??'—'))} in the G League.</p>
     <h3>Component weights and ingredients</h3>

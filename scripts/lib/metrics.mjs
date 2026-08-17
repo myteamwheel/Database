@@ -131,7 +131,7 @@ export function normalize(o) {
     gp, min, mpg: gp > 0 ? min / gp : null,
     ptsPG: pgv(t.PTS), rebPG: pgv(t.REB), orebPG: pgv(t.OREB), drebPG: pgv(t.DREB),
     astPG: pgv(t.AST), stlPG: pgv(t.STL), blkPG: pgv(t.BLK), tovPG: pgv(t.TOV),
-    ftaPG: pgv(t.FTA), fg3aPG: pgv(t.FG3A), pmPG: pgv(t.PLUS_MINUS),
+    ftaPG: pgv(t.FTA), fg3aPG: pgv(t.FG3A), fgaPG: pgv(t.FGA), pmPG: pgv(t.PLUS_MINUS),
     defWsPG: pgv(o.defense.DEF_WS),
     pts36: p36(t.PTS), reb36: p36(t.REB), oreb36: p36(t.OREB), dreb36: p36(t.DREB),
     ast36: p36(t.AST), stl36: p36(t.STL), blk36: p36(t.BLK), blka36: p36(t.BLKA),

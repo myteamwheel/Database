@@ -185,6 +185,87 @@ The grade also excludes contract status, draft position, awards, age and reputat
 
 ---
 
+---
+
+## Three grades, three questions
+
+| Grade | Question it answers | How |
+|---|---|---|
+| **`grade`** | How did he perform per game, relative to his league's 2025-26 population? | Weighted percentiles of primitive statistics, shrunk by minutes, fixed anchors |
+| **`rateGrade`** | How productive was he while actually on the floor? | Identical model with counting production per 36 |
+| **`magnitudeGrade`** | How far from normal was the production itself? | Winsorized **robust z-scores** (median, 1.4826×MAD), so distance survives instead of collapsing to rank order |
+
+`grade` is standing. `magnitudeGrade` is distance. They correlate at ρ≈0.96 but disagree exactly
+where you would want them to — when a player is far clear of the field rather than merely first.
+
+**`magnitudeGrade` is a 2025-26 magnitude, not a historically absolute rating.** The anchors are
+fixed, but the median and MAD come from this season's population; identical raw numbers in a
+different season would land differently. Calling it historically absolute would require
+multi-season reference distributions, which do not exist here yet.
+
+### No statistic appears twice
+
+The previous model fed derived composites into components that already contained their own
+inputs: `defensiveDisruptionIndex` sat beside STL, BLK, DREB%, DefRtg and DEF WS while being built
+from exactly those; Efficiency Over Expected is a TS%-versus-usage residual placed beside TS% and
+usage; Impact Over Expected is a PIE residual beside PIE. The declared component weights therefore
+were not the real weights.
+
+Every grade ingredient is now a primitive or near-primitive statistic, **23 of them, each
+appearing exactly once across the whole model**. The derived composites remain as descriptive
+metrics but never as ingredients. `npm run diagnostics` prints the check.
+
+### Ingredient weights, because averaging lied
+
+Averaging a component's ingredients equally sounds neutral and is not. With five equally weighted
+Scoring ingredients, actual points was **6.8% of a 30% component** — four volume and role proxies
+diluted the thing the component is named after. Each ingredient now carries an explicit share, and
+the build publishes the resolved **effective concept weights**:
+
+| Concept | Share of grade |
+|---|---|
+| Scoring volume | 17.6% |
+| Playmaking | 17.3% |
+| Defensive rebounding | 8.4% |
+| Shooting efficiency | 7.7% |
+| Ball security | 6.6% |
+| Offensive rebounding | 6.5% |
+| Team on-court context | 5.5% |
+| Perimeter defence / rim protection | 4.8% each |
+
+The full dependency tree — which statistic is in which component, its share, and the underlying
+concepts it draws on, including PIE's declared box-score dependencies — ships in the data as
+`gradeModel.dependencyTree` and `gradeModel.effectiveConceptWeights`.
+
+### Coverage instead of silent reformulation
+
+A missing statistic used to change the formula from player to player without saying so. Each
+component now declares a minimum ingredient count; a component below it is **dropped and its
+weight redistributed**, never quietly averaged over a shorter list. Every player carries
+`gradeCoverage`, per-component detail (`defense 4/4`) and `componentsBelowMinimum`. Current build:
+median coverage 99.8%, and **zero players fall below any component minimum**.
+
+## Testing
+
+`npm run verify` runs four gates and fails on any of them:
+
+1. `audit` — coverage, identity, grade sanity, stint reconciliation, positional-bias regression,
+   documentation-versus-code consistency
+2. `audit:presets` — every field declared by every UI preset resolves to real data
+3. `verify:artifact` — the published page decoded with the browser's own decoder and
+   deep-compared against `data.json` (1.19M value comparisons)
+4. `test:browser` — **Playwright**, 16 specs driving the real page: both leagues, every preset
+   with populated cells, sorting both directions, accented and accentless search, all filters,
+   numeric filters in displayed units, team-only scope-before-filter and blanked season fields,
+   scoped detail view, roster-only profile, Formula Lab positive/negative weights and tie
+   handling, the mixed-scope guard, hybrid G-F filtering, league switching with active filters,
+   reset, three viewport widths, and zero console errors
+
+`npm run diagnostics [previousBuild.json]` prints effective weights, the reuse check, coverage,
+the three grades against each other, positional and age bias, minutes correlation, the component
+correlation matrix with a redundancy flag, and — against a previous build — Spearman correlation,
+top-25 churn and the largest risers and fallers with the component driving each.
+
 ## Original metrics
 
 Project-defined composites — not official NBA, G League or Basketball-Reference statistics. All

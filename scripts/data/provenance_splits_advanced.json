@@ -1,0 +1,157 @@
+{
+ "fetchedAt": "2026-08-17T16:35:55.299Z",
+ "datasets": [
+  {
+   "dataset": "splits_nba/adv_home",
+   "rows": 579
+  },
+  {
+   "dataset": "splits_nba/adv_road",
+   "rows": 574
+  },
+  {
+   "dataset": "splits_nba/adv_wins",
+   "rows": 566
+  },
+  {
+   "dataset": "splits_nba/adv_losses",
+   "rows": 579
+  },
+  {
+   "dataset": "splits_nba/adv_starter",
+   "rows": 449
+  },
+  {
+   "dataset": "splits_nba/adv_bench",
+   "rows": 496
+  },
+  {
+   "dataset": "splits_nba/adv_preallstar",
+   "rows": 532
+  },
+  {
+   "dataset": "splits_nba/adv_postallstar",
+   "rows": 526
+  },
+  {
+   "dataset": "splits_nba/adv_month1",
+   "rows": 428
+  },
+  {
+   "dataset": "splits_nba/adv_month2",
+   "rows": 475
+  },
+  {
+   "dataset": "splits_nba/adv_month3",
+   "rows": 465
+  },
+  {
+   "dataset": "splits_nba/adv_month4",
+   "rows": 462
+  },
+  {
+   "dataset": "splits_nba/adv_month5",
+   "rows": 480
+  },
+  {
+   "dataset": "splits_nba/adv_month6",
+   "rows": 489
+  },
+  {
+   "dataset": "splits_nba/adv_month7",
+   "rows": 467
+  },
+  {
+   "dataset": "splits_nba/adv_clutch",
+   "rows": 492
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_home",
+   "rows": 507
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_road",
+   "rows": 489
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_wins",
+   "rows": 500
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_losses",
+   "rows": 499
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_starter",
+   "rows": 418
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_bench",
+   "rows": 425
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_preallstar",
+   "rows": 463
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_postallstar",
+   "rows": 447
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_month3",
+   "rows": 385
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_month4",
+   "rows": 424
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_month5",
+   "rows": 418
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_month6",
+   "rows": 420
+  },
+  {
+   "dataset": "splits_gleague_regular/adv_clutch",
+   "rows": 450
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_home",
+   "rows": 445
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_road",
+   "rows": 431
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_wins",
+   "rows": 429
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_losses",
+   "rows": 426
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_starter",
+   "rows": 332
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_bench",
+   "rows": 324
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_month2",
+   "rows": 430
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_month3",
+   "rows": 414
+  },
+  {
+   "dataset": "splits_gleague_showcase/adv_clutch",
+   "rows": 371
+  }
+ ]
+}
