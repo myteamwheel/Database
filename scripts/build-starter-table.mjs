@@ -127,8 +127,18 @@ const bad = [...tg.entries()].filter(([, n]) => n !== 5);
 console.log(`\n  written team-games with starters != 5: ${bad.length} of ${tg.size}`);
 if (bad.length) { console.log('    ' + JSON.stringify(bad.slice(0, 5))); process.exitCode = 1; }
 
+// Persist ONLY rows whose status is established. A row absent from this file is UNKNOWN by
+// definition, so writing 244,221 explicit null/UNKNOWN records stored no information and cost
+// 60 MB in every clone. Consumers must default missing keys to
+// {starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved'}.
+const known_rows = rows.filter((r) => r.starterSource !== 'UNKNOWN');
 const f = path.join(OUT, 'player_game_starters.json');
-fs.writeFileSync(f, JSON.stringify(rows));
+fs.writeFileSync(f, JSON.stringify({
+  schema: ['gameId', 'playerId', 'teamId', 'starter', 'starterSource', 'starterMethodVersion', 'starterValidation'],
+  absentKeyMeans: { starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved' },
+  totalHistoricalRows: rows.length,
+  rows: known_rows.map((r) => [r.gameId, r.playerId, r.teamId, r.starter, r.starterSource, r.starterMethodVersion, r.starterValidation]),
+}));
 fs.writeFileSync(path.join(OUT, 'starter_table_provenance.json'), JSON.stringify({
   generatedAt: new Date().toISOString(),
   methodVersions: METHOD_VERSIONS,
