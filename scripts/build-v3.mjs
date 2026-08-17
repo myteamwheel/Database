@@ -6,15 +6,24 @@
 // That closes v2's real gaps: G League ages (38% missing), G League listed positions
 // (68% inferred), and the entire BPM/VORP-family impact tier (100% missing).
 import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
 import { computeCustom, computeGrades, cohortRanks, COMPONENT_WEIGHTS, COMPONENT_INGREDIENTS } from './lib/metrics.mjs';
 import { buildStints, positionFamily } from './lib/roster.mjs';
+import { buildSplits, loadRoster, ageAt, OPENING_NIGHT, FEB_FIRST } from './lib/splits.mjs';
+import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
+
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SEASON = '2025-26';
+/** Birthdates, so age is stated against a fixed date instead of inherited from a source. */
+const bdPath = path.join(ROOT, 'scripts/data/birthdates.json');
+const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'utf8')) : {};
+
 
 /* ------------------------------------------------------------------ sources */
 
@@ -127,11 +136,12 @@ function combinedTracking(regularDir, showcaseDir, names) {
 }
 
 function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, extraFiles,
-                      stintHalves, combineTracking }) {
+                      stintHalves, combineTracking, splitDirs, rosterFile }) {
   const rsHalves = halvesFor(regularDir);
   const scHalves = showcaseDir ? halvesFor(showcaseDir) : new Map();
   const extras = extraFor(extraDir, extraFiles);
   const stints = buildStints(stintHalves);
+  const splits = splitDirs ? buildSplits(splitDirs) : new Map();
   const trackCombined = combineTracking ? combinedTracking(regularDir, showcaseDir, combineTracking) : new Map();
   // Official per-36 and per-100 tables were being downloaded and then discarded.
   // Named *Rows to avoid shadowing the per-100 helper used inside the record loop.
@@ -185,6 +195,10 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
     // Season-consistent tracking overwrites the regular-season-only version above.
     const tc = trackCombined.get(id);
     if (tc) Object.assign(stats, flat('trk', tc, ID_COLS));
+    const sp = splits.get(id);
+    if (sp) for (const [name, rec] of Object.entries(sp)) {
+      Object.assign(stats, flat(`sit_${name}`, rec, ID_COLS));
+    }
     Object.assign(stats, flat('op36', per36Rows.get(id), ID_COLS));
     Object.assign(stats, flat('op100', per100Rows.get(id), ID_COLS));
     // Half-season splits, so the combination is inspectable rather than asserted.
@@ -214,6 +228,11 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
       // so both are carried rather than silently picking one.
       age: num(bio?.AGE) ?? num(anchor.AGE) ?? (bref ? num(bref.age) : null),
       seasonAge: bref ? num(bref.age) : null,
+      // Deterministic ages from a real birthdate. `age` above is whatever the source listed;
+      // these two are unambiguous, which is what an "age 22 season" query actually needs.
+      birthdate: birthdates[String(id)]?.birthdate || null,
+      ageOpeningNight: ageAt(birthdates[String(id)]?.birthdate, OPENING_NIGHT),
+      ageFeb1: ageAt(birthdates[String(id)]?.birthdate, FEB_FIRST),
       height: pi?.HEIGHT || bio?.PLAYER_HEIGHT || patch?.height || null,
       heightInches: num(bio?.PLAYER_HEIGHT_INCHES) ?? heightToInches(patch?.height),
       weight: num(bio?.PLAYER_WEIGHT) || num(pi?.WEIGHT) || num(patch?.weight) || null,
@@ -296,6 +315,37 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
     });
   }
 
+  // Players who were on a roster but never took the floor. They have no performance to grade,
+  // so grade stays null rather than 0 — a 0 would rank them below every player who did play,
+  // which is a different and false claim.
+  const rosterOnly = [];
+  if (rosterFile) {
+    const seen = new Set(records.map((r) => r.nbaPersonId));
+    for (const e of loadRoster(rosterFile)) {
+      const pid = e.PLAYER_ID;
+      if (!pid || seen.has(pid)) continue;
+      seen.add(pid);
+      rosterOnly.push({
+        league, leagueLabel, season: SEASON,
+        playerId: String(pid), nbaPersonId: pid, brefId: null,
+        name: e.PLAYER || e.PLAYER_NAME || String(pid),
+        team: e.TEAM_ABBREVIATION || null, teamCount: 1,
+        position: e.POSITION || null, positionSource: e.POSITION ? 'roster-listed' : null,
+        positionFamily: positionFamily(e.POSITION),
+        teams: [], height: e.HEIGHT || null, weight: num(e.WEIGHT),
+        college: blank(e.SCHOOL), country: null, jersey: e.NUM || null,
+        birthdate: birthdates[String(pid)]?.birthdate || null,
+        ageOpeningNight: ageAt(birthdates[String(pid)]?.birthdate, OPENING_NIGHT),
+        ageFeb1: ageAt(birthdates[String(pid)]?.birthdate, FEB_FIRST),
+        age: num(e.AGE), seasonAge: null,
+        gp: 0, minutes: 0, mpg: null, regularGP: 0, showcaseGP: 0,
+        appeared: false, rosterOnly: true,
+        grade: null, rateGrade: null, reliabilityWeight: 0, rank: null,
+        custom: {}, components: {}, stats: {}, sourceIds: { nbaStats: pid },
+      });
+    }
+  }
+
   // ---- metrics + grade
   const { custom, norm, K: customK, possFloor } = computeCustom(records.map((r) => r._official));
   // Two grades on two bases. The headline `grade` is per-GAME, matching the original brief;
@@ -317,14 +367,21 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
     r.reliabilityWeight = g.reliability[i];
     delete r._official;
   });
+  records.forEach((r) => { r.appeared = true; r.rosterOnly = false; });
   records.sort((a, b) => b.grade - a.grade);
   records.forEach((r, i) => { r.rank = i + 1; });
+  // Appended after ranking so they never occupy a rank position.
+  records.push(...rosterOnly);
 
   // Cohort ranks. A single league-wide rank hides that the grade favours big men by roughly
   // 0.9 points; position-relative standing is reported rather than the grade being adjusted.
-  const posRanks = cohortRanks(records, (r) => r.positionFamily).out;
-  const ageRanks = cohortRanks(records, (r) => (r.age == null ? null : r.age <= 23 ? 'u24' : 'over23')).out;
-  const teamRanks = cohortRanks(records, (r) => r.team).out;
+  const graded = records.filter((r) => r.grade !== null);
+  const posRanks = cohortRanks(graded, (r) => r.positionFamily).out;
+  const ageRanks = cohortRanks(graded, (r) => {
+    const a = r.ageOpeningNight ?? r.age;
+    return a == null ? null : a <= 23 ? 'u24' : 'over23';
+  }).out;
+  const teamRanks = cohortRanks(graded, (r) => r.team).out;
   records.forEach((r) => {
     const p = posRanks.get(r), a = ageRanks.get(r), t = teamRanks.get(r);
     r.cohortRanks = {
@@ -337,7 +394,7 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
   // Positional bias, measured every build so a metric change cannot quietly worsen it.
   const byPos = {};
   records.forEach((r) => {
-    if (!r.positionFamily) return;
+    if (!r.positionFamily || r.grade === null) return;
     (byPos[r.positionFamily] = byPos[r.positionFamily] || []).push(r.grade);
   });
   const positionalBias = Object.fromEntries(Object.entries(byPos).map(([k, v]) =>
@@ -361,6 +418,8 @@ const nba = buildLeague({
   regularDir: 'official_nba', showcaseDir: null,
   extraDir: 'official_nba', extraFiles: TRACK_NBA,
   stintHalves: [{ file: 'stints_nba.json', label: 'regular' }],
+  splitDirs: ['splits_nba'],
+  rosterFile: 'rosters_nba.json',
 });
 console.log(`  ${nba.records.length} players`);
 
@@ -374,15 +433,19 @@ const gl = buildLeague({
     { file: 'stints_gleague_showcase.json', label: 'showcase' },
   ],
   combineTracking: ['pt_catchshoot', 'pt_pullup'],
+  splitDirs: ['splits_gleague_regular', 'splits_gleague_showcase'],
+  rosterFile: 'rosters_gleague.json',
 });
 console.log(`  ${gl.records.length} players`);
 
 // Crossover by official NBA person id — an exact identity join, not a name or id-suffix guess.
-const nbaIds = new Set(nba.records.map((r) => r.nbaPersonId));
-const glIds = new Set(gl.records.map((r) => r.nbaPersonId));
+// Crossover means APPEARED in both. A player rostered in one league without playing is not a
+// cross-league statistical comparison, which is what the flag is used for.
+const nbaIds = new Set(nba.records.filter((r) => r.appeared).map((r) => r.nbaPersonId));
+const glIds = new Set(gl.records.filter((r) => r.appeared).map((r) => r.nbaPersonId));
 let both = 0;
-for (const r of nba.records) { r.bothLeagues = glIds.has(r.nbaPersonId); if (r.bothLeagues) both++; }
-for (const r of gl.records) { r.bothLeagues = nbaIds.has(r.nbaPersonId); }
+for (const r of nba.records) { r.bothLeagues = r.appeared && glIds.has(r.nbaPersonId); if (r.bothLeagues) both++; }
+for (const r of gl.records) { r.bothLeagues = r.appeared && nbaIds.has(r.nbaPersonId); }
 
 const metricDefinitions = {
   grade: 'Within-league per-game performance rating on 0.0000-9.9999. Six weighted percentile components, shrunk toward the minutes-weighted league mean in proportion to minutes played, then stretched onto the 0-9.9999 range by an affine map. Because the last step is a stretch and not a second percentile rank, equal grade differences mean equal differences in the underlying composite. NBA and G League are separate ranking universes.',
@@ -411,6 +474,47 @@ const modelNotes = {
   brefScope: 'Basketball-Reference\'s G League table covers the regular season only, while the G League headline line here combines Regular Season and Showcase Cup. PER, win shares and WS/48 therefore describe a smaller sample than the rest of the row; every record carries brefGP and brefScope so the interface can label it.',
 };
 
+/**
+ * Provenance for every committed source file: row count, byte size and a content hash. When a
+ * number changes later this is what distinguishes a source correction from a formula change
+ * from a bug.
+ */
+function provenance() {
+  const dir = path.join(ROOT, 'scripts/data');
+  const entries = [];
+  const walk = (d, prefix = '') => {
+    for (const name of fs.readdirSync(d)) {
+      const full = path.join(d, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) { walk(full, prefix + name + '/'); continue; }
+      if (!name.endsWith('.json')) continue;
+      const buf = fs.readFileSync(full);
+      let rows = null;
+      try {
+        const j = JSON.parse(buf);
+        rows = Array.isArray(j) ? j.length
+          : j.resultSets ? (Array.isArray(j.resultSets) ? j.resultSets[0]?.rowSet?.length : null)
+          : (j.leagues ? null : Object.keys(j).length);
+      } catch { /* not a payload we can count */ }
+      entries.push({
+        file: prefix + name,
+        bytes: st.size,
+        rows,
+        sha256: crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16),
+        modified: st.mtime.toISOString(),
+      });
+    }
+  };
+  walk(dir);
+  return entries.sort((a, b) => a.file.localeCompare(b.file));
+}
+
+let buildCommit = null;
+try {
+  buildCommit = execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] })
+    .toString().trim();
+} catch { /* not a git checkout */ }
+
 const out = {
   season: SEASON,
   seasonType: 'NBA Regular Season; G League Regular Season + Showcase Cup combined',
@@ -418,11 +522,16 @@ const out = {
   primarySource: 'stats.nba.com official league dashboards (LeagueID 00 and 20), with Basketball-Reference 2025-26 tables as a second source',
   sourceNote: 'v3 backbone is the official stats.nba.com data, which does answer from a normal machine even though it does not answer from GitHub-hosted runners. Basketball-Reference supplies PER, win shares and the BPM/VORP family for the NBA; the G League publishes no BPM/VORP family anywhere and none is invented.',
   counts: {
-    NBA: nba.records.length,
-    GLEAGUE: gl.records.length,
+    // Headline counts are players who APPEARED. Roster-only players are carried but reported
+    // separately, so a tab label never implies more people played than did.
+    NBA: nba.records.filter((r) => r.appeared).length,
+    GLEAGUE: gl.records.filter((r) => r.appeared).length,
     both,
-    records: nba.records.length + gl.records.length,
-    uniquePeople: new Set([...nba.records, ...gl.records].map((p) => p.nbaPersonId)).size,
+    rosterOnlyNBA: nba.records.filter((r) => r.rosterOnly).length,
+    rosterOnlyGLEAGUE: gl.records.filter((r) => r.rosterOnly).length,
+    records: nba.records.filter((r) => r.appeared).length + gl.records.filter((r) => r.appeared).length,
+    uniquePeople: new Set([...nba.records, ...gl.records].filter((r) => r.appeared).map((p) => p.nbaPersonId)).size,
+    totalRowsIncludingRosterOnly: nba.records.length + gl.records.length,
   },
   metricDefinitions,
   modelNotes,
@@ -435,6 +544,14 @@ const out = {
       NBA: nba.model, GLEAGUE: gl.model,
       rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',
     },
+  },
+  fieldCatalog: { ...buildCatalog({ NBA: nba.records, GLEAGUE: gl.records }), _topLevel: TOP_LEVEL_CATALOG },
+  provenance: {
+    buildCommit,
+    gradeModelVersion: '3.3',
+    generatedAt: new Date().toISOString(),
+    ageReferenceDates: { openingNight: OPENING_NIGHT, febFirst: FEB_FIRST },
+    sources: provenance(),
   },
   leagues: { NBA: nba.records, GLEAGUE: gl.records },
 };

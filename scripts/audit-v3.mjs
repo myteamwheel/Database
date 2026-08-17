@@ -83,8 +83,8 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 }
 
 // crossover integrity
-const nbaIds = new Set(d.leagues.NBA.map((p) => p.nbaPersonId));
-const glIds = new Set(d.leagues.GLEAGUE.map((p) => p.nbaPersonId));
+const nbaIds = new Set(d.leagues.NBA.filter((p) => p.appeared).map((p) => p.nbaPersonId));
+const glIds = new Set(d.leagues.GLEAGUE.filter((p) => p.appeared).map((p) => p.nbaPersonId));
 const inter = [...nbaIds].filter((i) => glIds.has(i));
 console.log(`crossover players (exact NBA person id in both panels): ${inter.length}`);
 if (inter.length !== d.counts.both) fails.push('crossover count mismatch');
@@ -152,6 +152,45 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   console.log(`${lg}: positional grade spread ${spread.toFixed(2)} (${pure.map(([k, v]) => `${k}=${v.meanGrade}`).join(' ')})`);
   if (spread > 1.0) fails.push(`${lg}: positional bias ${spread.toFixed(2)} exceeds 1.00 grade points`);
   else if (spread > 0.5) warn.push(`${lg}: positional grade spread is ${spread.toFixed(2)}`);
+}
+
+// Splits, roster-only players, catalog and provenance.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const arr = d.leagues[lg];
+  const played = arr.filter((p) => p.appeared !== false);
+  const rosterOnly = arr.filter((p) => p.rosterOnly);
+  console.log(`${lg}: ${played.length} appeared, ${rosterOnly.length} rostered but never played`);
+  if (rosterOnly.some((p) => p.grade !== null))
+    fails.push(`${lg}: a roster-only player carries a grade; they have no performance to grade`);
+  if (rosterOnly.some((p) => p.rank !== null))
+    fails.push(`${lg}: a roster-only player occupies a rank position`);
+
+  const splitFields = new Set();
+  played.forEach((p) => Object.keys(p.stats || {}).forEach((k) => { if (k.startsWith('sit_')) splitFields.add(k); }));
+  const withSplits = played.filter((p) => Object.keys(p.stats || {}).some((k) => k.startsWith('sit_'))).length;
+  console.log(`  situational split fields: ${splitFields.size}, on ${withSplits}/${played.length} players`);
+  if (splitFields.size === 0) fails.push(`${lg}: no situational splits present`);
+
+  const withAge = played.filter((p) => p.ageOpeningNight != null).length;
+  console.log(`  exact opening-night age: ${withAge}/${played.length}`);
+  if (withAge < played.length * 0.9) warn.push(`${lg}: only ${withAge}/${played.length} have an exact age`);
+}
+{
+  const cat = d.fieldCatalog || {};
+  const n = Object.keys(cat).filter((k) => k !== '_topLevel').length;
+  console.log(`field catalog: ${n} documented fields`);
+  if (!n) fails.push('field catalog is empty');
+  const uncatalogued = [];
+  for (const lg of ['NBA', 'GLEAGUE']) {
+    const keys = new Set(d.leagues[lg].flatMap((p) => Object.keys(p.stats || {})));
+    for (const k of keys) if (!cat[`${lg}:stats.${k}`]) uncatalogued.push(`${lg}:${k}`);
+  }
+  console.log(`  fields with no catalog entry: ${uncatalogued.length}`);
+  if (uncatalogued.length > 5) fails.push(`${uncatalogued.length} fields have no catalog entry (e.g. ${uncatalogued.slice(0, 3).join(', ')})`);
+
+  const prov = d.provenance || {};
+  console.log(`provenance: commit ${prov.buildCommit || 'n/a'}, ${prov.sources?.length || 0} source files hashed`);
+  if (!prov.sources?.length) fails.push('no source provenance recorded');
 }
 
 console.log('\n--- warnings ---');

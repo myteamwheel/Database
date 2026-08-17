@@ -16,6 +16,7 @@
     </div>
     <div class="header-actions">
       <button id="exportBtn" class="button secondary">Export filtered CSV</button>
+      <button id="catalogBtn" class="button secondary">Field catalog</button>
       <button id="aboutBtn" class="button secondary">Metric definitions</button>
     </div>
   </header>
@@ -35,6 +36,12 @@
         </label>
         <label>Team
           <select id="teamFilter"><option value="">All teams</option></select>
+        </label>
+        <label title="For a player who changed teams mid-season, choose whether to show his whole season or only what he did for the selected team.">Team stats
+          <select id="teamMode">
+            <option value="season">Played for team — season totals</option>
+            <option value="only">Stats with this team only</option>
+          </select>
         </label>
         <label>Position
           <select id="positionFilter"><option value="">All positions</option></select>
@@ -72,6 +79,7 @@
       </div>
       <div class="toggle-row">
         <label class="check"><input id="bothOnly" type="checkbox" /> Played in both NBA and G League</label>
+        <label class="check" title="Players who were on a roster but never appeared. They have no grade."><input id="includeRosterOnly" type="checkbox" /> Include rostered players who never played</label>
         <button id="resetBtn" class="text-button">Reset filters</button>
       </div>
     </section>
@@ -90,6 +98,7 @@
         <select class="labMetric" id="labMetric2"></select><input class="labWeight" id="labWeight2" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric3"></select><input class="labWeight" id="labWeight3" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric4"></select><input class="labWeight" id="labWeight4" type="number" value="0" step="0.25" />
+        <label class="check" style="grid-column:span 2" title="Allow ingredients that cover different sets of games"><input id="allowMixedScope" type="checkbox" /> Allow mixed season scopes</label>
         <select class="labMetric" id="labCohort" title="Population the percentiles are computed against">
           <option value="league">Rank vs whole league</option>
           <option value="filtered">Rank vs current filtered set</option>
@@ -117,6 +126,7 @@
     </section>
   </main>
 
+  <dialog id="catalogDialog" class="modal wide"><div id="catalogDialogBody"></div><button class="button" data-close="catalogDialog">Close</button></dialog>
   <dialog id="metricDialog" class="modal"><div id="metricDialogBody"></div><button class="button" data-close="metricDialog">Close</button></dialog>
   <dialog id="playerDialog" class="modal wide"><div id="playerDialogBody"></div><button class="button" data-close="playerDialog">Close</button></dialog>
   <dialog id="compareDialog" class="modal wide"><div id="compareDialogBody"></div><button class="button" data-close="compareDialog">Close</button></dialog>

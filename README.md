@@ -220,6 +220,97 @@ for weighted percentile composites of up to four metrics, with negative weights 
 side-by-side comparison of up to five players; a player detail view grouped by source; and CSV
 export of the current filtered and sorted view.
 
+---
+
+## Situational splits
+
+The league dashboard query has always carried `Location`, `Outcome`, `StarterBench` and
+`SeasonSegment` parameters — they were simply left blank, so the database only ever held one
+season aggregate. Nine splits are now ingested per player, per league, and for the G League they
+are summed across both halves of the season so they match the headline line:
+
+home · road · in wins · in losses · as starter · off the bench · pre All-Star · post All-Star ·
+clutch (last 5 minutes, within 5 points) · and month by month
+
+That is **210 additional fields per NBA player** and 196 per G League player, on 100% of players,
+exposed through the *Splits: scoring*, *Splits: efficiency* and *Splits: by month* views and
+available to the Formula Lab and numeric filters like anything else.
+
+Two honest notes on coverage. Month is **season-relative** on this API, not calendar — month 1 is
+the season's opening month; the NBA serves seven and the G League five. Showcase Cup
+pre/post-All-Star splits are legitimately empty because the Cup finishes before the break. Every
+split reconciles: home + road games, wins + losses games, and the sum of all months each equal
+season games played, for all 582 NBA and 561 G League players.
+
+Still **not** covered, and not pretended otherwise: opponent-by-opponent, arbitrary date ranges,
+game logs, on/off, shot zones and lineup data. Those need per-game or per-lineup ingestion rather
+than another season-aggregate parameter.
+
+## Roster-only players
+
+The database previously held everyone who recorded an appearance. It now also carries players who
+were on a roster and never played, from the season roster endpoint. They have `gp: 0`,
+`appeared: false` and **`grade: null` — not 0**, because a zero would rank them below every player
+who actually played, which is a different and false claim. They are hidden by default and
+surfaced by the "include rostered players who never played" toggle, and the audit fails if one
+ever acquires a grade or occupies a rank.
+
+## Team-scoped statistics
+
+Selecting a team offers two genuinely different questions:
+
+- **Played for this team — season totals.** Every player who appeared for the team, showing their
+  full-season line.
+- **Statistics with this team only.** Multi-team players switch to their *stint* line for that
+  team, so a Cleveland view of James Harden shows his 26 Cleveland games, not his 70-game season.
+
+The table toolbar states how many rows are showing stint lines, so the scoping is never silent.
+
+## Age
+
+Age is stated from a real birthdate against fixed reference dates rather than inherited from
+whichever source listed one:
+
+- `ageOpeningNight` — exact age on 21 October 2025
+- `ageFeb1` — exact age on 1 February 2026, the Basketball-Reference season-age convention
+- `age` — NBA.com's listed age, kept for reference
+- `seasonAge` — Basketball-Reference's own figure, kept for reference
+
+NBA.com's listed age and Basketball-Reference's season age disagree for 246 of 580 NBA players,
+which made "age 22 season" ambiguous. The first two fields are unambiguous.
+
+## Field catalog
+
+604 NBA and 345 G League raw fields is only useful if you can tell them apart — the same concept
+appears as an official value, a Basketball-Reference value, a total, a per-game, a per-36 and a
+per-100. Every field therefore carries **source, unit, basis, season scope and direction**, built
+from the records themselves so it cannot drift from the data. The **Field catalog** button opens a
+searchable dictionary; the audit fails if any field lacks an entry.
+
+Season scope matters most. On the G League panel the headline line is Regular Season + Showcase
+Cup while Basketball-Reference fields cover the regular season only, so the Formula Lab **blocks**
+a composite that mixes scopes unless "allow mixed season scopes" is ticked deliberately.
+
+## Provenance
+
+Every build records the git commit, the grade-model version, both age reference dates, and for
+each of the 94 committed source files its row count, byte size, SHA-256 prefix and modification
+time. When a number changes later, that is what separates a source correction from a formula
+change from a bug.
+
+## Testing
+
+- `npm run audit` — coverage, identity, grade sanity, stint reconciliation, positional-bias
+  regression, split/catalog/provenance presence. Non-zero exit on failure.
+- `npm run verify:artifact` — decodes the published page with the browser's own decoder and
+  deep-compares every value against `data.json` (735k+ comparisons, including nulls, zeros,
+  unicode names and stint arrays). The columnar encoding is proved lossless, not assumed.
+- `npm run k-sensitivity` — the evidence behind the shrinkage constant.
+- `scripts/browser-test.js` — end-to-end functional test of the built page: search, sorting both
+  directions, every filter, team-stint scoping, the Formula Lab including ties/negative
+  weights/mixed-scope guard, dialogs, compare, the full raw-column view, league switching with
+  filters active, and reset. Load it in the page and call `window.__runAppTests()`.
+
 ## Layout
 
 ```

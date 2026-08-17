@@ -68,7 +68,12 @@ const BASE_COLS = {
   team:{label:'Team',type:'text'}, teamCount:{label:'#Tm',type:'int'},
   position:{label:'Pos',type:'text'}, positionFamily:{label:'Pos family',type:'text'},
   positionSource:{label:'Pos src',type:'text'},
-  age:{label:'Age',type:'int'}, seasonAge:{label:'Season Age',type:'int'},
+  age:{label:'Age',type:'int',help:'Age as listed by NBA.com'},
+  ageOpeningNight:{label:'Age (open)',type:'int',help:'Exact age on opening night, 21 Oct 2025'},
+  ageFeb1:{label:'Age (Feb 1)',type:'int',help:'Exact age on 1 Feb 2026 — the Basketball-Reference season-age convention'},
+  seasonAge:{label:'Season Age (bref)',type:'int'},
+  birthdate:{label:'Born',type:'text'},
+  appeared:{label:'Played',type:'text'}, rosterOnly:{label:'Roster only',type:'text'},
   height:{label:'Ht',type:'text'}, heightInches:{label:'Ht (in)',type:'int'},
   weight:{label:'Wt',type:'int'}, college:{label:'College',type:'text'}, country:{label:'Country',type:'text'},
   jersey:{label:'#Jsy',type:'text'}, draftYear:{label:'Draft Yr',type:'text'}, draftRound:{label:'Rd',type:'text'},
@@ -131,6 +136,90 @@ const BASE_COLS = {
   'components.scoring':{label:'Scoring Comp',type:'1'}, 'components.playmaking':{label:'Playmaking Comp',type:'1'},
   'components.rebounding':{label:'Rebound Comp',type:'1'}, 'components.defense':{label:'Defense Comp',type:'1'},
   'components.efficiency':{label:'Efficiency Comp',type:'1'}, 'components.impact':{label:'Impact Comp',type:'1'},
+  'stats.sit_home_gp':{label:'Home G',type:'int'},
+  'stats.sit_home_mpg':{label:'Home MIN',type:'1'},
+  'stats.sit_home_pts':{label:'Home PTS',type:'1'},
+  'stats.sit_home_reb':{label:'Home REB',type:'1'},
+  'stats.sit_home_ast':{label:'Home AST',type:'1'},
+  'stats.sit_home_ts':{label:'Home TS%',type:'pct'},
+  'stats.sit_home_plusMinus':{label:'Home +/-',type:'signed1'},
+  'stats.sit_road_gp':{label:'Road G',type:'int'},
+  'stats.sit_road_mpg':{label:'Road MIN',type:'1'},
+  'stats.sit_road_pts':{label:'Road PTS',type:'1'},
+  'stats.sit_road_reb':{label:'Road REB',type:'1'},
+  'stats.sit_road_ast':{label:'Road AST',type:'1'},
+  'stats.sit_road_ts':{label:'Road TS%',type:'pct'},
+  'stats.sit_road_plusMinus':{label:'Road +/-',type:'signed1'},
+  'stats.sit_wins_gp':{label:'In Wins G',type:'int'},
+  'stats.sit_wins_mpg':{label:'In Wins MIN',type:'1'},
+  'stats.sit_wins_pts':{label:'In Wins PTS',type:'1'},
+  'stats.sit_wins_reb':{label:'In Wins REB',type:'1'},
+  'stats.sit_wins_ast':{label:'In Wins AST',type:'1'},
+  'stats.sit_wins_ts':{label:'In Wins TS%',type:'pct'},
+  'stats.sit_wins_plusMinus':{label:'In Wins +/-',type:'signed1'},
+  'stats.sit_losses_gp':{label:'In Losses G',type:'int'},
+  'stats.sit_losses_mpg':{label:'In Losses MIN',type:'1'},
+  'stats.sit_losses_pts':{label:'In Losses PTS',type:'1'},
+  'stats.sit_losses_reb':{label:'In Losses REB',type:'1'},
+  'stats.sit_losses_ast':{label:'In Losses AST',type:'1'},
+  'stats.sit_losses_ts':{label:'In Losses TS%',type:'pct'},
+  'stats.sit_losses_plusMinus':{label:'In Losses +/-',type:'signed1'},
+  'stats.sit_starter_gp':{label:'Starting G',type:'int'},
+  'stats.sit_starter_mpg':{label:'Starting MIN',type:'1'},
+  'stats.sit_starter_pts':{label:'Starting PTS',type:'1'},
+  'stats.sit_starter_reb':{label:'Starting REB',type:'1'},
+  'stats.sit_starter_ast':{label:'Starting AST',type:'1'},
+  'stats.sit_starter_ts':{label:'Starting TS%',type:'pct'},
+  'stats.sit_starter_plusMinus':{label:'Starting +/-',type:'signed1'},
+  'stats.sit_bench_gp':{label:'Off Bench G',type:'int'},
+  'stats.sit_bench_mpg':{label:'Off Bench MIN',type:'1'},
+  'stats.sit_bench_pts':{label:'Off Bench PTS',type:'1'},
+  'stats.sit_bench_reb':{label:'Off Bench REB',type:'1'},
+  'stats.sit_bench_ast':{label:'Off Bench AST',type:'1'},
+  'stats.sit_bench_ts':{label:'Off Bench TS%',type:'pct'},
+  'stats.sit_bench_plusMinus':{label:'Off Bench +/-',type:'signed1'},
+  'stats.sit_preallstar_gp':{label:'Pre-ASB G',type:'int'},
+  'stats.sit_preallstar_mpg':{label:'Pre-ASB MIN',type:'1'},
+  'stats.sit_preallstar_pts':{label:'Pre-ASB PTS',type:'1'},
+  'stats.sit_preallstar_reb':{label:'Pre-ASB REB',type:'1'},
+  'stats.sit_preallstar_ast':{label:'Pre-ASB AST',type:'1'},
+  'stats.sit_preallstar_ts':{label:'Pre-ASB TS%',type:'pct'},
+  'stats.sit_preallstar_plusMinus':{label:'Pre-ASB +/-',type:'signed1'},
+  'stats.sit_postallstar_gp':{label:'Post-ASB G',type:'int'},
+  'stats.sit_postallstar_mpg':{label:'Post-ASB MIN',type:'1'},
+  'stats.sit_postallstar_pts':{label:'Post-ASB PTS',type:'1'},
+  'stats.sit_postallstar_reb':{label:'Post-ASB REB',type:'1'},
+  'stats.sit_postallstar_ast':{label:'Post-ASB AST',type:'1'},
+  'stats.sit_postallstar_ts':{label:'Post-ASB TS%',type:'pct'},
+  'stats.sit_postallstar_plusMinus':{label:'Post-ASB +/-',type:'signed1'},
+  'stats.sit_clutch_gp':{label:'Clutch G',type:'int'},
+  'stats.sit_clutch_mpg':{label:'Clutch MIN',type:'1'},
+  'stats.sit_clutch_pts':{label:'Clutch PTS',type:'1'},
+  'stats.sit_clutch_reb':{label:'Clutch REB',type:'1'},
+  'stats.sit_clutch_ast':{label:'Clutch AST',type:'1'},
+  'stats.sit_clutch_ts':{label:'Clutch TS%',type:'pct'},
+  'stats.sit_clutch_plusMinus':{label:'Clutch +/-',type:'signed1'},
+  'stats.sit_month1_gp':{label:'Oct G',type:'int'},
+  'stats.sit_month1_pts':{label:'Oct PTS',type:'1'},
+  'stats.sit_month1_ts':{label:'Oct TS%',type:'pct'},
+  'stats.sit_month2_gp':{label:'Nov G',type:'int'},
+  'stats.sit_month2_pts':{label:'Nov PTS',type:'1'},
+  'stats.sit_month2_ts':{label:'Nov TS%',type:'pct'},
+  'stats.sit_month3_gp':{label:'Dec G',type:'int'},
+  'stats.sit_month3_pts':{label:'Dec PTS',type:'1'},
+  'stats.sit_month3_ts':{label:'Dec TS%',type:'pct'},
+  'stats.sit_month4_gp':{label:'Jan G',type:'int'},
+  'stats.sit_month4_pts':{label:'Jan PTS',type:'1'},
+  'stats.sit_month4_ts':{label:'Jan TS%',type:'pct'},
+  'stats.sit_month5_gp':{label:'Feb G',type:'int'},
+  'stats.sit_month5_pts':{label:'Feb PTS',type:'1'},
+  'stats.sit_month5_ts':{label:'Feb TS%',type:'pct'},
+  'stats.sit_month6_gp':{label:'Mar G',type:'int'},
+  'stats.sit_month6_pts':{label:'Mar PTS',type:'1'},
+  'stats.sit_month6_ts':{label:'Mar TS%',type:'pct'},
+  'stats.sit_month7_gp':{label:'Apr G',type:'int'},
+  'stats.sit_month7_pts':{label:'Apr PTS',type:'1'},
+  'stats.sit_month7_ts':{label:'Apr TS%',type:'pct'},
   labScore:{label:'Lab Score',type:'1'}
 };
 
@@ -180,14 +269,25 @@ const PRESETS = {
   customraw:['select','viewRank','name','team','grade','gp','minutes','reliabilityWeight','custom.efficiencyOverExpected','custom.efficiencyOverExpectedRaw','custom.impactOverExpected','custom.impactOverExpectedRaw','custom.selfCreatedPts36','custom.selfCreatedPts36Raw','custom.situationalPts36','custom.situationalPts36Raw','custom.paintPts36','custom.paintPts36Raw'],
   components:['select','viewRank','name','team','grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'],
   teams:['select','viewRank','name','team','teamCount','grade','gp','mpg','pts','reb','ast'],
-  bio:['select','viewRank','name','team','position','positionFamily','positionSource','age','seasonAge','height','weight','country','college','draftStatus','draftYear','draftRound','draftNumber','jersey','gp','grade'],
+  bio:['select','viewRank','name','team','position','positionFamily','positionSource','age','ageOpeningNight','ageFeb1','birthdate','height','weight','country','college','draftStatus','draftYear','draftRound','draftNumber','jersey','gp','grade'],
   splits:['select','viewRank','name','team','grade','gp','regularGP','showcaseGP','minutes','mpg','pts','reb','ast','brefGP','brefScope'],
+  splitsExplorer:['select','viewRank','name','team','grade','gp','pts',
+    'stats.sit_home_pts','stats.sit_road_pts','stats.sit_wins_pts','stats.sit_losses_pts',
+    'stats.sit_starter_pts','stats.sit_bench_pts','stats.sit_preallstar_pts','stats.sit_postallstar_pts',
+    'stats.sit_clutch_gp','stats.sit_clutch_pts','stats.sit_clutch_ts','stats.sit_clutch_plusMinus'],
+  splitsMonthly:['select','viewRank','name','team','grade','gp','pts',
+    'stats.sit_month1_gp','stats.sit_month1_pts','stats.sit_month2_pts','stats.sit_month3_pts',
+    'stats.sit_month4_pts','stats.sit_month5_pts','stats.sit_month6_pts','stats.sit_month7_pts'],
+  splitsShooting:['select','viewRank','name','team','grade','ts',
+    'stats.sit_home_ts','stats.sit_road_ts','stats.sit_wins_ts','stats.sit_losses_ts',
+    'stats.sit_starter_ts','stats.sit_bench_ts','stats.sit_preallstar_ts','stats.sit_postallstar_ts'],
   tracking:['select','viewRank','name','team','grade','stats.trk_drives_drives','stats.trk_drives_drive_pts','stats.trk_passing_passes_made','stats.trk_passing_potential_ast','stats.trk_passing_ast_points_created','stats.trk_touches_touches','stats.trk_touches_time_of_poss','stats.trk_touches_paint_touches','stats.trk_rebounding_reb_contest_pct','stats.trk_defense_def_rim_fg_pct','stats.hustle_contested_shots','stats.hustle_deflections','stats.hustle_charges_drawn','stats.hustle_screen_assists','stats.hustle_loose_balls_recovered','stats.hustle_box_outs'],
 };
 
 const PRESET_LABELS = {overall:'Overall',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
+  splitsExplorer:'Splits: scoring',splitsShooting:'Splits: efficiency',splitsMonthly:'Splits: by month',
   teams:'Team History',bio:'Bio & Draft',splits:'Season Splits (G League)',
   tracking:'Tracking & Hustle (NBA)',all:'All Raw Stats'};
 
@@ -258,6 +358,23 @@ function visibleColumns(){
 }
 function colDef(key){return BASE_COLS[key]||{label:humanize(key),type:''}}
 
+/** Catalog entry for a field: source, unit, basis, season scope, direction. */
+function meta(key){
+  if(!DATA?.fieldCatalog) return null;
+  if(key.startsWith('stats.')) return DATA.fieldCatalog[`${league}:${key}`]||null;
+  return DATA.fieldCatalog._topLevel?.[key]||null;
+}
+function scopeOf(key){
+  const m=meta(key);
+  if(m?.seasonScope) return m.seasonScope;
+  if(key.startsWith('stats.bref_')||['per','ows','dws','ws','ws48','obpm','dbpm','bpm','vorp','tovPct','stlPct','blkPct'].includes(key))
+    return league==='GLEAGUE'?'regular-season-only':'full-season';
+  if(key.startsWith('stats.split_showcase_')) return 'showcase-only';
+  if(key.startsWith('stats.split_reg_')) return 'regular-season-only';
+  if(key.startsWith('stats.sit_')) return 'situational-split';
+  return league==='GLEAGUE'?'regular-season-plus-showcase':'full-season';
+}
+
 function populateSelectors(){
   const players=currentPlayers();
   const fill=(id,label,vals)=>{
@@ -270,8 +387,9 @@ function populateSelectors(){
   fill('countryFilter','All countries',[...new Set(players.map(p=>p.country).filter(Boolean))].sort());
   const hasSplits=players.some(p=>p.showcaseGP>0);
   const hasTracking=players.some(p=>p.stats&&p.stats.trk_drives_drives!==undefined);
+  const hasMonths=players.some(p=>p.stats&&Object.keys(p.stats).some(k=>/^sit_month\d+_gp$/.test(k)));
   $('viewPreset').innerHTML=Object.entries(PRESET_LABELS).filter(([k])=>
-    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)
+    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)
   ).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
 }
 
@@ -290,19 +408,40 @@ function playedFor(p,team){
   return (p.teams||[]).some(s=>s.team===team);
 }
 
+/**
+ * With a team selected and "stats with this team only" chosen, a multi-team player is shown on
+ * his STINT line rather than his season aggregate. Showing full-season numbers under a team
+ * label is the quietly wrong answer: Harden's Cleveland row would include his Clipper games.
+ */
+function teamScoped(p,team,mode){
+  if(!team||mode!=='only') return p;
+  const stint=(p.teams||[]).find(s=>s.team===team);
+  if(!stint) return p;
+  if((p.teamCount||1)<=1) return p;
+  return {...p, ...{
+    gp:stint.gp, minutes:stint.min, mpg:stint.mpg, pts:stint.pts, reb:stint.reb,
+    ast:stint.ast, stl:stint.stl, blk:stint.blk, fgPct:stint.fgPct, fg3Pct:stint.fg3Pct,
+    ftPct:stint.ftPct, plusMinus:stint.plusMinus, team:stint.team,
+  }, teamScopedTo:team, _seasonGp:p.gp};
+}
+
 function filteredPlayers(){
   const q=fold($('searchInput').value.trim());
   const team=$('teamFilter').value, pos=$('positionFilter').value, country=$('countryFilter').value;
   const minGp=Number($('minGp').value)||0, minMpg=Number($('minMpg').value)||0;
   const minMin=Number($('minMin').value)||0, minGrade=Number($('minGrade').value)||0;
   const minRel=Number($('minReliability').value)||0;
+  const teamMode=$('teamMode')?.value||'season';
+  const showRosterOnly=$('includeRosterOnly')?.checked;
   let list=currentPlayers().filter(p=>{
+    if(p.rosterOnly&&!showRosterOnly) return false;
     const hay=fold([p.name,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
+    const gradeOk=p.grade===null?showRosterOnly:p.grade>=minGrade;
     return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||p.positionFamily===pos)&&(!country||p.country===country)
-      &&p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&p.grade>=minGrade
+      &&p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
       &&(p.reliabilityWeight||0)>=minRel
       &&(!$('bothOnly').checked||p.bothLeagues)&&applyRules(p);
-  });
+  }).map(p=>teamScoped(p,team,teamMode));
   list.sort((a,b)=>{
     const av=get(a,sortKey),bv=get(b,sortKey);
     if(finite(av)&&finite(bv))return (Number(av)-Number(bv))*sortDir;
@@ -337,7 +476,9 @@ function render(){
   viewRankOf=new Map(list.map((p,i)=>[p.playerId,i+1]));
   const shown=list.slice(0,limit);
   $('resultCount').textContent=list.length.toLocaleString();
-  $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`;
+  const scoped=shown.filter(p=>p.teamScopedTo).length;
+  $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
+    +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   $('tableHead').innerHTML=cols.map(key=>{
     const d=colDef(key);
     return `<th class="${key==='name'?'left':''}" data-sort="${esc(key)}" title="${esc(d.help||d.label)}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
@@ -441,6 +582,31 @@ function openCompare(){
   $('compareDialog').showModal();
 }
 
+function openFieldCatalog(){
+  const cat=DATA.fieldCatalog||{};
+  const rows=Object.entries(cat).filter(([k])=>k.startsWith(league+':'))
+    .map(([,v])=>v).sort((a,b)=>a.label.localeCompare(b.label));
+  const render=(q)=>{
+    const f=rows.filter(r=>!q||fold(r.label+r.field+r.source).includes(fold(q)));
+    $('catalogRows').innerHTML=`<p class="tiny">${f.length} of ${rows.length} fields</p>`
+      +`<div class="table-wrap"><table class="compare-table"><thead><tr>
+      <th class="left">Field</th><th class="left">Label</th><th class="left">Source</th>
+      <th class="left">Unit</th><th class="left">Basis</th><th class="left">Season scope</th><th class="left">Direction</th></tr></thead><tbody>`
+      +f.slice(0,400).map(r=>`<tr><td class="left"><code>${esc(r.field)}</code></td><td class="left">${esc(r.label)}</td>
+        <td class="left">${esc(r.source)}</td><td class="left">${esc(r.unit)}</td><td class="left">${esc(r.basis)}</td>
+        <td class="left">${esc(r.seasonScope)}</td><td class="left">${esc(r.direction)}</td></tr>`).join('')
+      +`</tbody></table></div>`+(f.length>400?'<p class="tiny">Showing the first 400; refine the search to narrow.</p>':'');
+  };
+  $('catalogDialogBody').innerHTML=`<div class="eyebrow">DATA DICTIONARY</div>
+    <h2>Field catalog — ${esc(league==='NBA'?'NBA':'G League')}</h2>
+    <p>Every raw field with its source, unit, basis and season scope. The same concept appears as an official value, a Basketball-Reference value, a total, a per-game, a per-36 and a per-100; this is how to tell them apart.</p>
+    <input id="catalogSearch" type="search" placeholder="Search fields…" />
+    <div id="catalogRows"></div>`;
+  render('');
+  $('catalogSearch').addEventListener('input',e=>render(e.target.value));
+  $('catalogDialog').showModal();
+}
+
 function openMetricDefinitions(){
   const defs=DATA.metricDefinitions||{}, notes=DATA.modelNotes||{}, gm=DATA.gradeModel||{};
   const shr=gm.shrinkage||{};
@@ -486,6 +652,14 @@ function percentileMap(players,key){
  */
 function applyLab(){
   labConfig=[1,2,3,4].map(i=>({key:$(`labMetric${i}`).value,w:Number($(`labWeight${i}`).value)||0})).filter(x=>x.key&&x.w!==0);
+  // Combining a full-season statistic with a regular-season-only one produces a polished score
+  // over statistics that do not describe the same games. Blocked unless deliberately allowed.
+  const scopes=[...new Set(labConfig.map(x=>scopeOf(x.key)))].filter(sc=>sc!=='situational-split');
+  if(scopes.length>1 && !$('allowMixedScope').checked){
+    $('labNote').innerHTML=`<b>Mixed season scopes blocked.</b> ${labConfig.map(x=>`${esc(colDef(x.key).label)} = ${esc(scopeOf(x.key))}`).join(' · ')}. `
+      +`These do not cover the same games. Tick “allow mixed scopes” to proceed anyway.`;
+    return;
+  }
   labCohort=$('labCohort').value;
   const all=currentPlayers();
   if(!labConfig.length){all.forEach(p=>{delete p.labScore;delete p.labCoverage});render();return}
@@ -505,7 +679,8 @@ function applyLab(){
     p.labCoverage = `${used}/${labConfig.length}`;
   }
   sortKey='labScore';sortDir=-1;render();
-  $('labNote').textContent=`Ranked against ${cohort.length.toLocaleString()} players (${labCohort==='filtered'?'current filtered set':'whole league'}). Missing ingredients are excluded, not imputed.`;
+  $('labNote').innerHTML=`Ranked against ${cohort.length.toLocaleString()} players (${labCohort==='filtered'?'current filtered set':'whole league'}). `
+    +`Missing ingredients are excluded, not imputed. Scope: ${esc(scopes.join(' + ')||'n/a')}.`;
 }
 
 function exportNote(msg){
@@ -555,7 +730,8 @@ async function capability(name){
 function reset(){
   ['searchInput','teamFilter','positionFilter','countryFilter'].forEach(id=>$(id).value='');
   ['minGp','minMpg','minMin','minGrade','minReliability'].forEach(id=>$(id).value=0);
-  $('bothOnly').checked=false;rules=[];render();
+  $('bothOnly').checked=false;if($('includeRosterOnly'))$('includeRosterOnly').checked=false;
+  if($('teamMode'))$('teamMode').value='season';rules=[];render();
 }
 
 function fillMetricSelects(){
@@ -580,9 +756,10 @@ function switchLeague(b){
 
 function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
-  ['searchInput','teamFilter','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','viewPreset','rowLimit']
+  ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','viewPreset','rowLimit']
     .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',render));
   $('resetBtn').onclick=reset;$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=applyLab;
+  $('catalogBtn').onclick=openFieldCatalog;
   $('compareBtn').onclick=openCompare;$('clearCompareBtn').onclick=()=>{compared.clear();render()};
   $('addRuleBtn').onclick=()=>{
     $('ruleUnitHint').textContent='';
@@ -601,7 +778,9 @@ async function init(){
     const r=await fetch('./public/data.json',{cache:'no-store'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
     DATA=rehydrate(DATA);
     $('nbaCount').textContent=DATA.counts.NBA.toLocaleString();$('gCount').textContent=DATA.counts.GLEAGUE.toLocaleString();
-    $('sourceLine').textContent=`${DATA.primarySource} · ${DATA.counts.records} league-season records for ${DATA.counts.uniquePeople} unique players · generated ${new Date(DATA.generatedAt).toLocaleString()}`;
+    const ro=(DATA.counts.rosterOnlyNBA||0)+(DATA.counts.rosterOnlyGLEAGUE||0);
+    $('sourceLine').textContent=`${DATA.primarySource} · ${DATA.counts.records} league-season records for ${DATA.counts.uniquePeople} unique players`
+      +(ro?`, plus ${ro} rostered who never played`:'')+` · generated ${new Date(DATA.generatedAt).toLocaleString()}`;
     $('seasonEyebrow').textContent=DATA.seasonType;
     populateSelectors();fillMetricSelects();bind();render();
     if(window.claude && !(await capability('downloads'))) $('exportBtn').hidden=true;

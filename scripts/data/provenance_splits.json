@@ -1,0 +1,147 @@
+[
+ {
+  "dataset": "splits_nba/home",
+  "rows": 579,
+  "fetchedAt": "2026-08-17T14:56:04.473Z"
+ },
+ {
+  "dataset": "splits_nba/road",
+  "rows": 574,
+  "fetchedAt": "2026-08-17T14:56:06.521Z"
+ },
+ {
+  "dataset": "splits_nba/wins",
+  "rows": 566,
+  "fetchedAt": "2026-08-17T14:56:08.487Z"
+ },
+ {
+  "dataset": "splits_nba/losses",
+  "rows": 579,
+  "fetchedAt": "2026-08-17T14:56:10.388Z"
+ },
+ {
+  "dataset": "splits_nba/starter",
+  "rows": 449,
+  "fetchedAt": "2026-08-17T14:56:12.314Z"
+ },
+ {
+  "dataset": "splits_nba/bench",
+  "rows": 496,
+  "fetchedAt": "2026-08-17T14:56:14.179Z"
+ },
+ {
+  "dataset": "splits_nba/preallstar",
+  "rows": 532,
+  "fetchedAt": "2026-08-17T14:56:16.396Z"
+ },
+ {
+  "dataset": "splits_nba/postallstar",
+  "rows": 526,
+  "fetchedAt": "2026-08-17T14:56:18.323Z"
+ },
+ {
+  "dataset": "splits_nba/clutch",
+  "rows": 492,
+  "fetchedAt": "2026-08-17T14:56:20.089Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/home",
+  "rows": 507,
+  "fetchedAt": "2026-08-17T14:56:21.939Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/road",
+  "rows": 489,
+  "fetchedAt": "2026-08-17T14:56:23.750Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/wins",
+  "rows": 500,
+  "fetchedAt": "2026-08-17T14:56:25.986Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/losses",
+  "rows": 499,
+  "fetchedAt": "2026-08-17T14:56:27.797Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/starter",
+  "rows": 418,
+  "fetchedAt": "2026-08-17T14:56:29.957Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/bench",
+  "rows": 425,
+  "fetchedAt": "2026-08-17T14:56:31.816Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/preallstar",
+  "rows": 463,
+  "fetchedAt": "2026-08-17T14:56:33.662Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/postallstar",
+  "rows": 447,
+  "fetchedAt": "2026-08-17T14:56:37.537Z"
+ },
+ {
+  "dataset": "splits_gleague_regular/clutch",
+  "rows": 450,
+  "fetchedAt": "2026-08-17T14:56:39.298Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/home",
+  "rows": 445,
+  "fetchedAt": "2026-08-17T14:56:41.058Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/road",
+  "rows": 431,
+  "fetchedAt": "2026-08-17T14:56:42.859Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/wins",
+  "rows": 429,
+  "fetchedAt": "2026-08-17T14:56:44.756Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/losses",
+  "rows": 426,
+  "fetchedAt": "2026-08-17T14:56:46.520Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/starter",
+  "rows": 332,
+  "fetchedAt": "2026-08-17T14:56:48.363Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/bench",
+  "rows": 324,
+  "fetchedAt": "2026-08-17T14:56:50.039Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/preallstar",
+  "rows": 0,
+  "fetchedAt": "2026-08-17T14:56:51.571Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/postallstar",
+  "rows": 0,
+  "fetchedAt": "2026-08-17T14:56:53.058Z"
+ },
+ {
+  "dataset": "splits_gleague_showcase/clutch",
+  "rows": 371,
+  "fetchedAt": "2026-08-17T14:56:55.930Z"
+ },
+ {
+  "dataset": "rosters_nba",
+  "rows": 530,
+  "fetchedAt": "2026-08-17T14:58:06.125Z"
+ },
+ {
+  "dataset": "rosters_gleague",
+  "rows": 404,
+  "fetchedAt": "2026-08-17T14:59:16.809Z"
+ }
+]
