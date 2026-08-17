@@ -3,3 +3,7 @@ node_modules/
 *.log
 test-results/
 playwright-report/
+
+# Raw historical fetch cache: 110 MB, re-fetchable and hash-verified.
+# provenance.json stays tracked so the recorded hashes live in git.
+scripts/data/history/*/

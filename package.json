@@ -23,7 +23,10 @@
     "audit:presets": "node scripts/audit-presets.mjs",
     "diagnostics": "node scripts/diagnostics.mjs",
     "tulip:audit": "node scripts/tulip-audit.mjs",
-    "tulip:verify": "node scripts/tulip-verify.mjs"
+    "tulip:verify": "node scripts/tulip-verify.mjs",
+    "fetch:history": "node scripts/fetch-history.mjs",
+    "audit:history": "node scripts/audit-history.mjs",
+    "verify:history": "node scripts/verify-history-hashes.mjs"
   },
   "engines": {
     "node": ">=20"

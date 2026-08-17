@@ -137,7 +137,11 @@ function smdOf(a, b) {
  * them there are.
  */
 export function counterfactualSupport(candidate, comparables) {
-  // This is a POSITIVITY / common-support test, not an outlier test. An earlier version compared
+  // MARGINAL support check — deliberately NOT called multivariate positivity. It asks whether
+  // the candidate sits inside the comparables' coverage on EACH covariate separately. A candidate
+  // can pass every marginal check while his COMBINATION of age, size, usage, role and skill is
+  // essentially unrepresented; that requires a local-density diagnostic in the joint space, which
+  // is not implemented here. This is not an outlier test either. An earlier version compared
   // the candidate's value to the pool's standard deviation and refused above 1 SD; across five
   // covariates almost every individual is more than 1 SD from a pool mean on SOMETHING, so it
   // refused 90% of scenarios and the refusals were driven by height and age rather than by role
@@ -173,7 +177,7 @@ export function counterfactualSupport(candidate, comparables) {
     covariatesOutsidePoolRange: outside, detail,
     thresholds: { warnAboveExcessBands: 0.25, refuseAboveExcessBands: 1.0,
       refuseIfOutsidePoolRange: true },
-    note: 'Common-support (positivity) check: is the candidate inside the region the comparables actually cover? Being outside their observed range on any covariate means the comparison has no counterfactual, which is a different failure from having too few comparables.' };
+    note: 'MARGINAL common-support check, one covariate at a time: is the candidate inside the region the comparables cover on each variable separately? This is NOT full multivariate positivity - a candidate can pass every marginal check while his combination of covariates is unrepresented. Being outside their observed range on any covariate means the comparison has no counterfactual, which is a different failure from having too few comparables.' };
 }
 
 /** Similarity between two skill profiles, on the same documented basis the app uses elsewhere. */
