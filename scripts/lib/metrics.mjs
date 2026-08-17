@@ -122,8 +122,17 @@ export function normalize(o) {
   const p36 = (v) => (min > 0 && fin(v) ? (Number(v) * 36) / min : null);
   const fromPerGame36 = (v) => (min > 0 && gp > 0 && fin(v) ? (Number(v) * gp * 36) / min : null);
 
+  // Per-GAME production. The original brief asked for a per-game performance grade; a per-36
+  // rate grade answers a different question (12 pts in 16 min is 27/36 and outranks 19 pts in
+  // 32 min). Both bases are computed, and the headline grade is the per-game one.
+  const pgv = (v) => (gp > 0 && fin(v) ? Number(v) / gp : null);
+
   return {
     gp, min, mpg: gp > 0 ? min / gp : null,
+    ptsPG: pgv(t.PTS), rebPG: pgv(t.REB), orebPG: pgv(t.OREB), drebPG: pgv(t.DREB),
+    astPG: pgv(t.AST), stlPG: pgv(t.STL), blkPG: pgv(t.BLK), tovPG: pgv(t.TOV),
+    ftaPG: pgv(t.FTA), fg3aPG: pgv(t.FG3A), pmPG: pgv(t.PLUS_MINUS),
+    defWsPG: pgv(o.defense.DEF_WS),
     pts36: p36(t.PTS), reb36: p36(t.REB), oreb36: p36(t.OREB), dreb36: p36(t.DREB),
     ast36: p36(t.AST), stl36: p36(t.STL), blk36: p36(t.BLK), blka36: p36(t.BLKA),
     tov36: p36(t.TOV), pf36: p36(t.PF), pfd36: p36(t.PFD),
@@ -284,6 +293,23 @@ export function computeCustom(rows, opts = {}) {
   return { custom, norm: n, K, possFloor, stabilised: true };
 }
 
+/**
+ * Fixed grade anchors. The shrunk composite is a weighted mean of within-league percentiles;
+ * measured across both 2025-26 leagues it spans roughly 31-80. These constants convert that
+ * onto 0.0000-9.9999 and MUST NOT be re-derived per build — holding them still is what makes a
+ * grade comparable between rebuilds and, later, between seasons.
+ */
+export const GRADE_ANCHORS = { lo: 30, hi: 80 };
+
+/**
+ * Shrinkage strength, as a multiple of the league's median minutes.
+ * Chosen from the sensitivity sweep in scripts/k-sensitivity.mjs rather than by preference:
+ * at 0.6 the G League top 25 still admitted a 13-game line, while 0.8 removes every sub-16-game
+ * line from the top 25 at a rank correlation of 0.9995 against 0.6. Above 0.8 nothing further
+ * is excluded and real separation only flattens. Re-run that script before changing this.
+ */
+export const K_FACTOR = 0.8;
+
 export const COMPONENT_WEIGHTS = {
   scoring: 0.30, playmaking: 0.18, rebounding: 0.14,
   defense: 0.16, efficiency: 0.12, impact: 0.10,
@@ -318,20 +344,34 @@ export const COMPONENT_INGREDIENTS = {
  * differences in the composite while still spanning the requested range.
  */
 export function computeGrades(rows, custom, norm, opts = {}) {
+  const basis = opts.basis === 'per36' ? 'per36' : 'perGame';
+  const B = (pgSel, r36Sel) => (basis === 'per36' ? r36Sel : pgSel);
+
   const P = (sel) => percentiles(norm.map(sel));
   const inv = (sel) => percentiles(norm.map((x) => { const v = sel(x); return fin(v) ? -v : null; }));
   const cP = (key) => percentiles(custom.map((c) => c[key]));
   const avg = (...xs) => { const a = xs.filter(fin); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : 50; };
 
-  const pts = P((x) => x.pts36), tsP = P((x) => x.ts), usgP = P((x) => x.usg);
-  const fta = P((x) => x.fta36), fg3a = P((x) => x.fg3a36);
-  const ast = P((x) => x.ast36), astPct = P((x) => x.astPct), astTo = P((x) => x.astTo);
-  const tovInv = inv((x) => x.tov36), tovRatioInv = inv((x) => x.tovPct);
-  const reb = P((x) => x.reb36), oreb = P((x) => x.oreb36), dreb = P((x) => x.dreb36);
+  // Volume ingredients follow the chosen basis; rate ingredients (TS%, USG%, REB%…) are
+  // already basis-independent and are shared by both grades.
+  const pts = P(B((x) => x.ptsPG, (x) => x.pts36));
+  const ast = P(B((x) => x.astPG, (x) => x.ast36));
+  const reb = P(B((x) => x.rebPG, (x) => x.reb36));
+  const oreb = P(B((x) => x.orebPG, (x) => x.oreb36));
+  const dreb = P(B((x) => x.drebPG, (x) => x.dreb36));
+  const stl = P(B((x) => x.stlPG, (x) => x.stl36));
+  const blk = P(B((x) => x.blkPG, (x) => x.blk36));
+  const fta = P(B((x) => x.ftaPG, (x) => x.fta36));
+  const fg3a = P(B((x) => x.fg3aPG, (x) => x.fg3a36));
+  const pm = P(B((x) => x.pmPG, (x) => x.pm36));
+  const defWs = P(B((x) => x.defWsPG, (x) => x.defWs36));
+  const tovInv = inv(B((x) => x.tovPG, (x) => x.tov36));
+
+  const tsP = P((x) => x.ts), usgP = P((x) => x.usg), astPct = P((x) => x.astPct);
+  const astTo = P((x) => x.astTo), tovRatioInv = inv((x) => x.tovPct);
   const orebPct = P((x) => x.orebPct), drebPct = P((x) => x.drebPct), rebPct = P((x) => x.rebPct);
-  const stl = P((x) => x.stl36), blk = P((x) => x.blk36), defRtgInv = inv((x) => x.defRtg);
-  const defWs36 = P((x) => x.defWs36), efg = P((x) => x.efg);
-  const pie = P((x) => x.pie), net = P((x) => x.netRtg), pm = P((x) => x.pm36);
+  const defRtgInv = inv((x) => x.defRtg), efg = P((x) => x.efg);
+  const pie = P((x) => x.pie), net = P((x) => x.netRtg);
   const selfCreate = cP('selfCreatedPts36'), eoe = cP('efficiencyOverExpected');
   const impactOE = cP('impactOverExpected'), disrupt = cP('defensiveDisruptionIndex');
   const defSwing = cP('defensiveSwing36'), creation = cP('creationLoad36');
@@ -340,7 +380,7 @@ export function computeGrades(rows, custom, norm, opts = {}) {
     scoring: avg(pts[i], tsP[i], usgP[i], fta[i], fg3a[i], selfCreate[i]),
     playmaking: avg(ast[i], astPct[i], astTo[i], tovInv[i], creation[i]),
     rebounding: avg(reb[i], oreb[i], dreb[i], orebPct[i], drebPct[i], rebPct[i]),
-    defense: avg(stl[i], blk[i], drebPct[i], defRtgInv[i], defWs36[i], disrupt[i], defSwing[i]),
+    defense: avg(stl[i], blk[i], drebPct[i], defRtgInv[i], defWs[i], disrupt[i], defSwing[i]),
     efficiency: avg(tsP[i], efg[i], eoe[i], astTo[i], tovRatioInv[i]),
     impact: avg(pie[i], net[i], impactOE[i], pm[i]),
   }));
@@ -351,7 +391,7 @@ export function computeGrades(rows, custom, norm, opts = {}) {
   const mins = norm.map((x) => x.min || 0);
   const sorted = [...mins].sort((a, b) => a - b);
   const medianMin = sorted[Math.floor(sorted.length / 2)] || 1;
-  const K = opts.K ?? Math.round(medianMin * 0.6);
+  const K = opts.K ?? Math.round(medianMin * (opts.kFactor ?? K_FACTOR));
   const totalMin = mins.reduce((a, v) => a + v, 0);
   const prior = totalMin > 0
     ? raw.reduce((a, v, i) => a + v * mins[i], 0) / totalMin
@@ -359,9 +399,13 @@ export function computeGrades(rows, custom, norm, opts = {}) {
   const shrunk = raw.map((v, i) => (mins[i] * v + K * prior) / (mins[i] + K));
   const reliability = mins.map((m) => (100 * m) / (m + K));
 
-  const lo = Math.min(...shrunk), hi = Math.max(...shrunk);
-  const span = hi - lo || 1;
-  const grade = shrunk.map((v) => Number((clamp((v - lo) / span, 0, 1) * 9.9999).toFixed(4)));
+  // FIXED anchors, not the observed extremes. Anchoring to min/max let one freak line rescale
+  // everybody else's grade and made a grade meaningless across rebuilds or seasons. These two
+  // constants are chosen once from the composite's realistic span (both leagues sit inside
+  // roughly 30-81) and then held still, so 8.2 means the same thing every build.
+  const { lo: ANCHOR_LO, hi: ANCHOR_HI } = GRADE_ANCHORS;
+  const grade = shrunk.map((v) =>
+    Number((clamp((v - ANCHOR_LO) / (ANCHOR_HI - ANCHOR_LO), 0, 1) * 9.9999).toFixed(4)));
 
   return {
     components: components.map((c) => Object.fromEntries(
@@ -371,9 +415,37 @@ export function computeGrades(rows, custom, norm, opts = {}) {
     grade,
     reliability: reliability.map((v) => round(v, 1)),
     model: {
-      K, prior: round(prior, 2), medianMinutes: round(medianMin, 1),
-      compositeRange: [round(lo, 2), round(hi, 2)],
-      mapping: 'affine stretch of the shrunk composite onto 0-9.9999 (not a percentile rank), so equal grade differences mean equal composite differences',
+      basis, K, kFactor: opts.kFactor ?? K_FACTOR,
+      prior: round(prior, 2), medianMinutes: round(medianMin, 1),
+      anchors: GRADE_ANCHORS,
+      observedGradeRange: [round(Math.min(...grade), 4), round(Math.max(...grade), 4)],
+      observedCompositeRange: [round(Math.min(...shrunk), 2), round(Math.max(...shrunk), 2)],
+      mapping: `grade = (shrunk composite - ${GRADE_ANCHORS.lo}) / (${GRADE_ANCHORS.hi - GRADE_ANCHORS.lo}) x 9.9999, clamped. The anchors are fixed constants, not the observed extremes, so no single outlier rescales the field and a grade stays comparable across rebuilds.`,
     },
   };
+}
+
+/**
+ * Rank within an arbitrary cohort. Powers position-relative and age-cohort ranking, which
+ * an audit showed matters here: centres out-grade guards by roughly 0.9 points because
+ * rebounding, blocks and finishing efficiency reward the same players across several
+ * components at once. The overall grade is left unadjusted and the bias is surfaced instead.
+ */
+export function cohortRanks(records, keyFn, gradeKey = 'grade') {
+  const groups = new Map();
+  records.forEach((r) => {
+    const k = keyFn(r);
+    if (k === null || k === undefined) return;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  const out = new Map();
+  for (const [k, list] of groups) {
+    list.sort((a, b) => b[gradeKey] - a[gradeKey]);
+    list.forEach((r, i) => {
+      if (!out.has(r)) out.set(r, {});
+      out.get(r)[k] = { rank: i + 1, of: list.length };
+    });
+  }
+  return { groups, out };
 }

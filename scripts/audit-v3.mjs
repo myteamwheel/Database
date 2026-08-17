@@ -124,6 +124,36 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   console.log(`GLEAGUE: ${trackScope} rows where combined tracking still trails the season line`);
 }
 
+// Stint totals must reconcile against the season aggregate, not merely on games played.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const arr = d.leagues[lg];
+  const multi = arr.filter((p) => (p.teamCount || 1) > 1 && (p.teams || []).length);
+  let bad = 0;
+  for (const p of multi) {
+    const sum = (f) => p.teams.reduce((a, s) => a + (s[f] || 0), 0);
+    const gpOk = Math.abs(sum('gp') - p.gp) <= 1;
+    // per-game stint values re-multiplied by stint games must recover season totals
+    const ptsTotal = p.teams.reduce((a, s) => a + (s.pts || 0) * (s.gp || 0), 0);
+    const ptsOk = p.pts == null || Math.abs(ptsTotal - p.pts * p.gp) <= Math.max(2, 0.02 * p.pts * p.gp);
+    const minOk = Math.abs(sum('min') - (p.minutes || 0)) <= Math.max(2, 0.02 * (p.minutes || 0));
+    if (!gpOk || !ptsOk || !minOk) { bad++; if (bad <= 3) warn.push(`${lg}: ${p.name} stints do not reconcile (gp ${gpOk} pts ${ptsOk} min ${minOk})`); }
+  }
+  console.log(`${lg}: ${multi.length - bad}/${multi.length} multi-team players reconcile on games, points and minutes`);
+  if (bad > multi.length * 0.05) fails.push(`${lg}: ${bad} multi-team players fail stint reconciliation`);
+}
+
+// Positional bias, tracked so a metric change cannot quietly worsen it.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const bias = d.gradeModel?.shrinkage?.[lg]?.positionalBias || {};
+  const pure = Object.entries(bias).filter(([k]) => k.length === 1);
+  if (!pure.length) continue;
+  const means = pure.map(([, v]) => v.meanGrade);
+  const spread = Math.max(...means) - Math.min(...means);
+  console.log(`${lg}: positional grade spread ${spread.toFixed(2)} (${pure.map(([k, v]) => `${k}=${v.meanGrade}`).join(' ')})`);
+  if (spread > 1.0) fails.push(`${lg}: positional bias ${spread.toFixed(2)} exceeds 1.00 grade points`);
+  else if (spread > 0.5) warn.push(`${lg}: positional grade spread is ${spread.toFixed(2)}`);
+}
+
 console.log('\n--- warnings ---');
 warn.length ? warn.forEach((w) => console.log('  ! ' + w)) : console.log('  none');
 console.log('--- failures ---');

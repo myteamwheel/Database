@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
-import { computeCustom, computeGrades, COMPONENT_WEIGHTS, COMPONENT_INGREDIENTS } from './lib/metrics.mjs';
+import { computeCustom, computeGrades, cohortRanks, COMPONENT_WEIGHTS, COMPONENT_INGREDIENTS } from './lib/metrics.mjs';
 import { buildStints, positionFamily } from './lib/roster.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -298,13 +298,20 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
 
   // ---- metrics + grade
   const { custom, norm, K: customK, possFloor } = computeCustom(records.map((r) => r._official));
-  const g = computeGrades(records, custom, norm);
+  // Two grades on two bases. The headline `grade` is per-GAME, matching the original brief;
+  // `rateGrade` is the per-36 view, which answers a different question and is kept beside it
+  // rather than substituted for it.
+  const g = computeGrades(records, custom, norm, { basis: 'perGame' });
+  const gr = computeGrades(records, custom, norm, { basis: 'per36' });
+
   records.forEach((r, i) => {
     r.custom = custom[i];
     r.components = g.components[i];
+    r.rateComponents = gr.components[i];
     r.gradeRaw = g.raw[i];
     r.gradeShrunk = g.shrunk[i];
     r.grade = g.grade[i];
+    r.rateGrade = gr.grade[i];
     // Renamed from `sampleConfidence`: this is the weight a player's own line carried in the
     // shrinkage, not a statistical confidence level, and it tops out well short of 100.
     r.reliabilityWeight = g.reliability[i];
@@ -313,7 +320,33 @@ function buildLeague({ league, leagueLabel, regularDir, showcaseDir, extraDir, e
   records.sort((a, b) => b.grade - a.grade);
   records.forEach((r, i) => { r.rank = i + 1; });
 
-  return { records, model: { ...g.model, customK, possFloor } };
+  // Cohort ranks. A single league-wide rank hides that the grade favours big men by roughly
+  // 0.9 points; position-relative standing is reported rather than the grade being adjusted.
+  const posRanks = cohortRanks(records, (r) => r.positionFamily).out;
+  const ageRanks = cohortRanks(records, (r) => (r.age == null ? null : r.age <= 23 ? 'u24' : 'over23')).out;
+  const teamRanks = cohortRanks(records, (r) => r.team).out;
+  records.forEach((r) => {
+    const p = posRanks.get(r), a = ageRanks.get(r), t = teamRanks.get(r);
+    r.cohortRanks = {
+      position: p ? Object.values(p)[0] : null,
+      ageGroup: a ? Object.values(a)[0] : null,
+      team: t ? Object.values(t)[0] : null,
+    };
+  });
+
+  // Positional bias, measured every build so a metric change cannot quietly worsen it.
+  const byPos = {};
+  records.forEach((r) => {
+    if (!r.positionFamily) return;
+    (byPos[r.positionFamily] = byPos[r.positionFamily] || []).push(r.grade);
+  });
+  const positionalBias = Object.fromEntries(Object.entries(byPos).map(([k, v]) =>
+    [k, { n: v.length, meanGrade: round(v.reduce((a, x) => a + x, 0) / v.length, 3) }]));
+
+  return {
+    records,
+    model: { ...g.model, rateModel: gr.model, customK, possFloor, positionalBias },
+  };
 }
 
 /* ------------------------------------------------------------------- assemble */

@@ -51,10 +51,21 @@ export function blendPerGame(a, b, fields, gpA, gpB) {
   return blendFields(a, b, fields, gpA, gpB);
 }
 
-export const ADVANCED_RATE_FIELDS = ['E_OFF_RATING', 'OFF_RATING', 'E_DEF_RATING', 'DEF_RATING',
-  'E_NET_RATING', 'NET_RATING', 'AST_PCT', 'AST_TO', 'AST_RATIO', 'OREB_PCT', 'DREB_PCT',
-  'REB_PCT', 'TM_TOV_PCT', 'E_TOV_PCT', 'EFG_PCT', 'TS_PCT', 'USG_PCT', 'E_USG_PCT',
-  'E_PACE', 'PACE', 'PACE_PER40', 'PIE'];
+/**
+ * Rates whose true denominator is POSSESSIONS, not minutes. Ratings are points per 100
+ * possessions and pace is possessions per 48; if a player's Showcase games ran at 108
+ * possessions per 48 and his regular season at 99, weighting the halves by minutes is simply
+ * the wrong denominator. POSS is published, so these are recombined on it.
+ */
+export const POSSESSION_RATE_FIELDS = ['E_OFF_RATING', 'OFF_RATING', 'E_DEF_RATING', 'DEF_RATING',
+  'E_NET_RATING', 'NET_RATING', 'E_PACE', 'PACE', 'PACE_PER40', 'PIE', 'AST_RATIO', 'TM_TOV_PCT',
+  'E_TOV_PCT'];
+
+/** Rates whose denominator is on-court time or team opportunity: minutes remain correct. */
+export const MINUTE_RATE_FIELDS = ['AST_PCT', 'AST_TO', 'OREB_PCT', 'DREB_PCT', 'REB_PCT',
+  'EFG_PCT', 'TS_PCT', 'USG_PCT', 'E_USG_PCT'];
+
+export const ADVANCED_RATE_FIELDS = [...POSSESSION_RATE_FIELDS, ...MINUTE_RATE_FIELDS];
 
 export const MISC_PER_GAME_FIELDS = ['PTS_OFF_TOV', 'PTS_2ND_CHANCE', 'PTS_FB', 'PTS_PAINT',
   'OPP_PTS_OFF_TOV', 'OPP_PTS_2ND_CHANCE', 'OPP_PTS_FB', 'OPP_PTS_PAINT'];
@@ -83,9 +94,15 @@ export function combineHalves(rs, sc) {
   const fgaA = num(rs.totals?.FGA) || 0, fgaB = num(sc.totals?.FGA) || 0;
   const fgmA = num(rs.totals?.FGM) || 0, fgmB = num(sc.totals?.FGM) || 0;
 
-  const adv = blendFields(rs.advanced, sc.advanced, ADVANCED_RATE_FIELDS, minA, minB);
+  // Possession counts drive the denominator-correct blend below.
+  const possA = num(rs.advanced?.POSS) || 0, possB = num(sc.advanced?.POSS) || 0;
+  const adv = {
+    ...blendFields(rs.advanced, sc.advanced, POSSESSION_RATE_FIELDS,
+      possA || minA, possB || minB),
+    ...blendFields(rs.advanced, sc.advanced, MINUTE_RATE_FIELDS, minA, minB),
+  };
   // POSS is a count, not a rate.
-  adv.POSS = (num(rs.advanced?.POSS) || 0) + (num(sc.advanced?.POSS) || 0) || null;
+  adv.POSS = possA + possB || null;
 
   const misc = blendPerGame(rs.misc, sc.misc, MISC_PER_GAME_FIELDS, gpA, gpB);
   const usage = blendFields(rs.usage, sc.usage, USAGE_SHARE_FIELDS, minA, minB);

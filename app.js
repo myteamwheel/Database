@@ -12,15 +12,19 @@ let viewRankOf = new Map();
 /** Reverse the columnar encoding used by the standalone build. */
 function rehydrate(d) {
   if (!d || d.encoding !== 'columnar-v1') return d;   // idempotent: safe to call twice
+  const ABSENT = d.absent ?? '\u0000~';
   const out = { ...d, encoding: 'rehydrated', leagues: {} };
   for (const lg of Object.keys(d.leagues)) {
     const { flatKeys, statKeys, customKeys, compKeys, rows } = d.leagues[lg];
+    const put = (target, keys, vals) => {
+      keys.forEach((k, i) => { if (vals[i] !== ABSENT) target[k] = vals[i]; });
+    };
     out.leagues[lg] = rows.map(([flat, stats, custom, comps, teams]) => {
       const p = {};
-      flatKeys.forEach((k, i) => { if (flat[i] !== null) p[k] = flat[i]; });
-      p.stats = {}; statKeys.forEach((k, i) => { if (stats[i] !== null) p.stats[k] = stats[i]; });
-      p.custom = {}; customKeys.forEach((k, i) => { if (custom[i] !== null) p.custom[k] = custom[i]; });
-      p.components = {}; compKeys.forEach((k, i) => { if (comps[i] !== null) p.components[k] = comps[i]; });
+      put(p, flatKeys, flat);
+      p.stats = {}; put(p.stats, statKeys, stats);
+      p.custom = {}; put(p.custom, customKeys, custom);
+      p.components = {}; put(p.components, compKeys, comps);
       p.teams = teams || [];
       return p;
     });
@@ -72,7 +76,9 @@ const BASE_COLS = {
   gp:{label:'GP',type:'int'}, gs:{label:'GS',type:'int'}, wins:{label:'W',type:'int'}, losses:{label:'L',type:'int'},
   regularGP:{label:'RS GP',type:'int'}, showcaseGP:{label:'Cup GP',type:'int'},
   mpg:{label:'MIN',type:'1'}, minutes:{label:'Total MIN',type:'int'},
-  grade:{label:'Grade',type:'grade'}, gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
+  grade:{label:'Grade',type:'grade',help:'Per-game performance grade'},
+  rateGrade:{label:'Rate Grade',type:'grade',help:'Same model on a per-36-minute basis'},
+  gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
   reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
   pts:{label:'PTS',type:'1'}, reb:{label:'REB',type:'1'}, oreb:{label:'OREB',type:'1'}, dreb:{label:'DREB',type:'1'},
   ast:{label:'AST',type:'1'}, stl:{label:'STL',type:'1'}, blk:{label:'BLK',type:'1'}, blka:{label:'BLKA',type:'1'},
@@ -162,7 +168,7 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   scoring:['select','viewRank','name','team','grade','pts','fg','fga','fgPct','fg3','fg3a','fg3Pct','ft','fta','ftPct','efg','ts','fg3Ar','ftr','usg','custom.selfCreatedPts36','custom.paintPts36','custom.efficiencyOverExpected'],
   shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_CATCH_SHOOT_PTS','stats.trk_catchshoot_CATCH_SHOOT_FGA','stats.trk_pullup_PULL_UP_PTS','stats.trk_pullup_PULL_UP_FGA'],
   playmaking:['select','viewRank','name','team','grade','ast','tov','astPct','astRatio','astTo','astPer100','tovPer100','toRatio','usg','custom.creationLoad36','custom.selfSufficiencyIndex'],
@@ -172,7 +178,7 @@ const PRESETS = {
   shotprofile:['select','viewRank','name','team','grade','pts','custom.shotLocationValue','custom.paintPts36','custom.situationalPts36','stats.oscore_pct_pts_paint','stats.oscore_pct_pts_3pt','stats.oscore_pct_pts_2pt_mr','stats.oscore_pct_pts_ft','stats.oscore_pct_pts_fb','stats.oscore_pct_uast_fgm','stats.omisc_pts_paint','stats.omisc_pts_fb','stats.omisc_pts_off_tov','stats.omisc_pts_2nd_chance'],
   custom:['select','viewRank','name','team','grade',...CUSTOM_KEYS,'labScore'],
   customraw:['select','viewRank','name','team','grade','gp','minutes','reliabilityWeight','custom.efficiencyOverExpected','custom.efficiencyOverExpectedRaw','custom.impactOverExpected','custom.impactOverExpectedRaw','custom.selfCreatedPts36','custom.selfCreatedPts36Raw','custom.situationalPts36','custom.situationalPts36Raw','custom.paintPts36','custom.paintPts36Raw'],
-  components:['select','viewRank','name','team','grade','gradeRaw','gradeShrunk','reliabilityWeight','components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'],
+  components:['select','viewRank','name','team','grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','components.scoring','components.playmaking','components.rebounding','components.defense','components.efficiency','components.impact'],
   teams:['select','viewRank','name','team','teamCount','grade','gp','mpg','pts','reb','ast'],
   bio:['select','viewRank','name','team','position','positionFamily','positionSource','age','seasonAge','height','weight','country','college','draftStatus','draftYear','draftRound','draftNumber','jersey','gp','grade'],
   splits:['select','viewRank','name','team','grade','gp','regularGP','showcaseGP','minutes','mpg','pts','reb','ast','brefGP','brefScope'],
@@ -185,7 +191,7 @@ const PRESET_LABELS = {overall:'Overall',scoring:'Scoring',shooting:'Shooting',p
   teams:'Team History',bio:'Bio & Draft',splits:'Season Splits (G League)',
   tracking:'Tracking & Hustle (NBA)',all:'All Raw Stats'};
 
-const CORE_REGISTRY = ['grade','gradeRaw','gradeShrunk','reliabilityWeight','gp','mpg','minutes','pts','reb','oreb','dreb',
+const CORE_REGISTRY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','gp','mpg','minutes','pts','reb','oreb','dreb',
   'ast','stl','blk','blka','tov','pf','pfd','plusMinus','fga','fgPct','fg3a','fg3Pct','fta','ftPct','efg','ts','fg3Ar','ftr',
   'astTo','usg','astPct','astRatio','orebPct','drebPct','rebPct','toRatio','tovPct','offRtg','defRtg','netRtg','pace','pie','poss',
   'stlPer100','blkPer100','astPer100','tovPer100','defWs','per','ows','dws','ws','ws48','obpm','dbpm','bpm','vorp',
@@ -415,6 +421,10 @@ function openPlayer(id){
       <div class="detail-card"><div class="k">TS% / USG%</div><div class="v">${pct(p.ts)} / ${pctPoints(p.usg)}</div></div>
       <div class="detail-card"><div class="k">PIE / NetRtg</div><div class="v">${pct(p.pie)} / ${signed(p.netRtg)}</div></div>
       <div class="detail-card"><div class="k">Reliability weight</div><div class="v">${num(p.reliabilityWeight,1)}</div></div>
+      <div class="detail-card"><div class="k">Rate grade (per 36)</div><div class="v">${finite(p.rateGrade)?p.rateGrade.toFixed(4):'—'}</div></div>
+      ${p.cohortRanks?.position?`<div class="detail-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${p.cohortRanks.position.rank} <span class="tiny">of ${p.cohortRanks.position.of}</span></div></div>`:''}
+      ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
+      ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${p.age<=23?'Age 23 and under':'Age 24+'}</div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
     </div>${stints}${crossover}
     <h3>All retained source fields</h3>${raw}`;
