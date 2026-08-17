@@ -22,6 +22,13 @@
 //   either     + same SCC      -> AMBIGUOUS  (recorded as started = null)
 //
 // No tie-breaking by minutes, points, or any other heuristic is performed anywhere in this file.
+//
+// SCOPE LIMIT. The edges classified here are only NBA-FLAGGED candidate player-games. A player who
+// appeared in a corrupted team-game but carries no START_POSITION is NOT thereby a known bench
+// player: that inference is only valid if the superset assumption holds, which is an external
+// question this solver cannot answer. Callers must record unflagged corrupted-season rows as
+// started = null, never false. FORCED_FALSE here means "excluded from the starting five given the
+// candidate set", and is meaningful only for players already inside that set.
 
 /** Dinic max-flow on a node-indexed graph. */
 export class MaxFlow {

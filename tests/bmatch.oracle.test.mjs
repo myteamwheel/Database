@@ -12,8 +12,12 @@
 // Any disagreement between that and the SCC classifier is a bug that would fabricate history.
 import { solve } from '../scripts/lib/bmatch.mjs';
 
-const N = Number(process.argv[2] || 4000);
-let seed = 12345;
+// Deterministic by default so a future regression reproduces the exact failing instance.
+// CI runs the default 3,000; the large stress audit is `node tests/bmatch.oracle.test.mjs 25000`.
+// A different seed can be swept explicitly: `... 3000 <seed>`.
+const N = Number(process.argv[2] || 3000);
+const SEED = Number(process.argv[3] || 12345);
+let seed = SEED;
 const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 
@@ -159,7 +163,8 @@ for (let iter = 0; iter < N; iter++) {
   }
 }
 
-console.log(`\ninstances            ${N}  (${feasibleN} feasible, ${infeasibleN} infeasible)`);
+console.log(`\nseed                 ${SEED}   (reproduce with: node tests/bmatch.oracle.test.mjs ${N} ${SEED})`);
+console.log(`instances            ${N}  (${feasibleN} feasible, ${infeasibleN} infeasible)`);
 console.log(`edges compared       ${checked}`);
 console.log(`  FORCED_TRUE        ${seen.FORCED_TRUE}`);
 console.log(`  FORCED_FALSE       ${seen.FORCED_FALSE}`);

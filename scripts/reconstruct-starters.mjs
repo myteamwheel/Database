@@ -304,4 +304,7 @@ if (mode === 'solve') {
   fs.writeFileSync(f, JSON.stringify(out));
   console.log(`\n  -> ${path.relative(ROOT, f)}`);
   console.log('  AMBIGUOUS rows carry started = null. They are not guessed.');
+  console.log('  Rows for players who appeared but were NOT flagged as candidates are absent from');
+  console.log('  this file entirely, and must be recorded as started = null rather than false: they');
+  console.log('  are only known bench players if the superset assumption holds, which is external.');
 }
