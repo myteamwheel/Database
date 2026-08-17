@@ -57,7 +57,20 @@ export const TULIP_CONFIG = {
   // before entering a Rotation Delta. Raw differences of 20 points/100 between team-mates are
   // common and are mostly noise; unshrunk they produced absurd deltas of +20.
   netRtgShrinkMinutes: 900,
+  // AUDIT FIX. Measured covariate balance between candidates and their comparables showed
+  // starter share standardized-mean-difference -0.735: candidates started 31% of their games,
+  // comparables 56%. Matching on ability alone left starter-vs-reserve CONTEXT wide open, which
+  // is one of the confounds the design explicitly set out to avoid. Comparables must now be
+  // reachable in role terms too.
+  starterShareBand: 45,     // max percentage-point gap in share of games started
 };
+
+/** Share of a player's games that were starts, 0-100. */
+export function starterShare(p) {
+  const s = p.stats?.sit_starter_gp;
+  if (!fin(s) || !fin(p.gp) || !p.gp) return null;
+  return (100 * s) / p.gp;
+}
 
 /** Similarity between two skill profiles, on the same documented basis the app uses elsewhere. */
 function profileSimilarity(a, b, weights) {
@@ -132,6 +145,9 @@ export function projectRole(candidate, pool, targetMpg, { weights, config = TULI
     // needed to avoid comparing a bench player against better players who happen to start.
     if (fin(candidate.rateGrade) && fin(q.rateGrade)
         && Math.abs(q.rateGrade - candidate.rateGrade) > config.qualityBand) continue;
+    // Role-context match, added after the balance audit above.
+    const cs = starterShare(candidate), qs = starterShare(q);
+    if (fin(cs) && fin(qs) && Math.abs(cs - qs) > config.starterShareBand) continue;
     const sim = profileSimilarity(candidate.skillProfile, q.skillProfile, weights);
     if (sim === null || sim < config.minSimilarity) continue;
     cands.push({ q, sim });
@@ -185,6 +201,42 @@ export function frontier(candidate, pool, opts) {
 }
 
 /**
+ * Role-Scale Response: does projected impact RISE, stay FLAT or DECLINE as the target role grows?
+ * The shape is measured from the supported part of the frontier, never assumed. Deliberately not
+ * called an elasticity: this is an observational comparison across players, not a causal estimate
+ * of what happens to one player when his minutes change.
+ */
+export function roleScaleResponse(frontierPoints) {
+  const pts = frontierPoints.filter((f) => !f.abstain && fin(f.projectedImpact) && fin(f.support));
+  if (pts.length < 3) {
+    return { response: 'INSUFFICIENT EVIDENCE', slopePer10Min: null, supportedBands: pts.length,
+      note: 'Fewer than three supported role bands; the shape of the curve cannot be read.' };
+  }
+  // Support-weighted least squares of impact on target minutes.
+  const w = pts.map((p) => p.support / 100);
+  const sw = w.reduce((a, v) => a + v, 0);
+  const mx = pts.reduce((a, p, i) => a + p.mpg * w[i], 0) / sw;
+  const my = pts.reduce((a, p, i) => a + p.projectedImpact * w[i], 0) / sw;
+  const sxx = pts.reduce((a, p, i) => a + w[i] * (p.mpg - mx) ** 2, 0);
+  const sxy = pts.reduce((a, p, i) => a + w[i] * (p.mpg - mx) * (p.projectedImpact - my), 0);
+  const slope = sxx ? sxy / sxx : 0;
+  const per10 = slope * 10;
+  // Residual spread sets the band inside which a slope is indistinguishable from flat.
+  const resid = pts.map((p, i) => p.projectedImpact - (my + slope * (p.mpg - mx)));
+  const rss = resid.reduce((a, v, i) => a + w[i] * v * v, 0) / sw;
+  const noise = Math.sqrt(rss);
+  const flatBand = Math.max(0.35, noise / 2);
+  return {
+    response: per10 > flatBand ? 'RISES' : per10 < -flatBand ? 'DECLINES' : 'FLAT',
+    slopePer10Min: round(per10, 2),
+    flatBand: round(flatBand, 2),
+    supportedBands: pts.length,
+    bandRange: [pts[0].mpg, pts[pts.length - 1].mpg],
+    note: 'Measured, not assumed. Comparables at larger roles are a selected group, so a rising curve is evidence about who occupies big roles, not proof that this player would improve in one.',
+  };
+}
+
+/**
  * Rotation Delta: the point of the whole exercise. Moving minutes to this player means taking
  * them from somebody, so the question is never "is he good" but "is he better than whoever
  * currently has these minutes, in this role".
@@ -192,7 +244,7 @@ export function frontier(candidate, pool, opts) {
  * Lineup Interaction Adjustment is reported as null — with no lineup data there is no honest way
  * to estimate it — and therefore contributes nothing to the delta.
  */
-export function rotationDelta(candidate, roster, targetMpg, projection) {
+export function rotationDelta(candidate, roster, targetMpg, projection, leagueMedianRotationImpact = null) {
   if (!projection || projection.abstain) return null;
   const extra = targetMpg - (candidate.mpg || 0);
   if (extra <= 0) {
@@ -244,6 +296,14 @@ export function rotationDelta(candidate, roster, targetMpg, projection) {
   const medianMate = rotationPool.length
     ? rotationPool[Math.floor(rotationPool.length / 2)] : displacedImpact;
   const neutralDelta = projection.projectedImpact - medianMate;
+  // AUDIT FIX. Measured against the team's own median team-mate, the neutral delta correlated
+  // -0.913 with that team-mate's impact and only +0.177 with the candidate's own projection --
+  // i.e. it was mostly ranking weak rosters, not players. The league-referenced delta uses a
+  // LEAGUE median rotation impact instead, which isolates the player. Both are reported: the
+  // team-referenced figure answers "should THIS team do this", the league-referenced one answers
+  // "is this player being underused relative to a typical rotation slot anywhere".
+  const leagueDelta = fin(leagueMedianRotationImpact)
+    ? projection.projectedImpact - leagueMedianRotationImpact : null;
   return {
     abstain: false,
     minutesReallocated: round(takenTotal, 1),
@@ -258,7 +318,18 @@ export function rotationDelta(candidate, roster, targetMpg, projection) {
     medianRotationMateImpact: round(medianMate, 2),
     neutralNote: 'neutralRotationDelta measures the same projection against a MEDIAN rotation team-mate rather than the weakest one. Displacing the weakest player is favourable by construction, so the neutral figure is the fairer read of whether the player himself is being underused.',
     displaced,
-    // The verdict follows the NEUTRAL delta, not the best-case one.
+    leagueReferencedDelta: fin(leagueDelta) ? round(leagueDelta, 2) : null,
+    leagueMedianRotationImpact: fin(leagueMedianRotationImpact) ? round(leagueMedianRotationImpact, 2) : null,
+    leagueNote: 'leagueReferencedDelta compares the projection against a median LEAGUE rotation slot instead of this roster. The team-referenced delta is dominated by how weak the current holder is (r = -0.91 against the displaced impact, versus +0.18 against the candidate projection), so the league figure is the one to read when judging the PLAYER rather than the TEAM decision.',
+    // Decomposed rather than hidden inside one number.
+    decomposition: {
+      candidateProjection: projection.projectedImpact,
+      displacedProjection: round(displacedImpact, 2),
+      medianTeamMate: round(medianMate, 2),
+      lineupAdjustment: null,
+      intervalOnCandidate: projection.interval,
+    },
+    // The verdict follows the NEUTRAL (team-referenced) delta, not the best-case one.
     verdict: neutralDelta > 1.5 ? 'EXPAND ROLE' : neutralDelta > 0.3 ? 'MILD GAIN'
            : neutralDelta > -0.3 ? 'NEUTRAL' : 'DO NOT EXPAND',
   };

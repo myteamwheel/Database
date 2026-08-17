@@ -50,3 +50,9 @@ thead th { position: sticky; top: 0; z-index: 2; }
 .profile-link:hover{color:var(--accent)}
 #scCanvas{border-radius:10px;margin:8px 0}
 @media(max-width:760px){.pbar{grid-template-columns:110px 1fr 34px}.ws-cols{grid-template-columns:1fr}}
+
+/* --- TULIP ------------------------------------------------------------- */
+.tulip-abstain{background:var(--panel2);border:1px solid var(--warn);border-radius:12px;padding:16px;margin:12px 0}
+.tulip-abstain h3{margin:.2em 0 .4em}
+.ws-card.v-good{border-color:#4d7f3f}.ws-card.v-bad{border-color:#7f4d4d}.ws-card.v-mid{border-color:var(--line)}
+#tuCanvas{border-radius:10px;margin:8px 0}

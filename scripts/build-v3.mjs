@@ -21,8 +21,8 @@ import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
 import { skillProfiles, archetypes, similarity, teamNeeds, teamFit, translationFactors,
          translationFactorsPer36, translate, SKILL_AXES, ARCHETYPES, SIMILARITY_WEIGHTS,
          NEED_AXES } from './lib/analysis.mjs';
-import { tulipCard, frontier, optimiseRotation, evidenceTier, ROLE_BANDS, TULIP_CONFIG }
-  from './lib/tulip.mjs';
+import { tulipCard, frontier, optimiseRotation, evidenceTier, roleScaleResponse, rotationDelta,
+         projectRole, starterShare, ROLE_BANDS, TULIP_CONFIG } from './lib/tulip.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -86,7 +86,7 @@ function flat(prefix, obj, skip = new Set()) {
   for (const [k, v] of Object.entries(obj)) {
     if (skip.has(k) || k.endsWith('_RANK')) continue;
     if (v === null || v === undefined || v === '') continue;
-    out[`${prefix}_${k.toLowerCase()}`] = typeof v === 'number' ? round(v, 4) : v;
+    out[`${prefix}_${k.toLowerCase()}`] = typeof v === 'number' ? round(v, 3) : v;
   }
   return out;
 }
@@ -529,21 +529,42 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
     const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
     for (const t of new Set(teams.filter(Boolean))) (rosters[t] = rosters[t] || []).push(r);
   }
+  // League median rotation impact: the reference the league-referenced delta uses, so a player is
+  // judged against a typical rotation slot anywhere rather than against his own weak roster.
+  const rotationImpacts = played
+    .filter((r) => (r.mpg || 0) >= 10 && (r.minutes || 0) >= TULIP_CONFIG.displacedMinMinutes && num(r.netRtg) !== null)
+    .map((r) => Math.max(-TULIP_CONFIG.netRtgClamp, Math.min(TULIP_CONFIG.netRtgClamp, r.netRtg)))
+    .sort((a, b) => a - b);
+  const leagueMedianRotationImpact = rotationImpacts.length
+    ? rotationImpacts[Math.floor(rotationImpacts.length / 2)] : null;
+
   for (const r of played) {
     // Default scenario: a meaningful but realistic expansion of the current role.
     const target = Math.min(34, Math.max(r.mpg + 6, 20));
     const card = tulipCard(r, pool, rosters[r.team] || played, target, opts);
+    // Recompute the rotation with the league reference attached (tulipCard cannot know it).
+    if (!card.abstain && card.projection && !card.projection.abstain) {
+      card.rotation = rotationDelta(r, rosters[r.team] || played, target, card.projection,
+        leagueMedianRotationImpact);
+    }
+    const fr = frontier(r, pool, opts);
     r.tulip = {
       defaultTarget: round(target, 1),
       card,
-      frontier: frontier(r, pool, opts).map((f) => ({
+      roleScaleResponse: roleScaleResponse(fr),
+      starterShare: round(starterShare(r), 1),
+      frontier: fr.map((f) => ({
         mpg: f.mpg, abstain: !!f.abstain,
+        abstainReason: f.abstain ? (f.reason || null) : null,
         projectedImpact: f.projectedImpact ?? null,
         interval: f.interval ?? null, support: f.support ?? 0,
         comparables: f.comparables ?? 0,
+        effectiveN: f.effectiveN ?? null,
+        meanSimilarity: f.meanSimilarity ?? null,
       })),
     };
   }
+  side.leagueMedianRotationImpact = leagueMedianRotationImpact;
   side.rotationSuggestions = Object.fromEntries(Object.entries(rosters).map(([team, roster]) =>
     [team, optimiseRotation(roster, pool, opts)]));
 }

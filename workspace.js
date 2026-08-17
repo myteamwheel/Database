@@ -12,7 +12,8 @@
 
   let MODE = 'database';
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simLeague: 'same', simMinMin: 300, team: null };
+                  simPlayer: null, simLeague: 'same', simMinMin: 300, team: null,
+                  tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
   const players = () => (window.DATA?.leagues?.[league()] || []).filter((p) => p.appeared);
@@ -22,6 +23,7 @@
   const MODES = [
     ['database', 'Database'], ['player', 'Player'], ['compare', 'Compare'],
     ['scatter', 'Scatter'], ['similarity', 'Similarity'], ['teamfit', 'Team Fit'],
+    ['tulip', 'TULIP'],
   ];
 
   function renderNav() {
@@ -39,9 +41,10 @@
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
     const fn = { player: viewPlayer, compare: viewCompare, scatter: viewScatter,
-                 similarity: viewSimilarity, teamfit: viewTeamFit }[MODE];
+                 similarity: viewSimilarity, teamfit: viewTeamFit, tulip: viewTulip }[MODE];
     $('workspace').innerHTML = fn ? fn() : '';
     if (fn === viewScatter) drawScatter();
+    if (fn === viewTulip) drawFrontier();
     wire();
   }
 
@@ -418,6 +421,243 @@
       </tbody></table></div>`;
   }
 
+  /* ------------------------------------------------------------ TULIP MODE */
+  /**
+   * TULIP is a role-change question, so the UI leads with the scenario, then the evidence, then
+   * the decision. The single most important visual job is separating "the model expects decline"
+   * from "the model has no evidence" — they are drawn differently and never merged.
+   */
+  function viewTulip() {
+    const cands = players().filter((p) => p.tulip)
+      .sort((a, b) => {
+        const av = a.tulip.card?.rotation?.leagueReferencedDelta ?? -99;
+        const bv = b.tulip.card?.rotation?.leagueReferencedDelta ?? -99;
+        return bv - av;
+      });
+    const p = byId(state.tulipPlayer) || cands.find((x) => !x.tulip.card.abstain) || cands[0];
+    if (!p) return '<p class="loading">No TULIP data for this league.</p>';
+    state.tulipPlayer = p.playerId;
+    const t = p.tulip;
+    const target = state.tulipTarget ?? t.defaultTarget;
+    // Frontier band matching the chosen target, so the card and the chart agree.
+    const band = t.frontier.reduce((best, f) =>
+      (Math.abs(f.mpg - target) < Math.abs((best?.mpg ?? 1e9) - target) ? f : best), null);
+    const card = t.card;
+    const rot = card.rotation;
+    const rsr = t.roleScaleResponse || {};
+
+    const scenario = `
+      <div class="ws-controls">
+        ${playerPicker('tuPlayer', p.playerId, 'Candidate')}
+        <label>Target role
+          <select id="tuTarget">${t.frontier.map((f) =>
+            `<option value="${f.mpg}"${f.mpg === target ? ' selected' : ''}>${f.mpg} MPG${f.abstain ? ' — no evidence' : ''}</option>`).join('')}</select>
+        </label>
+        <div class="ws-card"><div class="k">Current role</div><div class="v">${num(p.mpg)}<span class="tiny"> mpg · ${p.gp} g</span></div></div>
+        <div class="ws-card"><div class="k">Change</div><div class="v">${target > p.mpg ? '+' : ''}${num(target - p.mpg)}<span class="tiny"> mpg</span></div></div>
+      </div>`;
+
+    if (band && band.abstain) {
+      return scenario + `<div class="tulip-abstain">
+        <div class="eyebrow">INSUFFICIENT EVIDENCE</div>
+        <h3>No projection at ${band.mpg} MPG</h3>
+        <p>${esc(band.abstainReason || 'Not enough comparable players occupied this role.')}</p>
+        <p class="tiny">This is <b>not</b> a prediction of decline. TULIP abstains rather than
+        manufacturing a number when the evidence is not there.</p>
+      </div>` + frontierBlock(t, target) + comparablesNote();
+    }
+
+    const proj = band && !band.abstain ? band : null;
+    const verdictClass = rot && !rot.abstain
+      ? (rot.verdict === 'EXPAND ROLE' ? 'v-good' : rot.verdict === 'DO NOT EXPAND' ? 'v-bad' : 'v-mid') : 'v-mid';
+
+    return scenario + `
+      <div class="ws-grid">
+        <div class="ws-card"><div class="k">Projected impact at ${target} mpg</div>
+          <div class="v">${proj ? num(proj.projectedImpact, 2) : '—'}</div>
+          <p class="tiny">${proj && proj.interval ? `80% interval ${num(proj.interval[0], 2)} to ${num(proj.interval[1], 2)}` : ''}</p></div>
+        <div class="ws-card"><div class="k">TULIP Support</div><div class="v">${proj ? proj.support : '—'}<span class="tiny">/100</span></div>
+          <p class="tiny">${proj ? `${proj.comparables} comparables · effective n ${num(proj.effectiveN, 1)} · mean similarity ${num(proj.meanSimilarity, 1)}` : ''}</p></div>
+        <div class="ws-card"><div class="k">Evidence tier</div><div class="v">${esc(card.evidenceTier?.tier || '—')}</div>
+          <p class="tiny">${esc(card.evidenceTier?.label || '')}</p></div>
+        <div class="ws-card"><div class="k">Role-Scale Response</div>
+          <div class="v">${esc(rsr.response || '—')}</div>
+          <p class="tiny">${fin(rsr.slopePer10Min) ? `${rsr.slopePer10Min > 0 ? '+' : ''}${rsr.slopePer10Min} per 10 mpg` : 'not enough supported bands'}</p></div>
+      </div>
+
+      ${rot && !rot.abstain ? `
+      <h3>Rotation Delta <span class="tiny">decomposed, not one number</span></h3>
+      <div class="ws-grid">
+        <div class="ws-card"><div class="k">Candidate projection</div><div class="v">${num(rot.decomposition.candidateProjection, 2)}</div></div>
+        <div class="ws-card"><div class="k">Displaced (weakest)</div><div class="v">${num(rot.decomposition.displacedProjection, 2)}</div></div>
+        <div class="ws-card"><div class="k">Median team-mate</div><div class="v">${num(rot.decomposition.medianTeamMate, 2)}</div></div>
+        <div class="ws-card"><div class="k">Lineup adjustment</div><div class="v">n/a</div>
+          <p class="tiny">no lineup data</p></div>
+      </div>
+      <div class="ws-grid">
+        <div class="ws-card"><div class="k">Neutral delta (this team)</div><div class="v">${num(rot.neutralRotationDelta, 2)}</div>
+          <p class="tiny">vs a median team-mate</p></div>
+        <div class="ws-card"><div class="k">League-referenced delta</div><div class="v">${num(rot.leagueReferencedDelta, 2)}</div>
+          <p class="tiny">vs a median league rotation slot</p></div>
+        <div class="ws-card"><div class="k">Best case</div><div class="v">${num(rot.rotationDelta, 2)}</div>
+          <p class="tiny">vs the weakest team-mate</p></div>
+        <div class="ws-card ${verdictClass}"><div class="k">Verdict</div><div class="v">${esc(rot.verdict)}</div>
+          <p class="tiny">follows the neutral delta</p></div>
+      </div>
+      <p class="tiny">${esc(rot.magnitudeCaveat)}</p>
+      <p class="tiny">${esc(rot.leagueNote)}</p>
+      <p class="tiny">Minutes reallocated: ${num(rot.minutesReallocated)} from ${rot.displaced.map((x) => `${esc(x.name)} (-${x.minutesTaken})`).join(', ')}</p>
+      ` : `<p class="tiny">No rotation delta: ${esc(rot?.reason || 'not computed')}</p>`}
+
+      ${frontierBlock(t, target)}
+
+      <div class="ws-cols">
+        <section><h3>Why the model likes it</h3>
+          ${(card.strengths || []).map((x) => `<p class="tiny">+ ${esc(x.text)}</p>`).join('') || '<p class="tiny">—</p>'}</section>
+        <section><h3>Why it is sceptical</h3>
+          ${(card.risks || []).map((x) => `<p class="tiny">- ${esc(x.text)}</p>`).join('') || '<p class="tiny">—</p>'}</section>
+      </div>
+
+      ${(() => {
+        const src = (!card.abstain && card.projection && Math.abs(card.targetMpg - target) < 0.01)
+          ? card.projection : null;
+        return src && src.topComparables ? `<h3>Closest comparables at ${target} MPG</h3>
+      <div class="table-wrap"><table class="compare-table"><thead><tr>
+        <th class="left">Player</th><th>Similarity</th><th>MPG</th><th>On-court diff</th></tr></thead><tbody>
+        ${src.topComparables.map((c) => `<tr><td class="left">${esc(c.name)} <span class="tiny">${esc(c.team)}</span></td>
+          <td>${num(c.similarity, 1)}</td><td>${num(c.mpg)}</td><td>${num(c.netRtg, 1)}</td></tr>`).join('')}
+      </tbody></table></div>`
+          : '<p class="tiny">Named comparables are shown for the default scenario; other role bands report their comparable COUNT and mean similarity above.</p>';
+      })()}
+
+      ${comparablesNote()}
+
+      <h3>Best supported expansions, this league</h3>
+      <div class="table-wrap"><table class="compare-table"><thead><tr>
+        <th class="left">Player</th><th>MPG</th><th>Target</th><th>League delta</th><th>Neutral delta</th><th>Support</th><th>Verdict</th></tr></thead><tbody>
+        ${cands.filter((x) => !x.tulip.card.abstain && x.tulip.card.rotation && !x.tulip.card.rotation.abstain)
+          .slice(0, 25).map((x) => `<tr>
+          <td class="left"><button class="player-link" data-tulip="${esc(x.playerId)}">${esc(x.name)}</button>
+            <span class="tiny">${esc(x.team)}</span></td>
+          <td>${num(x.mpg)}</td><td>${num(x.tulip.card.targetMpg)}</td>
+          <td><b>${num(x.tulip.card.rotation.leagueReferencedDelta, 2)}</b></td>
+          <td>${num(x.tulip.card.rotation.neutralRotationDelta, 2)}</td>
+          <td>${x.tulip.card.projection.support}</td>
+          <td class="tiny">${esc(x.tulip.card.rotation.verdict)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  function comparablesNote() {
+    return `<p class="tiny"><b>What this is.</b> TULIP Evidence v0.1 — a comparable-based
+      role-expansion estimator built on ONE season of season-aggregate and starter/bench split
+      data. It is observational, not causal: comparables who already occupy a big role are a
+      selected group, and that selection is not corrected for. On-court differential is a team
+      result while a player is on the floor, shrunk toward the team mean but still unreliable in
+      magnitude — read the sign and the ordering, not the number. There is no TULIP Forecast:
+      age, multi-season trajectory and aging priors need historical data this database does not
+      have.</p>`;
+  }
+
+  /** Frontier: projected impact against target role, with support and abstention drawn apart. */
+  function frontierBlock(t, target) {
+    return `<h3>TULIP Frontier</h3>
+      <p class="tiny">Blue band = 80% interval. Bar height = support. Hollow markers = the model
+      has <b>no evidence</b> at that role, which is different from expecting decline.</p>
+      <canvas id="tuCanvas" width="1000" height="380" style="width:100%;max-width:1000px"
+        data-target="${target}"></canvas>
+      <div id="tuLegend" class="tiny"></div>`;
+  }
+
+  function drawFrontier() {
+    const cv = $('tuCanvas'); if (!cv) return;
+    const p = byId(state.tulipPlayer); if (!p || !p.tulip) return;
+    const pts = p.tulip.frontier;
+    const ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height, pad = 56;
+    ctx.clearRect(0, 0, W, H);
+    const css = getComputedStyle(document.body);
+    const line = (css.getPropertyValue('--line') || '#273142').trim();
+    const muted = (css.getPropertyValue('--muted') || '#9aabba').trim();
+
+    const supported = pts.filter((f) => !f.abstain && fin(f.projectedImpact));
+    const xs = pts.map((f) => f.mpg);
+    const xmin = Math.min(...xs), xmax = Math.max(...xs);
+    const lows = supported.flatMap((f) => (f.interval ? [f.interval[0]] : [f.projectedImpact]));
+    const highs = supported.flatMap((f) => (f.interval ? [f.interval[1]] : [f.projectedImpact]));
+    const ymin = supported.length ? Math.min(...lows) - 1 : -5;
+    const ymax = supported.length ? Math.max(...highs) + 1 : 5;
+    const PX = (v) => pad + ((v - xmin) / (xmax - xmin || 1)) * (W - pad * 2);
+    const PY = (v) => H - pad - ((v - ymin) / (ymax - ymin || 1)) * (H - pad * 2);
+
+    // support bars along the bottom
+    ctx.fillStyle = 'rgba(99,179,255,.16)';
+    for (const f of pts) {
+      const h = ((f.support || 0) / 100) * (H - pad * 2) * 0.28;
+      ctx.fillRect(PX(f.mpg) - 16, H - pad - h, 32, h);
+    }
+    ctx.strokeStyle = line; ctx.lineWidth = 1;
+    ctx.strokeRect(pad, pad, W - pad * 2, H - pad * 2);
+    ctx.fillStyle = muted; ctx.font = '12px system-ui';
+    for (const f of pts) ctx.fillText(String(f.mpg), PX(f.mpg) - 8, H - pad + 18);
+    for (let i = 0; i <= 4; i++) {
+      const gy = ymin + ((ymax - ymin) * i) / 4;
+      ctx.fillText(gy.toFixed(1), 8, PY(gy) + 4);
+    }
+    // zero line
+    if (ymin < 0 && ymax > 0) {
+      ctx.strokeStyle = 'rgba(154,171,186,.45)'; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(pad, PY(0)); ctx.lineTo(W - pad, PY(0)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // uncertainty band across supported bands
+    if (supported.length > 1) {
+      ctx.fillStyle = 'rgba(99,179,255,.20)';
+      ctx.beginPath();
+      supported.forEach((f, i) => { const y = f.interval ? f.interval[1] : f.projectedImpact;
+        i ? ctx.lineTo(PX(f.mpg), PY(y)) : ctx.moveTo(PX(f.mpg), PY(y)); });
+      for (let i = supported.length - 1; i >= 0; i--) {
+        const f = supported[i]; const y = f.interval ? f.interval[0] : f.projectedImpact;
+        ctx.lineTo(PX(f.mpg), PY(y));
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#63b3ff'; ctx.lineWidth = 2; ctx.beginPath();
+      supported.forEach((f, i) => (i ? ctx.lineTo(PX(f.mpg), PY(f.projectedImpact))
+                                    : ctx.moveTo(PX(f.mpg), PY(f.projectedImpact))));
+      ctx.stroke();
+    }
+    // markers: filled = supported estimate, hollow = INSUFFICIENT EVIDENCE
+    for (const f of pts) {
+      const x = PX(f.mpg);
+      if (f.abstain || !fin(f.projectedImpact)) {
+        ctx.strokeStyle = muted; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, PY((ymin + ymax) / 2), 6, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = muted; ctx.fillText('no ev.', x - 16, PY((ymin + ymax) / 2) - 12);
+      } else {
+        ctx.fillStyle = '#63b3ff';
+        ctx.beginPath(); ctx.arc(x, PY(f.projectedImpact), 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // current role marker
+    if (fin(p.mpg) && p.mpg >= xmin && p.mpg <= xmax) {
+      ctx.strokeStyle = '#9be38f'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(PX(p.mpg), pad); ctx.lineTo(PX(p.mpg), H - pad); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#9be38f'; ctx.fillText('current ' + p.mpg.toFixed(1), PX(p.mpg) + 6, pad + 14);
+    }
+    // chosen target marker
+    const tgt = Number(cv.dataset.target);
+    if (fin(tgt) && tgt >= xmin && tgt <= xmax) {
+      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(PX(tgt), pad); ctx.lineTo(PX(tgt), H - pad); ctx.stroke();
+      ctx.fillStyle = '#ffd166'; ctx.fillText('target ' + tgt, PX(tgt) + 6, pad + 30);
+    }
+    $('tuLegend').innerHTML = `X = target role (MPG) · Y = projected on-court impact ·
+      faint bars = TULIP Support at that role ·
+      <span style="color:#9be38f">green</span> = current role ·
+      <span style="color:#ffd166">amber</span> = selected target ·
+      hollow marker = <b>insufficient evidence</b> (not a predicted decline)`;
+  }
+
   /* ------------------------------------------------------------- wiring */
   function wire() {
     const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
@@ -427,6 +667,11 @@
     on('simLeague', 'change', (e) => { state.simLeague = e.target.value; render(); });
     on('simMin', 'change', (e) => { state.simMinMin = Number(e.target.value) || 0; render(); });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
+    on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
+    on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); });
+    document.querySelectorAll('[data-tulip]').forEach((b) => {
+      b.onclick = () => { state.tulipPlayer = b.dataset.tulip; state.tulipTarget = null; render(); };
+    });
     for (const [id, key] of [['scX', 'scatterX'], ['scY', 'scatterY'], ['scSize', 'scatterSize'], ['scColor', 'scatterColor']]) {
       on(id, 'change', (e) => { state[key] = e.target.value; render(); });
     }

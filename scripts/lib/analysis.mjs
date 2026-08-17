@@ -111,10 +111,10 @@ export function archetypes(profile) {
     if (!wsum) continue;
     const score = acc / wsum;
     drivers.sort((a, b) => b.contribution * Math.abs(b.weight) - a.contribution * Math.abs(a.weight));
-    out.push({ name, score: round(score, 1), drivers: drivers.slice(0, 4) });
+    out.push({ name, score: round(score, 1), drivers: drivers.slice(0, 3) });
   }
   out.sort((a, b) => b.score - a.score);
-  return out.slice(0, 5);
+  return out.slice(0, 4);
 }
 
 /* --------------------------------------------------------------- similarity */
