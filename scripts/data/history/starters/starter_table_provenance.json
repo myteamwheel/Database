@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-17T21:34:20.696Z",
+ "generatedAt": "2026-08-17T22:06:25.872Z",
  "methodVersions": {
   "DIRECT_NBA": "nba/boxscoretraditionalv2#START_POSITION@v1",
   "DIRECT_ESPN": "espn/summary#athlete.starter@v1",
@@ -26,5 +26,5 @@
    "nulls": 0
   }
  },
- "sha256": "9cdf897962559a31"
+ "sha256": "2f7a4f814e1fd856"
 }

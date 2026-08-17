@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getJson, scoreboardUrl, summaryUrl, startersFromSummary, normName, nbaAbbr, resolveName } from './lib/espn.mjs';
+import { getJson, scoreboardUrl, summaryUrl, startersFromSummary, normName, nbaAbbr, resolveName, IDENTITY_CLASSES } from './lib/espn.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
@@ -65,6 +65,7 @@ const violations = [];
 const idFailures = [];
 const mapFailures = [];
 const fallbacks = [];
+const identity = {};
 
 console.log('='.repeat(78));
 console.log(`SUPERSET ASSUMPTION TEST — ${season}   (ESPN explicit starters vs NBA candidate sets)`);
@@ -134,11 +135,11 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
 
       for (const s of et.starters) {
         stats.starterEdgesTested++;
-        const res = resolveName(s.name, nt.roster);
+        const res = resolveName(s.name, nt.roster, s.id);
         const nm = res.match;
-        if (res.how === 'surname') {
-          stats.surnameFallbacks++;
-          if (fallbacks.length < 20) fallbacks.push({ date: g.date, team: et.team, espn: s.name, matched: nm });
+        identity[res.how] = (identity[res.how] || 0) + 1;
+        if (res.how === 'unique_roster_surname_fallback' && fallbacks.length < 30) {
+          fallbacks.push({ date: g.date, team: et.team, espn: s.name, matched: nm });
         }
         // Identity check first: an ESPN starter absent from the NBA ROSTER is a name-mapping
         // failure, not evidence about the superset assumption. Kept strictly separate.
@@ -175,7 +176,8 @@ console.log(`  ESPN team-games not showing 5        ${stats.espnStarterCountNot5
 console.log(`  team-games tested                    ${stats.teamGamesTested}`);
 console.log(`  starter edges tested                 ${stats.starterEdgesTested}`);
 console.log(`  player identity mapping failures     ${stats.identityMapFailures}`);
-console.log(`  resolved via surname fallback        ${stats.surnameFallbacks}`);
+console.log('  identity resolution distribution:');
+for (const cls of IDENTITY_CLASSES) console.log(`    ${cls.padEnd(32)} ${identity[cls] || 0}`);
 if (c.length) {
   console.log(`  NBA candidate-set size  min ${c[0]} · median ${c[Math.floor(c.length / 2)]} · max ${c[c.length - 1]}` +
     ` · mean ${(c.reduce((a, b) => a + b, 0) / c.length).toFixed(2)}`);

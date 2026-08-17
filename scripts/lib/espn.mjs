@@ -61,14 +61,38 @@ export function lastNameKey(s) {
  * only used when exactly one roster surname matches, and it is REPORTED, never applied silently.
  * @returns {{match:string|null, how:'exact'|'surname'|'none', ambiguous?:string[]}}
  */
-export function resolveName(espnName, nbaRoster) {
+export function resolveName(espnName, nbaRoster, espnAthleteId = null, idMap = null) {
+  // 1. Strongest: a verified ESPN athlete id -> NBA player id mapping.
+  if (idMap && espnAthleteId != null && idMap.has(String(espnAthleteId))) {
+    const m = idMap.get(String(espnAthleteId));
+    if (nbaRoster.has(m)) return { match: m, how: 'exact_id' };
+  }
+  // 2. Normalised name equality within this team-game's roster.
   const n = normName(espnName);
-  if (nbaRoster.has(n)) return { match: n, how: 'exact' };
+  if (nbaRoster.has(n)) return { match: n, how: 'exact_normalized_name' };
+  // 3. A human-verified alias. Nickname divergence lives here, never in the fallback.
+  const alias = NAME_ALIASES[n];
+  if (alias && nbaRoster.has(alias)) return { match: alias, how: 'explicit_alias' };
+  // 4. Last resort: a surname unique within this ~13-player roster. Reported, never promoted to
+  //    the alias table automatically — "unique surname happened to match once" is not an alias.
   const key = lastNameKey(espnName);
   const hits = [...nbaRoster].filter((r) => r.endsWith(key) && key.length >= 4);
-  if (hits.length === 1) return { match: hits[0], how: 'surname' };
-  return { match: null, how: 'none', ambiguous: hits };
+  if (hits.length === 1) return { match: hits[0], how: 'unique_roster_surname_fallback' };
+  return { match: null, how: 'unresolved', ambiguous: hits };
 }
+
+/**
+ * Human-verified ESPN -> NBA name aliases, keyed by normName(espn) -> normName(nba).
+ * Each entry must be confirmed as the same athlete before being added. These are genuine
+ * naming divergences, not spelling noise.
+ */
+export const NAME_ALIASES = {
+  marcelinhohuertas: 'marcelohuertas',   // ESPN nickname; NBA uses "Marcelo Huertas"
+};
+
+export const IDENTITY_CLASSES = [
+  'exact_id', 'exact_normalized_name', 'explicit_alias', 'unique_roster_surname_fallback', 'unresolved',
+];
 
 export const scoreboardUrl = (yyyymmdd) =>
   `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${yyyymmdd}&limit=100`;

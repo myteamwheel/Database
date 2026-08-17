@@ -58,11 +58,16 @@ for (const season of prov.seasons) {
       const k = `${g.gameId}|${g.playerId}|${g.teamId}`;
       const hit = byKey.get(k);
       const status = tgStatus.get(`${g.gameId}|${g.teamId}`);
-      let starter = null, source = 'UNKNOWN', validation = 'unresolved';
+      let starter = null, source = 'UNKNOWN', validation = 'unresolved', evidence = null;
       if (hit && status === 'VALID') {
-        starter = hit.started;               // true for the five flagged, false for the rest
+        starter = hit.started;
         source = 'DIRECT_NBA';
         validation = 'validated_direct';
+        // START_POSITION only ever asserts the POSITIVE. A false is the validated complement of a
+        // team-game-level source — the team-game was confirmed to carry exactly five flags — not an
+        // athlete-level explicit negative. Downstream consumers must not assume the upstream feed
+        // literally carried starter=false, which matters most for DNP rows.
+        evidence = starter ? 'explicit_true' : 'validated_complement_false';
       }
       rows.push({
         season, seasonType: st, gameId: g.gameId, gameDate: g.gameDate,
@@ -71,6 +76,7 @@ for (const season of prov.seasons) {
         starterSource: source,
         starterMethodVersion: source === 'UNKNOWN' ? null : METHOD_VERSIONS[source],
         starterValidation: validation,
+        starterEvidence: evidence,
       });
     }
   }
@@ -132,13 +138,48 @@ if (bad.length) { console.log('    ' + JSON.stringify(bad.slice(0, 5))); process
 // 60 MB in every clone. Consumers must default missing keys to
 // {starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved'}.
 const known_rows = rows.filter((r) => r.starterSource !== 'UNKNOWN');
-const f = path.join(OUT, 'player_game_starters.json');
-fs.writeFileSync(f, JSON.stringify({
-  schema: ['gameId', 'playerId', 'teamId', 'starter', 'starterSource', 'starterMethodVersion', 'starterValidation'],
-  absentKeyMeans: { starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved' },
+const SCHEMA_VERSION = 1;
+const artifact = {
+  schemaVersion: SCHEMA_VERSION,
+  // Consumers MUST fail closed on an unrecognised schemaVersion rather than best-effort parse.
+  onUnknownSchemaVersion: 'FAIL_CLOSED',
+  rowKey: ['gameId', 'playerId', 'teamId'],
+  schema: ['gameId', 'playerId', 'teamId', 'starter', 'starterSource', 'starterMethodVersion',
+    'starterValidation', 'starterEvidence'],
+  scope: {
+    leagueId: '00',
+    seasonPhases: [...new Set(known_rows.map((r) => `${r.season} ${r.seasonType}`))].sort(),
+    description: 'Per-game starter status for season-phases that passed player-level acceptance. Phases absent from seasonPhases are entirely UNKNOWN.',
+  },
+  generatedAt: new Date().toISOString(),
+  sourceRevisions: METHOD_VERSIONS,
+  absentKeyMeans: { starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved', starterEvidence: null },
+  evidenceSubtypes: {
+    explicit_true: 'the source literally flagged this athlete as a starter',
+    validated_complement_false: 'not flagged, within a team-game independently validated to carry exactly five flags; NOT an athlete-level explicit negative from the feed',
+  },
   totalHistoricalRows: rows.length,
-  rows: known_rows.map((r) => [r.gameId, r.playerId, r.teamId, r.starter, r.starterSource, r.starterMethodVersion, r.starterValidation]),
-}));
+  establishedRows: known_rows.length,
+  rows: known_rows.map((r) => [r.gameId, r.playerId, r.teamId, r.starter, r.starterSource,
+    r.starterMethodVersion, r.starterValidation, r.starterEvidence]),
+};
+const f = path.join(OUT, 'player_game_starters.json');
+const payload = JSON.stringify(artifact);
+
+/* --- artifact guards: catch a size explosion BEFORE it reaches a remote, as 43fad97 did not --- */
+const MAX_BYTES = 25e6;
+const MAX_UNKNOWN_SHARE = 0.05;
+const unknownSerialised = payload.split('"UNKNOWN"').length - 1;
+const unknownShare = known_rows.length ? unknownSerialised / (known_rows.length + unknownSerialised) : 0;
+const guardFailures = [];
+if (payload.length > MAX_BYTES) guardFailures.push(`artifact is ${(payload.length / 1e6).toFixed(1)} MB, limit ${MAX_BYTES / 1e6} MB`);
+if (unknownShare > MAX_UNKNOWN_SHARE) guardFailures.push(`${(100 * unknownShare).toFixed(1)}% of serialised rows are UNKNOWN, limit ${100 * MAX_UNKNOWN_SHARE}% — absent keys already mean UNKNOWN, so writing them stores nothing`);
+console.log(`\n  artifact ${(payload.length / 1e6).toFixed(2)} MB · serialised UNKNOWN rows ${unknownSerialised} (${(100 * unknownShare).toFixed(2)}%)`);
+if (guardFailures.length) {
+  for (const g of guardFailures) console.log('  ARTIFACT GUARD FAILED: ' + g);
+  process.exit(1);
+}
+fs.writeFileSync(f, payload);
 fs.writeFileSync(path.join(OUT, 'starter_table_provenance.json'), JSON.stringify({
   generatedAt: new Date().toISOString(),
   methodVersions: METHOD_VERSIONS,

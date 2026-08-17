@@ -1,0 +1,90 @@
+{
+ "season": "2015-16",
+ "seasonType": "Regular Season",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-17T21:52:07.809Z",
+ "gamesRequested": 1230,
+ "gamesCached": 1230,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 0,
+  "invalid": 2460,
+  "missing": 0,
+  "total": 2460
+ },
+ "playerGameRows": 31423,
+ "sha256": "27c754806dfc6e51",
+ "invalidExamples": [
+  {
+   "gameId": "0021500001",
+   "team": "DET",
+   "teamId": 1610612765,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021500001",
+   "team": "ATL",
+   "teamId": 1610612737,
+   "status": "INVALID",
+   "starterCount": 8
+  },
+  {
+   "gameId": "0021500002",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021500002",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021500003",
+   "team": "NOP",
+   "teamId": 1610612740,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021500003",
+   "team": "GSW",
+   "teamId": 1610612744,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021500004",
+   "team": "WAS",
+   "teamId": 1610612764,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021500004",
+   "team": "ORL",
+   "teamId": 1610612753,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021500005",
+   "team": "PHI",
+   "teamId": 1610612755,
+   "status": "INVALID",
+   "starterCount": 7
+  },
+  {
+   "gameId": "0021500005",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 10
+  }
+ ]
+}
