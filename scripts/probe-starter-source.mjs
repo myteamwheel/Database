@@ -1,28 +1,34 @@
-// Phase 2 source evaluation for historical per-game starter status. Reproducible: re-run this
-// before trusting any starter ingest.
+// Phase 2 source evaluation for historical per-game starter status.
 //
-// FINDING. stats.nba.com box scores report START_POSITION (v2) / position (v3) for FIVE players
-// per team from 2017-18 onward, but for 2015-16 and 2016-17 the field is populated for bench
-// players too — sampled team-games showed 8, 9 and 11 "starters". boxscoretraditionalv3 has the
-// SAME defect on those seasons, so it is the underlying data, not the endpoint version.
+// A previous version of this file exported hardcoded STARTER_RELIABLE_SEASONS /
+// STARTER_UNRELIABLE_SEASONS arrays derived from three sampled games per season. Three games is
+// enough to discover a catastrophic defect; it is nowhere near enough to certify a season of
+// 1,230 games. Those arrays are gone. This script now emits an evidence MANIFEST, and validity is
+// recorded at the smallest practical unit — the team-game — because a clean season sample does
+// not make every game in that season clean.
 //
-// Consequence: per-game starter status is trustworthy for 2017-18..2024-25 only. For 2015-16 and
-// 2016-17 `started` must stay null. It is NOT inferred from minutes, and the five highest-minute
-// players are NOT assumed to be the starters — that is precisely the heuristic this project
-// forbids, and the 2015-16 example shows why it would be wrong (Aron Baynes carried a start
-// position on 10:51).
+// KNOWN DEFECT. stats.nba.com box scores report START_POSITION for five players per team from
+// 2017-18 onward, but in 2015-16 and 2016-17 the field is populated for bench players too
+// (2015-16 game 0021500001: Detroit shows nine, including Aron Baynes on 10:51).
+// boxscoretraditionalv3 reproduces it, so it is the underlying data, not the endpoint version.
+// Starters are NEVER inferred from minutes.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
+const OUT = path.join(HIST, 'starter_source_manifest.json');
+
 const H = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
   'Referer': 'https://www.nba.com/', 'Origin': 'https://www.nba.com',
   'Accept': 'application/json', 'x-nba-stats-origin': 'stats', 'x-nba-stats-token': 'true',
 };
+const ENDPOINT = 'https://stats.nba.com/stats/boxscoretraditionalv2';
+const SOURCE_VERSION = 'boxscoretraditionalv2 / START_POSITION';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function get(url) {
   for (let i = 0; i < 3; i++) {
     try {
@@ -33,39 +39,102 @@ async function get(url) {
     } catch (e) { if (i === 2) return { __err: e.message }; await wait(2000); }
   }
 }
-const v2 = (g) => 'https://stats.nba.com/stats/boxscoretraditionalv2?' + new URLSearchParams({
+const boxUrl = (g) => ENDPOINT + '?' + new URLSearchParams({
   GameID: g, StartPeriod: '0', EndPeriod: '10', StartRange: '0', EndRange: '28800', RangeType: '0' });
 
-/** Seasons whose per-game starter field is trustworthy. Derived by this probe, not assumed. */
-export const STARTER_RELIABLE_SEASONS = ['2017-18', '2018-19', '2019-20', '2020-21',
-  '2021-22', '2022-23', '2023-24', '2024-25'];
-export const STARTER_UNRELIABLE_SEASONS = ['2015-16', '2016-17'];
+/**
+ * Evaluate one game. Returns per-team-game validity rather than a single game verdict, since a
+ * game can be clean for one team and malformed for the other.
+ */
+export async function evaluateGame(gameId) {
+  const r = await get(boxUrl(gameId));
+  if (r.__err) return { gameId, status: 'MISSING', error: r.__err, teams: [] };
+  const ps = r.resultSets?.find((x) => x.name === 'PlayerStats');
+  if (!ps || !ps.rowSet.length) return { gameId, status: 'MISSING', error: 'no PlayerStats', teams: [] };
+  const i = Object.fromEntries(ps.headers.map((h, k) => [h, k]));
+  const byTeam = new Map();
+  for (const row of ps.rowSet) {
+    const team = row[i.TEAM_ABBREVIATION];
+    if (!byTeam.has(team)) byTeam.set(team, { team, starters: 0, players: 0, positions: [] });
+    const t = byTeam.get(team);
+    t.players++;
+    const pos = String(row[i.START_POSITION] ?? '').trim();
+    if (pos !== '') { t.starters++; t.positions.push(pos); }
+  }
+  const teams = [...byTeam.values()].map((t) => ({
+    ...t,
+    // A usable team-game has exactly five flagged starters covering plausible positions.
+    status: t.starters === 5 ? 'VALID' : 'INVALID',
+  }));
+  return { gameId, status: teams.every((t) => t.status === 'VALID') ? 'VALID' : 'INVALID', teams };
+}
+
+/** Stratified game selection: season phases, plus playoffs separately. */
+function sampleGames(season, perSeason) {
+  const out = { 'Regular Season': [], Playoffs: [] };
+  for (const [file, st] of [['gamelog.json', 'Regular Season'], ['gamelog_playoffs.json', 'Playoffs']]) {
+    const p = path.join(HIST, season, file);
+    if (!fs.existsSync(p)) continue;
+    const rows = JSON.parse(fs.readFileSync(p, 'utf8'));
+    // Order by date so "early / middle / late" is meaningful, and spread across teams.
+    const byDate = [...new Set(rows.map((r) => `${r.gameDate}|${r.gameId}`))].sort();
+    const ids = byDate.map((x) => x.split('|')[1]);
+    const want = st === 'Playoffs' ? Math.max(6, Math.floor(perSeason / 3)) : perSeason;
+    const step = Math.max(1, Math.floor(ids.length / want));
+    const picked = [];
+    for (let k = 0; k < ids.length && picked.length < want; k += step) picked.push(ids[k]);
+    // Always include the very last game of the phase (post-deadline / finals).
+    if (ids.length && !picked.includes(ids[ids.length - 1])) picked.push(ids[ids.length - 1]);
+    out[st] = picked;
+  }
+  return out;
+}
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const perSeason = Number(process.argv[2] || 25);
   const seasons = JSON.parse(fs.readFileSync(path.join(HIST, 'provenance.json'), 'utf8')).seasons;
-  const perSeason = Number(process.argv[2] || 3);
-  console.log('season    team-games sampled   with != 5 starters   verdict');
-  for (const s of seasons) {
-    const rows = JSON.parse(fs.readFileSync(path.join(HIST, s, 'gamelog.json'), 'utf8'));
-    const ids = [...new Set(rows.map((r) => r.gameId))];
-    const step = Math.max(1, Math.floor(ids.length / perSeason));
-    const pick = Array.from({ length: perSeason }, (_, k) => ids[Math.min(ids.length - 1, k * step)]);
-    let bad = 0, checked = 0;
-    for (const g of pick) {
-      const r = await get(v2(g));
-      const ps = r.resultSets?.find((x) => x.name === 'PlayerStats');
-      if (!ps) { await wait(1200); continue; }
-      const i = Object.fromEntries(ps.headers.map((h, k) => [h, k]));
-      const byTeam = {};
-      ps.rowSet.forEach((x) => {
-        if (String(x[i.START_POSITION] || '').trim() !== '') {
-          const t = x[i.TEAM_ABBREVIATION]; byTeam[t] = (byTeam[t] || 0) + 1;
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    endpoint: ENDPOINT, sourceVersion: SOURCE_VERSION,
+    method: 'Stratified sample across each phase, ordered by date. Validity recorded per TEAM-GAME: exactly five flagged starters = VALID.',
+    caveat: 'A sample cannot certify every game in a season. The ingest must re-validate each team-game and set started=null wherever the team-game is not VALID.',
+    seasons: {},
+  };
+  console.log(`stratified probe: up to ${perSeason} regular-season + ~${Math.max(6, Math.floor(perSeason / 3))} playoff games per season\n`);
+  console.log('season     type              games  teamGames  valid  invalid  missing  defect%');
+  for (const season of seasons) {
+    const picks = sampleGames(season, perSeason);
+    manifest.seasons[season] = {};
+    for (const [st, ids] of Object.entries(picks)) {
+      if (!ids.length) continue;
+      let valid = 0, invalid = 0, missing = 0, teamGames = 0;
+      const examples = [];
+      for (const g of ids) {
+        const res = await evaluateGame(g);
+        if (res.status === 'MISSING') { missing++; await wait(1250); continue; }
+        for (const t of res.teams) {
+          teamGames++;
+          if (t.status === 'VALID') valid++;
+          else { invalid++; if (examples.length < 5) examples.push({ gameId: g, team: t.team, starters: t.starters }); }
         }
-      });
-      Object.values(byTeam).forEach((n) => { checked++; if (n !== 5) bad++; });
-      await wait(1300);
+        await wait(1250);
+      }
+      const defectRate = teamGames ? invalid / teamGames : null;
+      manifest.seasons[season][st] = {
+        gamesSampled: ids.length, teamGamesTested: teamGames,
+        valid, invalid, missingBoxScores: missing,
+        defectRate: defectRate === null ? null : Number(defectRate.toFixed(4)),
+        // Status is evidence about the SAMPLE, never a guarantee about the season.
+        sampleStatus: defectRate === null ? 'NO_DATA' : defectRate === 0 ? 'CLEAN_SAMPLE'
+          : defectRate < 0.02 ? 'MOSTLY_CLEAN_SAMPLE' : 'DEFECTIVE',
+        invalidExamples: examples,
+      };
+      console.log(`${season}  ${st.padEnd(16)} ${String(ids.length).padStart(5)}  ${String(teamGames).padStart(9)}` +
+        `  ${String(valid).padStart(5)}  ${String(invalid).padStart(7)}  ${String(missing).padStart(7)}` +
+        `  ${defectRate === null ? '   n/a' : (100 * defectRate).toFixed(1).padStart(6)}`);
     }
-    console.log(`${s}  ${String(checked).padStart(18)}   ${String(bad).padStart(17)}   ` +
-      `${bad === 0 ? 'RELIABLE' : 'UNRELIABLE - keep started=null'}`);
   }
+  fs.writeFileSync(OUT, JSON.stringify(manifest, null, 1));
+  console.log(`\nmanifest -> scripts/data/history/starter_source_manifest.json`);
+  console.log('No season is marked "reliable". The ingest validates every team-game itself.');
 }

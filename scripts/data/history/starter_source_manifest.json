@@ -1,0 +1,333 @@
+{
+ "generatedAt": "2026-08-17T20:27:42.199Z",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "sourceVersion": "boxscoretraditionalv2 / START_POSITION",
+ "method": "Stratified sample across each phase, ordered by date. Validity recorded per TEAM-GAME: exactly five flagged starters = VALID.",
+ "caveat": "A sample cannot certify every game in a season. The ingest must re-validate each team-game and set started=null wherever the team-game is not VALID.",
+ "seasons": {
+  "2015-16": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 0,
+    "invalid": 52,
+    "missingBoxScores": 0,
+    "defectRate": 1,
+    "sampleStatus": "DEFECTIVE",
+    "invalidExamples": [
+     {
+      "gameId": "0021500001",
+      "team": "DET",
+      "starters": 9
+     },
+     {
+      "gameId": "0021500001",
+      "team": "ATL",
+      "starters": 8
+     },
+     {
+      "gameId": "0021500050",
+      "team": "POR",
+      "starters": 9
+     },
+     {
+      "gameId": "0021500050",
+      "team": "MIN",
+      "starters": 10
+     },
+     {
+      "gameId": "0021500099",
+      "team": "ORL",
+      "starters": 9
+     }
+    ]
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 0,
+    "invalid": 18,
+    "missingBoxScores": 0,
+    "defectRate": 1,
+    "sampleStatus": "DEFECTIVE",
+    "invalidExamples": [
+     {
+      "gameId": "0041500111",
+      "team": "IND",
+      "starters": 11
+     },
+     {
+      "gameId": "0041500111",
+      "team": "TOR",
+      "starters": 10
+     },
+     {
+      "gameId": "0041500162",
+      "team": "DAL",
+      "starters": 8
+     },
+     {
+      "gameId": "0041500162",
+      "team": "OKC",
+      "starters": 10
+     },
+     {
+      "gameId": "0041500133",
+      "team": "ATL",
+      "starters": 9
+     }
+    ]
+   }
+  },
+  "2016-17": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 0,
+    "invalid": 52,
+    "missingBoxScores": 0,
+    "defectRate": 1,
+    "sampleStatus": "DEFECTIVE",
+    "invalidExamples": [
+     {
+      "gameId": "0021600001",
+      "team": "NYK",
+      "starters": 11
+     },
+     {
+      "gameId": "0021600001",
+      "team": "CLE",
+      "starters": 9
+     },
+     {
+      "gameId": "0021600050",
+      "team": "NYK",
+      "starters": 11
+     },
+     {
+      "gameId": "0021600050",
+      "team": "DET",
+      "starters": 9
+     },
+     {
+      "gameId": "0021600099",
+      "team": "NOP",
+      "starters": 10
+     }
+    ]
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 0,
+    "invalid": 18,
+    "missingBoxScores": 0,
+    "defectRate": 1,
+    "sampleStatus": "DEFECTIVE",
+    "invalidExamples": [
+     {
+      "gameId": "0041600111",
+      "team": "IND",
+      "starters": 9
+     },
+     {
+      "gameId": "0041600111",
+      "team": "CLE",
+      "starters": 9
+     },
+     {
+      "gameId": "0041600152",
+      "team": "MEM",
+      "starters": 9
+     },
+     {
+      "gameId": "0041600152",
+      "team": "SAS",
+      "starters": 8
+     },
+     {
+      "gameId": "0041600153",
+      "team": "SAS",
+      "starters": 10
+     }
+    ]
+   }
+  },
+  "2017-18": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2018-19": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2019-20": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2020-21": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2021-22": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2022-23": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2023-24": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  },
+  "2024-25": {
+   "Regular Season": {
+    "gamesSampled": 26,
+    "teamGamesTested": 52,
+    "valid": 52,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   },
+   "Playoffs": {
+    "gamesSampled": 9,
+    "teamGamesTested": 18,
+    "valid": 18,
+    "invalid": 0,
+    "missingBoxScores": 0,
+    "defectRate": 0,
+    "sampleStatus": "CLEAN_SAMPLE",
+    "invalidExamples": []
+   }
+  }
+ }
+}
