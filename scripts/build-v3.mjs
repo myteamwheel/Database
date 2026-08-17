@@ -22,7 +22,9 @@ import { skillProfiles, archetypes, similarity, teamNeeds, teamFit, translationF
          translationFactorsPer36, translate, SKILL_AXES, ARCHETYPES, SIMILARITY_WEIGHTS,
          NEED_AXES } from './lib/analysis.mjs';
 import { tulipCard, frontier, optimiseRotation, evidenceTier, roleScaleResponse, rotationDelta,
-         projectRole, starterShare, ROLE_BANDS, TULIP_CONFIG } from './lib/tulip.mjs';
+         projectRole, starterShare, ROLE_BANDS, TULIP_CONFIG, KNOWN_RESIDUAL_BIAS } from './lib/tulip.mjs';
+import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEMA,
+         AVAILABILITY_ROW_SCHEMA, TRANSACTION_ROW_SCHEMA } from './lib/history.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -728,6 +730,17 @@ const out = {
       crossoverSample: pairs.length,
       caveat: 'Translation factors are measured from players who appeared in BOTH leagues in 2025-26 only, with at least five games on each side. That is enough to describe what happened to this cohort and NOT enough to project an NBA career. Estimates are exploratory; no NBA-success probability is offered because there are no historical outcome labels here to validate one.',
     },
+  },
+  tulipMeta: {
+    version: 'TULIP Evidence v0.1',
+    description: 'Comparable-based role-expansion estimator with abstention and neutral rotation comparisons. Observational, not causal. No TULIP Forecast exists.',
+    config: TULIP_CONFIG,
+    knownResidualBias: KNOWN_RESIDUAL_BIAS,
+    evidenceTiers: EVIDENCE_TIERS,
+    historical: historicalReadiness({}),
+    requiredBaselines: REQUIRED_BASELINES,
+    schemas: { game: GAME_ROW_SCHEMA, availability: AVAILABILITY_ROW_SCHEMA, transaction: TRANSACTION_ROW_SCHEMA },
+    outcomeCaveat: 'Projected impact is measured on on-court differential, a team result while the player is on the floor. Ranking robustness was checked against PIE, a rate composite from independent grade components, and Rate Grade: Spearman 0.79-0.91 and 16/20 top-20 overlap, so the candidate list is not a NetRtg artefact — but the magnitude remains unreliable.',
   },
   fieldCatalog: { ...buildCatalog({ NBA: nba.records, GLEAGUE: gl.records }), _topLevel: TOP_LEVEL_CATALOG },
   provenance: {

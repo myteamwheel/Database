@@ -486,6 +486,17 @@
       </div>
 
       ${rot && !rot.abstain ? `
+      <h3>Two different questions <span class="tiny">deliberately not merged into one score</span></h3>
+      <div class="ws-cols">
+        <section class="read-block"><div class="eyebrow">PLAYER / LEAGUE READ</div>
+          <p class="tiny">How this target-role projection compares with a typical NBA rotation player.
+          A league-referenced role-expansion value — not context-free player quality.</p>
+          <div class="v big">${num(rot?.leagueReferencedDelta, 2)}</div></section>
+        <section class="read-block"><div class="eyebrow">TEAM DECISION READ</div>
+          <p class="tiny">Whether reallocating minutes from realistic players on <b>${esc(p.team)}</b>
+          appears beneficial. Dominated by who currently holds those minutes.</p>
+          <div class="v big">${num(rot?.neutralRotationDelta, 2)}</div></section>
+      </div>
       <h3>Rotation Delta <span class="tiny">decomposed, not one number</span></h3>
       <div class="ws-grid">
         <div class="ws-card"><div class="k">Candidate projection</div><div class="v">${num(rot.decomposition.candidateProjection, 2)}</div></div>
@@ -530,6 +541,11 @@
           : '<p class="tiny">Named comparables are shown for the default scenario; other role bands report their comparable COUNT and mean similarity above.</p>';
       })()}
 
+      <p class="tiny"><b>Known residual bias.</b> Comparables at a large target role started a much
+        larger share of their games than the candidate does. Pooled the imbalance is negligible
+        (SMD -0.008) but within target bands it is large (worst 0.798), because a pool of bench
+        players who play starter minutes barely exists. Projections at big targets carry a
+        starter-context bias of known direction and unknown size.</p>
       ${comparablesNote()}
 
       <h3>Best supported expansions, this league</h3>

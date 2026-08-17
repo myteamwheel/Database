@@ -56,3 +56,5 @@ thead th { position: sticky; top: 0; z-index: 2; }
 .tulip-abstain h3{margin:.2em 0 .4em}
 .ws-card.v-good{border-color:#4d7f3f}.ws-card.v-bad{border-color:#7f4d4d}.ws-card.v-mid{border-color:var(--line)}
 #tuCanvas{border-radius:10px;margin:8px 0}
+.read-block{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.read-block .v.big{font-size:30px;font-weight:900;margin-top:6px}

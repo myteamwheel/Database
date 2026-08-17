@@ -62,7 +62,35 @@ export const TULIP_CONFIG = {
   // comparables 56%. Matching on ability alone left starter-vs-reserve CONTEXT wide open, which
   // is one of the confounds the design explicitly set out to avoid. Comparables must now be
   // reachable in role terms too.
-  starterShareBand: 45,     // max percentage-point gap in share of games started
+  // Swept 45/30/20/15/10. Band 20 minimises BOTH the pooled starter SMD (-0.008) and the worst
+  // per-band SMD (0.798); tighter bands lose common support without improving balance.
+  starterShareBand: 20,     // max percentage-point gap in share of games started
+};
+
+/**
+ * RESIDUAL, UNFIXABLE CONFOUND — stated rather than buried.
+ *
+ * Pooled across all candidates the starter-share imbalance is now negligible (SMD -0.008), but
+ * WITHIN each target band it remains large (worst band 0.798). That is Simpson's paradox: the
+ * pooled figure looks clean only because candidates and comparables are averaged across bands.
+ *
+ * It cannot be tuned away. A 12-mpg reserve projected to 28 mpg is compared against players who
+ * actually play 28 mpg, and almost all of them are starters — a pool of "bench players who play
+ * starter minutes" barely exists. The common-support region genuinely does not contain the
+ * counterfactual, so every projection at a large target carries a starter-context bias whose
+ * direction is known (comparables started more) but whose size is not identified by this data.
+ *
+ * Fixing it requires the historical/game-level design: role expansions caused by external shocks,
+ * where a bench player really did absorb starter minutes for observable reasons.
+ */
+export const KNOWN_RESIDUAL_BIAS = {
+  starterContext: {
+    pooledSmd: -0.008,
+    worstBandSmd: 0.798,
+    direction: 'comparables started a larger share of their games than the candidates do',
+    identified: false,
+    remedy: 'game-level opportunity-shock data (Tier A), not parameter tuning',
+  },
 };
 
 /** Share of a player's games that were starts, 0-100. */
@@ -320,7 +348,7 @@ export function rotationDelta(candidate, roster, targetMpg, projection, leagueMe
     displaced,
     leagueReferencedDelta: fin(leagueDelta) ? round(leagueDelta, 2) : null,
     leagueMedianRotationImpact: fin(leagueMedianRotationImpact) ? round(leagueMedianRotationImpact, 2) : null,
-    leagueNote: 'leagueReferencedDelta compares the projection against a median LEAGUE rotation slot instead of this roster. The team-referenced delta is dominated by how weak the current holder is (r = -0.91 against the displaced impact, versus +0.18 against the candidate projection), so the league figure is the one to read when judging the PLAYER rather than the TEAM decision.',
+    leagueNote: 'leagueReferencedDelta is a LEAGUE-REFERENCED ROLE-EXPANSION VALUE: the projection compared against a median league rotation slot rather than against this roster. It removes the weak-roster baseline problem — the team-referenced delta correlates -0.91 with the displaced team-mate and only +0.18 with the candidate projection — but it does NOT isolate the player. The candidate projection is itself observational: it comes from comparables who already occupy that role, who started a larger share of their games than the candidate does, and it is measured on a noisy team-dependent outcome. Read it as role-expansion value under a league reference, not as context-free player quality.',
     // Decomposed rather than hidden inside one number.
     decomposition: {
       candidateProjection: projection.projectedImpact,
