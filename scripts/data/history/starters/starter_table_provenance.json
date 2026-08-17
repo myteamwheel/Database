@@ -1,0 +1,30 @@
+{
+ "generatedAt": "2026-08-17T21:33:31.577Z",
+ "methodVersions": {
+  "DIRECT_NBA": "nba/boxscoretraditionalv2#START_POSITION@v1",
+  "DIRECT_ESPN": "espn/summary#athlete.starter@v1",
+  "RECONSTRUCTED_V1": "bmatch/maxflow-scc@v1"
+ },
+ "validationDescriptors": {
+  "validated_direct": "a direct semantic source states it, and that source passed acceptance for this season-phase",
+  "derived_consistent": "no direct source; solver output uniquely forced by official constraints",
+  "unresolved": "not established by any available source; starter is null"
+ },
+ "note": "starterValidation is a descriptor, not a calibrated probability.",
+ "rows": 272307,
+ "byProvenance": {
+  "UNKNOWN": {
+   "rows": 244221,
+   "started": 0,
+   "benched": 0,
+   "nulls": 244221
+  },
+  "DIRECT_NBA": {
+   "rows": 28086,
+   "started": 13120,
+   "benched": 14966,
+   "nulls": 0
+  }
+ },
+ "sha256": "9cdf897962559a31"
+}
