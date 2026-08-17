@@ -10,7 +10,12 @@ Run it:
 npm run build && python3 -m http.server 3600
 ```
 
-Then open <http://localhost:3600>. `npm run audit` validates the generated data.
+Then open <http://localhost:3600>. `npm run audit` validates the generated data, and
+`npm run refresh` re-pulls every source and rebuilds from scratch.
+
+`npm run build` also emits `public/standalone.html` — a single self-contained file carrying the
+**complete** dataset. Columnar encoding (one shared key table per league, each player a positional
+array) takes 15.7 MB of JSON down to 3.6 MB, so nothing has to be dropped to make it portable.
 
 ---
 
@@ -44,10 +49,11 @@ player's composite toward the minutes-weighted league mean in proportion to minu
 graded = (minutes × own_score + K × league_mean) / (minutes + K)
 ```
 
-`K` is 60% of the league's median minutes (NBA 567, G League 391). `sampleConfidence` is the
-weight a player's own line received — `minutes / (minutes + K)` — so the displayed confidence
-and the grade are the same statement rather than two unrelated numbers. The lowest games played
-anywhere in the G League top 25 is now 16, and 36 in the NBA top 25.
+`K` is 60% of the league's median minutes (NBA 567, G League 391). `reliabilityWeight` is the
+weight a player's own line received — `minutes / (minutes + K)` — so the displayed number and the
+grade are the same statement. It is **not** a statistical confidence level and it does not reach
+100: the observed maximum is about 84. The lowest games played anywhere in the G League top 25 is
+now 16, and 36 in the NBA top 25.
 
 ### The season-definition problem v2 did not notice
 
@@ -116,7 +122,12 @@ Raw payloads are committed under `scripts/data/` so the build is reproducible wi
   the exact join finds **199**.
 - Player detail shows the same person's other-league line side by side, with a note that the two
   grades are not on a shared scale.
-- Multi-team players are one full-season aggregate record, not one row per stint.
+- Multi-team players are one full-season aggregate record, but each carries a `teams` array of
+  real per-team stint lines, and team filters match **any** team a player appeared for. Querying
+  `stats.nba.com` by `TeamID` returns the player's *current* team abbreviation rather than the team
+  the row describes, so both of James Harden's stints initially came back labelled CLE; the queried
+  id is stamped and mapped instead. Stint games reconcile to season totals for all 72 NBA and 97
+  G League multi-team players.
 
 ---
 
@@ -129,14 +140,33 @@ Six components, each an average of within-league percentiles, combined with fixe
 | Scoring | 30% | points/36, TS%, usage, FT and 3PT pressure, self-created scoring |
 | Playmaking | 18% | assists/36, AST%, AST/TO, turnover suppression, creation load |
 | Rebounding | 14% | total/offensive/defensive rebounds and their rates |
-| Defense | 16% | steals, blocks, defensive rebound rate, defensive rating, DEF WS, disruption, possession swing |
-| Efficiency | 12% | TS%, eFG%, efficiency over expected, AST/TO, turnover suppression |
-| Impact | 10% | PIE, net rating, offensive rating, plus/minus, minutes |
+| Defense | 16% | steals, blocks, defensive rebound rate, defensive rating, **DEF WS per 36**, defensive disruption, **defensive swing** |
+| Efficiency | 12% | TS%, eFG%, efficiency over expected, AST/TO, turnover-ratio suppression |
+| Impact | 10% | PIE, net rating, impact over expected, plus/minus per 36 |
 
-The weighted composite is shrunk by minutes as described above, then percentile-ranked inside its
-own league and mapped onto 0.0000-9.9999.
+Each ingredient appears **once**; the full list ships in the data as `componentIngredients`.
 
-The grade deliberately excludes contract status, draft position, awards, age and reputation.
+The weighted composite is shrunk by minutes, then mapped onto 0.0000-9.9999 by an **affine
+stretch — not a second percentile rank**. That distinction matters: percentile-ranking at the end
+made every adjacent gap identical (514 of 581 NBA gaps were exactly 0.0172), so the grade
+communicated only order. Under the affine map there are 260 distinct gaps, and a 0.4 difference
+means the same thing everywhere on the scale.
+
+Three things are deliberately kept out of the grade:
+
+- **Minutes per game.** Minutes already govern the shrinkage; also rewarding MPG as performance
+  would separate two identical per-possession players by how big a role they were given.
+- **Offensive events inside the Defense component.** Possession Swing counts offensive rebounds
+  and the player's own turnovers, so Defense uses a defence-only variant instead.
+- **PIE inside Two-Way Index.** NBA.com's PIE already contains defensive rebounds, steals and
+  blocks; including it beside an explicit defensive half counted defence twice.
+
+**A caveat worth stating plainly:** offensive, defensive and net rating and plus/minus are *team*
+results while a player is on court, per NBA.com's own definitions — not isolated individual value.
+They inform the Impact component (10%) and Two-Way Index. Nothing here is a plus/minus model like
+RAPM, and no such data exists for the G League.
+
+The grade also excludes contract status, draft position, awards, age and reputation.
 
 ---
 
