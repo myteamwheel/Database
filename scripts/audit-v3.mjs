@@ -44,14 +44,15 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     if (miss > 0) console.log(`     ${f.padEnd(26)} missing ${miss} (${(100 * miss / arr.length).toFixed(1)}%)`);
   }
 
-  // grade sanity
-  const grades = arr.map((p) => p.grade);
+  // grade sanity — graded players only. Roster-only rows carry grade null, and null coerces to
+  // 0 inside Math.min, which silently reported a grade range starting at 0.0000.
+  const grades = arr.filter((p) => p.appeared && p.grade !== null).map((p) => p.grade);
   const bad = grades.filter((g) => !(g >= 0 && g <= 9.9999));
   if (bad.length) fails.push(`${lg}: ${bad.length} grades outside 0-9.9999`);
   console.log(`  grade range: ${Math.min(...grades).toFixed(4)} .. ${Math.max(...grades).toFixed(4)}`);
 
   // small-sample sanity: nobody in the top 25 should be under 10 games
-  const top25 = [...arr].sort((a, b) => b.grade - a.grade).slice(0, 25);
+  const top25 = arr.filter((p) => p.appeared && p.grade !== null).sort((a, b) => b.grade - a.grade).slice(0, 25);
   const thin = top25.filter((p) => p.gp < 10);
   console.log(`  top-25 minimum games played: ${Math.min(...top25.map((p) => p.gp))}`);
   if (thin.length) { warn.push(`${lg}: ${thin.length} of top 25 under 10 GP (${thin.map((p) => `${p.name} ${p.gp}gp`).join(', ')})`); }
@@ -96,7 +97,7 @@ if (flaggedN !== inter.length || flaggedG !== inter.length) fails.push('bothLeag
 // Regression guards for the defects a previous audit found.
 for (const lg of ['NBA', 'GLEAGUE']) {
   const arr = d.leagues[lg];
-  const g = arr.map((p) => p.grade).sort((a, b) => b - a);
+  const g = arr.filter((p) => p.appeared && p.grade !== null).map((p) => p.grade).sort((a, b) => b - a);
   const gaps = g.slice(1).map((v, i) => +(g[i] - v).toFixed(4));
   const distinct = new Set(gaps).size;
   console.log(`${lg}: ${distinct} distinct adjacent grade gaps out of ${gaps.length}`);
@@ -105,7 +106,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
   // No custom metric should be topped by a player with a negligible sample.
   for (const key of CUSTOM) {
-    const top = [...arr].filter((p) => empty(p.custom?.[key]) === false)
+    const top = arr.filter((p) => p.appeared && empty(p.custom?.[key]) === false)
       .sort((a, b) => b.custom[key] - a.custom[key])[0];
     if (top && top.gp <= 2) warn.push(`${lg}.${key} is led by ${top.name} on ${top.gp} game(s)`);
   }
@@ -191,6 +192,35 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const prov = d.provenance || {};
   console.log(`provenance: commit ${prov.buildCommit || 'n/a'}, ${prov.sources?.length || 0} source files hashed`);
   if (!prov.sources?.length) fails.push('no source provenance recorded');
+}
+
+// Documentation-vs-code consistency. The app previously said K was 60% of median minutes while
+// the model used 80%, and described per-36 ingredients for a per-game grade — the code was more
+// correct than what it told the reader, which is the worst way round.
+{
+  const defs = d.metricDefinitions || {};
+  const gm = d.gradeModel || {};
+  for (const lg of ['NBA', 'GLEAGUE']) {
+    const m = gm.shrinkage?.[lg];
+    if (!m) continue;
+    const statedPct = Number(/K is (\d+)%/.exec(defs.reliabilityWeight || '')?.[1]);
+    const actualPct = Math.round((m.kFactor ?? 0) * 100);
+    if (statedPct !== actualPct)
+      fails.push(`documentation says K is ${statedPct}% of median minutes, model used ${actualPct}%`);
+    const expectedK = Math.round(m.medianMinutes * m.kFactor);
+    if (Math.abs(expectedK - m.K) > 1)
+      fails.push(`${lg}: K ${m.K} does not equal ${m.kFactor} x median minutes ${m.medianMinutes}`);
+  }
+  const basis = gm.shrinkage?.NBA?.basis;
+  const scoring = (gm.componentIngredients?.scoring || []).join(' ');
+  if (basis === 'perGame' && /per 36|\/36 /.test(scoring.replace('self-created points/36', '')))
+    fails.push(`grade basis is perGame but documented ingredients describe per-36: ${scoring}`);
+  if (basis === 'perGame' && !/PER-GAME|per game/i.test(defs.grade || ''))
+    fails.push('grade definition does not state that the headline grade is per game');
+  const anchors = gm.shrinkage?.NBA?.anchors;
+  if (anchors && !new RegExp(`${anchors.lo}[^0-9]+${anchors.hi}`).test(defs.grade || ''))
+    fails.push('grade definition does not state the fixed anchors actually used');
+  console.log(`doc/code consistency: K ${gm.shrinkage?.NBA?.kFactor}x, basis ${basis}, anchors ${anchors?.lo}-${anchors?.hi} — all stated correctly`);
 }
 
 console.log('\n--- warnings ---');

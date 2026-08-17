@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
-import { computeCustom, computeGrades, cohortRanks, COMPONENT_WEIGHTS, COMPONENT_INGREDIENTS } from './lib/metrics.mjs';
+import { computeCustom, computeGrades, cohortRanks, componentIngredients, COMPONENT_WEIGHTS, K_FACTOR, GRADE_ANCHORS } from './lib/metrics.mjs';
 import { buildStints, positionFamily } from './lib/roster.mjs';
 import { buildSplits, loadRoster, ageAt, OPENING_NIGHT, FEB_FIRST } from './lib/splits.mjs';
 import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
@@ -447,9 +447,11 @@ let both = 0;
 for (const r of nba.records) { r.bothLeagues = r.appeared && glIds.has(r.nbaPersonId); if (r.bothLeagues) both++; }
 for (const r of gl.records) { r.bothLeagues = r.appeared && nbaIds.has(r.nbaPersonId); }
 
+const KPCT = Math.round(K_FACTOR * 100);
 const metricDefinitions = {
-  grade: 'Within-league per-game performance rating on 0.0000-9.9999. Six weighted percentile components, shrunk toward the minutes-weighted league mean in proportion to minutes played, then stretched onto the 0-9.9999 range by an affine map. Because the last step is a stretch and not a second percentile rank, equal grade differences mean equal differences in the underlying composite. NBA and G League are separate ranking universes.',
-  reliabilityWeight: 'The weight a player\'s own line carried in the shrinkage: minutes / (minutes + K), as a percentage, where K is 60% of the league median minutes. It is NOT a statistical confidence level, and it does not reach 100 — the observed maximum is about 84. A full-season starter sits in the high seventies to low eighties; a two-game call-up sits near 10.',
+  grade: `Within-league PER-GAME performance rating on 0.0000-9.9999. Six weighted percentile components built from per-game production, shrunk toward the minutes-weighted league mean in proportion to minutes played, then mapped onto 0-9.9999 against fixed anchors (composite ${GRADE_ANCHORS.lo} to ${GRADE_ANCHORS.hi}). Because the last step is a fixed linear map and not a second percentile rank, equal grade differences mean equal differences in the underlying composite, and a grade stays comparable across rebuilds. NBA and G League are separate ranking universes.`,
+  rateGrade: 'The same model computed on a per-36-minute basis. It answers a different question from the headline grade: 12 points in 16 minutes is 27 per 36 and will outrank 19 points in 32 minutes here, but not in the per-game grade.',
+  reliabilityWeight: `The weight a player's own line carried in the shrinkage: minutes / (minutes + K), as a percentage, where K is ${KPCT}% of the league median minutes. That factor was chosen from a sensitivity sweep, not by preference — see scripts/k-sensitivity.mjs. It is NOT a statistical confidence level, and it does not reach 100. A full-season starter sits in the high seventies; a two-game call-up sits near 10.`,
   selfCreatedPts36: 'Points per 36 minutes from unassisted twos, unassisted threes and free throws. Free throws are included whole, so the figure overstates self-creation for players who draw many off-ball, technical or intentional-foul attempts. Reliability-adjusted.',
   situationalPts36: 'Fast-break plus points-off-turnovers plus second-chance points per 36. These are overlapping situational categories in NBA.com\'s definitions, not a partition of scoring — a transition bucket after a steal can count in two of them — so treat this as a situational-involvement index rather than a literal point total. Reliability-adjusted.',
   possessionSwing36: 'Net possessions won per 36: steals + offensive rebounds + 0.6x blocks, minus turnovers and 0.4x own shots blocked. Spans both ends of the floor, so it is not used in the Defense grade component. Reliability-adjusted.',
@@ -470,7 +472,8 @@ const metricDefinitions = {
 const modelNotes = {
   teamContext: 'Offensive rating, defensive rating, net rating and plus/minus are TEAM results while the player is on court, per NBA.com\'s own definitions — not isolated individual value. They carry real information about a player but are influenced by team-mates and lineups. They contribute to the Impact component (10% of the grade) and to Two-Way Index; nothing here is a plus/minus model like RAPM, and no such data is published for the G League.',
   duplicateIngredients: 'Each component averages its ingredients once. An earlier version inserted points twice into Scoring and assists twice into Playmaking, which acted as undeclared extra weight.',
-  minutes: 'Minutes govern the reliability shrinkage only. Minutes per game is deliberately NOT an ingredient of any component, so two players with identical per-possession production are not separated by how large a role they were given.',
+  minutes: 'Minutes govern the reliability shrinkage only. Minutes per game is deliberately NOT an ingredient of any component, so two players with identical per-game production are not separated by how large a role they were given.',
+  gradeBasis: `The headline grade is PER GAME, matching the original brief. Volume ingredients (points, rebounds, assists, steals, blocks, free-throw and three-point attempts, plus/minus, defensive win shares) are per game; rate ingredients (TS%, usage, rebound and assist percentages) are basis-independent and shared. A per-36 version of the same model ships alongside as rateGrade. Shrinkage constant K = ${KPCT}% of median minutes.`,
   brefScope: 'Basketball-Reference\'s G League table covers the regular season only, while the G League headline line here combines Regular Season and Showcase Cup. PER, win shares and WS/48 therefore describe a smaller sample than the rest of the row; every record carries brefGP and brefScope so the interface can label it.',
 };
 
@@ -539,7 +542,8 @@ const out = {
     version: '3.1',
     scale: '0.0000-9.9999 affine stretch of a minutes-shrunk weighted-percentile composite',
     componentWeights: COMPONENT_WEIGHTS,
-    componentIngredients: COMPONENT_INGREDIENTS,
+    componentIngredients: componentIngredients(nba.model.basis),
+    rateComponentIngredients: componentIngredients('per36'),
     shrinkage: {
       NBA: nba.model, GLEAGUE: gl.model,
       rationale: 'Shrinkage keeps per-game production as the thing measured while weighting a player against the league mean by how much evidence exists. The same correction is now applied to the custom metrics themselves, not only the headline grade.',

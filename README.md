@@ -49,7 +49,10 @@ player's composite toward the minutes-weighted league mean in proportion to minu
 graded = (minutes × own_score + K × league_mean) / (minutes + K)
 ```
 
-`K` is 60% of the league's median minutes (NBA 567, G League 391). `reliabilityWeight` is the
+`K` is **80%** of the league's median minutes (NBA 756, G League 521), chosen from the sensitivity
+sweep in `scripts/k-sensitivity.mjs` rather than by preference: at 0.6 the G League top 25 still
+admitted a 13-game line, while 0.8 removes every sub-16-game line at a rank correlation of 0.9995.
+`reliabilityWeight` is the
 weight a player's own line received — `minutes / (minutes + K)` — so the displayed number and the
 grade are the same statement. It is **not** a statistical confidence level and it does not reach
 100: the observed maximum is about 84. The lowest games played anywhere in the G League top 25 is
@@ -135,22 +138,34 @@ Raw payloads are committed under `scripts/data/` so the build is reproducible wi
 
 Six components, each an average of within-league percentiles, combined with fixed weights:
 
+**The headline grade is PER GAME**, matching the original brief. Volume ingredients are per-game;
+rate ingredients (TS%, usage, rebound and assist percentages) are basis-independent. A per-36
+version of the identical model ships alongside as **`rateGrade`** — it answers a different
+question, since 12 points in 16 minutes is 27 per 36 and outranks 19 points in 32 minutes there
+but not in the headline grade.
+
 | Component | Weight | Built from |
 |---|---|---|
-| Scoring | 30% | points/36, TS%, usage, FT and 3PT pressure, self-created scoring |
-| Playmaking | 18% | assists/36, AST%, AST/TO, turnover suppression, creation load |
-| Rebounding | 14% | total/offensive/defensive rebounds and their rates |
-| Defense | 16% | steals, blocks, defensive rebound rate, defensive rating, **DEF WS per 36**, defensive disruption, **defensive swing** |
+| Scoring | 30% | points per game, TS%, usage, FT and 3PT attempts per game, self-created scoring |
+| Playmaking | 18% | assists per game, AST%, AST/TO, turnover suppression, creation load |
+| Rebounding | 14% | total/offensive/defensive rebounds per game and their rates |
+| Defense | 16% | steals and blocks per game, defensive rebound rate, defensive rating, **DEF WS per game**, defensive disruption, **defensive swing** |
 | Efficiency | 12% | TS%, eFG%, efficiency over expected, AST/TO, turnover-ratio suppression |
-| Impact | 10% | PIE, net rating, impact over expected, plus/minus per 36 |
+| Impact | 10% | PIE, net rating, impact over expected, plus/minus per game |
 
 Each ingredient appears **once**; the full list ships in the data as `componentIngredients`.
 
-The weighted composite is shrunk by minutes, then mapped onto 0.0000-9.9999 by an **affine
-stretch — not a second percentile rank**. That distinction matters: percentile-ranking at the end
-made every adjacent gap identical (514 of 581 NBA gaps were exactly 0.0172), so the grade
-communicated only order. Under the affine map there are 260 distinct gaps, and a 0.4 difference
-means the same thing everywhere on the scale.
+The weighted composite is shrunk by minutes, then mapped onto 0.0000-9.9999 against **fixed
+anchors (composite 30 to 80) — not a percentile rank and not the observed extremes**. Both
+distinctions matter. Percentile-ranking at the end made every adjacent gap identical (514 of 581
+NBA gaps were exactly 0.0172), so the grade communicated only order. Anchoring to the observed
+min and max meant one freak line rescaled everyone and a grade could not be compared between
+rebuilds. With fixed anchors a 0.4 difference means the same thing everywhere on the scale and
+in every build.
+
+**The documented methodology is generated from the code constants**, not written by hand, and
+`npm run audit` fails if the two ever disagree — a previous version told readers K was 60% while
+the model used 80%, and described per-36 ingredients for a per-game grade.
 
 Three things are deliberately kept out of the grade:
 

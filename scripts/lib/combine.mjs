@@ -112,7 +112,10 @@ export function combineHalves(rs, sc) {
     ...blendFields(rs.scoring, sc.scoring, SCORING_BY_FGM, fgmA, fgmB),
   };
   const defense = {
-    DEF_RATING: blend(rs.defense, sc.defense, 'DEF_RATING', minA, minB),
+    // Same possession-based quantity as the advanced bucket's DEF_RATING, so it must use the
+    // same denominator. Blending one on possessions and the other on minutes let two fields
+    // that mean the same thing disagree.
+    DEF_RATING: blend(rs.defense, sc.defense, 'DEF_RATING', possA || minA, possB || minB),
     DEF_WS: (num(rs.defense?.DEF_WS) || 0) + (num(sc.defense?.DEF_WS) || 0),
     PCT_DREB: blend(rs.defense, sc.defense, 'PCT_DREB', minA, minB),
     PCT_STL: blend(rs.defense, sc.defense, 'PCT_STL', minA, minB),

@@ -315,15 +315,26 @@ export const COMPONENT_WEIGHTS = {
   defense: 0.16, efficiency: 0.12, impact: 0.10,
 };
 
-/** Documented so the ingredient list is a deliberate choice rather than incidental duplication. */
-export const COMPONENT_INGREDIENTS = {
-  scoring: ['points/36', 'TS%', 'usage', 'FT rate', '3PT rate', 'self-created points/36'],
-  playmaking: ['assists/36', 'AST%', 'AST/TO', 'turnover suppression', 'creation load/36'],
-  rebounding: ['rebounds/36', 'OREB/36', 'DREB/36', 'OREB%', 'DREB%', 'REB%'],
-  defense: ['steals/36', 'blocks/36', 'DREB%', 'defensive rating', 'DEF WS per 36', 'defensive disruption', 'defensive swing/36'],
-  efficiency: ['TS%', 'eFG%', 'efficiency over expected', 'AST/TO', 'turnover-ratio suppression'],
-  impact: ['PIE', 'net rating', 'impact over expected', 'plus/minus per 36'],
-};
+/**
+ * Ingredient list, generated from the basis actually in use so it can never describe a different
+ * model than the one that ran. An earlier version hardcoded a per-36 list and kept showing it
+ * after the headline grade moved to per-game.
+ */
+export function componentIngredients(basis = 'perGame') {
+  const v = basis === 'per36' ? 'per 36' : 'per game';
+  return {
+    scoring: [`points ${v}`, 'TS%', 'usage', `FT attempts ${v}`, `3PT attempts ${v}`, 'self-created points/36'],
+    playmaking: [`assists ${v}`, 'AST%', 'AST/TO', `turnover suppression (${v})`, 'creation load/36'],
+    rebounding: [`rebounds ${v}`, `OREB ${v}`, `DREB ${v}`, 'OREB%', 'DREB%', 'REB%'],
+    defense: [`steals ${v}`, `blocks ${v}`, 'DREB%', 'defensive rating', `DEF WS ${v}`,
+      'defensive disruption index', 'defensive swing/36'],
+    efficiency: ['TS%', 'eFG%', 'efficiency over expected', 'AST/TO', 'turnover-ratio suppression'],
+    impact: ['PIE', 'net rating', 'impact over expected', `plus/minus ${v}`],
+  };
+}
+
+/** Kept for callers that want the shipped configuration without passing a basis. */
+export const COMPONENT_INGREDIENTS = componentIngredients('perGame');
 
 /**
  * Six components, then a minutes-shrunk composite mapped onto 0.0000-9.9999.
