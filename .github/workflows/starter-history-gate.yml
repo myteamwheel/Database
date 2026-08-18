@@ -2,6 +2,8 @@ name: Exhaustive historical starter acceptance
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [v3-official-data]
   push:
     branches: [v3-official-data]
     paths:
@@ -176,6 +178,7 @@ jobs:
           NODE
 
       - name: Commit acceptance evidence to branch
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
