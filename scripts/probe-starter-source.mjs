@@ -44,7 +44,8 @@ const boxUrl = (g) => ENDPOINT + '?' + new URLSearchParams({
 
 /**
  * Evaluate one game. Returns per-team-game validity rather than a single game verdict, since a
- * game can be clean for one team and malformed for the other.
+ * game can be clean for one team and malformed for the other. Starter identities are preserved
+ * so an exhaustive accepted crawl can be reused by the historical ingest instead of fetched twice.
  */
 export async function evaluateGame(gameId) {
   const r = await get(boxUrl(gameId));
@@ -52,19 +53,27 @@ export async function evaluateGame(gameId) {
   const ps = r.resultSets?.find((x) => x.name === 'PlayerStats');
   if (!ps || !ps.rowSet.length) return { gameId, status: 'MISSING', error: 'no PlayerStats', teams: [] };
   const i = Object.fromEntries(ps.headers.map((h, k) => [h, k]));
+  for (const required of ['TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_ID', 'START_POSITION']) {
+    if (!(required in i)) return { gameId, status: 'MISSING', error: `PlayerStats missing ${required}`, teams: [] };
+  }
   const byTeam = new Map();
   for (const row of ps.rowSet) {
+    const teamId = String(row[i.TEAM_ID]);
     const team = row[i.TEAM_ABBREVIATION];
-    if (!byTeam.has(team)) byTeam.set(team, { team, starters: 0, players: 0, positions: [] });
-    const t = byTeam.get(team);
+    if (!byTeam.has(teamId)) byTeam.set(teamId, { teamId, team, starters: 0, players: 0, positions: [], starterPlayerIds: [] });
+    const t = byTeam.get(teamId);
     t.players++;
     const pos = String(row[i.START_POSITION] ?? '').trim();
-    if (pos !== '') { t.starters++; t.positions.push(pos); }
+    if (pos !== '') {
+      t.starters++;
+      t.positions.push(pos);
+      t.starterPlayerIds.push(String(row[i.PLAYER_ID]));
+    }
   }
   const teams = [...byTeam.values()].map((t) => ({
     ...t,
-    // A usable team-game has exactly five flagged starters covering plausible positions.
-    status: t.starters === 5 ? 'VALID' : 'INVALID',
+    // A usable team-game has exactly five distinct flagged starter identities.
+    status: t.starters === 5 && new Set(t.starterPlayerIds).size === 5 ? 'VALID' : 'INVALID',
   }));
   return { gameId, status: teams.every((t) => t.status === 'VALID') ? 'VALID' : 'INVALID', teams };
 }
@@ -96,7 +105,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const manifest = {
     generatedAt: new Date().toISOString(),
     endpoint: ENDPOINT, sourceVersion: SOURCE_VERSION,
-    method: 'Stratified sample across each phase, ordered by date. Validity recorded per TEAM-GAME: exactly five flagged starters = VALID.',
+    method: 'Stratified sample across each phase, ordered by date. Validity recorded per TEAM-GAME: exactly five distinct flagged starter identities = VALID.',
     caveat: 'A sample cannot certify every game in a season. The ingest must re-validate each team-game and set started=null wherever the team-game is not VALID.',
     seasons: {},
   };
