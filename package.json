@@ -28,6 +28,7 @@
     "audit:history": "node scripts/audit-history.mjs",
     "verify:history": "node scripts/verify-history-hashes.mjs",
     "probe:starter": "node scripts/probe-starter-source.mjs",
+    "gate:espn-starters": "node scripts/espn-full-season-gate.mjs",
     "build:history-summary": "node scripts/build-history-summary.mjs",
     "test:starter": "node tests/bmatch.test.mjs && node tests/bmatch.oracle.test.mjs && node tests/starter-merge.test.mjs",
     "test:history": "node tests/history.test.mjs && node tests/history-games.test.mjs",
