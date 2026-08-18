@@ -6,8 +6,10 @@
 //   node scripts/reconstruct-starters.mjs validate <season> [k] degrade a CLEAN season, measure recovery
 //   node scripts/reconstruct-starters.mjs solve <season>        classify and write reconstruction
 //
-// The validate mode is the gate. If reconstruction cannot recover a season we already know the
-// answer for, its output on a season we do not know is worthless.
+// The validate mode tests solver soundness on known truth. The solve mode has an additional,
+// non-negotiable gate: the ESPN superset assumption must have passed the exhaustive full-season
+// acceptance gate for the exact historical cache currently on disk. A feasible max-flow solution
+// alone is not evidence that the true starters were inside the corrupted NBA candidate sets.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +28,59 @@ function load(season) {
   // TeamID=0 => player-season totals summed across every team a traded player played for.
   const officialStarts = new Map(splits.starters.map((s) => [s.playerId, s.gp]));
   return { rows, officialStarts, splits };
+}
+
+function uniqueHistoricalGames(season, file) {
+  const f = path.join(HIST, season, file);
+  if (!fs.existsSync(f)) return 0;
+  const rows = JSON.parse(fs.readFileSync(f, 'utf8'));
+  return new Set(rows.map((r) => String(r.gameId))).size;
+}
+
+/**
+ * Fail closed before any reconstruction is persisted.
+ *
+ * The acceptance record is deliberately checked again here instead of assuming callers ran the
+ * gate. This closes the direct `node reconstruct-starters.mjs solve ...` bypass and also rejects a
+ * stale record whose historical-game counts no longer match the cache being solved.
+ */
+function requireAcceptedSupersetGate(season) {
+  const f = path.join(HIST, 'starters', `${season}_espn_superset_acceptance.json`);
+  const fail = (why) => {
+    console.error(`\nREFUSING TO RECONSTRUCT ${season}: ${why}`);
+    console.error(`Run: npm run gate:espn-starters -- ${season}`);
+    console.error('Only an exhaustive, accepted cross-source record for the current historical cache may unlock solve mode.');
+    process.exit(1);
+  };
+  if (!fs.existsSync(f)) fail('no exhaustive ESPN superset acceptance record exists');
+
+  let a;
+  try { a = JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch { fail('acceptance record is unreadable or invalid JSON'); }
+
+  if (a.schemaVersion !== 1) fail(`unsupported acceptance schemaVersion ${String(a.schemaVersion)}`);
+  if (a.season !== season) fail(`acceptance record season ${String(a.season)} does not match ${season}`);
+  if (a.exhaustive !== true) fail('acceptance record is not exhaustive');
+  if (a.accepted !== true) fail('exhaustive ESPN superset gate did not accept this season');
+  if (!a.expected || !a.measured) fail('acceptance record is missing expected/measured reconciliation fields');
+
+  const regularGames = uniqueHistoricalGames(season, 'gamelog.json');
+  const playoffGames = uniqueHistoricalGames(season, 'gamelog_playoffs.json');
+  const games = regularGames + playoffGames;
+  const currentExpected = { regularGames, playoffGames, games, teamGames: games * 2, starterEdges: games * 10 };
+  for (const [k, v] of Object.entries(currentExpected)) {
+    if (a.expected[k] !== v) fail(`stale acceptance record: expected.${k}=${String(a.expected[k])}, current cache=${v}`);
+  }
+
+  if (a.measured.gamesSampled !== games) fail(`acceptance measured ${String(a.measured.gamesSampled)} games, current cache has ${games}`);
+  if (a.measured.teamGamesTested !== games * 2) fail(`acceptance measured ${String(a.measured.teamGamesTested)} team-games, expected ${games * 2}`);
+  if (a.measured.starterEdgesTested !== games * 10) fail(`acceptance measured ${String(a.measured.starterEdgesTested)} starter edges, expected ${games * 10}`);
+  for (const k of ['nbaMissing', 'espnMissing', 'gameMappingFailures', 'espnStarterCountNot5', 'identityMapFailures', 'supersetViolations']) {
+    if (a.measured[k] !== 0) fail(`acceptance record contains nonzero ${k}: ${String(a.measured[k])}`);
+  }
+  if (Array.isArray(a.failures) && a.failures.length) fail(`acceptance record contains failures: ${a.failures.join('; ')}`);
+
+  return a;
 }
 
 /** Group rows into team-games with their candidate sets (players carrying a START_POSITION). */
@@ -271,6 +326,7 @@ if (mode === 'validate') {
 
 /* ==================================================================== SOLVE */
 if (mode === 'solve') {
+  const acceptance = requireAcceptedSupersetGate(season);
   const { rows, officialStarts } = load(season);
   // Every team-game enters the system, VALID and INVALID alike. This handles partially corrupted
   // seasons without special-casing: a VALID team-game's candidate set is already exactly its five
@@ -280,14 +336,15 @@ if (mode === 'solve') {
   console.log('='.repeat(78));
   console.log(`CONSTRAINED RECONSTRUCTION — ${season}`);
   console.log('='.repeat(78));
+  console.log(`\n  exhaustive ESPN superset gate ACCEPTED (${acceptance.measured.gamesSampled} games / ${acceptance.measured.starterEdgesTested} starter edges)`);
   const r = solve(tgs, officialStarts);
   console.log(`\n  team-games        ${r.teamGames}`);
   console.log(`  players           ${r.players}`);
   console.log(`  candidate edges   ${r.candidateEdges}`);
   console.log(`  feasible          ${r.feasible}  (flow ${r.flow} / ${r.demand}, supply ${r.supply})`);
   if (!r.feasible) {
-    console.log('\n  INFEASIBLE. No assignment satisfies both constraints, so the superset hypothesis');
-    console.log('  is false or the season splits disagree with the box scores. Nothing is written.');
+    console.log('\n  INFEASIBLE. No assignment satisfies both constraints, so the candidate sets or');
+    console.log('  season splits disagree. Nothing is written even though the superset gate passed.');
     process.exit(1);
   }
   console.log('');
@@ -305,6 +362,7 @@ if (mode === 'solve') {
   console.log(`\n  -> ${path.relative(ROOT, f)}`);
   console.log('  AMBIGUOUS rows carry started = null. They are not guessed.');
   console.log('  Rows for players who appeared but were NOT flagged as candidates are absent from');
-  console.log('  this file entirely, and must be recorded as started = null rather than false: they');
-  console.log('  are only known bench players if the superset assumption holds, which is external.');
+  console.log('  this file entirely. Because solve mode is now reachable only after the exhaustive');
+  console.log('  superset gate passes, downstream code may derive those non-candidates as bench only');
+  console.log('  when it explicitly carries that accepted-gate provenance; this file does not do so.');
 }
