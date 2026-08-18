@@ -1,0 +1,19 @@
+{
+ "season": "2018-19",
+ "seasonType": "Playoffs",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T21:45:07.176Z",
+ "gamesRequested": 82,
+ "gamesCached": 82,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 164,
+  "invalid": 0,
+  "missing": 0,
+  "total": 164
+ },
+ "playerGameRows": 2120,
+ "sha256": "842b4c89cf44ba4c",
+ "invalidExamples": []
+}

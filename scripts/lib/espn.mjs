@@ -110,6 +110,10 @@ export function resolveName(espnName, nbaRoster, espnAthleteId = null, idMap = n
  */
 export const NAME_ALIASES = {
   marcelinhohuertas: 'marcelohuertas',   // ESPN nickname; NBA uses "Marcelo Huertas"
+  // Mononym. ESPN and leaguegamelog both say "Nene"; boxscoretraditionalv2 says "Nene Hilario",
+  // so the two NBA endpoints disagree with each other about the same player. The surname fallback
+  // cannot bridge this — "nenehilario" does not end in "nene" — so it needs an explicit alias.
+  nene: 'nenehilario',
 };
 
 export const IDENTITY_CLASSES = [
@@ -130,16 +134,22 @@ export function startersFromSummary(j) {
   for (const tm of j?.boxscore?.players || []) {
     const st = tm.statistics?.[0];
     if (!st?.athletes) continue;
-    const starters = [], bench = [], roster = [];
+    const starters = [], bench = [], roster = [], contradictions = [];
     for (const a of st.athletes) {
       const rec = { id: a.athlete?.id, name: a.athlete?.displayName, dnp: !!a.didNotPlay };
       roster.push(rec);
-      // `starter` is an explicit boolean on the athlete record, not a positional convention.
+      // ESPN sometimes sets starter=true AND didNotPlay=true on the same athlete. Observed on
+      // 2016-03-07 SAS (0021500939), where Andre Miller carries both flags while NBA reports
+      // "DNP - Coach's Decision" with no START_POSITION. A player who did not play cannot have
+      // started, so this is an internal ESPN contradiction, not evidence about starters.
+      // Excluding it is a logical invariant, NOT a minutes/rotation heuristic — and it is counted
+      // and reported rather than silently swallowed.
+      if (a.starter === true && a.didNotPlay === true) { contradictions.push(rec); bench.push(rec); continue; }
       if (a.starter === true) starters.push(rec); else bench.push(rec);
     }
     out.push({
       team: nbaAbbr(tm.team?.abbreviation), espnTeam: tm.team?.abbreviation,
-      teamId: tm.team?.id, starters, bench, roster, count: starters.length,
+      teamId: tm.team?.id, starters, bench, roster, contradictions, count: starters.length,
     });
   }
   return out;

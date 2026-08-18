@@ -60,11 +60,14 @@ const stats = {
   gamesRequested: 0, espnPagesMissing: 0, mappingFailures: 0, nbaMissing: 0,
   teamGamesTested: 0, starterEdgesTested: 0, supersetViolations: 0,
   nbaCandidateCounts: [], espnStarterCountNot5: 0, identityMapFailures: 0, surnameFallbacks: 0,
+  espnStarterDnpContradictions: 0,
 };
 const violations = [];
 const idFailures = [];
 const mapFailures = [];
 const fallbacks = [];
+const notFive = [];
+const contradictions = [];
 const identity = {};
 
 console.log('='.repeat(78));
@@ -129,7 +132,23 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
     for (const et of espnTeams) {
       const nt = nbaTeams.get(et.team);
       if (!nt) { stats.mappingFailures++; continue; }
-      if (et.count !== 5) { stats.espnStarterCountNot5++; continue; }
+      if (et.count !== 5) {
+        stats.espnStarterCountNot5++;
+        if (notFive.length < 20) {
+          notFive.push({ gameId: g.gameId, date: g.date, team: et.team, espnStarters: et.count,
+            names: et.starters.map((x) => x.name), rosterSize: et.roster.length });
+        }
+        // Deliberately NOT skipped. Skipping leaves the team-game untested, and a genuine superset
+        // violation could hide inside exactly the games where ESPN's shape is odd. The count defect
+        // is recorded above and still fails the gate; containment is checked regardless.
+      }
+      if (et.contradictions?.length) {
+        stats.espnStarterDnpContradictions += et.contradictions.length;
+        if (contradictions.length < 20) {
+          contradictions.push({ date: g.date, gameId: g.gameId, team: et.team,
+            players: et.contradictions.map((x) => x.name) });
+        }
+      }
       stats.teamGamesTested++;
       stats.nbaCandidateCounts.push(nt.candidates.size);
 
@@ -181,6 +200,15 @@ for (const cls of IDENTITY_CLASSES) console.log(`    ${cls.padEnd(32)} ${identit
 if (c.length) {
   console.log(`  NBA candidate-set size  min ${c[0]} · median ${c[Math.floor(c.length / 2)]} · max ${c[c.length - 1]}` +
     ` · mean ${(c.reduce((a, b) => a + b, 0) / c.length).toFixed(2)}`);
+}
+console.log(`  ESPN starter+DNP contradictions      ${stats.espnStarterDnpContradictions}`);
+if (contradictions.length) {
+  console.log('\n  --- ESPN athletes flagged starter=true AND didNotPlay=true (excluded, not silent) ---');
+  for (const c of contradictions) console.log(`    ${c.date} ${c.gameId} ${c.team}: ${c.players.join(', ')}`);
+}
+if (notFive.length) {
+  console.log('\n  --- ESPN team-games not showing exactly five starters ---');
+  for (const f of notFive) console.log(`    ${f.date} ${f.gameId} ${f.team}: ${f.espnStarters} starters of ${f.rosterSize} roster — ${f.names.join(', ')}`);
 }
 if (idFailures.length) {
   console.log('\n  --- player identity mapping failures (ESPN starter not found in NBA roster) ---');

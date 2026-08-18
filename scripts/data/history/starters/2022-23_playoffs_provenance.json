@@ -1,0 +1,19 @@
+{
+ "season": "2022-23",
+ "seasonType": "Playoffs",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T21:53:12.343Z",
+ "gamesRequested": 84,
+ "gamesCached": 84,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 168,
+  "invalid": 0,
+  "missing": 0,
+  "total": 168
+ },
+ "playerGameRows": 2321,
+ "sha256": "b915af6a0897bcea",
+ "invalidExamples": []
+}

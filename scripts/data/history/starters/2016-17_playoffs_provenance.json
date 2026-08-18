@@ -1,0 +1,90 @@
+{
+ "season": "2016-17",
+ "seasonType": "Playoffs",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T21:41:06.552Z",
+ "gamesRequested": 79,
+ "gamesCached": 79,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 0,
+  "invalid": 158,
+  "missing": 0,
+  "total": 158
+ },
+ "playerGameRows": 2046,
+ "sha256": "81ea4201354eb231",
+ "invalidExamples": [
+  {
+   "gameId": "0041600101",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600101",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600102",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0041600102",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600103",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0041600103",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600104",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600104",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0041600105",
+   "team": "CHI",
+   "teamId": 1610612741,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041600105",
+   "team": "BOS",
+   "teamId": 1610612738,
+   "status": "INVALID",
+   "starterCount": 9
+  }
+ ]
+}
