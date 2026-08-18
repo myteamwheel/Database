@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: echo "BUILD_GENERATED_AT=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
 
-      - name: Hydrate immutable historical cache for history-product build
+      - name: Hydrate immutable historical cache and build historical products
         shell: bash
         run: |
           # Raw 2015-16..2024-25 history was intentionally removed from the current tree after it
@@ -32,8 +32,7 @@ jobs:
             scripts/data/history/2019-20 scripts/data/history/2020-21 \
             scripts/data/history/2021-22 scripts/data/history/2022-23 \
             scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
-          node scripts/build-history-summary.mjs
-          node scripts/build-history-games.mjs
+          npm run build:history
           node scripts/audit-history.mjs
           node scripts/verify-history-hashes.mjs
 
@@ -56,7 +55,7 @@ jobs:
       - name: Verify TULIP metadata against recomputed diagnostics
         run: node scripts/tulip-verify.mjs
 
-      - name: Verify tracked historical product artifact
+      - name: Verify tracked historical products and strict role-feature timing
         run: npm run test:history
 
       - name: Verify starter reconstruction/precedence invariants
@@ -85,12 +84,15 @@ jobs:
         run: |
           node --check app.js
           node --check workspace.js
+          node --check history-lab.js
           for f in scripts/*.mjs scripts/lib/*.mjs tests/*.mjs; do node --check "$f"; done
 
       - name: Verify data contract the UI depends on
         run: |
           node - <<'NODE'
           const d = require('./public/data.json');
+          const fs = require('fs');
+          const zlib = require('zlib');
           const problems = [];
           if (!d.leagues?.NBA?.length || !d.leagues?.GLEAGUE?.length) problems.push('missing league arrays');
           // Headline counts are players who APPEARED; roster-only rows are appended after them.
@@ -103,7 +105,13 @@ jobs:
           if (!h?.gameLog?.available) problems.push('historical game-log product metadata missing');
           if (h?.gameLog?.transport !== 'gzip-json-on-demand') problems.push(`unexpected history game-log transport ${h?.gameLog?.transport}`);
           if (h?.gameLog?.path !== './public/history-games.json.gz') problems.push(`unexpected history game-log path ${h?.gameLog?.path}`);
-          if (!require('fs').existsSync('./public/history-games.json.gz')) problems.push('public/history-games.json.gz missing');
+          if (!fs.existsSync('./public/history-games.json.gz')) problems.push('public/history-games.json.gz missing');
+          if (!fs.existsSync('./public/history-role-features.json.gz')) problems.push('public/history-role-features.json.gz missing');
+          else {
+            const rf = JSON.parse(zlib.gunzipSync(fs.readFileSync('./public/history-role-features.json.gz')));
+            if (!/strictly earlier/i.test(rf.featureTiming || '')) problems.push('role feature product lacks strict timing contract');
+            if (!(rf.inventory?.featureRows > 100000)) problems.push('role feature product unexpectedly small');
+          }
           for (const lg of ['NBA', 'GLEAGUE']) {
             const p = d.leagues[lg][0];
             for (const k of ['playerId', 'name', 'team', 'position', 'grade', 'custom', 'components', 'stats'])
