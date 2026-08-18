@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-18T21:18:41.325Z",
+  "sourceCommit": "6e6e4d2e3928a44fe849fcfb7a24f5f313c99551",
+  "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
+  "allAccepted": false,
+  "results": [
+    {
+      "season": "2015-16",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2016-17",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2017-18",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2018-19",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2019-20",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2020-21",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2021-22",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2022-23",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2023-24",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2024-25",
+      "accepted": false,
+      "evidencePresent": false,
+      "failureCount": null,
+      "reason": "gate crashed or artifact missing"
+    },
+    {
+      "season": "2025-26",
+      "accepted": false,
+      "evidencePresent": true,
+      "failureCount": 4229,
+      "teamGames": 985,
+      "starterEdges": 4925,
+      "perPlayerStartMismatches": 426,
+      "evidenceSha256": "fdbb01bf40accce671fb524d22a14f6baa0fe4a52a4c3edc9d8b7820f6562216"
+    }
+  ]
+}
