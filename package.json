@@ -31,11 +31,12 @@
     "gate:espn-starters": "node scripts/espn-full-season-gate.mjs",
     "build:history-summary": "node scripts/build-history-summary.mjs",
     "test:starter": "node tests/bmatch.test.mjs && node tests/bmatch.oracle.test.mjs && node tests/starter-merge.test.mjs",
-    "test:history": "node tests/history.test.mjs && node tests/history-games.test.mjs",
+    "test:history": "node tests/history.test.mjs && node tests/history-games.test.mjs && node tests/role-features.test.mjs",
     "verify:local-history": "npm run audit:history && npm run verify:history",
     "verify:determinism": "node scripts/verify-build-determinism.mjs",
     "build:history-games": "node scripts/build-history-games.mjs",
-    "build:history": "node scripts/build-history-summary.mjs && node scripts/build-history-games.mjs"
+    "build:role-features": "node scripts/build-role-features.mjs",
+    "build:history": "node scripts/build-history-summary.mjs && node scripts/build-history-games.mjs && node scripts/build-role-features.mjs"
   },
   "engines": {
     "node": ">=20"
