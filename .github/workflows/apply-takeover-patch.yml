@@ -1,0 +1,51 @@
+name: Apply takeover source patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.handoff/patch-parts/**'
+      - '.github/workflows/apply-takeover-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-takeover-source-patch
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify expected base and apply audited patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=f22def1a3ed14f1f4d3526bf9e041f635ab6a0c7
+          EXPECTED_PATCH_SHA=bd039a9ddde71a11d31878223707341a18639dde42a0a83b5efa9f5aa02271e1
+          PARENT=$(git rev-parse HEAD^)
+          if [ "$PARENT" != "$EXPECTED" ]; then
+            echo "Refusing: bootstrap parent $PARENT != expected $EXPECTED" >&2
+            exit 1
+          fi
+          cat .handoff/patch-parts/part-* > /tmp/takeover.patch.gz
+          gzip -dc /tmp/takeover.patch.gz > /tmp/takeover.patch
+          ACTUAL_PATCH_SHA=$(sha256sum /tmp/takeover.patch | awk '{print $1}')
+          if [ "$ACTUAL_PATCH_SHA" != "$EXPECTED_PATCH_SHA" ]; then
+            echo "Refusing: patch sha $ACTUAL_PATCH_SHA != expected $EXPECTED_PATCH_SHA" >&2
+            exit 1
+          fi
+          git apply --check /tmp/takeover.patch
+          git apply /tmp/takeover.patch
+          rm -rf .handoff
+          rm .github/workflows/apply-takeover-patch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Takeover audit: historical product, TULIP diagnostics, regression gates'
+          git push origin HEAD:main
