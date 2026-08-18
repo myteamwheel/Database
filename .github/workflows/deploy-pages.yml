@@ -1,0 +1,71 @@
+# Publish the static database app to GitHub Pages.
+#
+# The app is fully static: index.html fetches ./public/data.json at runtime, and
+# public/standalone.html is a self-contained single-file fallback. Nothing is built here — the
+# generated artifacts are committed, and rebuild-generated.yml is what regenerates them. This
+# workflow only publishes what is already in the tree, so a deploy can never silently ship data
+# that differs from what was audited.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'history-lab.html'
+      - 'app.js'
+      - 'workspace.js'
+      - 'styles.css'
+      - 'public/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once, but do not cancel a running one: a half-published site is worse
+# than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the payload the site actually loads
+        run: |
+          set -euo pipefail
+          test -f public/data.json || { echo "public/data.json missing — run npm run build"; exit 1; }
+          test -f index.html || { echo "index.html missing"; exit 1; }
+          node -e "
+            const d = require('./public/data.json');
+            const nba = d.nba?.length ?? d.players?.nba?.length ?? 0;
+            const g = d.gleague?.length ?? d.players?.gleague?.length ?? 0;
+            if (!nba && !g) { console.error('data.json parsed but contains no player rows'); process.exit(1); }
+            console.log('data.json OK:', nba, 'NBA rows,', g, 'G League rows');
+          "
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site/public
+          cp index.html history-lab.html app.js workspace.js styles.css _site/
+          cp -R public/. _site/public/
+          # .nojekyll stops GitHub stripping paths that begin with an underscore.
+          touch _site/.nojekyll
+          du -sh _site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,90 @@
+{
+ "season": "2015-16",
+ "seasonType": "Playoffs",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T21:39:11.059Z",
+ "gamesRequested": 86,
+ "gamesCached": 86,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 0,
+  "invalid": 172,
+  "missing": 0,
+  "total": 172
+ },
+ "playerGameRows": 2236,
+ "sha256": "ee8f2de868a71028",
+ "invalidExamples": [
+  {
+   "gameId": "0041500101",
+   "team": "DET",
+   "teamId": 1610612765,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500101",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500102",
+   "team": "DET",
+   "teamId": 1610612765,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0041500102",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500103",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500103",
+   "team": "DET",
+   "teamId": 1610612765,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500104",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0041500104",
+   "team": "DET",
+   "teamId": 1610612765,
+   "status": "INVALID",
+   "starterCount": 8
+  },
+  {
+   "gameId": "0041500111",
+   "team": "IND",
+   "teamId": 1610612754,
+   "status": "INVALID",
+   "starterCount": 11
+  },
+  {
+   "gameId": "0041500111",
+   "team": "TOR",
+   "teamId": 1610612761,
+   "status": "INVALID",
+   "starterCount": 10
+  }
+ ]
+}

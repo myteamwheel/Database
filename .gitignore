@@ -16,3 +16,4 @@ scripts/data/history/*/
 # Full 10-season player-season summary is locally regenerable from the raw historical cache.
 # The tracked product-facing subset is player_history_product.json.
 scripts/data/history/player_season_summary.json
+scripts/data/history/espn_cache/

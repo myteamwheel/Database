@@ -8,18 +8,40 @@
 // PROVENANCE CAUTION: this is a second-source *representation*, not proven upstream independence.
 // ESPN may share a feed with the NBA somewhere above both. It is labelled DIRECT_ESPN_SECONDARY
 // and never silently merged with NBA-sourced values.
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+
 const UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36' };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function getJson(url, tries = 4) {
+// Disk cache. An exhaustive season gate issues ~1,300 requests; without this every rerun refetches
+// the whole season, which makes the gate impractical to iterate on and inflates the apparent
+// "missing page" count with fresh transient failures each time.
+const CACHE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../data/history/espn_cache');
+const cachePath = (url) => path.join(CACHE_DIR, crypto.createHash('sha1').update(url).digest('hex') + '.json');
+
+export async function getJson(url, tries = 6) {
+  const cf = cachePath(url);
+  if (fs.existsSync(cf)) {
+    try { return JSON.parse(fs.readFileSync(cf, 'utf8')); } catch { /* refetch on corrupt cache */ }
+  }
+  let lastErr = null;
   for (let i = 0; i < tries; i++) {
     try {
-      const c = new AbortController(); const t = setTimeout(() => c.abort(), 30000);
+      const c = new AbortController(); const t = setTimeout(() => c.abort(), 45000);
       const r = await fetch(url, { headers: UA, signal: c.signal }); clearTimeout(t);
+      // 404 is a real absence, not a transient failure; do not burn retries on it.
+      if (r.status === 404) return { __err: 'HTTP 404', __absent: true };
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.json();
-    } catch (e) { if (i === tries - 1) return { __err: e.message }; await wait(1500 * (i + 1)); }
+      const j = await r.json();
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+      fs.writeFileSync(cf, JSON.stringify(j));
+      return j;
+    } catch (e) { lastErr = e.message; await wait(1200 * (i + 1)); }
   }
+  return { __err: lastErr };
 }
 
 /** ESPN abbreviation -> NBA abbreviation. ESPN shortens several and uses historical names. */
