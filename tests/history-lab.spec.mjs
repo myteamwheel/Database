@@ -42,12 +42,22 @@ async function openLab(page) {
 }
 
 test.describe('History Lab', () => {
-  test('loads the full current-player historical product and aggregates it', async ({ page }) => {
+  test('loads the full historical product from compact identity metadata without the 35 MB current database', async ({ page }) => {
+    const requested = [];
+    page.on('request', (r) => requested.push(new URL(r.url()).pathname));
     const errors = await openLab(page);
-    const state = await page.evaluate(() => ({ rows: window.__historyLab.rows, filtered: window.__historyLab.filteredRows, players: window.__historyLab.playerResults }));
+    const state = await page.evaluate(() => ({
+      rows: window.__historyLab.rows,
+      filtered: window.__historyLab.filteredRows,
+      players: window.__historyLab.playerResults,
+      identitySource: window.__historyLab.identitySource,
+    }));
     expect(state.rows).toBeGreaterThan(100000);
     expect(state.filtered).toBe(state.rows);
     expect(state.players).toBeGreaterThan(300);
+    expect(state.identitySource).toBe('history-player-index');
+    expect(requested.some((p) => p.endsWith('/public/data.json'))).toBe(false);
+    expect(requested.some((p) => p.endsWith('/public/history-games.json.gz'))).toBe(true);
     await expect(page.locator('#hPlayerTable tbody tr').first()).toBeVisible();
     await expect(page.locator('#hGameTable tbody tr').first()).toBeVisible();
     await expect(page.locator('#hSummary')).toContainText('Player-games');
