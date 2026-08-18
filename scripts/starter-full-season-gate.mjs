@@ -3,13 +3,14 @@
 // This is intentionally fail-closed. A stratified sample can discover defects but cannot certify
 // a season. This gate evaluates every unique regular-season and playoff game in the hydrated
 // historical cache. It accepts a phase only when every box score is present, every team-game has
-// exactly five START_POSITION players, and observed counts reconcile exactly to the local game
-// logs. Regular Season also reconciles starter edges against the independently fetched
-// leaguedashplayerstats StarterBench=Starters split.
+// exactly five distinct START_POSITION players, source team identities match the local game log,
+// every flagged starter belongs to that local team-game roster, and observed counts reconcile
+// exactly to the local game logs. Regular Season also reconciles starter edges against the
+// independently fetched leaguedashplayerstats StarterBench=Starters split.
 //
-// The gate does NOT infer starters from minutes and does NOT write starter assignments into the
-// game logs. Its output is evidence that a later ingest may consume only after verifying the same
-// season and source contract.
+// The gate NEVER infers starters from minutes. Only after the entire season is accepted does it
+// write the exact validated starter identities fetched during this crawl, bound to the same input
+// and implementation fingerprints. A rejected run removes any stale assignment artifact.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -18,7 +19,8 @@ import { evaluateGame } from './probe-starter-source.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
-const GATE_SCHEMA_VERSION = 1;
+const GATE_SCHEMA_VERSION = 2;
+const ASSIGNMENT_SCHEMA_VERSION = 1;
 const SOURCE_VERSION = 'boxscoretraditionalv2 / START_POSITION';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -32,14 +34,27 @@ function readJson(file, label) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+function sameSet(a, b) {
+  return a.size === b.size && [...a].every((x) => b.has(x));
+}
+
 function phaseInput(season, seasonType) {
   const file = path.join(HIST, season, seasonType === 'Playoffs' ? 'gamelog_playoffs.json' : 'gamelog.json');
   const rows = readJson(file, `${season} ${seasonType} game log`);
   const games = new Map();
+  const rosters = new Map();
   for (const row of rows) {
-    if (!row.gameId || !row.teamId) throw new Error(`${season} ${seasonType}: row missing gameId/teamId`);
-    if (!games.has(row.gameId)) games.set(row.gameId, new Set());
-    games.get(row.gameId).add(String(row.teamId));
+    if (!row.gameId || !row.teamId || !row.playerId) {
+      throw new Error(`${season} ${seasonType}: row missing gameId/teamId/playerId`);
+    }
+    const gameId = String(row.gameId);
+    const teamId = String(row.teamId);
+    const playerId = String(row.playerId);
+    if (!games.has(gameId)) games.set(gameId, new Set());
+    games.get(gameId).add(teamId);
+    const key = `${gameId}|${teamId}`;
+    if (!rosters.has(key)) rosters.set(key, new Set());
+    rosters.get(key).add(playerId);
   }
   const malformedLocalGames = [...games.entries()]
     .filter(([, teams]) => teams.size !== 2)
@@ -47,6 +62,8 @@ function phaseInput(season, seasonType) {
   return {
     file,
     rows,
+    games,
+    rosters,
     gameIds: [...games.keys()].sort(),
     expectedTeamGames: [...games.values()].reduce((n, teams) => n + teams.size, 0),
     malformedLocalGames,
@@ -70,12 +87,15 @@ function starterSplitExpectation(season) {
 async function evaluatePhase(season, seasonType, delayMs) {
   const input = phaseInput(season, seasonType);
   const failures = [];
+  const assignments = [];
   let evaluatedGames = 0;
   let observedTeamGames = 0;
   let validTeamGames = 0;
   let invalidTeamGames = 0;
   let missingBoxScores = 0;
   let starterEdges = 0;
+  let teamIdentityMismatches = 0;
+  let starterMembershipMismatches = 0;
 
   for (const gameId of input.gameIds) {
     const result = await evaluateGame(gameId);
@@ -85,13 +105,46 @@ async function evaluatePhase(season, seasonType, delayMs) {
       failures.push({ gameId, kind: 'MISSING_BOX_SCORE', error: result.error || null });
     } else {
       observedTeamGames += result.teams.length;
+      const localTeams = input.games.get(gameId) || new Set();
+      const sourceTeams = new Set(result.teams.map((team) => String(team.teamId)));
+      if (!sameSet(localTeams, sourceTeams)) {
+        teamIdentityMismatches++;
+        failures.push({
+          gameId,
+          kind: 'TEAM_IDENTITY_MISMATCH',
+          localTeamIds: [...localTeams].sort(),
+          sourceTeamIds: [...sourceTeams].sort(),
+        });
+      }
+
       for (const team of result.teams) {
         starterEdges += team.starters;
         if (team.status === 'VALID') validTeamGames++;
         else {
           invalidTeamGames++;
-          failures.push({ gameId, team: team.team, kind: 'INVALID_STARTER_COUNT', starters: team.starters });
+          failures.push({ gameId, team: team.team, teamId: team.teamId, kind: 'INVALID_STARTER_COUNT_OR_IDENTITY', starters: team.starters });
         }
+
+        const localRoster = input.rosters.get(`${gameId}|${team.teamId}`) || new Set();
+        const missingStarters = team.starterPlayerIds.filter((playerId) => !localRoster.has(String(playerId)));
+        if (missingStarters.length) {
+          starterMembershipMismatches += missingStarters.length;
+          failures.push({
+            gameId,
+            team: team.team,
+            teamId: team.teamId,
+            kind: 'STARTER_NOT_IN_LOCAL_TEAM_GAME',
+            playerIds: missingStarters,
+          });
+        }
+
+        assignments.push({
+          seasonType,
+          gameId,
+          teamId: String(team.teamId),
+          team: team.team,
+          starterPlayerIds: [...team.starterPlayerIds].map(String).sort(),
+        });
       }
       if (result.teams.length !== 2) failures.push({ gameId, kind: 'BOX_SCORE_TEAM_COUNT', teams: result.teams.length });
     }
@@ -101,12 +154,22 @@ async function evaluatePhase(season, seasonType, delayMs) {
     }
   }
 
+  const assignmentEdges = assignments.reduce((n, row) => n + row.starterPlayerIds.length, 0);
   const reconciliations = {
     games: { expected: input.gameIds.length, observed: evaluatedGames, pass: evaluatedGames === input.gameIds.length },
     teamGames: { expected: input.expectedTeamGames, observed: observedTeamGames, pass: observedTeamGames === input.expectedTeamGames },
     localTwoTeamGames: { failures: input.malformedLocalGames.length, pass: input.malformedLocalGames.length === 0 },
+    sourceTeamIdentity: { mismatchedGames: teamIdentityMismatches, pass: teamIdentityMismatches === 0 },
     allTeamGamesValid: { valid: validTeamGames, invalid: invalidTeamGames, pass: invalidTeamGames === 0 },
+    starterMembership: { mismatchedStarterEdges: starterMembershipMismatches, pass: starterMembershipMismatches === 0 },
     sourceCompleteness: { missingBoxScores, pass: missingBoxScores === 0 },
+    assignmentCapture: {
+      expectedTeamGames: input.expectedTeamGames,
+      observedTeamGames: assignments.length,
+      expectedStarterEdges: input.expectedTeamGames * 5,
+      observedStarterEdges: assignmentEdges,
+      pass: assignments.length === input.expectedTeamGames && assignmentEdges === input.expectedTeamGames * 5,
+    },
   };
 
   if (seasonType === 'Regular Season') {
@@ -134,11 +197,14 @@ async function evaluatePhase(season, seasonType, delayMs) {
       invalidTeamGames,
       missingBoxScores,
       starterEdges,
+      assignmentTeamGames: assignments.length,
+      assignmentStarterEdges: assignmentEdges,
     },
     reconciliations,
     failures: failures.slice(0, 100),
     failureCount: failures.length + input.malformedLocalGames.length,
     localMalformedExamples: input.malformedLocalGames.slice(0, 20),
+    assignments,
   };
 }
 
@@ -159,29 +225,65 @@ if (!Array.isArray(provenance.seasons) || !provenance.seasons.includes(season)) 
 }
 
 console.log(`Exhaustive starter acceptance gate: ${season}`);
-const phases = [];
+const phaseRuns = [];
 for (const seasonType of ['Regular Season', 'Playoffs']) {
-  phases.push(await evaluatePhase(season, seasonType, delayMs));
+  phaseRuns.push(await evaluatePhase(season, seasonType, delayMs));
 }
 
-const accepted = phases.every((p) => p.accepted);
+const accepted = phaseRuns.every((p) => p.accepted);
 const scriptFile = fileURLToPath(import.meta.url);
 const checkerFile = path.join(ROOT, 'scripts/probe-starter-source.mjs');
+const implementation = {
+  gate: { path: path.relative(ROOT, scriptFile), ...sha256File(scriptFile) },
+  checker: { path: path.relative(ROOT, checkerFile), ...sha256File(checkerFile) },
+};
+const phases = phaseRuns.map(({ assignments, ...summary }) => summary);
+const assignmentFile = path.join(HIST, `starter_assignments_${season}.json`);
+let assignmentArtifact = null;
+
+if (accepted) {
+  const assignmentRows = phaseRuns.flatMap((p) => p.assignments);
+  const assignmentEdges = assignmentRows.reduce((n, row) => n + row.starterPlayerIds.length, 0);
+  const assignmentOutput = {
+    schemaVersion: ASSIGNMENT_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    season,
+    sourceVersion: SOURCE_VERSION,
+    rule: 'Exact START_POSITION identities captured during the exhaustive accepted source gate. No starter is inferred from minutes. Consumers must verify this file fingerprint against the acceptance record before use.',
+    implementation,
+    inputs: phases.map((phase) => ({
+      seasonType: phase.seasonType,
+      gameLog: phase.input,
+      starterSplit: phase.reconciliations.starterSplit?.input || null,
+    })),
+    counts: { teamGames: assignmentRows.length, starterEdges: assignmentEdges },
+    assignments: assignmentRows,
+  };
+  fs.writeFileSync(assignmentFile, JSON.stringify(assignmentOutput, null, 2));
+  assignmentArtifact = {
+    path: path.relative(ROOT, assignmentFile),
+    ...sha256File(assignmentFile),
+    teamGames: assignmentRows.length,
+    starterEdges: assignmentEdges,
+  };
+} else if (fs.existsSync(assignmentFile)) {
+  fs.unlinkSync(assignmentFile);
+}
+
 const output = {
   schemaVersion: GATE_SCHEMA_VERSION,
   generatedAt: new Date().toISOString(),
   season,
   accepted,
-  acceptanceRule: 'Every historical game must be evaluated; every box score must exist; every game must expose exactly two teams; every team-game must expose exactly five START_POSITION players; observed game/team-game counts must exactly reconcile to the hydrated local game logs; Regular Season starter edges must also exactly reconcile to the independent StarterBench=Starters season split.',
+  acceptanceRule: 'Every historical game must be evaluated; every box score must exist; every game must expose exactly the two local team IDs; every team-game must expose exactly five distinct START_POSITION player IDs; every starter ID must belong to that local team-game roster; observed game/team-game/assignment counts must exactly reconcile to the hydrated local game logs; Regular Season starter edges must also exactly reconcile to the independent StarterBench=Starters season split.',
   sourceVersion: SOURCE_VERSION,
-  implementation: {
-    gate: { path: path.relative(ROOT, scriptFile), ...sha256File(scriptFile) },
-    checker: { path: path.relative(ROOT, checkerFile), ...sha256File(checkerFile) },
-  },
+  implementation,
+  starterAssignments: assignmentArtifact,
   phases,
 };
 
 const outFile = path.join(HIST, `starter_acceptance_${season}.json`);
 fs.writeFileSync(outFile, JSON.stringify(output, null, 2));
 console.log(`\n${accepted ? 'ACCEPTED' : 'REJECTED'} -> ${path.relative(ROOT, outFile)}`);
+if (assignmentArtifact) console.log(`validated assignments -> ${assignmentArtifact.path}`);
 if (!accepted) process.exitCode = 1;
