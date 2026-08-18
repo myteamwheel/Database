@@ -1,0 +1,90 @@
+{
+ "season": "2016-17",
+ "seasonType": "Regular Season",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-17T22:22:07.941Z",
+ "gamesRequested": 1230,
+ "gamesCached": 1230,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 0,
+  "invalid": 2460,
+  "missing": 0,
+  "total": 2460
+ },
+ "playerGameRows": 31564,
+ "sha256": "4ebd134abee58529",
+ "invalidExamples": [
+  {
+   "gameId": "0021600001",
+   "team": "NYK",
+   "teamId": 1610612752,
+   "status": "INVALID",
+   "starterCount": 11
+  },
+  {
+   "gameId": "0021600001",
+   "team": "CLE",
+   "teamId": 1610612739,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021600002",
+   "team": "UTA",
+   "teamId": 1610612762,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021600002",
+   "team": "POR",
+   "teamId": 1610612757,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021600003",
+   "team": "SAS",
+   "teamId": 1610612759,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021600003",
+   "team": "GSW",
+   "teamId": 1610612744,
+   "status": "INVALID",
+   "starterCount": 10
+  },
+  {
+   "gameId": "0021600004",
+   "team": "MIA",
+   "teamId": 1610612748,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021600004",
+   "team": "ORL",
+   "teamId": 1610612753,
+   "status": "INVALID",
+   "starterCount": 8
+  },
+  {
+   "gameId": "0021600005",
+   "team": "DAL",
+   "teamId": 1610612742,
+   "status": "INVALID",
+   "starterCount": 9
+  },
+  {
+   "gameId": "0021600005",
+   "team": "IND",
+   "teamId": 1610612754,
+   "status": "INVALID",
+   "starterCount": 11
+  }
+ ]
+}
