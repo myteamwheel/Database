@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Cross-player historical NBA game-log explorer for current 2025-26 database players" />
+  <title>History Lab — Pro Basketball Performance Database</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .history-shell{max-width:1680px;margin:0 auto;padding:22px}.history-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.history-head h1{margin:.15rem 0 .3rem}.history-back{white-space:nowrap;text-decoration:none}.history-controls{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:14px}.history-controls label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}.history-controls input,.history-controls select{min-width:0}.history-summary{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:14px 0}.history-card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}.history-card .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.history-card .v{font-size:24px;font-weight:800;margin-top:4px}.history-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.history-note{max-width:1100px}.history-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}.history-section{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px}.history-section h2{margin:.1rem 0 .4rem}.history-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.history-table th,.history-table td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.history-table th:first-child,.history-table td:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}.history-table th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;cursor:pointer}.history-table tbody tr:hover{background:rgba(99,179,255,.06)}.history-player{font-weight:700}.history-sub{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}.history-empty{padding:24px;color:var(--muted)}.history-status{min-height:18px}.history-start-known{font-size:11px;color:var(--muted)}.history-pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}.history-pagination button{min-width:72px}.history-raw-name{max-width:220px;overflow:hidden;text-overflow:ellipsis}.history-danger{color:#f6ad55}.history-good{color:#68d391}@media(max-width:1100px){.history-controls{grid-template-columns:repeat(3,minmax(130px,1fr))}.history-summary{grid-template-columns:repeat(3,minmax(120px,1fr))}}@media(max-width:650px){.history-shell{padding:12px}.history-head{display:block}.history-back{display:inline-block;margin-top:10px}.history-controls{grid-template-columns:1fr 1fr}.history-summary{grid-template-columns:1fr 1fr}.history-table th,.history-table td{padding:7px 8px;font-size:12px}}
+  </style>
+</head>
+<body>
+  <main class="history-shell">
+    <div class="history-head">
+      <div>
+        <div class="eyebrow">2015–16 → 2024–25 · NBA HISTORY</div>
+        <h1>History Lab</h1>
+        <p class="tiny history-note">Cross-player game-log explorer for players in the current database. Filter by player, season, phase, team, opponent, date, minutes and starter status; then aggregate the exact slice instead of relying on fixed season splits.</p>
+      </div>
+      <a class="button secondary history-back" href="index.html">← Current database</a>
+    </div>
+
+    <section class="history-controls" aria-label="Historical filters">
+      <label>Player search<input id="hPlayer" type="search" placeholder="Name…" /></label>
+      <label>Season<select id="hSeason"><option value="">All seasons</option></select></label>
+      <label>Phase<select id="hPhase"><option value="">Regular + playoffs</option><option>Regular Season</option><option>Playoffs</option></select></label>
+      <label>Team<select id="hTeam"><option value="">All teams</option></select></label>
+      <label>Opponent<select id="hOpponent"><option value="">All opponents</option></select></label>
+      <label>Starter status<select id="hStarted"><option value="">Any / unknown</option><option value="true">Known starter</option><option value="false">Known bench</option><option value="unknown">Unknown only</option></select></label>
+      <label>From date<input id="hFrom" type="date" /></label>
+      <label>Through date<input id="hTo" type="date" /></label>
+      <label>Minimum minutes<input id="hMinMinutes" type="number" min="0" step="1" value="0" /></label>
+      <label>Minimum games/player<input id="hMinGames" type="number" min="1" step="1" value="1" /></label>
+      <label>Sort players by<select id="hSort"><option value="pts">PTS / game</option><option value="minutes">Minutes / game</option><option value="reb">REB / game</option><option value="ast">AST / game</option><option value="stl">STL / game</option><option value="blk">BLK / game</option><option value="plusMinus">+/- / game</option><option value="games">Games</option><option value="starts">Known starts</option></select></label>
+      <label>Raw game rows<select id="hRawLimit"><option value="50">50</option><option value="100" selected>100</option><option value="250">250</option><option value="500">500</option></select></label>
+    </section>
+
+    <div class="history-actions">
+      <button id="hReset" class="button secondary">Reset filters</button>
+      <button id="hExportPlayers" class="button secondary">Export player slice CSV</button>
+      <button id="hExportGames" class="button secondary">Export game rows CSV</button>
+      <span id="hStatus" class="tiny history-status">Loading historical game product…</span>
+    </div>
+
+    <section id="hSummary" class="history-summary"></section>
+
+    <div class="history-grid">
+      <section class="history-section">
+        <h2>Player results</h2>
+        <p class="tiny">All averages below are recomputed from the filtered game rows. Starter rate uses only appearances whose starter status is known; unknown is never treated as bench.</p>
+        <div class="table-wrap"><table class="history-table" id="hPlayerTable">
+          <thead><tr><th>Player</th><th>G</th><th>Known GS</th><th>Start%</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>+/-</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </section>
+
+      <section class="history-section">
+        <h2>Game rows</h2>
+        <p class="tiny">Most recent matching player-games first. This is descriptive historical data, not TULIP Forecast output.</p>
+        <div class="table-wrap"><table class="history-table" id="hGameTable">
+          <thead><tr><th>Player</th><th>Date</th><th>Season</th><th>Phase</th><th>Team</th><th>Opp</th><th>Start</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>+/-</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="history-pagination"><button id="hPrev" class="button secondary small">Previous</button><span id="hPage" class="tiny"></span><button id="hNext" class="button secondary small">Next</button></div>
+      </section>
+    </div>
+  </main>
+  <script src="history-lab.js"></script>
+</body>
+</html>
