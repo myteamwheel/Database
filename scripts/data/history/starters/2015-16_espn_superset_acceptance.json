@@ -3,8 +3,8 @@
  "season": "2015-16",
  "scope": "Regular Season + Playoffs present in historical cache",
  "exhaustive": true,
- "accepted": false,
- "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
  "expected": {
   "regularGames": 1230,
   "playoffGames": 86,
@@ -17,9 +17,9 @@
   "nbaMissing": 0,
   "espnMissing": 0,
   "gameMappingFailures": 0,
-  "espnStarterCountNot5": 1,
-  "teamGamesTested": 2631,
-  "starterEdgesTested": 13155,
+  "espnStarterCountNot5": 0,
+  "teamGamesTested": 2632,
+  "starterEdgesTested": 13160,
   "identityMapFailures": 0,
   "supersetViolations": 0
  },
@@ -37,21 +37,17 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 10587,
-  "sha256": "cecc8282c17a967aca32e9073511d1afcec5598b29e8d5539cb198a87f77ac2b"
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
   "bytes": 7431,
   "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
  },
- "failures": [
-  "team-games tested 2631 != 2632",
-  "starter edges tested 13155 != 13160",
-  "ESPN team-games not showing exactly five starters: 1"
- ],
+ "failures": [],
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-18T22:02:52.019Z",
- "stdoutSha256": "26ec13d450cc508ce103d8a1adc2d14f89a67211d21358c714c2171d6145271a"
+ "generatedAt": "2026-08-18T22:14:39.739Z",
+ "stdoutSha256": "38d13629ecea0718108a5722890260bc439131b562f95f3ee100bc44e6cfa73f"
 }
