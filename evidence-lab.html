@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Historical role-expansion evidence explorer built from strictly-past NBA role features" />
+  <title>TULIP Evidence Lab — Pro Basketball Performance Database</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .ev-shell{max-width:1680px;margin:0 auto;padding:22px}.ev-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.ev-head h1{margin:.15rem 0}.ev-nav{display:flex;gap:8px;flex-wrap:wrap}.ev-callout{border:1px solid var(--line);border-left:4px solid #f6ad55;background:var(--panel);border-radius:12px;padding:13px 15px;margin:14px 0}.ev-controls{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:11px;padding:15px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}.ev-controls label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}.ev-summary{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:14px 0}.ev-card{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px}.ev-card .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.ev-card .v{font-size:23px;font-weight:800;margin-top:4px}.ev-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.ev-grid{display:grid;grid-template-columns:1fr;gap:18px}.ev-section{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px}.ev-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.ev-table th,.ev-table td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.ev-table th:first-child,.ev-table td:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}.ev-table th{font-size:11px;color:var(--muted);text-transform:uppercase}.ev-player{font-weight:700}.ev-sub{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}.ev-support{display:grid;grid-template-columns:140px repeat(5,minmax(90px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}.ev-support>div{background:var(--panel);padding:9px;text-align:center;font-size:12px}.ev-support .hdr{font-weight:700;color:var(--muted)}.ev-support .count{font-size:17px;font-weight:800}.ev-support .low{color:#f6ad55}.ev-pagination{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-top:10px}@media(max-width:1100px){.ev-controls{grid-template-columns:repeat(3,1fr)}.ev-summary{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.ev-shell{padding:12px}.ev-head{display:block}.ev-nav{margin-top:10px}.ev-controls{grid-template-columns:1fr 1fr}.ev-summary{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<main class="ev-shell">
+  <div class="ev-head">
+    <div><div class="eyebrow">TULIP · HISTORICAL EVIDENCE</div><h1>Role Expansion Evidence Lab</h1><p class="tiny">Study what actually happened in historical games where a player's minutes expanded relative to his strictly-prior role. The thresholds are user-controlled; there is no structural 20-MPG bench cutoff.</p></div>
+    <nav class="ev-nav"><a class="button secondary" href="index.html" style="text-decoration:none">Current database</a><a class="button secondary" href="history-lab.html" style="text-decoration:none">History Lab</a></nav>
+  </div>
+  <div class="ev-callout"><b>Evidence, not causality or forecast.</b> These are observational games selected after the fact. Coaching decisions, matchups, injuries, hot play, foul trouble and roster context can determine who received more minutes. The pregame baseline features use only strictly earlier dates; the game outcome is shown only as the observed result of that episode.</div>
+
+  <section class="ev-controls" aria-label="Evidence filters">
+    <label>Prior-role window<select id="eWindow"><option value="5">Previous 5 games</option><option value="10" selected>Previous 10 games</option><option value="20">Previous 20 games</option></select></label>
+    <label>Min prior games<input id="ePriorGames" type="number" min="1" max="20" value="5" /></label>
+    <label>Min minutes expansion<input id="eDelta" type="number" step="1" value="6" /></label>
+    <label>Prior MPG ceiling<input id="ePriorMax" type="number" min="0" step="1" placeholder="No ceiling" /></label>
+    <label>Target minutes ≥<input id="eTargetMin" type="number" min="0" step="1" value="20" /></label>
+    <label>Target minutes ≤<input id="eTargetMax" type="number" min="0" step="1" value="48" /></label>
+    <label>Player<input id="ePlayer" type="search" placeholder="Name…" /></label>
+    <label>Season<select id="eSeason"><option value="">All seasons</option></select></label>
+    <label>Phase<select id="ePhase"><option value="">Regular + playoffs</option><option>Regular Season</option><option>Playoffs</option></select></label>
+    <label>Team<select id="eTeam"><option value="">All teams</option></select></label>
+    <label>Starter status<select id="eStarted"><option value="">Any / unknown</option><option value="true">Known starter</option><option value="false">Known bench</option><option value="unknown">Unknown only</option></select></label>
+    <label>Min episodes/player<input id="eMinEpisodes" type="number" min="1" value="1" /></label>
+  </section>
+
+  <div class="ev-actions"><button id="eReset" class="button secondary">Reset</button><button id="eExportPlayers" class="button secondary">Export player evidence CSV</button><button id="eExportEpisodes" class="button secondary">Export episodes CSV</button><span id="eStatus" class="tiny">Loading historical evidence products…</span></div>
+  <section id="eSummary" class="ev-summary"></section>
+
+  <div class="ev-grid">
+    <section class="ev-section"><h2>Support map</h2><p class="tiny">Episode counts by <b>strictly-prior MPG</b> (rows) and observed target-minute band (columns). Sparse cells are a warning about common support, not an invitation to extrapolate.</p><div id="eSupport" class="ev-support"></div></section>
+    <section class="ev-section"><h2>Player evidence</h2><p class="tiny">Aggregates only the episodes matching the controls above. PTS/REB/AST/TOV are per 36 minutes over the observed expanded games.</p><div class="table-wrap"><table class="ev-table" id="ePlayerTable"><thead><tr><th>Player</th><th>Episodes</th><th>Prior MPG</th><th>Target MIN</th><th>Δ MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TOV/36</th><th>+/-</th><th>Known Start%</th></tr></thead><tbody></tbody></table></div></section>
+    <section class="ev-section"><h2>Expansion episodes</h2><p class="tiny">Most recent matching episodes first. No episode is labeled “success” or “failure”; the observed results are shown directly.</p><div class="table-wrap"><table class="ev-table" id="eEpisodeTable"><thead><tr><th>Player</th><th>Date</th><th>Season</th><th>Team</th><th>Opp</th><th>Prior MPG</th><th>Target MIN</th><th>Δ MIN</th><th>Start</th><th>PTS</th><th>REB</th><th>AST</th><th>TOV</th><th>+/-</th></tr></thead><tbody></tbody></table></div><div class="ev-pagination"><button id="ePrev" class="button secondary small">Previous</button><span id="ePage" class="tiny"></span><button id="eNext" class="button secondary small">Next</button></div></section>
+  </div>
+</main>
+<script src="evidence-lab.js"></script>
+</body>
+</html>
