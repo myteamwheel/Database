@@ -102,3 +102,89 @@ jobs:
             scripts/data/history/starter_assignments_${{ matrix.season }}.json
           if-no-files-found: warn
           retention-days: 30
+
+  collect-evidence:
+    name: Persist all-season acceptance evidence
+    needs: starter-gate
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download every season artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: starter-gate-*
+          path: .starter-gate-artifacts
+
+      - name: Build tracked acceptance manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+          const seasons = ['2015-16','2016-17','2017-18','2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+          const root = '.starter-gate-artifacts';
+          const outDir = 'scripts/data/history';
+          const results = [];
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+              const p = path.join(dir, d.name);
+              return d.isDirectory() ? walk(p) : [p];
+            });
+          }
+          const files = walk(root);
+          for (const season of seasons) {
+            const name = `starter_espn_acceptance_${season}.json`;
+            const source = files.find((f) => path.basename(f) === name);
+            if (!source) {
+              results.push({ season, accepted: false, evidencePresent: false, failureCount: null, reason: 'gate crashed or artifact missing' });
+              continue;
+            }
+            const bytes = fs.readFileSync(source);
+            const record = JSON.parse(bytes.toString('utf8'));
+            if (record.season !== season) throw new Error(`${source}: season mismatch ${record.season}`);
+            fs.writeFileSync(path.join(outDir, name), bytes);
+            results.push({
+              season,
+              accepted: record.accepted === true,
+              evidencePresent: true,
+              failureCount: record.failureCount,
+              teamGames: record.observed?.teamGames ?? null,
+              starterEdges: record.observed?.starterEdges ?? null,
+              perPlayerStartMismatches: record.perPlayerStarts?.mismatchCount ?? null,
+              evidenceSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+            });
+          }
+          const manifest = {
+            schemaVersion: 1,
+            generatedAt: new Date().toISOString(),
+            sourceCommit: process.env.GITHUB_SHA,
+            scope: '2015-16 through 2025-26, Regular Season + Playoffs',
+            allAccepted: results.length === seasons.length && results.every((x) => x.accepted === true && x.evidencePresent === true),
+            results,
+          };
+          fs.writeFileSync(path.join(outDir, 'starter_acceptance_manifest.json'), JSON.stringify(manifest, null, 2));
+          console.log(JSON.stringify(manifest, null, 2));
+          NODE
+
+      - name: Commit acceptance evidence to branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f scripts/data/history/starter_espn_acceptance_*.json scripts/data/history/starter_acceptance_manifest.json
+          if git diff --cached --quiet; then
+            echo 'Acceptance evidence is unchanged.'
+          else
+            git commit -m "Record exhaustive starter gate results for ${GITHUB_SHA::12}"
+            git push origin HEAD:v3-official-data
+          fi
