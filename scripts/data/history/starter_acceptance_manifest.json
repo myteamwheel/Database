@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-08-18T21:21:17.598Z",
-  "sourceCommit": "f757049a15c4f375772eebdd2d0d587ae545ddfb",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T21:33:51.659Z",
+  "sourceCommit": "a699f813cec86a76f005c9a78b8bdb082635e700",
   "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
   "allAccepted": false,
   "results": [
@@ -10,70 +10,210 @@
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "6c91f010dabc39779703b602454214b69b6165816367937e8d962ff597271914",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2015-16",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2016-17",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "136ab93a6c7ae2d3d3d13cfe1b4008b75c0c8f205a2adb99362a031c57d6d5f2",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2016-17",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2017-18",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "531af057672aaeee480ae8f171d5c752cbcc7cf2cc34834d39c4e44e1413e483",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2017-18",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2018-19",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "2f9355557478f0845dda88b50ed625ece2e903df645e394cf7bacc643457fcbc",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2018-19",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2019-20",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "641c69a8045d8a8083ece6f3f5c27432c75f93ec128374e4938ab739c9edd841",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2019-20",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2020-21",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "cc6587c7052fe75fa1ca51a84436e85fb6375b5ef86b5b5996deee1cdae43898",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2020-21",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2021-22",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "9a144d69717637f4a8af72bac04bf53848f20d44de7d743bd38df8a719df1b9c",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2021-22",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2022-23",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "3cd188fe6fd77d4b59ce29cff6faadc493392af38218bf7fdf9ae9d174f757f8",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2022-23",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2023-24",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "2b8d2af779d9b7a3d64bf4bbaaf0e0ed03e4546956e8eda34799e639c1d662e6",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2023-24",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2024-25",
       "accepted": false,
       "evidencePresent": false,
       "failureCount": null,
-      "reason": "gate crashed or artifact missing"
+      "reason": "gate crashed before acceptance evidence was written; see logTail",
+      "logPresent": true,
+      "logSha256": "59c53a0644a67b3b5af4c13aea1b6cb57ba09caef1900bb2d082602bcb004123",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2024-25",
+        "mode: hydrated historical cache",
+        "file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79",
+        "  throw new Error(`${label} download failed: ${last?.message || last}`);",
+        "        ^",
+        "Error: NBA schedule crosswalk download failed: HTTP 404",
+        "    at download (file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:79:9)",
+        "    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+        "    at async file:///home/runner/work/Database/Database/scripts/espn-starter-full-season-gate.mjs:427:22",
+        "Node.js v20.20.2"
+      ]
     },
     {
       "season": "2025-26",
@@ -83,7 +223,18 @@
       "teamGames": 985,
       "starterEdges": 4925,
       "perPlayerStartMismatches": 426,
-      "evidenceSha256": "bf6f2149415cbfcacca9c49056614976d2fc9e650693b25d595466064c6bcd5c"
+      "evidenceSha256": "2415a99987057c0ab64766e7fb7329e226f0d774fb128b84ba22884c36d8ba6a",
+      "logPresent": true,
+      "logSha256": "7663550f37815616d4d9ec1f1605e1d14f0429d87f1ecd4e9f2a3538046087b8",
+      "logTail": [
+        "Exhaustive ESPN -> NBA starter acceptance gate: 2025-26",
+        "mode: current-season schedule crosswalk",
+        "downloaded source assets: player box 17729582 B, schedule xwalk 150611 B, player xwalk 65122 B",
+        "  Regular Season: FAIL · 1230 games · 885/2460 team-games",
+        "  Playoffs: FAIL · 87 games · 100/174 team-games",
+        "per-player regular starts: FAIL · 426 mismatches",
+        "REJECTED -> scripts/data/history/starter_espn_acceptance_2025-26.json"
+      ]
     }
   ]
 }
