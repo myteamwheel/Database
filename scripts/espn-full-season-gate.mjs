@@ -21,11 +21,30 @@ if (!season) {
   process.exit(2);
 }
 
+function sha256File(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+function historicalFile(file) {
+  return path.join(HIST, season, file);
+}
+
 function uniqueGames(file) {
-  const p = path.join(HIST, season, file);
+  const p = historicalFile(file);
   if (!fs.existsSync(p)) return 0;
   const rows = JSON.parse(fs.readFileSync(p, 'utf8'));
   return new Set(rows.map((r) => String(r.gameId))).size;
+}
+
+function fingerprintHistoricalInput(file) {
+  const p = historicalFile(file);
+  if (!fs.existsSync(p)) return null;
+  const stat = fs.statSync(p);
+  return {
+    path: path.relative(ROOT, p),
+    bytes: stat.size,
+    sha256: sha256File(p),
+  };
 }
 
 const regularGames = uniqueGames('gamelog.json');
@@ -35,6 +54,21 @@ if (!expectedGames) {
   console.error(`No historical game logs found for ${season}; cannot run acceptance gate.`);
   process.exit(2);
 }
+
+// Fingerprint the exact historical inputs before invoking the checker. Count reconciliation alone is
+// not enough to prove an acceptance record belongs to the current cache: file contents can change
+// while game counts remain identical. These hashes make the evidence record content-addressed.
+const inputs = {
+  regularSeason: fingerprintHistoricalInput('gamelog.json'),
+  playoffs: fingerprintHistoricalInput('gamelog_playoffs.json'),
+};
+
+const checkerPath = path.join(ROOT, 'scripts/espn-superset-test.mjs');
+const checkerFingerprint = {
+  path: path.relative(ROOT, checkerPath),
+  bytes: fs.statSync(checkerPath).size,
+  sha256: sha256File(checkerPath),
+};
 
 // A very large requested sample makes espn-superset-test's stratified sampler step by one and
 // therefore visit every game in each phase. The wrapper independently checks the resulting counts,
@@ -98,6 +132,8 @@ const record = {
     : 'NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.',
   expected: { regularGames, playoffGames, games: expectedGames, teamGames: expectedGames * 2, starterEdges: expectedGames * 10 },
   measured,
+  inputs,
+  checkerFingerprint,
   failures,
   checker: 'scripts/espn-superset-test.mjs',
   checkerMode: 'exhaustive-via-step-1-with-independent-count-reconciliation',
@@ -113,6 +149,9 @@ fs.writeFileSync(out, JSON.stringify(record, null, 1) + '\n');
 console.log('\n' + '='.repeat(78));
 console.log(`FULL-SEASON ESPN SUPERSET GATE: ${accepted ? 'ACCEPTED' : 'REJECTED'}`);
 console.log(`  historical games  ${expectedGames} (${regularGames} regular + ${playoffGames} playoffs)`);
+console.log(`  input fingerprint ${inputs.regularSeason?.sha256 || 'missing'} (regular)`);
+if (inputs.playoffs) console.log(`                    ${inputs.playoffs.sha256} (playoffs)`);
+console.log(`  checker fingerprint ${checkerFingerprint.sha256}`);
 console.log(`  acceptance record ${path.relative(ROOT, out)}`);
 if (failures.length) for (const f of failures) console.log(`  FAIL: ${f}`);
 
