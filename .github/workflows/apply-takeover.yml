@@ -1,0 +1,113 @@
+name: Apply audited takeover
+
+on:
+  push:
+    branches: [takeover-bootstrap]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audited-takeover
+  cancel-in-progress: false
+
+jobs:
+  apply-test-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply source patch on the audited baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=f22def1a3ed14f1f4d3526bf9e041f635ab6a0c7
+          PATCH_SHA=ce399490ed11b4f89fc51f5c9e5ed5edf6561714bba17bd3f661fb55072df86c
+          cp .handoff/takeover_source.patch.gz /tmp/takeover.patch.gz
+          gzip -dc /tmp/takeover.patch.gz > /tmp/takeover.patch
+          test "$(sha256sum /tmp/takeover.patch | awk '{print $1}')" = "$PATCH_SHA"
+          git merge-base --is-ancestor "$EXPECTED" "$GITHUB_SHA"
+          git switch --detach "$EXPECTED"
+          git apply --check /tmp/takeover.patch
+          git apply /tmp/takeover.patch
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Takeover audit: historical product, TULIP diagnostics, regression gates'
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_GENERATED_AT=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
+
+      - name: Hydrate immutable historical cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+
+      - name: Install test dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build historical products
+        run: npm run build:history
+
+      - name: Verify local history
+        run: |
+          npm run audit:history
+          npm run verify:history
+
+      - name: Build current browser products
+        run: |
+          npm run build:data
+          npm run build:standalone
+
+      - name: Run data and methodology gates
+        run: |
+          npm run audit
+          npm run audit:presets
+          npm run tulip:verify
+          npm run test:history
+          npm run test:starter
+          npm run verify:artifact
+          npm run verify:determinism
+
+      - name: JavaScript syntax gate
+        shell: bash
+        run: |
+          node --check app.js
+          node --check workspace.js
+          for f in scripts/*.mjs scripts/lib/*.mjs tests/*.mjs; do node --check "$f"; done
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser regression gate
+        run: npx playwright test
+
+      - name: Commit deterministic generated artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add scripts/data/history/player_history_product.json \
+            public/history-games.json.gz public/data.json public/standalone.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Rebuild browser artifacts for ${SOURCE_SHA::7}"
+          fi
+
+      - name: Publish only after every gate passes
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Main has remained untouched throughout testing. Publish the validated chain only now.
+          git push origin HEAD:main
