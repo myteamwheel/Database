@@ -27,7 +27,8 @@
     "fetch:history": "node scripts/fetch-history.mjs",
     "audit:history": "node scripts/audit-history.mjs",
     "verify:history": "node scripts/verify-history-hashes.mjs",
-    "probe:starter": "node scripts/probe-starter-source.mjs"
+    "probe:starter": "node scripts/probe-starter-source.mjs",
+    "gate:starter": "node scripts/starter-full-season-gate.mjs"
   },
   "engines": {
     "node": ">=20"
