@@ -1,0 +1,85 @@
+name: Build audited takeover artifacts
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  build:
+    if: github.head_ref == 'artifact-builder-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a5768b6561485af9b41c0da00bfa2bc80968ad39
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Pin build provenance to audited source commit
+        shell: bash
+        run: |
+          echo "BUILD_COMMIT=a5768b6561485af9b41c0da00bfa2bc80968ad39" >> "$GITHUB_ENV"
+          echo "BUILD_GENERATED_AT=2026-08-18T05:48:33Z" >> "$GITHUB_ENV"
+
+      - name: Hydrate immutable historical cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build historical and browser products
+        run: |
+          npm run build:history
+          npm run build:data
+          npm run audit:history
+          npm run verify:history
+          npm run build:standalone
+
+      - name: Run data and methodology gates
+        run: |
+          npm run audit
+          npm run audit:presets
+          npm run tulip:verify
+          npm run test:history
+          npm run test:starter
+          npm run verify:artifact
+          npm run verify:determinism
+
+      - name: JavaScript syntax gate
+        shell: bash
+        run: |
+          node --check app.js
+          node --check workspace.js
+          for f in scripts/*.mjs scripts/lib/*.mjs tests/*.mjs; do node --check "$f"; done
+
+      - name: Browser regression gate
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: Publish generated artifacts to staging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/data/history/player_history_product.json \
+            public/history-games.json.gz public/data.json public/standalone.html
+          git commit -m 'Stage audited generated browser artifacts for a5768b6'
+          git push --force origin HEAD:takeover-artifacts
