@@ -91,6 +91,12 @@ jobs:
           NODE
           else
             echo "## ${{ matrix.season }}: gate crashed before acceptance evidence was written" >> "$GITHUB_STEP_SUMMARY"
+            if [[ -s "starter-gate-${{ matrix.season }}.log" ]]; then
+              echo '' >> "$GITHUB_STEP_SUMMARY"
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              tail -n 20 "starter-gate-${{ matrix.season }}.log" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
 
       - name: Upload acceptance evidence and assignments
@@ -142,12 +148,32 @@ jobs:
               return d.isDirectory() ? walk(p) : [p];
             });
           }
+          function logEvidence(files, season) {
+            const name = `starter-gate-${season}.log`;
+            const log = files.find((f) => path.basename(f) === name);
+            if (!log) return { logPresent: false, logSha256: null, logTail: [] };
+            const bytes = fs.readFileSync(log);
+            const lines = bytes.toString('utf8').split(/\r?\n/).filter(Boolean);
+            return {
+              logPresent: true,
+              logSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              logTail: lines.slice(-20),
+            };
+          }
           const files = walk(root);
           for (const season of seasons) {
             const name = `starter_espn_acceptance_${season}.json`;
             const source = files.find((f) => path.basename(f) === name);
+            const log = logEvidence(files, season);
             if (!source) {
-              results.push({ season, accepted: false, evidencePresent: false, failureCount: null, reason: 'gate crashed or artifact missing' });
+              results.push({
+                season,
+                accepted: false,
+                evidencePresent: false,
+                failureCount: null,
+                reason: log.logPresent ? 'gate crashed before acceptance evidence was written; see logTail' : 'gate crashed or artifact missing; no log artifact was captured',
+                ...log,
+              });
               continue;
             }
             const bytes = fs.readFileSync(source);
@@ -163,10 +189,11 @@ jobs:
               starterEdges: record.observed?.starterEdges ?? null,
               perPlayerStartMismatches: record.perPlayerStarts?.mismatchCount ?? null,
               evidenceSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              ...log,
             });
           }
           const manifest = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             generatedAt: new Date().toISOString(),
             sourceCommit: process.env.GITHUB_SHA,
             scope: '2015-16 through 2025-26, Regular Season + Playoffs',
