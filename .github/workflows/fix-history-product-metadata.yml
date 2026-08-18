@@ -1,0 +1,142 @@
+name: Fix history metadata and rebuild audited artifacts
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: history-metadata-fix
+  cancel-in-progress: false
+
+jobs:
+  fix-build-audit:
+    if: github.head_ref == 'history-metadata-fix-trigger'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: eefb179fa316e105ddbf26345a63ee378278035f
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fix truthful history availability metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/build-v3.mjs')
+          text = p.read_text()
+          old = """    history: {\n      browserSchema: HISTORY_BROWSER_SCHEMA,\n      representation: 'Each player.history row is positional under browserSchema; regular season and playoffs are separate rows.',\n      gameLog: { available: true, transport: 'gzip-json-on-demand', path: './public/history-games.json.gz', starterUnknownMeans: 'unknown, never bench' },\n    },"""
+          new = """    history: {\n      available: Boolean(historySummary),\n      browserSchema: HISTORY_BROWSER_SCHEMA,\n      representation: 'Each player.history row is positional under browserSchema; regular season and playoffs are separate rows.',\n      gameLog: { available: Boolean(historySummary), transport: 'gzip-json-on-demand', path: './public/history-games.json.gz', starterUnknownMeans: 'unknown, never bench' },\n    },"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one history metadata block, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+          grep -A5 -B1 "history: {" scripts/build-v3.mjs | head -n 8
+
+      - name: Commit source fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/build-v3.mjs
+          git commit -m 'Fix truthful historical product availability metadata'
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_GENERATED_AT=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
+
+      - name: Hydrate immutable historical cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build history and current browser data
+        run: |
+          npm run build:history
+          npm run build:data
+
+      - name: Verify history
+        run: |
+          npm run audit:history
+          npm run verify:history
+
+      - name: Build standalone browser product
+        run: npm run build:standalone
+
+      - name: Run data and methodology gates
+        run: |
+          npm run audit
+          npm run audit:presets
+          npm run tulip:verify
+          npm run test:history
+          npm run test:starter
+          npm run verify:artifact
+          npm run verify:determinism
+
+      - name: Verify UI data contract including history availability
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = require('./public/data.json');
+          const problems = [];
+          const h = d.analysis?.history;
+          if (!h?.available) problems.push('historical player-season product metadata missing');
+          if (!h?.gameLog?.available) problems.push('historical game-log product metadata missing');
+          if (h?.gameLog?.transport !== 'gzip-json-on-demand') problems.push(`unexpected history game-log transport ${h?.gameLog?.transport}`);
+          if (h?.gameLog?.path !== './public/history-games.json.gz') problems.push(`unexpected history game-log path ${h?.gameLog?.path}`);
+          if (!fs.existsSync('./public/history-games.json.gz')) problems.push('public/history-games.json.gz missing');
+          if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
+          console.log(`history contract ok · ${d.analysis.history.available} · ${d.analysis.history.gameLog.available}`);
+          NODE
+
+      - name: JavaScript syntax gate
+        shell: bash
+        run: |
+          node --check app.js
+          node --check workspace.js
+          for f in scripts/*.mjs scripts/lib/*.mjs tests/*.mjs; do node --check "$f"; done
+
+      - name: Browser regression gate
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: Commit deterministic generated artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add scripts/data/history/player_history_product.json \
+            public/history-games.json.gz public/data.json public/standalone.html
+          if git diff --cached --quiet; then
+            echo 'Refusing: source metadata fix produced no generated artifact changes' >&2
+            exit 1
+          fi
+          git commit -m "Rebuild browser artifacts for ${SOURCE_SHA::7}"
+          git status --short
+
+      - name: Publish clean validated chain to staging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force origin HEAD:takeover-final-staging
