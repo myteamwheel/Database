@@ -36,15 +36,19 @@ function uniqueGames(file) {
   return new Set(rows.map((r) => String(r.gameId))).size;
 }
 
-function fingerprintHistoricalInput(file) {
-  const p = historicalFile(file);
-  if (!fs.existsSync(p)) return null;
+function fingerprintFile(p) {
   const stat = fs.statSync(p);
   return {
     path: path.relative(ROOT, p),
     bytes: stat.size,
     sha256: sha256File(p),
   };
+}
+
+function fingerprintHistoricalInput(file) {
+  const p = historicalFile(file);
+  if (!fs.existsSync(p)) return null;
+  return fingerprintFile(p);
 }
 
 const regularGames = uniqueGames('gamelog.json');
@@ -64,11 +68,12 @@ const inputs = {
 };
 
 const checkerPath = path.join(ROOT, 'scripts/espn-superset-test.mjs');
-const checkerFingerprint = {
-  path: path.relative(ROOT, checkerPath),
-  bytes: fs.statSync(checkerPath).size,
-  sha256: sha256File(checkerPath),
-};
+const checkerFingerprint = fingerprintFile(checkerPath);
+// The gate logic is evidence-bearing too. If this wrapper changes after an acceptance record is
+// generated, reconstruction must force the season through the new gate rather than trusting the old
+// verdict. The record therefore binds both the checker implementation and the acceptance wrapper.
+const gatePath = fileURLToPath(import.meta.url);
+const gateFingerprint = fingerprintFile(gatePath);
 
 // A very large requested sample makes espn-superset-test's stratified sampler step by one and
 // therefore visit every game in each phase. The wrapper independently checks the resulting counts,
@@ -122,7 +127,7 @@ for (const [key, label] of [
 
 const accepted = failures.length === 0;
 const record = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   season,
   scope: 'Regular Season + Playoffs present in historical cache',
   exhaustive: true,
@@ -134,6 +139,7 @@ const record = {
   measured,
   inputs,
   checkerFingerprint,
+  gateFingerprint,
   failures,
   checker: 'scripts/espn-superset-test.mjs',
   checkerMode: 'exhaustive-via-step-1-with-independent-count-reconciliation',
@@ -152,6 +158,7 @@ console.log(`  historical games  ${expectedGames} (${regularGames} regular + ${p
 console.log(`  input fingerprint ${inputs.regularSeason?.sha256 || 'missing'} (regular)`);
 if (inputs.playoffs) console.log(`                    ${inputs.playoffs.sha256} (playoffs)`);
 console.log(`  checker fingerprint ${checkerFingerprint.sha256}`);
+console.log(`  gate fingerprint    ${gateFingerprint.sha256}`);
 console.log(`  acceptance record ${path.relative(ROOT, out)}`);
 if (failures.length) for (const f of failures) console.log(`  FAIL: ${f}`);
 
