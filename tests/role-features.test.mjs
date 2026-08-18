@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { fileURLToPath } from 'node:url';
 import { buildRoleFeatureProduct, ROLE_FEATURE_SCHEMA } from '../scripts/lib/role-features.mjs';
 
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const schema = ['season','seasonType','gameDate','gameId','team','opponent','minutes','pts','reb','ast','stl','blk','tov','plusMinus','started'];
 const row = (date, gameId, team, min, pts, started, extra = {}) => [
   extra.season || '2023-24', extra.seasonType || 'Regular Season', date, gameId, team, extra.opp || 'BBB',
@@ -40,7 +45,7 @@ assert.equal(g3[ix.w5_starterKnownGames], 1);
 assert.equal(g3[ix.w5_startShare], 1);
 assert.equal(g4[ix.teamChangedSincePreviousGame], true);
 assert.equal(g4[ix.w5_sameTeamShare], 0, 'new-team feature is known pregame and should expose context discontinuity');
-assert.equal(g4[ix.w5_ge20Share], 2/3);
+assert.ok(Math.abs(g4[ix.w5_ge20Share] - 2/3) < 0.0001, 'rounded high-minute exposure share drifted');
 
 // Current-game and future-game outcomes must be unable to change an earlier feature row.
 const mutated = structuredClone(fixture);
@@ -74,5 +79,33 @@ const seasonProduct = buildRoleFeatureProduct(seasons, { generatedAt: 'fixed' })
 assert.equal(seasonProduct.byPlayer['1'][2][ix.seasonPriorGames], 0);
 assert.equal(seasonProduct.byPlayer['1'][2][ix.priorGames], 2);
 assert.equal(seasonProduct.byPlayer['1'][2][ix.w5_games], 2);
+
+// When the materialized products exist (CI/build:history), verify one feature row per game row,
+// identity preservation, source-binding, and strict first-row timing across the full real dataset.
+const historyPath = path.join(ROOT, 'public/history-games.json.gz');
+const featurePath = path.join(ROOT, 'public/history-role-features.json.gz');
+if (fs.existsSync(historyPath) && fs.existsSync(featurePath)) {
+  const history = JSON.parse(zlib.gunzipSync(fs.readFileSync(historyPath)));
+  const features = JSON.parse(zlib.gunzipSync(fs.readFileSync(featurePath)));
+  assert.equal(features.schemaVersion, 1);
+  assert.equal(features.sourceHistoryGeneratedAt, history.generatedAt);
+  assert.equal(features.inventory.featureRows, history.inventory.playerGameRows);
+  assert.equal(features.inventory.players, Object.keys(history.byPlayer).length);
+  assert.deepEqual(Object.keys(features.byPlayer).sort(), Object.keys(history.byPlayer).sort());
+  const fix = Object.fromEntries(features.rowSchema.map((k, i) => [k, i]));
+  let counted = 0;
+  for (const [playerId, rows] of Object.entries(features.byPlayer)) {
+    assert.equal(rows.length, history.byPlayer[playerId].length, `row count mismatch player ${playerId}`);
+    if (rows.length) assert.equal(rows[0][fix.priorGames], 0, `first row leaked prior games player ${playerId}`);
+    for (let i = 1; i < rows.length; i++) {
+      assert.ok(String(rows[i][fix.indexDate]) >= String(rows[i - 1][fix.indexDate]), `nonmonotonic dates player ${playerId}`);
+      assert.ok(Number(rows[i][fix.priorGames]) >= Number(rows[i - 1][fix.priorGames]), `priorGames regressed player ${playerId}`);
+    }
+    counted += rows.length;
+  }
+  assert.equal(counted, history.inventory.playerGameRows);
+  assert.match(features.featureTiming, /strictly earlier/i);
+  console.log(`role-features: real artifact verified · ${counted.toLocaleString()} rows`);
+}
 
 console.log('role-features: leakage-safe fixture tests passed');
