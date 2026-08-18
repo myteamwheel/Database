@@ -13,6 +13,7 @@
   let AGG = [];
   let PAGE = 0;
   let IX = {};
+  let IDENTITY_SOURCE = 'unknown';
 
   function rehydrate(d) {
     if (!d || d.encoding !== 'columnar-v1') return d;
@@ -40,21 +41,27 @@
     return JSON.parse(await new Response(stream).text());
   }
 
-  async function load() {
-    $('hStatus').textContent = 'Loading compressed game logs…';
-    const [histResp, dataResp] = await Promise.all([
-      fetch('./public/history-games.json.gz', { cache: 'no-store' }),
-      fetch('./public/data.json', { cache: 'no-store' }),
-    ]);
-    if (!histResp.ok) throw new Error(`history-games.json.gz returned ${histResp.status}`);
-    if (!dataResp.ok) throw new Error(`data.json returned ${dataResp.status}`);
-    PRODUCT = await gunzipJson(new Uint8Array(await histResp.arrayBuffer()));
-    if (PRODUCT?.schemaVersion !== 1 || !Array.isArray(PRODUCT?.rowSchema) || !PRODUCT?.byPlayer) {
-      throw new Error('Unsupported historical game-log artifact.');
+  function populateIdentityFromProduct() {
+    const index = PRODUCT?.playerIndex;
+    if (!index || typeof index !== 'object') return false;
+    const playerIds = Object.keys(PRODUCT.byPlayer || {});
+    if (!playerIds.length || playerIds.some((id) => !index[id]?.name)) return false;
+    for (const id of playerIds) {
+      const m = index[id];
+      META.set(id, {
+        name: m.name || `Player ${id}`,
+        leagues: new Set((m.currentLeagues || []).map((x) => x === 'GLEAGUE' ? 'G League' : x)),
+        teams: new Set(),
+      });
     }
-    const data = rehydrate(await dataResp.json());
-    IX = Object.fromEntries(PRODUCT.rowSchema.map((k, i) => [k, i]));
+    IDENTITY_SOURCE = 'history-player-index';
+    return true;
+  }
 
+  async function populateIdentityFallback() {
+    const dataResp = await fetch('./public/data.json', { cache: 'no-store' });
+    if (!dataResp.ok) throw new Error(`data.json returned ${dataResp.status}`);
+    const data = rehydrate(await dataResp.json());
     for (const [league, list] of Object.entries(data.leagues || {})) {
       for (const p of list) {
         const id = String(p.nbaPersonId ?? p.playerId);
@@ -65,6 +72,23 @@
         META.set(id, prev);
       }
     }
+    IDENTITY_SOURCE = 'current-database-fallback';
+  }
+
+  async function load() {
+    $('hStatus').textContent = 'Loading compressed game logs…';
+    const histResp = await fetch('./public/history-games.json.gz', { cache: 'no-store' });
+    if (!histResp.ok) throw new Error(`history-games.json.gz returned ${histResp.status}`);
+    PRODUCT = await gunzipJson(new Uint8Array(await histResp.arrayBuffer()));
+    if (PRODUCT?.schemaVersion !== 1 || !Array.isArray(PRODUCT?.rowSchema) || !PRODUCT?.byPlayer) {
+      throw new Error('Unsupported historical game-log artifact.');
+    }
+    IX = Object.fromEntries(PRODUCT.rowSchema.map((k, i) => [k, i]));
+
+    // New artifacts carry a tiny official-id/name index, so History Lab no longer has to fetch and
+    // decode the ~35 MB current database solely to label historical rows. Retain a fail-safe fallback
+    // for old artifacts so the page degrades safely rather than showing unlabeled IDs.
+    if (!populateIdentityFromProduct()) await populateIdentityFallback();
 
     for (const [playerId, rows] of Object.entries(PRODUCT.byPlayer)) {
       if (!META.has(playerId)) META.set(playerId, { name: `Player ${playerId}`, leagues: new Set(['NBA history']), teams: new Set() });
@@ -74,7 +98,7 @@
     populateFilters();
     bind();
     apply();
-    $('hStatus').textContent = `${ALL.length.toLocaleString()} player-game rows loaded · ${META.size.toLocaleString()} current-database identities indexed`;
+    $('hStatus').textContent = `${ALL.length.toLocaleString()} player-game rows loaded · ${META.size.toLocaleString()} identities · ${IDENTITY_SOURCE}`;
   }
 
   function val(entry, key) { return entry.row[IX[key]]; }
@@ -239,6 +263,7 @@
     get rows() { return ALL.length; },
     get filteredRows() { return FILTERED.length; },
     get playerResults() { return AGG.length; },
+    get identitySource() { return IDENTITY_SOURCE; },
     apply,
   };
 
