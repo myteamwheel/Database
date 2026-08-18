@@ -758,9 +758,10 @@ const out = {
     teams: teamProfiles,
     rotationSuggestions: { NBA: nba.rotationSuggestions, GLEAGUE: gl.rotationSuggestions },
     history: {
+      available: Boolean(historySummary),
       browserSchema: HISTORY_BROWSER_SCHEMA,
       representation: 'Each player.history row is positional under browserSchema; regular season and playoffs are separate rows.',
-      gameLog: { available: true, transport: 'gzip-json-on-demand', path: './public/history-games.json.gz', starterUnknownMeans: 'unknown, never bench' },
+      gameLog: { available: Boolean(historySummary), transport: 'gzip-json-on-demand', path: './public/history-games.json.gz', starterUnknownMeans: 'unknown, never bench' },
     },
     translation: {
       factors, factorsPer36,
