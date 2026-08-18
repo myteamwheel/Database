@@ -1,0 +1,1 @@
+Trigger pull_request synchronize after validator workflow reorder. This file is bootstrap-only and is never applied to the audited f22-derived final chain.
