@@ -28,7 +28,8 @@
     "audit:history": "node scripts/audit-history.mjs",
     "verify:history": "node scripts/verify-history-hashes.mjs",
     "probe:starter": "node scripts/probe-starter-source.mjs",
-    "gate:starter": "node scripts/starter-full-season-gate.mjs"
+    "gate:starter": "node scripts/starter-full-season-gate.mjs",
+    "gate:starter:espn": "node scripts/espn-starter-full-season-gate.mjs"
   },
   "engines": {
     "node": ">=20"

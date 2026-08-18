@@ -1,0 +1,104 @@
+name: Exhaustive historical starter acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [v3-official-data]
+    paths:
+      - 'scripts/espn-starter-full-season-gate.mjs'
+      - 'scripts/starter-full-season-gate.mjs'
+      - 'scripts/probe-starter-source.mjs'
+      - 'scripts/data/history/provenance.json'
+      - 'scripts/data/splits_nba/starter.json'
+      - '.github/workflows/starter-history-gate.yml'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+jobs:
+  starter-gate:
+    name: ${{ matrix.season }} starter gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        season:
+          - '2015-16'
+          - '2016-17'
+          - '2017-18'
+          - '2018-19'
+          - '2019-20'
+          - '2020-21'
+          - '2021-22'
+          - '2022-23'
+          - '2023-24'
+          - '2024-25'
+          - '2025-26'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore exact tracked historical cache
+        if: matrix.season != '2025-26'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee -- "scripts/data/history/${{ matrix.season }}"
+          test -s "scripts/data/history/${{ matrix.season }}/gamelog.json"
+          test -s "scripts/data/history/${{ matrix.season }}/gamelog_playoffs.json"
+          test -s "scripts/data/history/${{ matrix.season }}/starter_splits.json"
+
+      - name: Syntax check gate
+        run: node --check scripts/espn-starter-full-season-gate.mjs
+
+      - name: Run exhaustive cross-source gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/espn-starter-full-season-gate.mjs "${{ matrix.season }}" 2>&1 | tee "starter-gate-${{ matrix.season }}.log"
+
+      - name: Publish gate summary
+        if: always()
+        shell: bash
+        run: |
+          file="scripts/data/history/starter_espn_acceptance_${{ matrix.season }}.json"
+          if [[ -s "$file" ]]; then
+            node - "$file" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          const fs = require('fs');
+          const f = process.argv[2];
+          const x = JSON.parse(fs.readFileSync(f, 'utf8'));
+          console.log(`## ${x.season}: ${x.accepted ? 'ACCEPTED' : 'REJECTED'}`);
+          console.log('');
+          console.log(`- Mode: ${x.mode}`);
+          console.log(`- Expected team-games: ${x.expected.teamGames}`);
+          console.log(`- Observed team-games: ${x.observed.teamGames}`);
+          console.log(`- Expected starter edges: ${x.expected.starterEdges}`);
+          console.log(`- Observed starter edges: ${x.observed.starterEdges}`);
+          console.log(`- Per-player regular-season start mismatches: ${x.perPlayerStarts.mismatchCount}`);
+          console.log(`- Failures: ${x.failureCount}`);
+          NODE
+          else
+            echo "## ${{ matrix.season }}: gate crashed before acceptance evidence was written" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload acceptance evidence and assignments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starter-gate-${{ matrix.season }}
+          path: |
+            starter-gate-${{ matrix.season }}.log
+            scripts/data/history/starter_espn_acceptance_${{ matrix.season }}.json
+            scripts/data/history/starter_assignments_${{ matrix.season }}.json
+          if-no-files-found: warn
+          retention-days: 30
