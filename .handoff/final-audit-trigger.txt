@@ -1,0 +1,1 @@
+Temporary final-audit trigger. This branch is never merged; it only exercises the repository's real PR audit workflow against final main.
