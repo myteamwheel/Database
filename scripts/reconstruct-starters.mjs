@@ -12,6 +12,7 @@
 // alone is not evidence that the true starters were inside the corrupted NBA candidate sets.
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { solve } from './lib/bmatch.mjs';
 
@@ -37,12 +38,28 @@ function uniqueHistoricalGames(season, file) {
   return new Set(rows.map((r) => String(r.gameId))).size;
 }
 
+function fingerprintFile(file) {
+  if (!fs.existsSync(file)) return null;
+  const stat = fs.statSync(file);
+  return {
+    path: path.relative(ROOT, file),
+    bytes: stat.size,
+    sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+  };
+}
+
+function sameFingerprint(recorded, current) {
+  if (recorded === null || current === null) return recorded === current;
+  return recorded && current && recorded.path === current.path && recorded.bytes === current.bytes && recorded.sha256 === current.sha256;
+}
+
 /**
  * Fail closed before any reconstruction is persisted.
  *
  * The acceptance record is deliberately checked again here instead of assuming callers ran the
- * gate. This closes the direct `node reconstruct-starters.mjs solve ...` bypass and also rejects a
- * stale record whose historical-game counts no longer match the cache being solved.
+ * gate. This closes the direct `node reconstruct-starters.mjs solve ...` bypass and rejects stale
+ * evidence by both reconciled game counts and cryptographic fingerprints of the historical inputs,
+ * cross-source checker, and exhaustive gate implementation.
  */
 function requireAcceptedSupersetGate(season) {
   const f = path.join(HIST, 'starters', `${season}_espn_superset_acceptance.json`);
@@ -58,11 +75,12 @@ function requireAcceptedSupersetGate(season) {
   try { a = JSON.parse(fs.readFileSync(f, 'utf8')); }
   catch { fail('acceptance record is unreadable or invalid JSON'); }
 
-  if (a.schemaVersion !== 1) fail(`unsupported acceptance schemaVersion ${String(a.schemaVersion)}`);
+  if (a.schemaVersion !== 2) fail(`unsupported acceptance schemaVersion ${String(a.schemaVersion)}; rerun the exhaustive gate`);
   if (a.season !== season) fail(`acceptance record season ${String(a.season)} does not match ${season}`);
   if (a.exhaustive !== true) fail('acceptance record is not exhaustive');
   if (a.accepted !== true) fail('exhaustive ESPN superset gate did not accept this season');
   if (!a.expected || !a.measured) fail('acceptance record is missing expected/measured reconciliation fields');
+  if (!a.inputs || !a.checkerFingerprint || !a.gateFingerprint) fail('acceptance record is missing content fingerprints; rerun the exhaustive gate');
 
   const regularGames = uniqueHistoricalGames(season, 'gamelog.json');
   const playoffGames = uniqueHistoricalGames(season, 'gamelog_playoffs.json');
@@ -70,6 +88,24 @@ function requireAcceptedSupersetGate(season) {
   const currentExpected = { regularGames, playoffGames, games, teamGames: games * 2, starterEdges: games * 10 };
   for (const [k, v] of Object.entries(currentExpected)) {
     if (a.expected[k] !== v) fail(`stale acceptance record: expected.${k}=${String(a.expected[k])}, current cache=${v}`);
+  }
+
+  const currentInputs = {
+    regularSeason: fingerprintFile(path.join(HIST, season, 'gamelog.json')),
+    playoffs: fingerprintFile(path.join(HIST, season, 'gamelog_playoffs.json')),
+  };
+  for (const key of ['regularSeason', 'playoffs']) {
+    if (!sameFingerprint(a.inputs[key], currentInputs[key])) {
+      fail(`stale acceptance record: ${key} historical-input fingerprint no longer matches current cache`);
+    }
+  }
+  const currentChecker = fingerprintFile(path.join(ROOT, 'scripts/espn-superset-test.mjs'));
+  if (!sameFingerprint(a.checkerFingerprint, currentChecker)) {
+    fail('stale acceptance record: ESPN checker implementation has changed');
+  }
+  const currentGate = fingerprintFile(path.join(ROOT, 'scripts/espn-full-season-gate.mjs'));
+  if (!sameFingerprint(a.gateFingerprint, currentGate)) {
+    fail('stale acceptance record: exhaustive gate implementation has changed');
   }
 
   if (a.measured.gamesSampled !== games) fail(`acceptance measured ${String(a.measured.gamesSampled)} games, current cache has ${games}`);
