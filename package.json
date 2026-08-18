@@ -18,7 +18,7 @@
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run audit:presets && npm run tulip:verify && npm run verify:artifact && npm run test:browser",
+    "verify": "npm run audit && npm run audit:presets && npm run tulip:verify && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
     "test:browser": "playwright test",
     "audit:presets": "node scripts/audit-presets.mjs",
     "diagnostics": "node scripts/diagnostics.mjs",
@@ -27,7 +27,14 @@
     "fetch:history": "node scripts/fetch-history.mjs",
     "audit:history": "node scripts/audit-history.mjs",
     "verify:history": "node scripts/verify-history-hashes.mjs",
-    "probe:starter": "node scripts/probe-starter-source.mjs"
+    "probe:starter": "node scripts/probe-starter-source.mjs",
+    "build:history-summary": "node scripts/build-history-summary.mjs",
+    "test:starter": "node tests/bmatch.test.mjs && node tests/bmatch.oracle.test.mjs && node tests/starter-merge.test.mjs",
+    "test:history": "node tests/history.test.mjs && node tests/history-games.test.mjs",
+    "verify:local-history": "npm run audit:history && npm run verify:history",
+    "verify:determinism": "node scripts/verify-build-determinism.mjs",
+    "build:history-games": "node scripts/build-history-games.mjs",
+    "build:history": "node scripts/build-history-summary.mjs && node scripts/build-history-games.mjs"
   },
   "engines": {
     "node": ">=20"

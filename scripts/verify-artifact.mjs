@@ -1,24 +1,39 @@
 // Prove the published standalone page is byte-equivalent in DATA to the canonical build.
 //
-// Columnar encoding takes 15.7 MB to 3.6 MB. That is only acceptable if it is provably lossless,
-// so this decodes the artifact with the SAME algorithm the browser uses and deep-compares every
-// player, every field and every value — including the cases encodings usually get wrong:
-// null vs missing, 0, false, empty string, arrays, nested objects, Unicode names, int vs float.
+// The standalone uses columnar-v1 plus gzip/base64 transport. This verifier decodes both layers
+// independently of the browser and deep-compares every field/value, including null-vs-missing,
+// zero, false, arrays, nested objects and Unicode names.
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const canonical = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
 const html = fs.readFileSync(path.join(ROOT, 'public/standalone.html'), 'utf8');
 
-const m = html.match(/<script type="application\/json" id="db">([\s\S]*?)<\/script>/);
-if (!m) { console.error('X no inlined payload found in standalone.html'); process.exit(1); }
-const packed = JSON.parse(m[1].replace(/<\\\//g, '</'));
+const m = html.match(/<script type="application\/octet-stream" id="db-gz">([A-Za-z0-9+/=\s]+)<\/script>/);
+if (!m) { console.error('X no gzip/base64 payload found in standalone.html'); process.exit(1); }
+let packed;
+try {
+  packed = JSON.parse(zlib.gunzipSync(Buffer.from(m[1].replace(/\s+/g, ''), 'base64')).toString('utf8'));
+} catch (e) {
+  console.error('X standalone compressed payload does not decode:', e.message);
+  process.exit(1);
+}
+const hm = html.match(/<script type="application\/octet-stream" id="history-db-gz">([A-Za-z0-9+/=\s]+)<\/script>/);
+const historyFile = path.join(ROOT, 'public/history-games.json.gz');
+if (fs.existsSync(historyFile)) {
+  if (!hm) { console.error('X standalone is missing embedded history game payload'); process.exit(1); }
+  const embeddedHistory = Buffer.from(hm[1].replace(/\s+/g, ''), 'base64');
+  const sourceHistory = fs.readFileSync(historyFile);
+  if (!embeddedHistory.equals(sourceHistory)) { console.error('X embedded history game payload differs from public/history-games.json.gz'); process.exit(1); }
+  console.log(`history game payload embedded byte-for-byte: ${embeddedHistory.length.toLocaleString()} bytes`);
+}
 
-/** Identical to rehydrate() in app.js. Kept in step deliberately. */
+/** Identical logical decode to rehydrate() in app.js. */
 function rehydrate(d) {
-  if (!d || d.encoding !== 'columnar-v1') return d;   // idempotent: safe to call twice
+  if (!d || d.encoding !== 'columnar-v1') return d;
   const ABSENT = d.absent ?? '\u0000~';
   const out = { ...d, encoding: 'rehydrated', leagues: {} };
   for (const lg of Object.keys(d.leagues)) {
@@ -78,7 +93,6 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   if (lost.length) problems.push(`${lg}: ${lost.length} raw fields dropped: ${lost.slice(0, 8).join(', ')}`);
 }
 
-// Spot-check the value shapes an encoder is most likely to mangle.
 const probe = canonical.leagues.NBA.find((p) => /[^\x00-\x7F]/.test(p.name));
 const dprobe = decoded.leagues.NBA.find((p) => p.nbaPersonId === probe?.nbaPersonId);
 console.log(`unicode name round-trip: ${JSON.stringify(probe?.name)} -> ${JSON.stringify(dprobe?.name)}` +

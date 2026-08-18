@@ -1,5 +1,6 @@
-// Historical TULIP architecture — SCHEMA AND PIPELINE ONLY. No historical data is loaded yet,
-// and nothing here fabricates any.
+// Historical TULIP architecture. Ten seasons of game logs now exist in the project cache, but
+// this module remains a leakage-safe schema/feature layer and does not silently promote those rows
+// into TULIP Forecast. Nothing here fabricates unavailable context.
 //
 // The point of this file is that the leakage rules and the evidence tiers are decided BEFORE the
 // data arrives, not retrofitted afterwards once results are visible. Every function below either
@@ -7,10 +8,12 @@
 //
 // Why this is the gate for a predictive TULIP: the current engine compares a candidate against
 // players who ALREADY occupy a big role. Those players are selected — they got the role because
-// someone judged they deserved it. The audit shows the residual signature directly (comparables
-// started far more of their games than candidates, worst-band SMD 0.798). Only role changes
-// caused by something external to the player's own performance break that selection, and those
-// are visible only at game level with absence and transaction context.
+// someone judged they deserved it. The audit shows the residual signature directly: comparables
+// start a materially larger share of their games than candidates within several target-role bands.
+// The exact imbalance is build-dependent and is measured by tulip-diagnostics rather than frozen
+// into this methodology file. Role changes caused by something external to the player's own
+// performance are more useful for identification, but require game-level availability/transaction
+// context that the project does not yet have with reliable pre-tip timing.
 
 /** One row per player per game. The minimum needed for index-date features without leakage. */
 export const GAME_ROW_SCHEMA = {
@@ -21,7 +24,7 @@ export const GAME_ROW_SCHEMA = {
   teamId: 'string',
   opponentTeamId: 'string',
   isHome: 'boolean',
-  started: 'boolean',
+  started: 'boolean|null — null when starter status is not established',
   minutes: 'number',
   // Box score, per game, not cumulative.
   pts: 'number', reb: 'number', oreb: 'number', dreb: 'number', ast: 'number',
@@ -48,9 +51,11 @@ export const TRANSACTION_ROW_SCHEMA = {
 };
 
 /**
- * Evidence tiers. A and C are currently unreachable; they become reachable only with the schemas
- * above. Tier weights are deliberately NOT set here — they must be fitted against out-of-sample
- * outcomes once history exists, not chosen by hand now.
+ * Evidence tiers. A and C are currently unreachable in the CURRENT estimator. Historical game
+ * rows now exist in the project and can support future Tier-C experiments once wired through the
+ * leakage-safe feature layer; Tier A still additionally requires reliable pre-tip availability and
+ * transaction context. Tier weights are deliberately NOT set here — they must be fitted against
+ * out-of-sample outcomes, not chosen by hand.
  */
 export const EVIDENCE_TIERS = {
   A: { label: 'Externally induced role expansion',
@@ -141,22 +146,39 @@ export function detectOpportunityShocks({ gameRows, availability, priorWindow = 
  */
 export function featuresAsOf(gameRows, playerId, indexDate, { window = 20 } = {}) {
   const rows = gameRows
-    .filter((r) => r.playerId === playerId && String(r.gameDate) < String(indexDate))
+    .filter((r) => String(r.playerId) === String(playerId) && String(r.gameDate) < String(indexDate))
     .sort((a, b) => String(a.gameDate).localeCompare(String(b.gameDate)));
   if (!rows.length) return { available: false, reason: 'No prior games before the index date.' };
   const w = rows.slice(-window);
   const sum = (k) => w.reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const min = sum('minutes');
   const per36 = (k) => (min > 0 ? (sum(k) * 36) / min : null);
+  const knownStarts = w.filter((r) => r.started === true || r.started === false);
+  const starts = knownStarts.filter((r) => r.started === true).length;
+  const mins = w.map((r) => Number(r.minutes) || 0).sort((a, b) => a - b);
+  const median = mins.length ? (mins.length % 2 ? mins[(mins.length - 1) / 2]
+    : (mins[mins.length / 2 - 1] + mins[mins.length / 2]) / 2) : null;
+  const mpg = w.length ? min / w.length : null;
+  const minSd = w.length > 1 ? Math.sqrt(w.reduce((a, r) => a + ((Number(r.minutes) || 0) - mpg) ** 2, 0) / (w.length - 1)) : 0;
   return {
     available: true, indexDate, gamesBefore: rows.length, windowGames: w.length,
-    minutes: min, mpg: w.length ? min / w.length : null,
-    startShare: w.length ? w.filter((r) => r.started).length / w.length : null,
+    minutes: min, mpg,
+    minutesMedian: median, minutesSd: minSd,
+    starts: knownStarts.length ? starts : null,
+    starterKnownGames: knownStarts.length,
+    starterCoverage: w.length ? knownStarts.length / w.length : null,
+    // IMPORTANT: unknown starter status is excluded from the denominator. Null is never bench.
+    startShare: knownStarts.length ? starts / knownStarts.length : null,
     pts36: per36('pts'), reb36: per36('reb'), ast36: per36('ast'),
     stl36: per36('stl'), blk36: per36('blk'), tov36: per36('tov'),
     ts: (sum('fga') || sum('fta')) ? sum('pts') / (2 * (sum('fga') + 0.44 * sum('fta'))) : null,
     leakageRule: 'strictly < indexDate',
   };
+}
+
+/** Standard role windows used by the historical product and future leakage-safe experiments. */
+export function rollingRoleFeaturesAsOf(gameRows, playerId, indexDate, windows = [5, 10, 20]) {
+  return Object.fromEntries(windows.map((window) => [window, featuresAsOf(gameRows, playerId, indexDate, { window })]));
 }
 
 /** Chronological folds. Random splits leak future seasons into training and are never used. */
@@ -173,23 +195,47 @@ export const REQUIRED_BASELINES = [
   'TS% + usage + age', 'linear regression on MPG + age + basic rates',
 ];
 
-/** What is actually missing, machine-readable so the UI can state it without drifting. */
-export function historicalReadiness(loaded = {}) {
+/**
+ * Historical readiness, split into two questions that used to be conflated:
+ *  1) does the PROJECT possess the dataset?
+ *  2) does the CURRENT TULIP estimator actually consume it?
+ *
+ * A dataset can exist on disk without being wired into the estimator. Reporting those states
+ * separately prevents the UI from saying that game logs are "missing" when they are merely not
+ * yet used by TULIP Evidence.
+ */
+export function historicalReadiness({ project = {}, estimator = {} } = {}) {
   const need = {
     gameRows: 'multiple NBA seasons of per-player per-game rows',
     availability: 'per-game availability with knownBeforeTipoff',
     transactions: 'trades, signings, waivers, call-ups',
     lineups: 'possession or lineup data for a cleaner impact target and lineup interaction',
   };
-  const missing = Object.entries(need).filter(([k]) => !loaded[k] || !loaded[k].length)
-    .map(([k, v]) => ({ dataset: k, description: v }));
+  const present = (v) => Array.isArray(v) ? v.length > 0 : Boolean(v);
+  const projectAvailable = Object.fromEntries(Object.keys(need).map((k) => [k, present(project[k])]));
+  const consumedByCurrentEstimator = Object.fromEntries(Object.keys(need).map((k) => [k, present(estimator[k])]));
+  const missingFromProject = Object.entries(need).filter(([k]) => !projectAvailable[k])
+    .map(([k, description]) => ({ dataset: k, description }));
+  const notConsumed = Object.entries(need).filter(([k]) => !consumedByCurrentEstimator[k])
+    .map(([k, description]) => ({ dataset: k, description }));
+
+  const projectCanSupportTierC = projectAvailable.gameRows;
+  const currentCanSupportTierA = consumedByCurrentEstimator.gameRows
+    && consumedByCurrentEstimator.availability && consumedByCurrentEstimator.transactions;
+  const currentCanSupportTierC = consumedByCurrentEstimator.gameRows;
+
   return {
-    ready: missing.length === 0,
-    missing,
-    reachableTiers: missing.length === 0 ? ['A', 'B', 'C', 'D'] : ['B', 'D'],
+    projectAvailable,
+    consumedByCurrentEstimator,
+    missingFromProject,
+    notConsumedByCurrentEstimator: notConsumed,
+    reachableTiersCurrentEstimator: [
+      ...(currentCanSupportTierA ? ['A'] : []), 'B', ...(currentCanSupportTierC ? ['C'] : []), 'D',
+    ],
+    potentiallyReachableWithProjectData: ['B', ...(projectCanSupportTierC ? ['C'] : []), 'D'],
     forecastAvailable: false,
-    note: missing.length
-      ? 'TULIP Forecast is NOT built and must not be, until these exist and TULIP has been validated chronologically against the required baselines.'
-      : 'Historical inputs present; chronological validation still required before any Forecast claim.',
+    note: projectAvailable.gameRows
+      ? 'Historical game rows exist in the project, but TULIP Evidence does not consume them yet. Forecast remains unavailable until leakage-safe historical experiments beat required baselines; causal Tier A additionally needs reliable pre-tip availability/transaction context.'
+      : 'Historical game rows are not available to this build. TULIP Forecast remains unavailable.',
   };
 }

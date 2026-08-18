@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -133,30 +134,122 @@ for (const season of prov.seasons) {
   if (overlap) fails.push(`${season}: ${overlap} gameIds appear in BOTH regular season and playoffs`);
 }
 
+
+/* ------------------------------------------- 4b. derived validation artifacts */
+console.log('\n--- 4b. derived history/starter artifacts ---');
+const summaryPath = path.join(HIST, 'player_season_summary.json');
+if (fs.existsSync(summaryPath)) {
+  const hs = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  console.log(`  full local player-season summary: ${Number(hs.playerSeasonRows || 0).toLocaleString()} rows · ${Number(hs.players || 0).toLocaleString()} players`);
+  if (!hs.playerSeasonRows || !hs.players) fails.push('player_season_summary.json is present but missing row/player counts');
+} else {
+  console.log('  full local player-season summary: absent (regenerable from local raw cache)');
+}
+const productHistoryPath = path.join(HIST, 'player_history_product.json');
+if (fs.existsSync(productHistoryPath)) {
+  const hp = JSON.parse(fs.readFileSync(productHistoryPath, 'utf8'));
+  console.log(`  tracked history product: ${Number(hp.inventory?.currentPlayerSeasonPhaseRows || 0).toLocaleString()} rows · ${Number(hp.inventory?.currentPlayersWithHistory || 0).toLocaleString()} current players`);
+  if (!hp.inventory?.currentPlayerSeasonPhaseRows) fails.push('player_history_product.json is present but missing inventory');
+} else {
+  fails.push('player_history_product.json is missing; clean clones cannot render historical player records');
+  console.log('  tracked history product: MISSING');
+}
+const gameProductPath = path.join(ROOT, 'public/history-games.json.gz');
+if (fs.existsSync(gameProductPath)) {
+  try {
+    const hg = JSON.parse(zlib.gunzipSync(fs.readFileSync(gameProductPath)).toString('utf8'));
+    console.log(`  on-demand game-log product: ${Number(hg.inventory?.playerGameRows || 0).toLocaleString()} rows · ${Number(hg.inventory?.playersWithGames || 0).toLocaleString()} current players · ${(fs.statSync(gameProductPath).size / 1e6).toFixed(2)} MB gzip`);
+    if (!hg.inventory?.playerGameRows || !Array.isArray(hg.rowSchema)) fails.push('history-games.json.gz is malformed');
+  } catch (e) {
+    fails.push(`history-games.json.gz does not decode: ${e.message}`);
+  }
+} else {
+  fails.push('public/history-games.json.gz is missing; historical game-log UI cannot load');
+  console.log('  on-demand game-log product: MISSING');
+}
+const starterArtifactPath = path.join(HIST, 'starters/player_game_starters.json');
+if (fs.existsSync(starterArtifactPath)) {
+  const sa = JSON.parse(fs.readFileSync(starterArtifactPath, 'utf8'));
+  console.log(`  canonical starter artifact: ${Number(sa.establishedRows ?? sa.rows?.length ?? 0).toLocaleString()} established rows · schema v${sa.schemaVersion ?? 'legacy'}`);
+} else {
+  warn.push('canonical starter artifact is absent');
+  console.log('  canonical starter artifact: MISSING');
+}
+const poSplit = path.join(HIST, '2023-24/starter_splits_playoffs.json');
+console.log(`  2023-24 playoff starter split: ${fs.existsSync(poSplit) ? 'present' : 'missing'}`);
+if (!fs.existsSync(poSplit)) warn.push('2023-24 playoff starter split missing; playoff player-level reconciliation cannot run');
+
 /* ------------------------------------------------- 5. storage impact */
 console.log('\n--- 5. storage architecture ---');
-const du = (p) => { try { return execSync(`du -sk "${p}"`).toString().split('\t')[0] * 1024; } catch { return 0; } };
+const du = (p) => { try { return execSync(`du -sk "${p}"`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().split('\t')[0] * 1024; } catch { return 0; } };
 const histBytes = du(HIST);
 const dataJson = fs.existsSync(path.join(ROOT, 'public/data.json')) ? fs.statSync(path.join(ROOT, 'public/data.json')).size : 0;
 const artifact = fs.existsSync(path.join(ROOT, 'public/standalone.html')) ? fs.statSync(path.join(ROOT, 'public/standalone.html')).size : 0;
-const mb = (b) => (b / 1e6).toFixed(1) + ' MB';
-console.log(`  raw history on disk:        ${mb(histBytes)}`);
-console.log(`  public/data.json:           ${mb(dataJson)}`);
-console.log(`  published artifact:         ${mb(artifact)}`);
-// Does any history leak into the shipped payload?
+const mb = (b) => (b / 1e6).toFixed(2) + ' MB';
+console.log(`  local history/cache on disk: ${mb(histBytes)}`);
+console.log(`  public/data.json:            ${mb(dataJson)}`);
+console.log(`  published artifact:          ${mb(artifact)}`);
+
+// Product policy: compact player-season history MAY ship. Raw player-game logs MUST NOT.
 const shipped = fs.existsSync(path.join(ROOT, 'public/data.json'))
   ? JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8')) : {};
-const leaks = JSON.stringify(shipped).includes('"gamelog"') || !!shipped.history;
-console.log(`  history bundled into the browser payload: ${leaks ? 'YES' : 'NO'}`);
-console.log(`  browser payload added by history: ${leaks ? 'unknown - investigate' : '0 bytes (raw history is a build-time cache only)'}`);
-if (leaks) fails.push('raw history is being shipped to the browser');
-try {
-  const tracked = execSync(`git -C "${ROOT}" ls-files scripts/data/history | wc -l`).toString().trim();
-  console.log(`  git-tracked history files:  ${tracked}`);
-  if (Number(tracked) > 0) {
-    warn.push(`${tracked} history files are git-tracked (${mb(histBytes)} added to every clone)`);
+const shippedPlayers = Object.values(shipped.leagues || {}).flatMap((x) => Array.isArray(x) ? x : []);
+const withHistory = shippedPlayers.filter((p) => p && p.history);
+const compactHistoryBytes = Buffer.byteLength(JSON.stringify(withHistory.map((p) => [p.nbaPersonId ?? p.playerId, p.history])));
+const historySchema = shipped.analysis?.history?.browserSchema || [];
+const allowedHistoryFields = new Set(['season', 'seasonType', 'teams', 'gp', 'mpg', 'pts', 'reb', 'ast', 'ts', 'starts', 'startShareOfAppearances', 'starterKnownAppearances', 'starterCoverage']);
+const forbiddenHistoryFields = new Set(['gameId', 'gameDate', 'playerGameRows', 'minutes', 'starterSources', 'firstGameDate', 'lastGameDate']);
+const malformedHistory = [];
+if (!Array.isArray(historySchema) || !historySchema.length) {
+  malformedHistory.push({ playerId: null, reason: 'analysis.history.browserSchema missing or empty' });
+} else {
+  const dup = historySchema.filter((k, i) => historySchema.indexOf(k) !== i);
+  const unknown = historySchema.filter((k) => !allowedHistoryFields.has(k));
+  const forbidden = historySchema.filter((k) => forbiddenHistoryFields.has(k));
+  if (dup.length || unknown.length || forbidden.length) {
+    malformedHistory.push({ playerId: null, reason: 'invalid browserSchema', dup, unknown, forbidden });
   }
-} catch { /* not a git checkout */ }
+  for (const p of withHistory) {
+    if (!Array.isArray(p.history)) {
+      malformedHistory.push({ playerId: p.playerId, reason: 'history is not an array' });
+      continue;
+    }
+    for (let i = 0; i < p.history.length; i++) {
+      const r = p.history[i];
+      if (!Array.isArray(r) || r.length !== historySchema.length) {
+        malformedHistory.push({ playerId: p.playerId, row: i, reason: 'row/schema length mismatch', rowLength: Array.isArray(r) ? r.length : null, schemaLength: historySchema.length });
+        continue;
+      }
+      // Fail if any serialized value contains an object carrying raw player-game identifiers.
+      for (const v of r) {
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          const keys = Object.keys(v);
+          const raw = keys.filter((k) => forbiddenHistoryFields.has(k));
+          if (raw.length) malformedHistory.push({ playerId: p.playerId, row: i, reason: 'raw history object leaked', raw });
+        }
+      }
+    }
+  }
+}
+const topLevelRawHistory = Object.prototype.hasOwnProperty.call(shipped, 'history');
+const rawLeak = topLevelRawHistory || malformedHistory.length > 0;
+console.log(`  players carrying compact history: ${withHistory.length.toLocaleString()}`);
+console.log(`  compact browser-history payload:  ${mb(compactHistoryBytes)}`);
+console.log(`  raw player-game history shipped:  ${rawLeak ? 'YES' : 'NO'}`);
+if (topLevelRawHistory) fails.push('top-level raw history object is being shipped to the browser');
+if (malformedHistory.length) fails.push(`${malformedHistory.length} compact player-history rows contain unexpected/raw fields`);
+
+if (fs.existsSync(path.join(ROOT, '.git'))) {
+  try {
+    const tracked = execSync(`git -C "${ROOT}" ls-files scripts/data/history | wc -l`,
+      { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    console.log(`  git-tracked history files:   ${tracked}`);
+  } catch {
+    console.log('  git-tracked history files:   n/a (git query failed)');
+  }
+} else {
+  console.log('  git-tracked history files:   n/a (handoff copy has no .git directory)');
+}
 
 console.log('\n--- warnings ---');
 warn.length ? warn.forEach((w) => console.log('  ! ' + w)) : console.log('  none');

@@ -25,13 +25,31 @@ import { tulipCard, frontier, optimiseRotation, evidenceTier, roleScaleResponse,
          projectRole, starterShare, ROLE_BANDS, TULIP_CONFIG, KNOWN_RESIDUAL_BIAS } from './lib/tulip.mjs';
 import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEMA,
          AVAILABILITY_ROW_SCHEMA, TRANSACTION_ROW_SCHEMA } from './lib/history.mjs';
+import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SEASON = '2025-26';
+const GENERATED_AT = process.env.BUILD_GENERATED_AT || new Date().toISOString();
 /** Birthdates, so age is stated against a fixed date instead of inherited from a source. */
 const bdPath = path.join(ROOT, 'scripts/data/birthdates.json');
 const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'utf8')) : {};
+
+/** Compact ten-season descriptive history, generated from the local historical cache. */
+const historySummaryPath = path.join(ROOT, 'scripts/data/history/player_history_product.json');
+const historySummary = fs.existsSync(historySummaryPath)
+  ? JSON.parse(fs.readFileSync(historySummaryPath, 'utf8')) : null;
+const HISTORY_BROWSER_SCHEMA = ['season', 'seasonType', 'teams', 'gp', 'mpg', 'pts', 'reb', 'ast', 'ts', 'starts', 'startShareOfAppearances', 'starterKnownAppearances', 'starterCoverage'];
+function compactHistoryFor(personId) {
+  const rows = historySummary?.byPlayer?.[String(personId)] || [];
+  const sourceSchema = historySummary?.rowSchema || [];
+  const ix = Object.fromEntries(sourceSchema.map((k, i) => [k, i]));
+  if (ix.season == null || ix.seasonType == null) return [];
+  return rows.map((r) => [
+    r[ix.season], r[ix.seasonType], r[ix.teams] || [], r[ix.gp], r[ix.mpg], r[ix.pts], r[ix.reb], r[ix.ast],
+    r[ix.ts], r[ix.starts], r[ix.startShareOfAppearances], r[ix.starterKnownAppearances], r[ix.starterCoverage],
+  ]);
+}
 
 
 /* ------------------------------------------------------------------ sources */
@@ -474,6 +492,15 @@ const gl = buildLeague({
 });
 console.log(`  ${gl.records.length} players`);
 
+// Attach compact descriptive history to current players. This does NOT make TULIP Forecast
+// historical: the current estimator still uses only 2025-26 aggregate/split inputs.
+if (historySummary) {
+  for (const side of [nba, gl]) for (const r of side.records) {
+    const h = compactHistoryFor(r.nbaPersonId ?? r.playerId);
+    if (h.length) r.history = h;
+  }
+}
+
 // Crossover by official NBA person id — an exact identity join, not a name or id-suffix guess.
 /* ------------------------------------------------------- analysis engines */
 
@@ -571,6 +598,10 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
     [team, optimiseRotation(roster, pool, opts)]));
 }
 
+// Build-dependent diagnostics are computed from the same records that ship in this artifact.
+// This prevents methodology/UI prose from drifting when the player pool or source data changes.
+const tulipValidationSnapshot = tulipDiagnostics(nba.records, TULIP_CONFIG);
+
 // G League -> NBA translation, measured on this season's crossover players only.
 const glById = new Map(gl.records.filter((r) => r.appeared).map((r) => [r.nbaPersonId, r]));
 const pairs = nba.records.filter((r) => r.appeared && glById.has(r.nbaPersonId))
@@ -649,7 +680,6 @@ function provenance() {
         bytes: st.size,
         rows,
         sha256: crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16),
-        modified: st.mtime.toISOString(),
       });
     }
   };
@@ -657,16 +687,18 @@ function provenance() {
   return entries.sort((a, b) => a.file.localeCompare(b.file));
 }
 
-let buildCommit = null;
-try {
-  buildCommit = execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] })
-    .toString().trim();
-} catch { /* not a git checkout */ }
+let buildCommit = process.env.BUILD_COMMIT || null;
+if (!buildCommit) {
+  try {
+    buildCommit = execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+  } catch { /* transfer packages may intentionally omit .git; BUILD_COMMIT can supply provenance */ }
+}
 
 const out = {
   season: SEASON,
   seasonType: 'NBA Regular Season; G League Regular Season + Showcase Cup combined',
-  generatedAt: new Date().toISOString(),
+  generatedAt: GENERATED_AT,
   primarySource: 'stats.nba.com official league dashboards (LeagueID 00 and 20), with Basketball-Reference 2025-26 tables as a second source',
   sourceNote: 'v3 backbone is the official stats.nba.com data, which does answer from a normal machine even though it does not answer from GitHub-hosted runners. Basketball-Reference supplies PER, win shares and the BPM/VORP family for the NBA; the G League publishes no BPM/VORP family anywhere and none is invented.',
   counts: {
@@ -704,14 +736,14 @@ const out = {
     roleBands: ROLE_BANDS.map((b) => b.mpg),
     supportIsNotAbility: 'Support is never multiplied into the projection. An uncertain projection keeps its point estimate and widens its interval rather than being dragged toward zero.',
     evidenceTiers: {
-      A: 'Shock-induced expansion (injury, trade, suspension). NOT PRODUCIBLE HERE — needs game logs and transaction data.',
+      A: 'Shock-induced expansion (injury, trade, suspension). NOT PRODUCED by the current estimator — requires historical game rows plus reliable pre-tip availability/transaction context.',
       B: 'Observed role change: the player himself has 10+ games starting and 10+ off the bench, and the target sits inside that span. PRODUCIBLE.',
-      C: 'Ordinary high-minute games. NOT PRODUCIBLE HERE — needs game logs.',
+      C: 'Ordinary high-minute games. Project game rows now exist, but this evidence tier is NOT YET WIRED into the current estimator.',
       D: 'Pure statistical extrapolation from comparables. PRODUCIBLE, and the weakest tier.',
     },
     limitations: [
       'Lineup Interaction Adjustment is always null: no possession or lineup data exists here, so it is reported unavailable rather than guessed, and contributes nothing to the Rotation Delta.',
-      'One season only. TULIP Forecast (aging priors, multi-season trajectory) is NOT implemented; only TULIP Evidence exists.',
+      'TULIP Forecast (aging priors, multi-season trajectory) is NOT implemented. Historical seasons now exist in the project, but predictive value has not been established with leakage-safe chronological validation.',
       'Comparables who played a role are a selected group. No correction for that selection is applied, so these are associations, not causal effects.',
       'On-court differential is a team result while the player is on the floor, not isolated individual value.',
       'No claim is made about a player\'s ideal minutes, physical capacity, or whether he "deserves" minutes independent of whose minutes he would take.',
@@ -725,6 +757,11 @@ const out = {
     needAxes: NEED_AXES,
     teams: teamProfiles,
     rotationSuggestions: { NBA: nba.rotationSuggestions, GLEAGUE: gl.rotationSuggestions },
+    history: {
+      browserSchema: HISTORY_BROWSER_SCHEMA,
+      representation: 'Each player.history row is positional under browserSchema; regular season and playoffs are separate rows.',
+      gameLog: { available: true, transport: 'gzip-json-on-demand', path: './public/history-games.json.gz', starterUnknownMeans: 'unknown, never bench' },
+    },
     translation: {
       factors, factorsPer36,
       crossoverSample: pairs.length,
@@ -735,12 +772,39 @@ const out = {
     version: 'TULIP Evidence v0.1',
     description: 'Comparable-based role-expansion estimator with abstention and neutral rotation comparisons. Observational, not causal. No TULIP Forecast exists.',
     config: TULIP_CONFIG,
-    knownResidualBias: KNOWN_RESIDUAL_BIAS,
+    knownResidualBias: {
+      ...KNOWN_RESIDUAL_BIAS,
+      starterContext: {
+        ...KNOWN_RESIDUAL_BIAS.starterContext,
+        pooledSmd: tulipValidationSnapshot.balance.starterContext.pooledSmd,
+        worstBandSmd: tulipValidationSnapshot.balance.starterContext.worstBandSmd,
+        worstBand: tulipValidationSnapshot.balance.starterContext.worstBand,
+      },
+    },
+    validationSnapshot: tulipValidationSnapshot,
     evidenceTiers: EVIDENCE_TIERS,
-    historical: historicalReadiness({}),
+    historical: {
+      ...historicalReadiness({
+        project: { gameRows: Boolean(historySummary), availability: false, transactions: false, lineups: false },
+        estimator: { gameRows: false, availability: false, transactions: false, lineups: false },
+      }),
+      projectInventory: historySummary ? {
+        seasons: historySummary.seasons,
+        playerSeasonPhaseRows: historySummary.inventory?.allPlayerSeasonPhaseRows ?? null,
+        players: historySummary.inventory?.allHistoricalPlayers ?? null,
+        currentPlayersWithHistory: historySummary.inventory?.currentPlayersWithHistory ?? null,
+        consumedByCurrentEvidenceEstimator: false,
+      } : null,
+    },
     requiredBaselines: REQUIRED_BASELINES,
     schemas: { game: GAME_ROW_SCHEMA, availability: AVAILABILITY_ROW_SCHEMA, transaction: TRANSACTION_ROW_SCHEMA },
-    outcomeCaveat: 'Projected impact is measured on on-court differential, a team result while the player is on the floor. Candidate rankings are reasonably ROBUST to several alternative outcome definitions (PIE, a rate composite from grade components, a raw box-score composite): Spearman 0.79-0.91 with 16/20 top-20 overlap. That is robustness testing, NOT predictive validation and NOT causal identification. All of those outcomes are correlated basketball-quality measures computed inside the same selected-comparable framework, so their agreement says the ranking does not hinge on one noisy outcome; it says nothing about whether the counterfactual is right. Rate Grade in particular is ALSO the quality-matching variable, so using it as an alternative outcome is partly mechanical and is not independent evidence.',
+    outcomeCaveat: (() => {
+      const s = tulipValidationSnapshot.outcomeSensitivity;
+      const lo = s.spearmanRange[0] == null ? 'n/a' : s.spearmanRange[0].toFixed(3);
+      const hi = s.spearmanRange[1] == null ? 'n/a' : s.spearmanRange[1].toFixed(3);
+      const overlaps = Object.entries(s.top20Overlap).map(([k, v]) => `${k} ${v}/20`).join(', ');
+      return `Projected impact is measured on on-court differential, a team result while the player is on the floor. On THIS build, expansion rankings are reasonably robust to alternative correlated outcome definitions: Spearman ${lo}-${hi} versus NetRtg; top-20 overlaps ${overlaps}. This is robustness testing, NOT predictive validation and NOT causal identification. These outcomes are correlated basketball-quality measures computed inside the same selected-comparable framework, so agreement does not validate the counterfactual. Rate Grade is also a quality-matching variable, so its sensitivity result is partly mechanical.`;
+    })(),
     evidenceVocabulary: {
       robustness: 'Does the answer change when an arbitrary modelling choice changes? Tested and largely no.',
       predictiveValidation: 'Does the model beat simpler baselines on unseen future data? NOT TESTED - requires historical seasons.',
@@ -759,7 +823,7 @@ const out = {
       },
     },
     gradeModelVersion: '3.3',
-    generatedAt: new Date().toISOString(),
+    generatedAt: GENERATED_AT,
     ageReferenceDates: { openingNight: OPENING_NIGHT, febFirst: FEB_FIRST },
     sources: provenance(),
   },

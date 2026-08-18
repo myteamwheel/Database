@@ -1,0 +1,74 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { featuresAsOf, rollingRoleFeaturesAsOf, historicalReadiness } from '../scripts/lib/history.mjs';
+
+const summary = JSON.parse(fs.readFileSync(new URL('../scripts/data/history/player_history_product.json', import.meta.url), 'utf8'));
+const hx = Object.fromEntries(summary.rowSchema.map((k, i) => [k, i]));
+let rows = 0, knownRows = 0;
+for (const list of Object.values(summary.byPlayer)) for (const r of list) {
+  rows++;
+  const gp = r[hx.gp], starts = r[hx.starts], share = r[hx.startShareOfAppearances], coverage = r[hx.starterCoverage], known = r[hx.starterKnownAppearances];
+  assert.ok(gp > 0, 'historical product rows are appearance-based');
+  assert.ok(starts === null || (starts >= 0 && starts <= gp));
+  assert.ok(share === null || (share >= 0 && share <= 1));
+  assert.ok(coverage >= 0 && coverage <= 1);
+  assert.ok(known >= 0 && known <= gp);
+  const phaseKey = `${r[hx.season]} ${r[hx.seasonType]}`;
+  if ((summary.starterCoveragePhases || []).includes(phaseKey)) {
+    assert.notEqual(starts, null, `covered starter phase must be established: ${phaseKey}`);
+    assert.equal(coverage, 1, `accepted full-census starter phase must have complete coverage: ${phaseKey}`);
+    assert.equal(known, gp);
+    knownRows += gp;
+  } else {
+    assert.equal(starts, null, `uncovered starter phase must stay unknown: ${phaseKey}`);
+    assert.equal(coverage, 0);
+    assert.equal(known, 0);
+  }
+}
+assert.equal(rows, summary.inventory.currentPlayerSeasonPhaseRows);
+assert.equal(Object.keys(summary.byPlayer).length, summary.inventory.currentPlayersWithHistory);
+assert.equal(summary.inventory.allPlayerSeasonPhaseRows, 7561);
+assert.equal(summary.inventory.allHistoricalPlayers, 1453);
+assert.equal(summary.inventory.starterKnownAppearancesAll, 28086);
+assert.ok(Array.isArray(summary.starterCoveragePhases) && summary.starterCoveragePhases.length > 0, 'starter coverage phases must come from canonical artifact scope');
+assert.ok(summary.starterCoveragePhases.includes('2023-24 Regular Season'));
+assert.ok(summary.starterCoveragePhases.includes('2023-24 Playoffs'));
+assert.ok(knownRows > 0, 'starter-known current-player history should exist');
+
+const fixture = [
+  { playerId: 1, gameDate: '2024-01-01', minutes: 10, started: null, pts: 2, reb: 1, ast: 0, stl: 0, blk: 0, tov: 0, fga: 2, fta: 0 },
+  { playerId: 1, gameDate: '2024-01-02', minutes: 20, started: false, pts: 4, reb: 2, ast: 1, stl: 0, blk: 0, tov: 1, fga: 4, fta: 0 },
+  { playerId: 1, gameDate: '2024-01-03', minutes: 30, started: true, pts: 6, reb: 3, ast: 2, stl: 1, blk: 0, tov: 2, fga: 6, fta: 0 },
+  // target-date and future rows must never leak into features for 2024-01-04
+  { playerId: 1, gameDate: '2024-01-04', minutes: 99, started: true, pts: 99, reb: 99, ast: 99, stl: 9, blk: 9, tov: 9, fga: 99, fta: 0 },
+  { playerId: 1, gameDate: '2024-01-05', minutes: 99, started: true, pts: 99, reb: 99, ast: 99, stl: 9, blk: 9, tov: 9, fga: 99, fta: 0 },
+];
+const f = featuresAsOf(fixture, 1, '2024-01-04', { window: 20 });
+assert.equal(f.windowGames, 3);
+assert.equal(f.minutes, 60);
+assert.equal(f.mpg, 20);
+assert.equal(f.starterKnownGames, 2);
+assert.equal(f.starts, 1);
+assert.equal(f.startShare, 0.5, 'unknown starter row must not be counted as bench');
+assert.equal(f.starterCoverage, 2 / 3);
+assert.equal(f.minutesMedian, 20);
+assert.equal(Math.round(f.minutesSd * 1000) / 1000, 10);
+assert.equal(f.leakageRule, 'strictly < indexDate');
+
+const rolling = rollingRoleFeaturesAsOf(fixture, 1, '2024-01-04');
+assert.deepEqual(Object.keys(rolling), ['5', '10', '20']);
+assert.equal(rolling[5].windowGames, 3);
+
+// Readiness must distinguish "exists in the project" from "consumed by the current estimator".
+const readiness = historicalReadiness({
+  project: { gameRows: true, availability: false, transactions: false, lineups: false },
+  estimator: { gameRows: false, availability: false, transactions: false, lineups: false },
+});
+assert.equal(readiness.projectAvailable.gameRows, true);
+assert.equal(readiness.consumedByCurrentEstimator.gameRows, false);
+assert.deepEqual(readiness.reachableTiersCurrentEstimator, ['B', 'D']);
+assert.deepEqual(readiness.potentiallyReachableWithProjectData, ['B', 'C', 'D']);
+assert.equal(readiness.forecastAvailable, false);
+assert.match(readiness.note, /Historical game rows exist/);
+
+console.log(`history product/test passed: ${rows.toLocaleString()} current-player season-phase rows · ${summary.inventory.starterKnownAppearancesAll.toLocaleString()} starter-known appearances in full history`);

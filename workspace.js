@@ -11,6 +11,8 @@
   const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   let MODE = 'database';
+  let HISTORY_GAMES = null;
+  let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
                   simPlayer: null, simLeague: 'same', simMinMin: 300, team: null,
                   tulipPlayer: null, tulipTarget: null };
@@ -79,6 +81,65 @@
     if (key.startsWith('components.')) return p.components?.[key.slice(11)] ?? null;
     return p[key] ?? null;
   };
+
+  function decodedHistory(p) {
+    const schema = window.DATA?.analysis?.history?.browserSchema || [];
+    if (!schema.length || !Array.isArray(p?.history)) return [];
+    return p.history.map((row) => Object.fromEntries(schema.map((k, i) => [k, row[i]])));
+  }
+
+  async function gunzipJson(bytes) {
+    if (typeof DecompressionStream !== 'function') throw new Error('Game logs require a modern browser with DecompressionStream support.');
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(stream).text());
+  }
+
+  async function loadHistoryGames() {
+    if (HISTORY_GAMES) return HISTORY_GAMES;
+    if (HISTORY_GAMES_PROMISE) return HISTORY_GAMES_PROMISE;
+    HISTORY_GAMES_PROMISE = (async () => {
+      const embedded = document.getElementById('history-db-gz');
+      let bytes;
+      if (embedded?.textContent?.trim()) {
+        const raw = atob(embedded.textContent.trim());
+        bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+      } else {
+        const r = await fetch('./public/history-games.json.gz', { cache: 'no-store' });
+        if (!r.ok) throw new Error(`history-games.json.gz returned ${r.status}`);
+        bytes = new Uint8Array(await r.arrayBuffer());
+      }
+      const d = await gunzipJson(bytes);
+      if (d?.schemaVersion !== 1 || !Array.isArray(d?.rowSchema) || !d?.byPlayer) throw new Error('Unsupported historical game-log artifact.');
+      HISTORY_GAMES = d;
+      return d;
+    })();
+    try { return await HISTORY_GAMES_PROMISE; } finally { if (!HISTORY_GAMES) HISTORY_GAMES_PROMISE = null; }
+  }
+
+  function decodeGameRows(product, p) {
+    const id = String(p.nbaPersonId ?? p.playerId);
+    const rows = product?.byPlayer?.[id] || [];
+    const schema = product?.rowSchema || [];
+    return rows.map((row) => Object.fromEntries(schema.map((k, i) => [k, row[i]])));
+  }
+
+  function historicalCareerSummary(p) {
+    const hist = decodedHistory(p);
+    const reg = hist.filter((r) => r.seasonType === 'Regular Season');
+    const po = hist.filter((r) => r.seasonType === 'Playoffs');
+    if (!reg.length) return null;
+    const finiteRows = (k) => reg.filter((r) => fin(r[k]));
+    const peak = (k) => finiteRows(k).slice().sort((a, b) => Number(b[k]) - Number(a[k]))[0] || null;
+    const latest = reg.slice().sort((a, b) => String(b.season).localeCompare(String(a.season)))[0];
+    return {
+      seasons: new Set(reg.map((r) => r.season)).size,
+      games: reg.reduce((a, r) => a + (Number(r.gp) || 0), 0),
+      teams: new Set(reg.flatMap((r) => r.teams || [])).size,
+      playoffSeasons: new Set(po.map((r) => r.season)).size,
+      latest,
+      peakPts: peak('pts'), peakMpg: peak('mpg'), peakTs: peak('ts'),
+    };
+  }
 
   /* ---------------------------------------------------------- PLAYER MODE */
   function viewPlayer() {
@@ -157,6 +218,9 @@
           <td>${pctS(sv(`month${m}`, 'usg_pct'))}</td><td>${pctS(sv(`month${m}`, 'pie'))}</td></tr>`).join('')}
       </tbody></table></div>` : ''}
 
+    ${historyBlock(p)}
+    ${historyGameLogShell(p)}
+
     ${(p.teams || []).length > 1 ? `<h3>Team history</h3><div class="table-wrap"><table class="compare-table">
       <thead><tr><th class="left">Team</th><th>G</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>FG%</th><th>+/-</th></tr></thead>
       <tbody>${p.teams.map((s) => `<tr><td class="left">${esc(s.team)}</td><td>${s.gp}</td><td>${num(s.mpg)}</td>
@@ -165,6 +229,107 @@
 
     ${p.nbaTranslation && Object.keys(p.nbaTranslation).length ? translationBlock(p) : ''}
     <div class="ws-actions"><button class="button" id="wsFindSimilar">Find similar players</button></div>`;
+  }
+
+  function historyBlock(p) {
+    const hist = decodedHistory(p);
+    if (!hist.length) return '';
+    const reg = hist.filter((r) => r.seasonType === 'Regular Season')
+      .sort((a, b) => String(a.season).localeCompare(String(b.season)));
+    const summary = historicalCareerSummary(p);
+    const tableRows = hist.slice().sort((a, b) => String(b.season).localeCompare(String(a.season))
+      || (a.seasonType === 'Regular Season' ? -1 : 1));
+    const seasons = reg.map((r) => r.season);
+    const starter = (r) => r.starts == null ? '—' : String(r.starts);
+    const teamText = (r) => (r.teams || []).join('/') || '—';
+    const phase = (r) => r.seasonType === 'Playoffs' ? 'PO' : 'RS';
+    const peakText = (row, key, suffix = '') => row && fin(row[key]) ? `${num(row[key])}${suffix} · ${esc(row.season)}` : '—';
+    return `<h3>Historical NBA record <span class="tiny">2015-16 through 2024-25 · descriptive, not TULIP Forecast</span></h3>
+      ${summary ? `<div class="ws-grid">
+        <div class="ws-card"><div class="k">Historical seasons</div><div class="v">${summary.seasons}</div><p class="tiny">${summary.games} RS games · ${summary.teams} team${summary.teams === 1 ? '' : 's'}</p></div>
+        <div class="ws-card"><div class="k">Peak scoring</div><div class="v">${peakText(summary.peakPts, 'pts')}</div><p class="tiny">regular-season PPG</p></div>
+        <div class="ws-card"><div class="k">Peak workload</div><div class="v">${peakText(summary.peakMpg, 'mpg')}</div><p class="tiny">regular-season MPG</p></div>
+        <div class="ws-card"><div class="k">Playoff history</div><div class="v">${summary.playoffSeasons}</div><p class="tiny">seasons with a playoff appearance</p></div>
+      </div>` : ''}
+      ${reg.length > 1 ? `<p class="tiny"><b>Regular-season scoring trajectory</b></p>${sparkline(reg.map((r) => r.pts), seasons)}` : ''}
+      <div class="table-wrap"><table class="compare-table"><thead><tr>
+        <th class="left">Season</th><th>Phase</th><th>Team(s)</th><th>G</th><th>MPG</th><th>PTS</th><th>REB</th><th>AST</th><th>TS%</th><th>Starts</th><th>Start share</th><th>Starter coverage</th>
+      </tr></thead><tbody>${tableRows.map((r) => `<tr><td class="left">${esc(r.season)}</td><td>${phase(r)}</td><td>${esc(teamText(r))}</td>
+        <td>${num(r.gp,0)}</td><td>${num(r.mpg)}</td><td>${num(r.pts)}</td><td>${num(r.reb)}</td><td>${num(r.ast)}</td><td>${r.ts == null ? '—' : pctS(r.ts)}</td>
+        <td>${starter(r)}</td><td>${r.startShareOfAppearances == null ? '—' : pctS(r.startShareOfAppearances)}</td><td>${r.starterCoverage == null ? '—' : pctS(r.starterCoverage)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="tiny">Latest seasons are shown first in the table; the trajectory runs chronologically. RS and PO are separate source phases. Starter columns remain unknown where the canonical starter artifact has not established them; coverage shows the share of appearances with known starter status, and unknown is never treated as bench.</p>`;
+  }
+
+  function historyCompareBlock(ps) {
+    const rowsByPlayer = ps.map((p) => ({ p, rows: decodedHistory(p).filter((r) => r.seasonType === 'Regular Season') }));
+    if (rowsByPlayer.filter((x) => x.rows.length).length < 2) return '';
+    const seasons = [...new Set(rowsByPlayer.flatMap((x) => x.rows.map((r) => r.season)))].sort().reverse();
+    const bySeason = rowsByPlayer.map(({ rows }) => new Map(rows.map((r) => [r.season, r])));
+    const summaries = ps.map(historicalCareerSummary);
+    const peak = (s, key) => s?.[key] && fin(s[key][key === 'peakPts' ? 'pts' : key === 'peakMpg' ? 'mpg' : 'ts'])
+      ? `${num(s[key][key === 'peakPts' ? 'pts' : key === 'peakMpg' ? 'mpg' : 'ts'])} (${esc(s[key].season)})` : '—';
+    return `<h3>Historical comparison <span class="tiny">regular season · descriptive</span></h3>
+      <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Historical measure</th>
+        ${ps.map((p) => `<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>
+        <tr><td class="left">Seasons in window</td>${summaries.map((x) => `<td>${x?.seasons ?? '—'}</td>`).join('')}</tr>
+        <tr><td class="left">RS games</td>${summaries.map((x) => `<td>${x?.games ?? '—'}</td>`).join('')}</tr>
+        <tr><td class="left">Peak PPG</td>${summaries.map((x) => `<td>${peak(x, 'peakPts')}</td>`).join('')}</tr>
+        <tr><td class="left">Peak MPG</td>${summaries.map((x) => `<td>${peak(x, 'peakMpg')}</td>`).join('')}</tr>
+        <tr><td class="left">Playoff seasons</td>${summaries.map((x) => `<td>${x?.playoffSeasons ?? '—'}</td>`).join('')}</tr>
+      </tbody></table></div>
+      <p class="tiny"><b>Season trajectory:</b> each cell is PTS / MPG. Blank means no NBA regular-season appearance in that season.</p>
+      <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Season</th>${ps.map((p) => `<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>
+        ${seasons.map((season) => `<tr><td class="left">${esc(season)}</td>${bySeason.map((m) => { const r = m.get(season); return `<td>${r ? `${num(r.pts)} / ${num(r.mpg)}` : '—'}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div>
+      <p class="tiny">No era adjustment or causal interpretation is applied. Starter status is intentionally omitted here because historical starter coverage is incomplete outside accepted source phases.</p>`;
+  }
+
+  function historyGameLogShell(p) {
+    if (!decodedHistory(p).length) return '';
+    return `<h3>Historical game log <span class="tiny">loaded on demand</span></h3>
+      <div id="historyGameLog" class="ws-card wide">
+        <p class="tiny">Game-level NBA history is kept in a separate compressed artifact so the main database does not pay the network/memory cost until you ask for it. Starter status remains unknown outside accepted source phases.</p>
+        <button class="button secondary" id="wsLoadHistoryGames" data-history-player="${esc(p.playerId)}">Load game log</button>
+      </div>`;
+  }
+
+  function renderHistoryGames(p, product, seasonFilter = 'all', limit = 50) {
+    const target = $('historyGameLog');
+    if (!target) return;
+    const all = decodeGameRows(product, p).slice().sort((a, b) => String(b.gameDate).localeCompare(String(a.gameDate)) || String(b.gameId).localeCompare(String(a.gameId)));
+    const seasons = [...new Set(all.map((r) => r.season))].sort().reverse();
+    const filtered = seasonFilter === 'all' ? all : all.filter((r) => r.season === seasonFilter);
+    const shown = filtered.slice(0, limit === 0 ? filtered.length : limit);
+    const started = (r) => r.started === true ? 'Yes' : r.started === false ? 'No' : '—';
+    target.innerHTML = `<div class="ws-controls">
+      <label>Season<select id="histGameSeason"><option value="all">All seasons</option>${seasons.map((x) => `<option value="${esc(x)}"${x === seasonFilter ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      <label>Rows<select id="histGameLimit">${[25,50,100,0].map((n) => `<option value="${n}"${n === limit ? ' selected' : ''}>${n || 'All'}</option>`).join('')}</select></label>
+      <span class="tiny">${shown.length.toLocaleString()} of ${filtered.length.toLocaleString()} games · ${all.length.toLocaleString()} loaded</span>
+    </div>
+    <div class="table-wrap"><table class="compare-table"><thead><tr>
+      <th class="left">Date</th><th>Season</th><th>Phase</th><th>Team</th><th>Opp</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>+/-</th><th>Starter</th>
+    </tr></thead><tbody>${shown.map((r) => `<tr><td class="left">${esc(r.gameDate)}</td><td>${esc(r.season)}</td><td>${r.seasonType === 'Playoffs' ? 'PO' : 'RS'}</td><td>${esc(r.team)}</td><td>${esc(r.opponent)}</td><td>${num(r.minutes)}</td><td>${num(r.pts,0)}</td><td>${num(r.reb,0)}</td><td>${num(r.ast,0)}</td><td>${num(r.stl,0)}</td><td>${num(r.blk,0)}</td><td>${num(r.tov,0)}</td><td>${num(r.plusMinus,0)}</td><td>${started(r)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="tiny">Descriptive game logs only. RS and PO are distinct. A blank Starter value means the canonical source has not established that game; it does not mean bench.</p>`;
+    onHistoryControls(p, product);
+  }
+
+  function onHistoryControls(p, product) {
+    const season = $('histGameSeason'), limit = $('histGameLimit');
+    const rerender = () => renderHistoryGames(p, product, season?.value || 'all', Number(limit?.value ?? 50));
+    if (season) season.onchange = rerender;
+    if (limit) limit.onchange = rerender;
+  }
+
+  async function openHistoryGames(p) {
+    const target = $('historyGameLog');
+    if (!target) return;
+    target.innerHTML = '<p class="loading">Loading compressed historical game log…</p>';
+    try {
+      const product = await loadHistoryGames();
+      renderHistoryGames(p, product);
+    } catch (e) {
+      target.innerHTML = `<p class="error">${esc(e.message)}</p>`;
+    }
   }
 
   function translationBlock(p) {
@@ -230,7 +395,8 @@
       <h3>Skill profile</h3>
       ${Object.keys(ps[0].skillProfile || {}).map((axis) => `<div class="cmp-axis"><span class="pbar-l">${esc(axis)}</span>
         ${ps.map((p) => `<span class="pbar-t" title="${esc(p.name)}"><i style="width:${p.skillProfile?.[axis] ?? 0}%"></i></span>`).join('')}</div>`).join('')}
-      <p class="tiny">Bars are within-league percentiles, in the order the players appear above.</p>`;
+      <p class="tiny">Bars are within-league percentiles, in the order the players appear above.</p>
+      ${historyCompareBlock(ps)}`;
   }
 
   /* --------------------------------------------------------- SCATTER MODE */
@@ -541,11 +707,14 @@
           : '<p class="tiny">Named comparables are shown for the default scenario; other role bands report their comparable COUNT and mean similarity above.</p>';
       })()}
 
-      <p class="tiny"><b>Known residual bias.</b> Comparables at a large target role started a much
-        larger share of their games than the candidate does. Pooled the imbalance is negligible
-        (SMD -0.008) but within target bands it is large (worst 0.798), because a pool of bench
-        players who play starter minutes barely exists. Projections at big targets carry a
-        starter-context bias of known direction and unknown size.</p>
+      ${(() => { const b = window.DATA?.tulipMeta?.validationSnapshot?.balance?.starterContext || {};
+        const pooled = fin(b.pooledSmd) ? Number(b.pooledSmd).toFixed(3) : 'n/a';
+        const worst = fin(b.worstBandSmd) ? Number(b.worstBandSmd).toFixed(3) : 'n/a';
+        return `<p class="tiny"><b>Known residual bias.</b> Comparables at a large target role started a much
+        larger share of their games than the candidate does. On this build the pooled starter-share
+        SMD is ${pooled}, while the worst target band is ${esc(b.worstBand || '—')} at ${worst}.
+        That gap is structural: a pool of bench players who play starter minutes barely exists.
+        Direction is known; causal magnitude is not identified.</p>`; })()}
       ${comparablesNote()}
 
       <h3>Best supported expansions, this league</h3>
@@ -565,13 +734,13 @@
 
   function comparablesNote() {
     return `<p class="tiny"><b>What this is.</b> TULIP Evidence v0.1 — a comparable-based
-      role-expansion estimator built on ONE season of season-aggregate and starter/bench split
-      data. It is observational, not causal: comparables who already occupy a big role are a
-      selected group, and that selection is not corrected for. On-court differential is a team
-      result while a player is on the floor, shrunk toward the team mean but still unreliable in
-      magnitude — read the sign and the ordering, not the number. There is no TULIP Forecast:
-      age, multi-season trajectory and aging priors need historical data this database does not
-      have.</p>`;
+      role-expansion estimator that currently consumes ONE season of aggregate and starter/bench
+      split data. The project now contains ten seasons of historical game logs, but they are not
+      yet used by this estimator. It is observational, not causal: comparables who already occupy
+      a big role are selected, and that selection is not corrected for. On-court differential is
+      a team result, shrunk toward the team mean but still unreliable in magnitude — read the sign
+      and ordering, not the number. TULIP Forecast remains unavailable until the historical data
+      are wired into a leakage-safe chronological validation pipeline and beat required baselines.</p>`;
   }
 
   /** Frontier: projected impact against target role, with support and abstention drawn apart. */
@@ -679,6 +848,7 @@
     const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
     on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); });
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
+    on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     on('simSel', 'change', (e) => { state.simPlayer = e.target.value; render(); });
     on('simLeague', 'change', (e) => { state.simLeague = e.target.value; render(); });
     on('simMin', 'change', (e) => { state.simMinMin = Number(e.target.value) || 0; render(); });
@@ -705,8 +875,8 @@
 
   /**
    * Self-initialise. app.js also calls __wsInit, but in the standalone build its init() runs
-   * synchronously (the data is inlined, so there is no fetch to await) and therefore fires
-   * before this file has even been parsed. Waiting for the data ourselves covers both builds.
+   * from either a network JSON file or the standalone compressed payload. Waiting for DATA here
+   * covers both paths without coupling workspace initialization to transport timing.
    */
   (function boot(tries = 0) {
     if (window.DATA && window.__wsLeague && document.getElementById('modeNav')) { render(); return; }

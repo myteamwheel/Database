@@ -12,3 +12,7 @@ scripts/data/history/*/
 # starter ids (or the candidate set where the source is defective). ~150 KB per season versus
 # ~6.5 MB for the full normalized rows, which stay a regenerable cache.
 !scripts/data/history/starters/
+
+# Full 10-season player-season summary is locally regenerable from the raw historical cache.
+# The tracked product-facing subset is player_history_product.json.
+scripts/data/history/player_season_summary.json

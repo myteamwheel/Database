@@ -95,18 +95,21 @@ if (notFive.length) console.log('    ' + JSON.stringify(notFive.slice(0, 5)));
 
 /* --------------------------------------- 4. aggregate and reconcile vs splits */
 console.log('\n--- 4. computed starts vs official season splits ---');
-const splitsPath = path.join(HIST, season, 'starter_splits.json');
-if (seasonType === 'Playoffs') {
-  console.log('  SKIPPED. starter_splits.json was fetched with SeasonType="Regular Season",');
-  console.log('  so it does not cover playoffs. Playoff starters are not reconciled against it.');
-} else if (!fs.existsSync(splitsPath)) {
-  console.log('  no starter_splits.json');
+const splitsPath = path.join(HIST, season,
+  seasonType === 'Playoffs' ? 'starter_splits_playoffs.json' : 'starter_splits.json');
+if (!fs.existsSync(splitsPath)) {
+  console.log(`  no ${path.basename(splitsPath)}; this season-phase is not aggregate-reconciled`);
 } else {
   const splits = JSON.parse(fs.readFileSync(splitsPath, 'utf8'));
   // TeamID=0 in the split fetch means these are PLAYER-SEASON totals across every team a
   // traded player suited up for — so computed starts must be summed across teams to match.
   const official = new Map(splits.starters.map((s) => [s.playerId, s.gp]));
   const benchGp = new Map(splits.bench.map((s) => [s.playerId, s.gp]));
+  const officialStartsTotal = [...official.values()].reduce((a, b) => a + b, 0);
+  const expectedStartsTotal = perTeamGame.size * 5;
+  console.log(`  official split aggregate starts     ${officialStartsTotal}`);
+  console.log(`  expected 5 x VALID team-games       ${expectedStartsTotal}`);
+  console.log(`  aggregate consistency               ${officialStartsTotal === expectedStartsTotal ? 'EXACT' : 'MISMATCH'}`);
 
   const computed = new Map();     // playerId -> {starts, appearances, unknownGames}
   for (const r of starters) {

@@ -14,8 +14,11 @@ Then open <http://localhost:3600>. `npm run audit` validates the generated data,
 `npm run refresh` re-pulls every source and rebuilds from scratch.
 
 `npm run build` also emits `public/standalone.html` — a single self-contained file carrying the
-**complete** dataset. Columnar encoding (one shared key table per league, each player a positional
-array) takes 15.7 MB of JSON down to 3.6 MB, so nothing has to be dropped to make it portable.
+**complete** current-season database plus the compressed historical game-log product. The main
+payload is losslessly columnar-encoded and then gzip-compressed before base64 embedding; historical
+game logs use a separate gzip payload decoded only when a player asks for them. The current build is
+about **7.64 MB** against a 16 MB publishing ceiling, leaving roughly 8.36 MB of headroom without
+dropping fields.
 
 ---
 
@@ -338,9 +341,28 @@ pre/post-All-Star splits are legitimately empty because the Cup finishes before 
 split reconciles: home + road games, wins + losses games, and the sum of all months each equal
 season games played, for all 582 NBA and 561 G League players.
 
-Still **not** covered, and not pretended otherwise: opponent-by-opponent, arbitrary date ranges,
-game logs, on/off, shot zones and lineup data. Those need per-game or per-lineup ingestion rather
-than another season-aggregate parameter.
+Historical **game logs are now ingested separately** for 2015-16 through 2024-25. A compact
+player-season history is attached to current player records, and a **145,430-row current-player game
+log product** is shipped as `public/history-games.json.gz` and loaded on demand in the Player
+workspace. These rows remain deliberately separate from the 2025-26 season-aggregate table and from
+TULIP Evidence. Still not covered in the product layer: arbitrary cross-player opponent/date-range
+querying, on/off, shot-zone and possession/lineup data.
+
+For the post-handoff state, validation results and known limits, see `docs/TAKEOVER_AUDIT_2026-08-17.md`.
+
+## Historical player record
+
+The repository carries **10 NBA seasons (2015-16 through 2024-25)** of regular-season and playoff
+player-game logs. `scripts/build-history-summary.mjs` converts the local immutable cache into a
+full local player-season summary plus a compact tracked product artifact for players in the current
+NBA/G League database. Players are joined by official NBA person id, never by display name. The
+Player workspace shows prior NBA regular-season and playoff phases separately, with teams, games, minutes,
+scoring/rebounding/playmaking, true shooting, and starter information where the canonical starter artifact has actually established it.
+
+Starter history is provenance-aware: an unknown starter status stays unknown and is never rendered
+as a bench appearance. At takeover, canonical per-game starter coverage is complete for 2023-24
+regular season and playoffs and absent elsewhere until the source-specific acceptance gates pass.
+This historical layer is **descriptive product data**, not TULIP Forecast training data.
 
 ## Roster-only players
 

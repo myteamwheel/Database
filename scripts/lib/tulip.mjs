@@ -7,20 +7,24 @@
 // WHAT THIS IMPLEMENTATION CAN AND CANNOT DO, stated up front because the distinction is the
 // whole point of the design:
 //
-//   Available here : one season (2025-26) of season-aggregate and situational-split data,
-//                    including starter/bench splits, which are genuine observed role changes for
-//                    148 NBA and 119 G League players.
-//   NOT available  : possession or lineup data, game logs, historical seasons, injury and
-//                    transaction events.
+//   Consumed here  : one season (2025-26) of season-aggregate and situational-split data,
+//                    including starter/bench splits.
+//   Present elsewhere in this project but NOT consumed by this estimator yet: ten seasons of
+//                    historical game logs and partial validated starter history.
+//   Still unavailable for this estimator: possession/lineup data, pre-tipoff availability, and
+//                    transaction context needed for stronger identification.
 //
 // Consequences, enforced in code rather than glossed over:
 //   * Lineup Interaction Adjustment is ALWAYS null. Without lineup data there is no defensible
 //     way to estimate it, so it is reported as unavailable and contributes nothing.
-//   * Evidence Tier A (shock-induced expansion) and Tier C (ordinary high-minute games) cannot
-//     be produced at all: both need game-level data. Only Tier B (observed starter/bench role
-//     change) and Tier D (pure extrapolation) are reachable.
-//   * TULIP Forecast (age/aging priors, multi-season trajectory) is NOT implemented, because a
-//     single season cannot support it. Only TULIP Evidence exists.
+//   * Evidence Tier A (shock-induced expansion) and Tier C (ordinary high-minute games) are not
+//     produced by THIS estimator. Project-level historical game rows now exist, but have not yet
+//     been wired into TULIP Evidence; Tier A additionally needs reliable pre-tip availability and
+//     transaction context. Only Tier B (observed starter/bench role change) and Tier D (pure
+//     extrapolation) are currently emitted.
+//   * TULIP Forecast (age/aging priors, multi-season trajectory) is NOT implemented. Historical
+//     seasons now exist in the project, but no Forecast may ship until leakage-safe chronological
+//     experiments and required baselines establish predictive value.
 //   * Every projection is comparison-based, not causal. Comparables who played a role are a
 //     selected group; that selection is not corrected for.
 import { round } from './sources.mjs';
@@ -62,20 +66,20 @@ export const TULIP_CONFIG = {
   // comparables 56%. Matching on ability alone left starter-vs-reserve CONTEXT wide open, which
   // is one of the confounds the design explicitly set out to avoid. Comparables must now be
   // reachable in role terms too.
-  // FROZEN, HEURISTIC. Swept 45/30/20/15/10; band 20 minimised both the pooled starter SMD
-  // (-0.008) and the worst per-band SMD (0.798), and tighter bands were worse on both. That
-  // sweep also showed the problem is STRUCTURAL POSITIVITY, not threshold choice: no setting
-  // brings within-band balance near 0.1 because the required comparables barely exist. This
-  // value is not to be re-tuned; the remedy is longitudinal data.
+  // FROZEN, HEURISTIC. A prior sweep selected 20 percentage points. Empirical balance is
+  // BUILD-DEPENDENT and is therefore measured by the shared tulip-diagnostics module instead of
+  // hardcoded here. The structural problem remains: large-role comparables are usually starters.
+  // Do not re-tune this threshold to make an audit look better; the remedy is longitudinal data.
   starterShareBand: 20,     // max percentage-point gap in share of games started
 };
 
 /**
  * RESIDUAL, UNFIXABLE CONFOUND — stated rather than buried.
  *
- * Pooled across all candidates the starter-share imbalance is now negligible (SMD -0.008), but
- * WITHIN each target band it remains large (worst band 0.798). That is Simpson's paradox: the
- * pooled figure looks clean only because candidates and comparables are averaged across bands.
+ * Pooled across all candidates the starter-share imbalance can look negligible, while WITHIN
+ * individual target bands it remains large. That is a Simpson's-paradox-style aggregation issue:
+ * the pooled figure can look clean only because candidates and comparables are averaged across
+ * heterogeneous role bands. Exact build-dependent SMDs are injected from tulip-diagnostics.
  *
  * It cannot be tuned away. A 12-mpg reserve projected to 28 mpg is compared against players who
  * actually play 28 mpg, and almost all of them are starters — a pool of "bench players who play
@@ -88,11 +92,12 @@ export const TULIP_CONFIG = {
  */
 export const KNOWN_RESIDUAL_BIAS = {
   starterContext: {
-    pooledSmd: -0.008,
-    worstBandSmd: 0.798,
+    pooledSmd: null,
+    worstBandSmd: null,
     direction: 'comparables started a larger share of their games than the candidates do',
     identified: false,
     remedy: 'game-level opportunity-shock data (Tier A), not parameter tuning',
+    note: 'Empirical SMD values are injected at build time from shared diagnostics; do not hardcode them here.',
   },
 };
 
@@ -219,10 +224,10 @@ function supportScore({ effectiveN, meanSimilarity, mpgExtrapolation, usageExtra
 
 /**
  * Evidence tier for a candidate at a target role.
- *   A - shock-induced expansion .... impossible here (needs game logs + transactions)
+ *   A - shock-induced expansion .... not emitted here; requires game rows plus pre-tip availability/transactions
  *   B - observed role change ....... the candidate himself has >=10 games starting AND off the
  *                                    bench, and the target sits inside that observed span
- *   C - ordinary high-minute games . impossible here (needs game logs)
+ *   C - ordinary high-minute games . not emitted here; project game rows exist but are not wired into this estimator
  *   D - pure extrapolation ......... everything else
  */
 export function evidenceTier(player, targetMpg) {

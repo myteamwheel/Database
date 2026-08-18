@@ -10,21 +10,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # The data build itself cannot run here: stats.nba.com does not answer from
-      # GitHub-hosted runners. public/data.json is built locally and committed, and
-      # this workflow validates the committed artefact.
-      - name: Audit committed player data
+      - name: Pin deterministic build timestamp to the commit
+        shell: bash
+        run: echo "BUILD_GENERATED_AT=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
+
+      - name: Hydrate immutable historical cache for history-product build
+        shell: bash
+        run: |
+          # Raw 2015-16..2024-25 history was intentionally removed from the current tree after it
+          # bloated clones, but remains immutable in this repository's history at c17bc8d. Archive
+          # it into the ignored working tree without touching the index.
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+          node scripts/build-history-summary.mjs
+          node scripts/build-history-games.mjs
+          node scripts/audit-history.mjs
+          node scripts/verify-history-hashes.mjs
+
+      # The source refresh cannot run here because stats.nba.com is unreliable from hosted runners,
+      # but the deterministic build DOES run entirely from committed source snapshots. Rebuild first
+      # so source/UI changes are tested against the artifact they actually produce.
+      - name: Rebuild generated data from committed source snapshots
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+        run: |
+          node scripts/build-v3.mjs
+          node scripts/build-artifact.mjs
+
+      - name: Audit rebuilt player data
         run: node scripts/audit-v3.mjs
 
       - name: Audit UI preset schema
         run: node scripts/audit-presets.mjs
 
+      - name: Verify TULIP metadata against recomputed diagnostics
+        run: node scripts/tulip-verify.mjs
+
+      - name: Verify tracked historical product artifact
+        run: npm run test:history
+
+      - name: Verify starter reconstruction/precedence invariants
+        run: npm run test:starter
+
       - name: Verify the published artifact is a lossless encoding
         run: node scripts/verify-artifact.mjs
+
+      - name: Verify byte-for-byte deterministic builds
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+        run: npm run verify:determinism
 
       - name: Install Playwright
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
@@ -40,7 +84,8 @@ jobs:
       - name: JavaScript syntax check
         run: |
           node --check app.js
-          for f in scripts/*.mjs scripts/lib/*.mjs; do node --check "$f"; done
+          node --check workspace.js
+          for f in scripts/*.mjs scripts/lib/*.mjs tests/*.mjs; do node --check "$f"; done
 
       - name: Verify data contract the UI depends on
         run: |
@@ -53,6 +98,12 @@ jobs:
           if (d.counts.NBA !== appeared('NBA')) problems.push('NBA count does not match appeared players');
           if (d.counts.GLEAGUE !== appeared('GLEAGUE')) problems.push('G League count does not match appeared players');
           if (!/^3\./.test(d.gradeModel?.version || '')) problems.push(`unexpected grade model version ${d.gradeModel?.version}`);
+          const h = d.analysis?.history;
+          if (!h?.available) problems.push('historical player-season product metadata missing');
+          if (!h?.gameLog?.available) problems.push('historical game-log product metadata missing');
+          if (h?.gameLog?.transport !== 'gzip-json-on-demand') problems.push(`unexpected history game-log transport ${h?.gameLog?.transport}`);
+          if (h?.gameLog?.path !== './public/history-games.json.gz') problems.push(`unexpected history game-log path ${h?.gameLog?.path}`);
+          if (!require('fs').existsSync('./public/history-games.json.gz')) problems.push('public/history-games.json.gz missing');
           for (const lg of ['NBA', 'GLEAGUE']) {
             const p = d.leagues[lg][0];
             for (const k of ['playerId', 'name', 'team', 'position', 'grade', 'custom', 'components', 'stats'])
