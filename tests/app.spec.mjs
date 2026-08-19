@@ -625,7 +625,8 @@ test.describe('TULIP column', () => {
 
     // Present on the DEFAULT preset, not buried in a secondary view.
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    expect(headers).toContain('TULIP');
+    expect(headers).toContain('TULIP');       // now the minutes recommendation
+    expect(headers).toContain('ROLE VALUE');  // the former TULIP number, renamed
     expect(await page.$eval('#viewPreset', (s) => s.value)).toBe('overall');
 
     const idx = headers.indexOf('TULIP');
@@ -660,12 +661,12 @@ test.describe('TULIP column', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a dedicated TULIP preset exposes the projection fields', async ({ page }) => {
+  test('a dedicated Role Value preset exposes the projection fields', async ({ page }) => {
     const errors = await open(page);
-    await page.selectOption('#viewPreset', 'tulip');
+    await page.selectOption('#viewPreset', 'tulip');   // the Role Value preset
     await page.waitForTimeout(500);
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    for (const h of ['TULIP', 'TULIP NEUTRAL', 'TULIP PROJ', 'TULIP SUPPORT', 'TULIP TIER', 'TULIP VERDICT']) {
+    for (const h of ['ROLE VALUE', 'ROLE VALUE NEUTRAL', 'ROLE VALUE PROJ', 'ROLE VALUE SUPPORT', 'EVIDENCE TIER', 'ROLE VERDICT']) {
       expect(headers).toContain(h);
     }
     expect(errors).toEqual([]);
@@ -682,7 +683,7 @@ test.describe('Sort control', () => {
     expect(options).toContain('TULIP');
     expect(options).toContain('Grade');
 
-    await page.selectOption('#sortField', 'tulip.leagueDelta');
+    await page.selectOption('#sortField', 'opt.minutesDelta');
     await page.selectOption('#sortOrder', '-1');
     await page.waitForTimeout(500);
 
@@ -708,7 +709,7 @@ test.describe('Sort control', () => {
     // The dropdown and the clickable header are one state, not two.
     await page.locator('thead th').nth(idx).click();
     await page.waitForTimeout(500);
-    expect(await page.$eval('#sortField', (s) => s.value)).toBe('tulip.leagueDelta');
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe('opt.minutesDelta');
     expect(await page.$eval('#sortOrder', (s) => s.value)).toBe('-1');
 
     expect(errors).toEqual([]);
