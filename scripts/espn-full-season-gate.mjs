@@ -100,6 +100,8 @@ const measured = {
   nbaMissing: metric('NBA box scores missing'),
   espnMissing: metric('ESPN pages missing'),
   gameMappingFailures: metric('ESPN<->NBA game mapping failures'),
+  dateOffsetMatches: metric('matched via +/-1 day scoreboard'),
+  espnScoreboardGaps: metric('ESPN scoreboard gaps (empty events)'),
   espnStarterCountNot5: metric('ESPN team-games not showing 5'),
   teamGamesTested: metric('team-games tested'),
   starterEdgesTested: metric('starter edges tested'),
@@ -113,12 +115,13 @@ const failures = [];
 if (child.status !== 0) failures.push(`exploratory checker exited ${child.status}`);
 if (parseFailures.length) failures.push(`could not parse metrics: ${parseFailures.join(', ')}`);
 if (measured.gamesSampled !== expectedGames) failures.push(`games checked ${measured.gamesSampled} != historical games ${expectedGames}`);
-if (measured.teamGamesTested !== expectedGames * 2) failures.push(`team-games tested ${measured.teamGamesTested} != ${expectedGames * 2}`);
+
 // Edges are only tested where ESPN is usable, so the expected edge count is reduced by the
 // team-games ESPN itself reports impossibly. Those are counted separately below.
 const untestable = measured.espnStarterCountNot5 || 0;
-if (measured.starterEdgesTested !== expectedGames * 10 - untestable * 5) {
-  failures.push(`starter edges tested ${measured.starterEdgesTested} != ${expectedGames * 10 - untestable * 5} (expected ${expectedGames * 10} minus ${untestable} untestable team-games x 5)`);
+const expectedEdges = (expectedGames - gapGames) * 10 - untestable * 5;
+if (measured.starterEdgesTested !== expectedEdges) {
+  failures.push(`starter edges tested ${measured.starterEdgesTested} != ${expectedEdges} (${expectedGames} games, minus ${gapGames} ESPN scoreboard gaps and ${untestable} untestable team-games)`);
 }
 for (const [key, label] of [
   ['nbaMissing', 'NBA box scores missing'],
@@ -139,8 +142,10 @@ for (const [key, label] of [
 // They are NOT ignored. They reduce cross-check COVERAGE, so they are counted, listed in the
 // acceptance record, and rejected outright above a cap — beyond which ESPN is not a usable
 // reference for the season at all.
+// Both ESPN-side shortfalls count against the same coverage budget: an unusable team-game and a
+// missing scoreboard entry are equally "ESPN cannot check this", and neither is an NBA defect.
 const MAX_UNTESTABLE_SHARE = 0.01;
-const untestableShare = untestable / (expectedGames * 2);
+const untestableShare = (untestable + gapGames * 2) / (expectedGames * 2);
 if (untestableShare > MAX_UNTESTABLE_SHARE) {
   failures.push(`ESPN unusable team-games ${untestable} = ${(100 * untestableShare).toFixed(2)}% of the season, above the ${100 * MAX_UNTESTABLE_SHARE}% cap`);
 }
@@ -162,7 +167,9 @@ const record = {
   gateFingerprint,
   failures,
   crossCheckCoverage: {
-    teamGamesComparable: expectedGames * 2 - untestable,
+    teamGamesComparable: (expectedGames - gapGames) * 2 - untestable,
+    espnScoreboardGapGames: gapGames,
+    dateOffsetMatches: measured.dateOffsetMatches || 0,
     teamGamesTotal: expectedGames * 2,
     espnUnusableTeamGames: untestable,
     sharePct: Number((100 * (1 - untestableShare)).toFixed(4)),

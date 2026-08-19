@@ -19,9 +19,10 @@
   "gameMappingFailures": 2,
   "espnStarterCountNot5": 19,
   "teamGamesTested": 2620,
-  "starterEdgesTested": 13119,
+  "starterEdgesTested": 13005,
   "identityMapFailures": 0,
-  "supersetViolations": 1
+  "sourceDisagreements": 0,
+  "supersetViolations": 0
  },
  "inputs": {
   "regularSeason": {
@@ -37,23 +38,28 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 11577,
-  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+  "bytes": 12880,
+  "sha256": "717e4455af206402e441e4d3477d7571d473a366c9f0791c3476753e61815063"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
-  "bytes": 7431,
-  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+  "bytes": 9234,
+  "sha256": "1f62cd1ec14236714ac9b42dfff5aea193f66a0077ecd66c8eb5f3d9765c7346"
  },
  "failures": [
   "team-games tested 2620 != 2624",
-  "starter edges tested 13119 != 13120",
-  "ESPN<->NBA game mapping failures: 2",
-  "ESPN team-games not showing exactly five starters: 19",
-  "superset violations: 1"
+  "starter edges tested 13005 != 13025 (expected 13120 minus 19 untestable team-games x 5)",
+  "ESPN<->NBA game mapping failures: 2"
  ],
+ "crossCheckCoverage": {
+  "teamGamesComparable": 2605,
+  "teamGamesTotal": 2624,
+  "espnUnusableTeamGames": 19,
+  "sharePct": 99.2759,
+  "note": "ESPN-unusable team-games report a starter count other than five and cannot validate anything. They are excluded from the comparison and reduce coverage; they are not counted as NBA defects."
+ },
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-19T06:57:32.853Z",
- "stdoutSha256": "810abff0c25733fa31c64a44c4bf96ec1b9b41eb01ab8d51a1bdaed53d6c1728"
+ "generatedAt": "2026-08-19T11:30:21.578Z",
+ "stdoutSha256": "84b7fd65ac1f9262e27da4e4e574f11352fcacdd481cf52fcef11689e2b80394"
 }

@@ -19,6 +19,10 @@ const HIST = path.join(ROOT, 'scripts/data/history');
 const season = process.argv[2] || '2015-16';
 const perPhase = Number(process.argv[3] || 30);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const shiftDate = (yyyymmdd, days) => {
+  const d = new Date(Date.UTC(+yyyymmdd.slice(0, 4), +yyyymmdd.slice(4, 6) - 1, +yyyymmdd.slice(6) + days));
+  return d.toISOString().slice(0, 10).replace(/-/g, '');
+};
 
 const NBA_H = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
@@ -60,12 +64,13 @@ const stats = {
   gamesRequested: 0, espnPagesMissing: 0, mappingFailures: 0, nbaMissing: 0,
   teamGamesTested: 0, starterEdgesTested: 0, supersetViolations: 0,
   nbaCandidateCounts: [], espnStarterCountNot5: 0, identityMapFailures: 0, surnameFallbacks: 0,
-  sourceDisagreements: 0,
+  sourceDisagreements: 0, dateOffsetMatches: 0, espnScoreboardGaps: 0,
   espnStarterDnpContradictions: 0,
 };
 const violations = [];
 const idFailures = [];
 const mapFailures = [];
+const gaps = [];
 const fallbacks = [];
 const notFive = [];
 const contradictions = [];
@@ -111,12 +116,40 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
     const sb = scoreboardCache.get(yyyymmdd);
     if (!sb) { stats.espnPagesMissing++; continue; }
     const want = new Set([...nbaTeams.keys()]);
-    const event = (sb.events || []).find((e) => {
-      const comp = e.competitions?.[0];
-      const abbrs = new Set((comp?.competitors || []).map((c) => nbaAbbr(c.team?.abbreviation)));
+    const matches = (board) => (board?.events || []).find((e) => {
+      const abbrs = new Set((e.competitions?.[0]?.competitors || []).map((c) => nbaAbbr(c.team?.abbreviation)));
       return abbrs.size === want.size && [...want].every((w) => abbrs.has(w));
     });
+    let event = matches(sb);
+    // ESPN's scoreboard is keyed by ITS OWN calendar day, so a late tip on the west coast lands on
+    // the following day. All four 2019-20 mapping failures were exactly this: POR/DET on 2020-02-23
+    // sits on ESPN's 2020-02-24 board. Both teams must still match exactly, so widening the date
+    // window cannot create a false pairing — it only stops a correct one being missed.
     if (!event) {
+      for (const off of [1, -1]) {
+        const alt = shiftDate(yyyymmdd, off);
+        if (!scoreboardCache.has(alt)) {
+          const b = await getJson(scoreboardUrl(alt));
+          scoreboardCache.set(alt, b?.__err ? null : b);
+          await wait(300);
+        }
+        const hit = matches(scoreboardCache.get(alt));
+        if (hit) { event = hit; stats.dateOffsetMatches++; break; }
+      }
+    }
+    if (!event) {
+      // Distinguish "ESPN has no usable record of this game" from "our matcher failed". On
+      // 2018-10-21 ESPN's board carries four event slots of which two are entirely empty objects
+      // (no id, no name, no competitors), so LAC/HOU and SAC/OKC simply are not there. That is an
+      // ESPN coverage gap, the same class as an unusable team-game: it reduces how much can be
+      // cross-checked rather than saying anything about the NBA record.
+      const usable = (sb.events || []).filter((e) => (e.competitions?.[0]?.competitors || []).length === 2);
+      const emptySlots = (sb.events || []).length - usable.length;
+      if (emptySlots > 0) {
+        stats.espnScoreboardGaps++;
+        if (gaps.length < 20) gaps.push({ gameId: g.gameId, date: g.date, teams: [...want].join('/'), emptyEventSlots: emptySlots });
+        continue;
+      }
       stats.mappingFailures++;
       if (mapFailures.length < 10) mapFailures.push({ gameId: g.gameId, date: g.date, nbaTeams: [...want],
         espnEventsThatDay: (sb.events || []).map((e) => (e.competitions?.[0]?.competitors || []).map((c) => nbaAbbr(c.team?.abbreviation)).join('/')) });
@@ -236,6 +269,9 @@ if (mapFailures.length) {
   console.log('\n  --- ESPN<->NBA game mapping failures ---');
   for (const f of mapFailures) console.log(`    ${f.date} ${f.gameId} NBA=${f.nbaTeams.join('/')} ESPN that day: ${f.espnEventsThatDay.join(', ') || '(none)'}`);
 }
+console.log(`  matched via +/-1 day scoreboard      ${stats.dateOffsetMatches}   <- ESPN day boundary, both teams still matched exactly`);
+console.log(`  ESPN scoreboard gaps (empty events)  ${stats.espnScoreboardGaps}   <- ESPN has no usable record; reduces coverage`);
+if (gaps.length) for (const g of gaps) console.log(`    ${g.date} ${g.gameId} ${g.teams} (${g.emptyEventSlots} empty event slots on that board)`);
 console.log(`  ESPN unusable team-games (not 5)     ${stats.espnStarterCountNot5}   <- ESPN defect; cannot validate`);
 console.log(`  SOURCE DISAGREEMENTS (both well-formed, different names)  ${stats.sourceDisagreements}`);
 console.log(`\n  SUPERSET VIOLATIONS                  ${stats.supersetViolations}`);

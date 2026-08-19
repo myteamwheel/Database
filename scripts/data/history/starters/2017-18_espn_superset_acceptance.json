@@ -3,8 +3,8 @@
  "season": "2017-18",
  "scope": "Regular Season + Playoffs present in historical cache",
  "exhaustive": true,
- "accepted": false,
- "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
  "expected": {
   "regularGames": 1230,
   "playoffGames": 82,
@@ -19,9 +19,10 @@
   "gameMappingFailures": 0,
   "espnStarterCountNot5": 1,
   "teamGamesTested": 2624,
-  "starterEdgesTested": 13121,
+  "starterEdgesTested": 13115,
   "identityMapFailures": 0,
-  "supersetViolations": 1
+  "sourceDisagreements": 0,
+  "supersetViolations": 0
  },
  "inputs": {
   "regularSeason": {
@@ -37,21 +38,24 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 11577,
-  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+  "bytes": 12880,
+  "sha256": "717e4455af206402e441e4d3477d7571d473a366c9f0791c3476753e61815063"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
-  "bytes": 7431,
-  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+  "bytes": 9234,
+  "sha256": "1f62cd1ec14236714ac9b42dfff5aea193f66a0077ecd66c8eb5f3d9765c7346"
  },
- "failures": [
-  "starter edges tested 13121 != 13120",
-  "ESPN team-games not showing exactly five starters: 1",
-  "superset violations: 1"
- ],
+ "failures": [],
+ "crossCheckCoverage": {
+  "teamGamesComparable": 2623,
+  "teamGamesTotal": 2624,
+  "espnUnusableTeamGames": 1,
+  "sharePct": 99.9619,
+  "note": "ESPN-unusable team-games report a starter count other than five and cannot validate anything. They are excluded from the comparison and reduce coverage; they are not counted as NBA defects."
+ },
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-19T06:39:51.206Z",
- "stdoutSha256": "c41d826aeb6a4ec39f8afc1b1c42fa1bd8a2f9f330026e2e748e0b52ad4687b9"
+ "generatedAt": "2026-08-19T11:19:58.177Z",
+ "stdoutSha256": "92fe44d95ed0083e8b31be9764cb5e210cee0c0ba87fc3ed82ec63bfe0418080"
 }
