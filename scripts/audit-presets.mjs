@@ -60,6 +60,14 @@ for (const league of ['NBA', 'GLEAGUE']) {
     if (Number.isFinite(c.targetMpg)) tulipKeys.add('targetMpg');
   }
 
+  // Cross-league derived fields live on nested objects rather than as top-level keys.
+  const derived = { opt: new Set(), rb: new Set(), p36: new Set(), p36n: new Set() };
+  for (const p of d.leagues[league]) {
+    for (const [bag, obj] of [['opt', p.optimal], ['rb', p.readinessBlocks], ['p36', p.per36], ['p36n', p.per36Nba]]) {
+      for (const [k, v] of Object.entries(obj || {})) if (v !== null && v !== undefined) derived[bag].add(k);
+    }
+  }
+
   const resolves = (key) => {
     if (PSEUDO.has(key)) return true;
     if (key.startsWith('stats.')) return statKeys.has(key.slice(6));
@@ -69,11 +77,16 @@ for (const league of ['NBA', 'GLEAGUE']) {
     // keys, and they are legitimately null for every player TULIP abstains on. "Resolves" here
     // means at least one player carries a real value, which is the same bar as every other field.
     if (key.startsWith('tulip.')) return tulipKeys.has(key.slice(6));
+    if (key.startsWith('opt.')) return derived.opt.has(key.slice(4));
+    if (key.startsWith('rb.')) return derived.rb.has(key.slice(3));
+    if (key.startsWith('p36.')) return derived.p36.has(key.slice(4));
+    if (key.startsWith('p36n.')) return derived.p36n.has(key.slice(5));
+    if (key === 'nbaReadiness') return d.leagues[league].some((p) => Number.isFinite(p.nbaReadiness));
     return topKeys.has(key);
   };
   // A field may legitimately be absent in one league (tracking in the G League) as long as the
   // preset itself is hidden there. These are the presets each league actually offers.
-  const leagueOnly = { tracking: 'NBA', splits: 'GLEAGUE' };
+  const leagueOnly = { tracking: 'NBA', splits: 'GLEAGUE', nbaready: 'GLEAGUE', per36nba: 'GLEAGUE' };
 
   const otherLeague = league === 'NBA' ? 'GLEAGUE' : 'NBA';
   const otherStats = new Set(d.leagues[otherLeague].filter((p) => p.appeared)
