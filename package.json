@@ -36,7 +36,9 @@
     "verify:determinism": "node scripts/verify-build-determinism.mjs",
     "build:history-games": "node scripts/build-history-games.mjs",
     "build:role-features": "node scripts/build-role-features.mjs",
-    "build:history": "node scripts/build-history-summary.mjs && node scripts/build-history-games.mjs && node scripts/build-role-features.mjs"
+    "build:history": "node scripts/build-history-summary.mjs && node scripts/build-history-games.mjs && node scripts/build-role-features.mjs",
+    "gate:starter": "node scripts/starter-full-season-gate.mjs",
+    "gate:starter:espn": "node scripts/espn-starter-full-season-gate.mjs"
   },
   "engines": {
     "node": ">=20"

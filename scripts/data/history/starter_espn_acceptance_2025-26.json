@@ -1,0 +1,2623 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-18T21:33:11.761Z",
+  "season": "2025-26",
+  "accepted": false,
+  "mode": "current-season-crosswalk-validated",
+  "acceptanceRule": "Fail closed unless every expected regular-season/playoff NBA game maps exactly to one ESPN game, every ESPN team-game has exactly five distinct declared starters, every starter maps uniquely and confidently to an NBA player, all historical starters belong to the exact local NBA team-game roster, assignment counts reconcile exactly, and regular-season per-player start totals exactly equal NBA StarterBench=Starters.",
+  "implementation": {
+    "gate": {
+      "path": "scripts/espn-starter-full-season-gate.mjs",
+      "bytes": 29761,
+      "sha256": "e6e3ad710ffbaf975940fd789818faecfe2dd5a2938e0f660c5dc785d150ffab"
+    }
+  },
+  "sourceContract": {
+    "provider": "ESPN data processed and published by SportsDataverse/hoopR",
+    "playerBox": "starter=true only; never inferred from minutes",
+    "scheduleIdentity": "nba_schedule_crosswalk: exact match_method=both and match_confidence=1",
+    "playerIdentity": "nba_player_crosswalk: unique NBA player id at confidence >= 0.92, then local NBA roster membership when historical cache exists",
+    "regularSeasonAcceptance": "mapped per-player start counts must exactly equal NBA StarterBench=Starters GP for every player"
+  },
+  "sourceAssets": {
+    "playerBox": {
+      "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_player_boxscores/player_box_2026.csv",
+      "bytes": 17729582,
+      "sha256": "e8ed7965edb5005269eb72de708672665a463acf77559636be11938bbaacf4f9"
+    },
+    "scheduleCrosswalk": {
+      "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_crosswalk/nba_schedule_crosswalk_2026.csv",
+      "bytes": 150611,
+      "sha256": "2f35921cedcbd9bf10838e62a64271ca1b8d42a47f41d746105c5435b49a108c"
+    },
+    "playerCrosswalk": {
+      "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_crosswalk/nba_player_crosswalk_2026.csv",
+      "bytes": 65122,
+      "sha256": "b70403103606e827c953a2083619937e5c4a5cb270f72d65eb304fb58ed33c2f"
+    }
+  },
+  "historyProvenance": null,
+  "officialStarterSplit": {
+    "path": "scripts/data/splits_nba/starter.json",
+    "bytes": 127296,
+    "sha256": "949d280c73841125458b2fa57058e9c009be77892f6c648655ad9156578a31e0",
+    "source": "tracked 2025-26 NBA StarterBench=Starters split"
+  },
+  "perPlayerStarts": {
+    "pass": false,
+    "expectedPlayers": 449,
+    "observedPlayers": 242,
+    "expectedStarterEdges": 12300,
+    "observedStarterEdges": 4425,
+    "mismatchCount": 426,
+    "mismatches": [
+      {
+        "playerId": "1626145",
+        "expected": 12,
+        "observed": 0,
+        "delta": -12
+      },
+      {
+        "playerId": "1626156",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1626157",
+        "expected": 75,
+        "observed": 61,
+        "delta": -14
+      },
+      {
+        "playerId": "1626162",
+        "expected": 41,
+        "observed": 0,
+        "delta": -41
+      },
+      {
+        "playerId": "1626164",
+        "expected": 64,
+        "observed": 8,
+        "delta": -56
+      },
+      {
+        "playerId": "1626166",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1626167",
+        "expected": 71,
+        "observed": 24,
+        "delta": -47
+      },
+      {
+        "playerId": "1626171",
+        "expected": 9,
+        "observed": 0,
+        "delta": -9
+      },
+      {
+        "playerId": "1626172",
+        "expected": 8,
+        "observed": 0,
+        "delta": -8
+      },
+      {
+        "playerId": "1626181",
+        "expected": 52,
+        "observed": 0,
+        "delta": -52
+      },
+      {
+        "playerId": "1626204",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1626220",
+        "expected": 67,
+        "observed": 0,
+        "delta": -67
+      },
+      {
+        "playerId": "1627734",
+        "expected": 15,
+        "observed": 0,
+        "delta": -15
+      },
+      {
+        "playerId": "1627739",
+        "expected": 68,
+        "observed": 12,
+        "delta": -56
+      },
+      {
+        "playerId": "1627741",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1627742",
+        "expected": 77,
+        "observed": 58,
+        "delta": -19
+      },
+      {
+        "playerId": "1627750",
+        "expected": 75,
+        "observed": 64,
+        "delta": -11
+      },
+      {
+        "playerId": "1627751",
+        "expected": 44,
+        "observed": 41,
+        "delta": -3
+      },
+      {
+        "playerId": "1627752",
+        "expected": 7,
+        "observed": 0,
+        "delta": -7
+      },
+      {
+        "playerId": "1627759",
+        "expected": 71,
+        "observed": 0,
+        "delta": -71
+      },
+      {
+        "playerId": "1627780",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1627783",
+        "expected": 62,
+        "observed": 25,
+        "delta": -37
+      },
+      {
+        "playerId": "1627824",
+        "expected": 19,
+        "observed": 10,
+        "delta": -9
+      },
+      {
+        "playerId": "1627826",
+        "expected": 47,
+        "observed": 5,
+        "delta": -42
+      },
+      {
+        "playerId": "1627827",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1627884",
+        "expected": 45,
+        "observed": 12,
+        "delta": -33
+      },
+      {
+        "playerId": "1628366",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1628368",
+        "expected": 72,
+        "observed": 70,
+        "delta": -2
+      },
+      {
+        "playerId": "1628369",
+        "expected": 16,
+        "observed": 3,
+        "delta": -13
+      },
+      {
+        "playerId": "1628370",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1628374",
+        "expected": 42,
+        "observed": 30,
+        "delta": -12
+      },
+      {
+        "playerId": "1628378",
+        "expected": 70,
+        "observed": 9,
+        "delta": -61
+      },
+      {
+        "playerId": "1628379",
+        "expected": 6,
+        "observed": 0,
+        "delta": -6
+      },
+      {
+        "playerId": "1628381",
+        "expected": 56,
+        "observed": 0,
+        "delta": -56
+      },
+      {
+        "playerId": "1628384",
+        "expected": 67,
+        "observed": 52,
+        "delta": -15
+      },
+      {
+        "playerId": "1628386",
+        "expected": 56,
+        "observed": 12,
+        "delta": -44
+      },
+      {
+        "playerId": "1628389",
+        "expected": 73,
+        "observed": 3,
+        "delta": -70
+      },
+      {
+        "playerId": "1628392",
+        "expected": 46,
+        "observed": 37,
+        "delta": -9
+      },
+      {
+        "playerId": "1628396",
+        "expected": 4,
+        "observed": 0,
+        "delta": -4
+      },
+      {
+        "playerId": "1628398",
+        "expected": 43,
+        "observed": 21,
+        "delta": -22
+      },
+      {
+        "playerId": "1628401",
+        "expected": 77,
+        "observed": 8,
+        "delta": -69
+      },
+      {
+        "playerId": "1628404",
+        "expected": 52,
+        "observed": 48,
+        "delta": -4
+      },
+      {
+        "playerId": "1628415",
+        "expected": 56,
+        "observed": 5,
+        "delta": -51
+      },
+      {
+        "playerId": "1628418",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1628467",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1628960",
+        "expected": 27,
+        "observed": 0,
+        "delta": -27
+      },
+      {
+        "playerId": "1628963",
+        "expected": 12,
+        "observed": 0,
+        "delta": -12
+      },
+      {
+        "playerId": "1628969",
+        "expected": 82,
+        "observed": 61,
+        "delta": -21
+      },
+      {
+        "playerId": "1628970",
+        "expected": 77,
+        "observed": 0,
+        "delta": -77
+      },
+      {
+        "playerId": "1628971",
+        "expected": 4,
+        "observed": 0,
+        "delta": -4
+      },
+      {
+        "playerId": "1628973",
+        "expected": 74,
+        "observed": 57,
+        "delta": -17
+      },
+      {
+        "playerId": "1628976",
+        "expected": 78,
+        "observed": 70,
+        "delta": -8
+      },
+      {
+        "playerId": "1628978",
+        "expected": 82,
+        "observed": 0,
+        "delta": -82
+      },
+      {
+        "playerId": "1628983",
+        "expected": 68,
+        "observed": 51,
+        "delta": -17
+      },
+      {
+        "playerId": "1628988",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1628989",
+        "expected": 14,
+        "observed": 2,
+        "delta": -12
+      },
+      {
+        "playerId": "1628991",
+        "expected": 48,
+        "observed": 3,
+        "delta": -45
+      },
+      {
+        "playerId": "1628997",
+        "expected": 12,
+        "observed": 5,
+        "delta": -7
+      },
+      {
+        "playerId": "1629001",
+        "expected": 24,
+        "observed": 13,
+        "delta": -11
+      },
+      {
+        "playerId": "1629004",
+        "expected": 41,
+        "observed": 30,
+        "delta": -11
+      },
+      {
+        "playerId": "1629006",
+        "expected": 32,
+        "observed": 0,
+        "delta": -32
+      },
+      {
+        "playerId": "1629008",
+        "expected": 52,
+        "observed": 4,
+        "delta": -48
+      },
+      {
+        "playerId": "1629011",
+        "expected": 16,
+        "observed": 0,
+        "delta": -16
+      },
+      {
+        "playerId": "1629012",
+        "expected": 22,
+        "observed": 0,
+        "delta": -22
+      },
+      {
+        "playerId": "1629013",
+        "expected": 12,
+        "observed": 8,
+        "delta": -4
+      },
+      {
+        "playerId": "1629014",
+        "expected": 5,
+        "observed": 0,
+        "delta": -5
+      },
+      {
+        "playerId": "1629018",
+        "expected": 21,
+        "observed": 9,
+        "delta": -12
+      },
+      {
+        "playerId": "1629020",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1629023",
+        "expected": 53,
+        "observed": 16,
+        "delta": -37
+      },
+      {
+        "playerId": "1629026",
+        "expected": 2,
+        "observed": 0,
+        "delta": -2
+      },
+      {
+        "playerId": "1629027",
+        "expected": 15,
+        "observed": 3,
+        "delta": -12
+      },
+      {
+        "playerId": "1629028",
+        "expected": 72,
+        "observed": 0,
+        "delta": -72
+      },
+      {
+        "playerId": "1629029",
+        "expected": 64,
+        "observed": 0,
+        "delta": -64
+      },
+      {
+        "playerId": "1629057",
+        "expected": 1,
+        "observed": 0,
+        "delta": -1
+      },
+      {
+        "playerId": "1629060",
+        "expected": 41,
+        "observed": 0,
+        "delta": -41
+      },
+      {
+        "playerId": "1629111",
+        "expected": 27,
+        "observed": 2,
+        "delta": -25
+      },
+      {
+        "playerId": "1629130",
+        "expected": 77,
+        "observed": 4,
+        "delta": -73
+      },
+      {
+        "playerId": "1629216",
+        "expected": 7,
+        "observed": 0,
+        "delta": -7
+      },
+      {
+        "playerId": "1629234",
+        "expected": 11,
+        "observed": 0,
+        "delta": -11
+      },
+      {
+        "playerId": "1629599",
+        "expected": 3,
+        "observed": 0,
+        "delta": -3
+      },
+      {
+        "playerId": "1629611",
+        "expected": 51,
+        "observed": 3,
+        "delta": -48
+      },
+      {
+        "playerId": "1629614",
+        "expected": 57,
+        "observed": 26,
+        "delta": -31
+      },
+      {
+        "playerId": "1629618",
+        "expected": 18,
+        "observed": 11,
+        "delta": -7
+      },
+      {
+        "playerId": "1629622",
+        "expected": 5,
+        "observed": 2,
+        "delta": -3
+      },
+      {
+        "playerId": "1629628",
+        "expected": 57,
+        "observed": 48,
+        "delta": -9
+      },
+      {
+        "playerId": "1629630",
+        "expected": 20,
+        "observed": 0,
+        "delta": -20
+      },
+      {
+        "playerId": "1629631",
+        "expected": 25,
+        "observed": 0,
+        "delta": -25
+      },
+      {
+        "playerId": "1629632",
+        "expected": 26,
+        "observed": 0,
+        "delta": -26
+      },
+      {
+        "playerId": "1629634",
+        "expected": 2,
+        "observed": 0,
+        "delta": -2
+      },
+      {
+        "playerId": "1629636",
+        "expected": 43,
+        "observed": 7,
+        "delta": -36
+      },
+      {
+        "playerId": "1629637",
+        "expected": 9,
+        "observed": 0,
+        "delta": -9
+      },
+      {
+        "playerId": "1629638",
+        "expected": 71,
+        "observed": 52,
+        "delta": -19
+      },
+      {
+        "playerId": "1629639",
+        "expected": 28,
+        "observed": 0,
+        "delta": -28
+      },
+      {
+        "playerId": "1629645",
+        "expected": 36,
+        "observed": 16,
+        "delta": -20
+      },
+      {
+        "playerId": "1629651",
+        "expected": 68,
+        "observed": 0,
+        "delta": -68
+      },
+      {
+        "playerId": "1629652",
+        "expected": 69,
+        "observed": 46,
+        "delta": -23
+      },
+      {
+        "playerId": "1629655",
+        "expected": 44,
+        "observed": 18,
+        "delta": -26
+      },
+      {
+        "playerId": "1629656",
+        "expected": 19,
+        "observed": 0,
+        "delta": -19
+      },
+      {
+        "playerId": "1629660",
+        "expected": 15,
+        "observed": 8,
+        "delta": -7
+      },
+      {
+        "playerId": "1629661",
+        "expected": 54,
+        "observed": 52,
+        "delta": -2
+      }
+    ]
+  },
+  "expected": {
+    "teamGames": 2634,
+    "starterEdges": 13170
+  },
+  "observed": {
+    "teamGames": 985,
+    "starterEdges": 4925
+  },
+  "phases": [
+    {
+      "seasonType": "Regular Season",
+      "accepted": false,
+      "counts": {
+        "games": 1230,
+        "teamGames": 885,
+        "starterEdges": 4425
+      },
+      "reconciliations": {
+        "gameUniverse": {
+          "expectedGames": 1230,
+          "mappedGames": 1230,
+          "pass": true
+        },
+        "exactScheduleCrosswalk": {
+          "expectedGames": 1230,
+          "exactRows": 1230,
+          "pass": true
+        },
+        "assignmentCapture": {
+          "expectedTeamGames": 2460,
+          "observedTeamGames": 885,
+          "expectedStarterEdges": 12300,
+          "observedStarterEdges": 4425,
+          "pass": false
+        },
+        "phaseFailures": {
+          "count": 4034,
+          "pass": false
+        },
+        "currentRegularGameCount": {
+          "expectedFromOfficialStarterEdges": 1230,
+          "observedScheduleGames": 1230,
+          "pass": true
+        }
+      }
+    },
+    {
+      "seasonType": "Playoffs",
+      "accepted": false,
+      "counts": {
+        "games": 87,
+        "teamGames": 100,
+        "starterEdges": 500
+      },
+      "reconciliations": {
+        "gameUniverse": {
+          "expectedGames": 87,
+          "mappedGames": 85,
+          "pass": false
+        },
+        "exactScheduleCrosswalk": {
+          "expectedGames": 87,
+          "exactRows": 87,
+          "pass": true
+        },
+        "assignmentCapture": {
+          "expectedTeamGames": 174,
+          "observedTeamGames": 100,
+          "expectedStarterEdges": 870,
+          "observedStarterEdges": 500,
+          "pass": false
+        },
+        "phaseFailures": {
+          "count": 194,
+          "pass": false
+        }
+      }
+    }
+  ],
+  "failures": [
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4066648"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4278129"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "3137259"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "espnTeamId": "13",
+      "nbaTeamId": "1610612747",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "nbaTeamId": "1610612744",
+      "espnTeamId": "9",
+      "espnAthleteId": "4433247"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500002",
+      "espnGameId": "401809244",
+      "espnTeamId": "9",
+      "nbaTeamId": "1610612744",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500003",
+      "espnGameId": "401809234",
+      "nbaTeamId": "1610612752",
+      "espnTeamId": "18",
+      "espnAthleteId": "4871141"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500003",
+      "espnGameId": "401809234",
+      "espnTeamId": "18",
+      "nbaTeamId": "1610612752",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500004",
+      "espnGameId": "401809235",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "6583"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500004",
+      "espnGameId": "401809235",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500005",
+      "espnGameId": "401809236",
+      "nbaTeamId": "1610612754",
+      "espnTeamId": "11",
+      "espnAthleteId": "4432170"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500005",
+      "espnGameId": "401809236",
+      "nbaTeamId": "1610612754",
+      "espnTeamId": "11",
+      "espnAthleteId": "4683634"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500005",
+      "espnGameId": "401809236",
+      "espnTeamId": "11",
+      "nbaTeamId": "1610612754",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500005",
+      "espnGameId": "401809236",
+      "nbaTeamId": "1610612760",
+      "espnTeamId": "25",
+      "espnAthleteId": "4397183"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500005",
+      "espnGameId": "401809236",
+      "espnTeamId": "25",
+      "nbaTeamId": "1610612760",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500006",
+      "espnGameId": "401809237",
+      "nbaTeamId": "1610612744",
+      "espnTeamId": "9",
+      "espnAthleteId": "4433247"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500006",
+      "espnGameId": "401809237",
+      "espnTeamId": "9",
+      "nbaTeamId": "1610612744",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500007",
+      "espnGameId": "401809245",
+      "nbaTeamId": "1610612765",
+      "espnTeamId": "8",
+      "espnAthleteId": "6440"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500007",
+      "espnGameId": "401809245",
+      "espnTeamId": "8",
+      "nbaTeamId": "1610612765",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500007",
+      "espnGameId": "401809245",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4065732"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500007",
+      "espnGameId": "401809245",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500008",
+      "espnGameId": "401809246",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500008",
+      "espnGameId": "401809246",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3195"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500008",
+      "espnGameId": "401809246",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500009",
+      "espnGameId": "401809238",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "3912848"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500009",
+      "espnGameId": "401809238",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4396907"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500009",
+      "espnGameId": "401809238",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500011",
+      "espnGameId": "401809240",
+      "nbaTeamId": "1610612744",
+      "espnTeamId": "9",
+      "espnAthleteId": "4593016"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500011",
+      "espnGameId": "401809240",
+      "espnTeamId": "9",
+      "nbaTeamId": "1610612744",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500011",
+      "espnGameId": "401809240",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "6583"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500011",
+      "espnGameId": "401809240",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500012",
+      "espnGameId": "401809241",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "1966"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500012",
+      "espnGameId": "401809241",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4066648"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500012",
+      "espnGameId": "401809241",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4278129"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500012",
+      "espnGameId": "401809241",
+      "espnTeamId": "13",
+      "nbaTeamId": "1610612747",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500013",
+      "espnGameId": "401809242",
+      "nbaTeamId": "1610612743",
+      "espnTeamId": "7",
+      "espnAthleteId": "2528210"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500013",
+      "espnGameId": "401809242",
+      "espnTeamId": "7",
+      "nbaTeamId": "1610612743",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500013",
+      "espnGameId": "401809242",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500013",
+      "espnGameId": "401809242",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500014",
+      "espnGameId": "401809247",
+      "nbaTeamId": "1610612749",
+      "espnTeamId": "15",
+      "espnAthleteId": "3032977"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500014",
+      "espnGameId": "401809247",
+      "espnTeamId": "15",
+      "nbaTeamId": "1610612749",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500015",
+      "espnGameId": "401809248",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "3912848"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500015",
+      "espnGameId": "401809248",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500015",
+      "espnGameId": "401809248",
+      "nbaTeamId": "1610612760",
+      "espnTeamId": "25",
+      "espnAthleteId": "4397183"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500015",
+      "espnGameId": "401809248",
+      "espnTeamId": "25",
+      "nbaTeamId": "1610612760",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500016",
+      "espnGameId": "401809249",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "2531367"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500016",
+      "espnGameId": "401809249",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500017",
+      "espnGameId": "401809250",
+      "nbaTeamId": "1610612765",
+      "espnTeamId": "8",
+      "espnAthleteId": "6440"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500017",
+      "espnGameId": "401809250",
+      "espnTeamId": "8",
+      "nbaTeamId": "1610612765",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500017",
+      "espnGameId": "401809250",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "3917376"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500017",
+      "espnGameId": "401809250",
+      "espnTeamId": "2",
+      "nbaTeamId": "1610612738",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500018",
+      "espnGameId": "401809945",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "3917376"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500018",
+      "espnGameId": "401809945",
+      "espnTeamId": "2",
+      "nbaTeamId": "1610612738",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4066648"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4278129"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "3137259"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "espnTeamId": "13",
+      "nbaTeamId": "1610612747",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500019",
+      "espnGameId": "401809951",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500020",
+      "espnGameId": "401809502",
+      "nbaTeamId": "1610612754",
+      "espnTeamId": "11",
+      "espnAthleteId": "4432170"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500020",
+      "espnGameId": "401809502",
+      "espnTeamId": "11",
+      "nbaTeamId": "1610612754",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500020",
+      "espnGameId": "401809502",
+      "nbaTeamId": "1610612737",
+      "espnTeamId": "1",
+      "espnAthleteId": "3102531"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500020",
+      "espnGameId": "401809502",
+      "espnTeamId": "1",
+      "nbaTeamId": "1610612737",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500021",
+      "espnGameId": "401809503",
+      "nbaTeamId": "1610612755",
+      "espnTeamId": "20",
+      "espnAthleteId": "3133603"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500021",
+      "espnGameId": "401809503",
+      "espnTeamId": "20",
+      "nbaTeamId": "1610612755",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500021",
+      "espnGameId": "401809503",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "4687718"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500021",
+      "espnGameId": "401809503",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "3917376"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500021",
+      "espnGameId": "401809503",
+      "espnTeamId": "2",
+      "nbaTeamId": "1610612738",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500022",
+      "espnGameId": "401809504",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "3912848"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500022",
+      "espnGameId": "401809504",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4065732"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500022",
+      "espnGameId": "401809504",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4066421"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500022",
+      "espnGameId": "401809504",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500023",
+      "espnGameId": "401809505",
+      "nbaTeamId": "1610612741",
+      "espnTeamId": "4",
+      "espnAthleteId": "6478"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500023",
+      "espnGameId": "401809505",
+      "espnTeamId": "4",
+      "nbaTeamId": "1610612741",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500023",
+      "espnGameId": "401809505",
+      "nbaTeamId": "1610612752",
+      "espnTeamId": "18",
+      "espnAthleteId": "4351852"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500023",
+      "espnGameId": "401809505",
+      "espnTeamId": "18",
+      "nbaTeamId": "1610612752",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "4277961"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "3146557"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "4279888"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "espnTeamId": "29",
+      "nbaTeamId": "1610612763",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4066648"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4278129"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "2990992"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500024",
+      "espnGameId": "401809506",
+      "espnTeamId": "13",
+      "nbaTeamId": "1610612747",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500025",
+      "espnGameId": "401809507",
+      "nbaTeamId": "1610612756",
+      "espnTeamId": "21",
+      "espnAthleteId": "2583632"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500025",
+      "espnGameId": "401809507",
+      "nbaTeamId": "1610612756",
+      "espnTeamId": "21",
+      "espnAthleteId": "3135045"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500025",
+      "espnGameId": "401809507",
+      "espnTeamId": "21",
+      "nbaTeamId": "1610612756",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500025",
+      "espnGameId": "401809507",
+      "nbaTeamId": "1610612762",
+      "espnTeamId": "26",
+      "espnAthleteId": "4433136"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500025",
+      "espnGameId": "401809507",
+      "espnTeamId": "26",
+      "nbaTeamId": "1610612762",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500027",
+      "espnGameId": "401809509",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "4017837"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500027",
+      "espnGameId": "401809509",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "3992"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500027",
+      "espnGameId": "401809509",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "6580"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500027",
+      "espnGameId": "401809509",
+      "espnTeamId": "12",
+      "nbaTeamId": "1610612746",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500028",
+      "espnGameId": "401809510",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "4687718"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500028",
+      "espnGameId": "401809510",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "3917376"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500028",
+      "espnGameId": "401809510",
+      "espnTeamId": "2",
+      "nbaTeamId": "1610612738",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_CROSSWALK_NOT_UNIQUE_OR_CONFIDENT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "6609",
+      "rows": 1,
+      "acceptableCandidates": []
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "2490149"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "espnTeamId": "27",
+      "nbaTeamId": "1610612764",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4065732"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4396907"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500029",
+      "espnGameId": "401809511",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500030",
+      "espnGameId": "401809512",
+      "nbaTeamId": "1610612737",
+      "espnTeamId": "1",
+      "espnAthleteId": "3102531"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500030",
+      "espnGameId": "401809512",
+      "espnTeamId": "1",
+      "nbaTeamId": "1610612737",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500031",
+      "espnGameId": "401809773",
+      "nbaTeamId": "1610612751",
+      "espnTeamId": "17",
+      "espnAthleteId": "4278067"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500031",
+      "espnGameId": "401809773",
+      "espnTeamId": "17",
+      "nbaTeamId": "1610612751",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500031",
+      "espnGameId": "401809773",
+      "nbaTeamId": "1610612765",
+      "espnTeamId": "8",
+      "espnAthleteId": "4432810"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500031",
+      "espnGameId": "401809773",
+      "espnTeamId": "8",
+      "nbaTeamId": "1610612765",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500032",
+      "espnGameId": "401809774",
+      "nbaTeamId": "1610612745",
+      "espnTeamId": "10",
+      "espnAthleteId": "4065663"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500032",
+      "espnGameId": "401809774",
+      "espnTeamId": "10",
+      "nbaTeamId": "1610612745",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500033",
+      "espnGameId": "401809775",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "5105623"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500033",
+      "espnGameId": "401809775",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "2595516"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500033",
+      "espnGameId": "401809775",
+      "espnTeamId": "14",
+      "nbaTeamId": "1610612748",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500033",
+      "espnGameId": "401809775",
+      "nbaTeamId": "1610612766",
+      "espnTeamId": "30",
+      "espnAthleteId": "4066383"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500033",
+      "espnGameId": "401809775",
+      "espnTeamId": "30",
+      "nbaTeamId": "1610612766",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "4277961"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "3146557"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "nbaTeamId": "1610612763",
+      "espnTeamId": "29",
+      "espnAthleteId": "4279888"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "espnTeamId": "29",
+      "nbaTeamId": "1610612763",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "3136776"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500034",
+      "espnGameId": "401809776",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500035",
+      "espnGameId": "401809777",
+      "nbaTeamId": "1610612749",
+      "espnTeamId": "15",
+      "espnAthleteId": "3032977"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500035",
+      "espnGameId": "401809777",
+      "espnTeamId": "15",
+      "nbaTeamId": "1610612749",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500035",
+      "espnGameId": "401809777",
+      "nbaTeamId": "1610612741",
+      "espnTeamId": "4",
+      "espnAthleteId": "6478"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500035",
+      "espnGameId": "401809777",
+      "espnTeamId": "4",
+      "nbaTeamId": "1610612741",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500036",
+      "espnGameId": "401809778",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500036",
+      "espnGameId": "401809778",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500037",
+      "espnGameId": "401809779",
+      "nbaTeamId": "1610612744",
+      "espnTeamId": "9",
+      "espnAthleteId": "4433247"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500037",
+      "espnGameId": "401809779",
+      "espnTeamId": "9",
+      "nbaTeamId": "1610612744",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500038",
+      "espnGameId": "401809780",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3914285"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500038",
+      "espnGameId": "401809780",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3468"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500038",
+      "espnGameId": "401809780",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3978"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500038",
+      "espnGameId": "401809780",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3032979"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500038",
+      "espnGameId": "401809780",
+      "espnTeamId": "23",
+      "nbaTeamId": "1610612758",
+      "mapped": 1,
+      "distinct": 1
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500039",
+      "espnGameId": "401809781",
+      "nbaTeamId": "1610612752",
+      "espnTeamId": "18",
+      "espnAthleteId": "4351852"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500039",
+      "espnGameId": "401809781",
+      "espnTeamId": "18",
+      "nbaTeamId": "1610612752",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500039",
+      "espnGameId": "401809781",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "5105623"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500039",
+      "espnGameId": "401809781",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "2595516"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500039",
+      "espnGameId": "401809781",
+      "espnTeamId": "14",
+      "nbaTeamId": "1610612748",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500040",
+      "espnGameId": "401809782",
+      "nbaTeamId": "1610612751",
+      "espnTeamId": "17",
+      "espnAthleteId": "4278067"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500040",
+      "espnGameId": "401809782",
+      "espnTeamId": "17",
+      "nbaTeamId": "1610612751",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500041",
+      "espnGameId": "401809783",
+      "nbaTeamId": "1610612755",
+      "espnTeamId": "20",
+      "espnAthleteId": "6585"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500041",
+      "espnGameId": "401809783",
+      "nbaTeamId": "1610612755",
+      "espnTeamId": "20",
+      "espnAthleteId": "3133603"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500041",
+      "espnGameId": "401809783",
+      "espnTeamId": "20",
+      "nbaTeamId": "1610612755",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500042",
+      "espnGameId": "401809784",
+      "nbaTeamId": "1610612745",
+      "espnTeamId": "10",
+      "espnAthleteId": "4065663"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500042",
+      "espnGameId": "401809784",
+      "espnTeamId": "10",
+      "nbaTeamId": "1610612745",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500043",
+      "espnGameId": "401809785",
+      "nbaTeamId": "1610612749",
+      "espnTeamId": "15",
+      "espnAthleteId": "3032977"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500043",
+      "espnGameId": "401809785",
+      "espnTeamId": "15",
+      "nbaTeamId": "1610612749",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500043",
+      "espnGameId": "401809785",
+      "nbaTeamId": "1610612766",
+      "espnTeamId": "30",
+      "espnAthleteId": "4066383"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500043",
+      "espnGameId": "401809785",
+      "nbaTeamId": "1610612766",
+      "espnTeamId": "30",
+      "espnAthleteId": "4432816"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500043",
+      "espnGameId": "401809785",
+      "espnTeamId": "30",
+      "nbaTeamId": "1610612766",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500044",
+      "espnGameId": "401809786",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500044",
+      "espnGameId": "401809786",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500044",
+      "espnGameId": "401809786",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3468"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500044",
+      "espnGameId": "401809786",
+      "nbaTeamId": "1610612758",
+      "espnTeamId": "23",
+      "espnAthleteId": "3978"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500044",
+      "espnGameId": "401809786",
+      "espnTeamId": "23",
+      "nbaTeamId": "1610612758",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "nbaTeamId": "1610612740",
+      "espnTeamId": "3",
+      "espnAthleteId": "3155535"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "espnTeamId": "3",
+      "nbaTeamId": "1610612740",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4066648"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "4278129"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "nbaTeamId": "1610612747",
+      "espnTeamId": "13",
+      "espnAthleteId": "2990992"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500045",
+      "espnGameId": "401809787",
+      "espnTeamId": "13",
+      "nbaTeamId": "1610612747",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "4397040"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "3908845"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "4017837"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "nbaTeamId": "1610612746",
+      "espnTeamId": "12",
+      "espnAthleteId": "3992"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500046",
+      "espnGameId": "401809788",
+      "espnTeamId": "12",
+      "nbaTeamId": "1610612746",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4065732"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "nbaTeamId": "1610612739",
+      "espnTeamId": "5",
+      "espnAthleteId": "4396907"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "espnTeamId": "5",
+      "nbaTeamId": "1610612739",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "nbaTeamId": "1610612754",
+      "espnTeamId": "11",
+      "espnAthleteId": "4432170"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "nbaTeamId": "1610612754",
+      "espnTeamId": "11",
+      "espnAthleteId": "4683634"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500048",
+      "espnGameId": "401809790",
+      "espnTeamId": "11",
+      "nbaTeamId": "1610612754",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500049",
+      "espnGameId": "401809791",
+      "nbaTeamId": "1610612738",
+      "espnTeamId": "2",
+      "espnAthleteId": "3917376"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500049",
+      "espnGameId": "401809791",
+      "espnTeamId": "2",
+      "nbaTeamId": "1610612738",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500049",
+      "espnGameId": "401809791",
+      "nbaTeamId": "1610612751",
+      "espnTeamId": "17",
+      "espnAthleteId": "4278067"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500049",
+      "espnGameId": "401809791",
+      "espnTeamId": "17",
+      "nbaTeamId": "1610612751",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_CROSSWALK_NOT_UNIQUE_OR_CONFIDENT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500050",
+      "espnGameId": "401809792",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "6609",
+      "rows": 1,
+      "acceptableCandidates": []
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500050",
+      "espnGameId": "401809792",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "2490149"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500050",
+      "espnGameId": "401809792",
+      "espnTeamId": "27",
+      "nbaTeamId": "1610612764",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "nbaTeamId": "1610612741",
+      "espnTeamId": "4",
+      "espnAthleteId": "6478"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "nbaTeamId": "1610612741",
+      "espnTeamId": "4",
+      "espnAthleteId": "4397002"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "espnTeamId": "4",
+      "nbaTeamId": "1610612741",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "5105623"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "nbaTeamId": "1610612748",
+      "espnTeamId": "14",
+      "espnAthleteId": "2595516"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500051",
+      "espnGameId": "401809793",
+      "espnTeamId": "14",
+      "nbaTeamId": "1610612748",
+      "mapped": 3,
+      "distinct": 3
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500052",
+      "espnGameId": "401809794",
+      "nbaTeamId": "1610612742",
+      "espnTeamId": "6",
+      "espnAthleteId": "4397040"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500052",
+      "espnGameId": "401809794",
+      "espnTeamId": "6",
+      "nbaTeamId": "1610612742",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500053",
+      "espnGameId": "401809795",
+      "nbaTeamId": "1610612756",
+      "espnTeamId": "21",
+      "espnAthleteId": "2583632"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500053",
+      "espnGameId": "401809795",
+      "espnTeamId": "21",
+      "nbaTeamId": "1610612756",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500053",
+      "espnGameId": "401809795",
+      "nbaTeamId": "1610612750",
+      "espnTeamId": "16",
+      "espnAthleteId": "3064514"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500053",
+      "espnGameId": "401809795",
+      "espnTeamId": "16",
+      "nbaTeamId": "1610612750",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500056",
+      "espnGameId": "401809798",
+      "nbaTeamId": "1610612757",
+      "espnTeamId": "22",
+      "espnAthleteId": "2991070"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500056",
+      "espnGameId": "401809798",
+      "espnTeamId": "22",
+      "nbaTeamId": "1610612757",
+      "mapped": 4,
+      "distinct": 4
+    },
+    {
+      "kind": "PLAYER_CROSSWALK_NOT_UNIQUE_OR_CONFIDENT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500057",
+      "espnGameId": "401809799",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "6609",
+      "rows": 1,
+      "acceptableCandidates": []
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500057",
+      "espnGameId": "401809799",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "4280151"
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500057",
+      "espnGameId": "401809799",
+      "nbaTeamId": "1610612764",
+      "espnTeamId": "27",
+      "espnAthleteId": "2490149"
+    },
+    {
+      "kind": "MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT",
+      "seasonType": "Regular Season",
+      "gameId": "0022500057",
+      "espnGameId": "401809799",
+      "espnTeamId": "27",
+      "nbaTeamId": "1610612764",
+      "mapped": 2,
+      "distinct": 2
+    },
+    {
+      "kind": "PLAYER_MISSING_FROM_CROSSWALK",
+      "seasonType": "Regular Season",
+      "gameId": "0022500057",
+      "espnGameId": "401809799",
+      "nbaTeamId": "1610612737",
+      "espnTeamId": "1",
+      "espnAthleteId": "3102531"
+    }
+  ],
+  "failureCount": 4229,
+  "starterAssignments": null
+}

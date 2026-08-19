@@ -1,0 +1,220 @@
+name: Exhaustive historical starter acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [v3-official-data]
+  push:
+    branches: [v3-official-data]
+    paths:
+      - 'scripts/espn-starter-full-season-gate.mjs'
+      - 'scripts/starter-full-season-gate.mjs'
+      - 'scripts/probe-starter-source.mjs'
+      - 'scripts/data/history/provenance.json'
+      - 'scripts/data/splits_nba/starter.json'
+      - '.github/workflows/starter-history-gate.yml'
+      - 'package.json'
+
+permissions:
+  contents: read
+
+jobs:
+  starter-gate:
+    name: ${{ matrix.season }} starter gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        season:
+          - '2015-16'
+          - '2016-17'
+          - '2017-18'
+          - '2018-19'
+          - '2019-20'
+          - '2020-21'
+          - '2021-22'
+          - '2022-23'
+          - '2023-24'
+          - '2024-25'
+          - '2025-26'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore exact tracked historical cache
+        if: matrix.season != '2025-26'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee -- "scripts/data/history/${{ matrix.season }}"
+          test -s "scripts/data/history/${{ matrix.season }}/gamelog.json"
+          test -s "scripts/data/history/${{ matrix.season }}/gamelog_playoffs.json"
+          test -s "scripts/data/history/${{ matrix.season }}/starter_splits.json"
+
+      - name: Syntax check gate
+        run: node --check scripts/espn-starter-full-season-gate.mjs
+
+      - name: Run exhaustive cross-source gate
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/espn-starter-full-season-gate.mjs "${{ matrix.season }}" 2>&1 | tee "starter-gate-${{ matrix.season }}.log"
+
+      - name: Publish gate summary
+        if: always()
+        shell: bash
+        run: |
+          file="scripts/data/history/starter_espn_acceptance_${{ matrix.season }}.json"
+          if [[ -s "$file" ]]; then
+            node - "$file" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          const fs = require('fs');
+          const f = process.argv[2];
+          const x = JSON.parse(fs.readFileSync(f, 'utf8'));
+          console.log(`## ${x.season}: ${x.accepted ? 'ACCEPTED' : 'REJECTED'}`);
+          console.log('');
+          console.log(`- Mode: ${x.mode}`);
+          console.log(`- Expected team-games: ${x.expected.teamGames}`);
+          console.log(`- Observed team-games: ${x.observed.teamGames}`);
+          console.log(`- Expected starter edges: ${x.expected.starterEdges}`);
+          console.log(`- Observed starter edges: ${x.observed.starterEdges}`);
+          console.log(`- Per-player regular-season start mismatches: ${x.perPlayerStarts.mismatchCount}`);
+          console.log(`- Failures: ${x.failureCount}`);
+          NODE
+          else
+            echo "## ${{ matrix.season }}: gate crashed before acceptance evidence was written" >> "$GITHUB_STEP_SUMMARY"
+            if [[ -s "starter-gate-${{ matrix.season }}.log" ]]; then
+              echo '' >> "$GITHUB_STEP_SUMMARY"
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              tail -n 20 "starter-gate-${{ matrix.season }}.log" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - name: Upload acceptance evidence and assignments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starter-gate-${{ matrix.season }}
+          path: |
+            starter-gate-${{ matrix.season }}.log
+            scripts/data/history/starter_espn_acceptance_${{ matrix.season }}.json
+            scripts/data/history/starter_assignments_${{ matrix.season }}.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  collect-evidence:
+    name: Persist all-season acceptance evidence
+    needs: starter-gate
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download every season artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: starter-gate-*
+          path: .starter-gate-artifacts
+
+      - name: Build tracked acceptance manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+          const seasons = ['2015-16','2016-17','2017-18','2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+          const root = '.starter-gate-artifacts';
+          const outDir = 'scripts/data/history';
+          const results = [];
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+              const p = path.join(dir, d.name);
+              return d.isDirectory() ? walk(p) : [p];
+            });
+          }
+          function logEvidence(files, season) {
+            const name = `starter-gate-${season}.log`;
+            const log = files.find((f) => path.basename(f) === name);
+            if (!log) return { logPresent: false, logSha256: null, logTail: [] };
+            const bytes = fs.readFileSync(log);
+            const lines = bytes.toString('utf8').split(/\r?\n/).filter(Boolean);
+            return {
+              logPresent: true,
+              logSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              logTail: lines.slice(-20),
+            };
+          }
+          const files = walk(root);
+          for (const season of seasons) {
+            const name = `starter_espn_acceptance_${season}.json`;
+            const source = files.find((f) => path.basename(f) === name);
+            const log = logEvidence(files, season);
+            if (!source) {
+              results.push({
+                season,
+                accepted: false,
+                evidencePresent: false,
+                failureCount: null,
+                reason: log.logPresent ? 'gate crashed before acceptance evidence was written; see logTail' : 'gate crashed or artifact missing; no log artifact was captured',
+                ...log,
+              });
+              continue;
+            }
+            const bytes = fs.readFileSync(source);
+            const record = JSON.parse(bytes.toString('utf8'));
+            if (record.season !== season) throw new Error(`${source}: season mismatch ${record.season}`);
+            fs.writeFileSync(path.join(outDir, name), bytes);
+            results.push({
+              season,
+              accepted: record.accepted === true,
+              evidencePresent: true,
+              failureCount: record.failureCount,
+              teamGames: record.observed?.teamGames ?? null,
+              starterEdges: record.observed?.starterEdges ?? null,
+              perPlayerStartMismatches: record.perPlayerStarts?.mismatchCount ?? null,
+              evidenceSha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              ...log,
+            });
+          }
+          const manifest = {
+            schemaVersion: 2,
+            generatedAt: new Date().toISOString(),
+            sourceCommit: process.env.GITHUB_SHA,
+            scope: '2015-16 through 2025-26, Regular Season + Playoffs',
+            allAccepted: results.length === seasons.length && results.every((x) => x.accepted === true && x.evidencePresent === true),
+            results,
+          };
+          fs.writeFileSync(path.join(outDir, 'starter_acceptance_manifest.json'), JSON.stringify(manifest, null, 2));
+          console.log(JSON.stringify(manifest, null, 2));
+          NODE
+
+      - name: Commit acceptance evidence to branch
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f scripts/data/history/starter_espn_acceptance_*.json scripts/data/history/starter_acceptance_manifest.json
+          if git diff --cached --quiet; then
+            echo 'Acceptance evidence is unchanged.'
+          else
+            git commit -m "Record exhaustive starter gate results for ${GITHUB_SHA::12}"
+            git push origin HEAD:v3-official-data
+          fi
