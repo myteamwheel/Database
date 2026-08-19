@@ -33,7 +33,11 @@ for (const [playerId, list] of Object.entries(product.byPlayer)) {
       const isGap = (product.starterSourceGaps || []).some(
         (g) => g.gameId === r[ix.gameId] && g.playerId === Number(playerId));
       if (isGap) assert.equal(started, null, `source gap must stay null: ${phaseKey}`);
-      else assert.equal(typeof started, 'boolean', `accepted starter phase must be known: ${phaseKey}`);
+      else if ((product.starterPartialPhases || []).includes(phaseKey)) {
+        // Reconstruction writes only assignments forced in every feasible solution; the rest stay
+        // null by design. Both are valid here — what must never happen is a guessed value.
+        assert.ok(started === null || typeof started === 'boolean', `partial phase must be boolean or null: ${phaseKey}`);
+      } else assert.equal(typeof started, 'boolean', `full-census phase must be known: ${phaseKey}`);
       known++;
     } else {
       assert.equal(started, null, `unaccepted starter phase must remain null: ${phaseKey}`);

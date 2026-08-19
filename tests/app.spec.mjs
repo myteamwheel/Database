@@ -58,16 +58,26 @@ test.describe('data + load', () => {
       const p = DATA.leagues.NBA.find((x) => x.name === 'James Harden' && x.history?.length);
       const rows = (p?.history || []).map((r) => Object.fromEntries(schema.map((k, i) => [k, r[i]])));
       const old = rows.find((r) => r.season === '2015-16' && r.seasonType === 'Regular Season');
+      // Playoffs of a corrupted season are NOT reconstructed, so they remain genuinely unknown.
+      const oldPO = rows.find((r) => r.season === '2015-16' && r.seasonType === 'Playoffs');
       const acceptedRS = rows.find((r) => r.season === '2023-24' && r.seasonType === 'Regular Season');
       const acceptedPO = rows.find((r) => r.season === '2023-24' && r.seasonType === 'Playoffs');
       const rawLeak = schema.some((k) => ['gameId', 'gameDate', 'minutes', 'firstGameDate', 'lastGameDate'].includes(k));
-      return { playerId: p?.playerId, schema, old, acceptedRS, acceptedPO, rawLeak };
+      return { playerId: p?.playerId, schema, old, oldPO, acceptedRS, acceptedPO, rawLeak };
     });
     expect(data.playerId).toBeTruthy();
     expect(data.schema).toEqual(['season', 'seasonType', 'teams', 'gp', 'mpg', 'pts', 'reb', 'ast', 'ts', 'starts', 'startShareOfAppearances', 'starterKnownAppearances', 'starterCoverage']);
     expect(data.rawLeak).toBe(false);
-    expect(data.old?.starts).toBeNull();
-    expect(data.old?.starterCoverage).toBe(0);
+    // 2015-16 regular season is now PARTIALLY established by constrained reconstruction, which
+    // writes only assignments forced in every feasible solution. Harden started every game he was
+    // a candidate in, so his row is fully forced — coverage may legitimately reach 1 here. What
+    // must still hold is that nothing is invented: starts never exceed appearances.
+    expect(data.old?.starterCoverage).toBeGreaterThan(0);
+    expect(data.old?.starterCoverage).toBeLessThanOrEqual(1);
+    expect(data.old?.starts).toBeLessThanOrEqual(data.old?.gp);
+    // The corrupted seasons' PLAYOFFS have no reconstruction, so unknown must stay unknown.
+    expect(data.oldPO?.starts).toBeNull();
+    expect(data.oldPO?.starterCoverage).toBe(0);
     expect(data.acceptedRS?.starts).not.toBeNull();
     expect(data.acceptedRS?.starterCoverage).toBe(1);
     expect(data.acceptedPO?.starts).not.toBeNull();

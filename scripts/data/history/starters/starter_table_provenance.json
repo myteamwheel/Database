@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-19T01:29:27.726Z",
+ "generatedAt": "2026-08-19T01:53:21.058Z",
  "methodVersions": {
   "DIRECT_NBA": "nba/boxscoretraditionalv2#START_POSITION@v1",
   "DIRECT_ESPN": "espn/summary#athlete.starter@v1",
@@ -14,10 +14,16 @@
  "rows": 272307,
  "byProvenance": {
   "UNKNOWN": {
-   "rows": 55855,
+   "rows": 38780,
    "started": 0,
    "benched": 0,
-   "nulls": 55855
+   "nulls": 38780
+  },
+  "RECONSTRUCTED_V1": {
+   "rows": 17075,
+   "started": 12094,
+   "benched": 4981,
+   "nulls": 0
   },
   "DIRECT_NBA": {
    "rows": 216452,
@@ -26,5 +32,5 @@
    "nulls": 0
   }
  },
- "sha256": "6ce14b1acc219120"
+ "sha256": "2d8a021cc79725c8"
 }

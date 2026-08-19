@@ -35,6 +35,28 @@ const prov = JSON.parse(fs.readFileSync(path.join(HIST, 'provenance.json'), 'utf
 const rows = [];
 const sourceGaps = [];
 
+/**
+ * Reconstructed starters, admitted ONLY for a season whose exhaustive ESPN superset gate was
+ * accepted for the historical cache currently on disk. Without that acceptance the forcing is
+ * exact but conditional on an unverified premise, so the values stay out.
+ * Only FORCED_TRUE / FORCED_FALSE are taken; AMBIGUOUS stays null and is never guessed.
+ */
+function acceptedReconstruction(season) {
+  const acc = path.join(HIST, 'starters', `${season}_espn_superset_acceptance.json`);
+  const rec = path.join(HIST, season, 'starters_reconstructed.json');
+  if (!fs.existsSync(acc) || !fs.existsSync(rec)) return null;
+  const a = JSON.parse(fs.readFileSync(acc, 'utf8'));
+  if (a.accepted !== true || a.exhaustive !== true || a.season !== season) return null;
+  const map = new Map();
+  for (const r of JSON.parse(fs.readFileSync(rec, 'utf8'))) {
+    if (r.started === null) continue;      // AMBIGUOUS_OFFICIAL_CONSTRAINTS
+    map.set(`${r.gameId}|${r.playerId}|${r.teamId}`, r.started);
+  }
+  return map;
+}
+const reconstructed = {};
+for (const season of prov.seasons) reconstructed[season] = acceptedReconstruction(season);
+
 for (const season of prov.seasons) {
   for (const [file, st, slug] of [
     ['gamelog.json', 'Regular Season', 'regular'],
@@ -69,6 +91,17 @@ for (const season of prov.seasons) {
           reason: 'present in leaguegamelog, absent from boxscoretraditionalv2 PlayerStats' });
       }
       let starter = null, source = 'UNKNOWN', validation = 'unresolved', evidence = null;
+      const recon = reconstructed[season];
+      if (!hit || status !== 'VALID') {
+        // Precedence: reconstruction may fill only rows no direct source established.
+        const rv = recon?.get(k);
+        if (rv !== undefined) {
+          starter = rv;
+          source = 'RECONSTRUCTED_V1';
+          validation = 'derived_consistent';
+          evidence = rv ? 'forced_true_official_constraints' : 'forced_false_official_constraints';
+        }
+      }
       if (hit && status === 'VALID') {
         starter = hit.started;
         source = 'DIRECT_NBA';
@@ -132,18 +165,29 @@ for (const [k, v] of Object.entries(bySeason)) {
   console.log(`    ${k.padEnd(26)} ${v.known}/${v.n}  (${(100 * v.known / v.n).toFixed(1)}%)`);
 }
 
-// Invariant: a written team-game must show exactly five starters.
-const tg = new Map();
+// Invariants, split by provenance because the two sources make different claims.
+//   DIRECT: the team-game was verified to carry exactly five flags, so exactly five is required.
+//   RECONSTRUCTED: only assignments forced in EVERY feasible solution are written, so a team-game
+//     is legitimately PARTIAL. It can never EXCEED five, which would contradict the constraint the
+//     solver satisfied. Treating partial reconstruction as a failure would be wrong; treating an
+//     over-full one as acceptable would hide a real bug.
+const tgDirect = new Map(), tgRecon = new Map();
 for (const r of rows) {
   if (r.starterSource === 'UNKNOWN') continue;
   const k = `${r.gameId}|${r.teamId}`;
-  tg.set(k, (tg.get(k) || 0) + (r.starter === true ? 1 : 0));
+  const m = r.starterSource === 'RECONSTRUCTED_V1' ? tgRecon : tgDirect;
+  m.set(k, (m.get(k) || 0) + (r.starter === true ? 1 : 0));
 }
-const bad = [...tg.entries()].filter(([, n]) => n !== 5);
+const badDirect = [...tgDirect.entries()].filter(([, n]) => n !== 5);
+const badRecon = [...tgRecon.entries()].filter(([, n]) => n > 5);
+const reconFull = [...tgRecon.values()].filter((n) => n === 5).length;
 console.log(`\n  upstream source gaps (in leaguegamelog, absent from box score): ${sourceGaps.length}`);
 for (const g of sourceGaps.slice(0, 5)) console.log(`    ${g.season} ${g.gameDate} ${g.playerName} (${g.playerId}) game ${g.gameId}`);
-console.log(`  written team-games with starters != 5: ${bad.length} of ${tg.size}`);
-if (bad.length) { console.log('    ' + JSON.stringify(bad.slice(0, 5))); process.exitCode = 1; }
+console.log(`  DIRECT team-games with starters != 5:   ${badDirect.length} of ${tgDirect.size}`);
+console.log(`  RECONSTRUCTED team-games exceeding 5:   ${badRecon.length} of ${tgRecon.size}   (partial expected, >5 is not)`);
+console.log(`  RECONSTRUCTED team-games fully identified (5/5): ${reconFull} of ${tgRecon.size}`);
+if (badDirect.length) { console.log('    ' + JSON.stringify(badDirect.slice(0, 5))); process.exitCode = 1; }
+if (badRecon.length) { console.log('    ' + JSON.stringify(badRecon.slice(0, 5))); process.exitCode = 1; }
 
 // Persist ONLY rows whose status is established. A row absent from this file is UNKNOWN by
 // definition, so writing 244,221 explicit null/UNKNOWN records stored no information and cost
@@ -183,14 +227,24 @@ const artifact = {
   legend,
   scope: {
     leagueId: '00',
+    // A phase covered by a DIRECT full census is not the same claim as one partially filled by
+    // reconstruction, and conflating them would let a consumer assume completeness it does not
+    // have. fullCensusPhases: every appearance established (minus enumerated sourceGaps).
+    // partialPhases: only the assignments forced in every feasible solution; the rest stay null.
+    fullCensusPhases: [...new Set(known_rows.filter((r) => r.starterSource !== 'RECONSTRUCTED_V1')
+      .map((r) => `${r.season} ${r.seasonType}`))].sort(),
+    partialPhases: [...new Set(known_rows.filter((r) => r.starterSource === 'RECONSTRUCTED_V1')
+      .map((r) => `${r.season} ${r.seasonType}`))].sort(),
     seasonPhases: [...new Set(known_rows.map((r) => `${r.season} ${r.seasonType}`))].sort(),
-    description: 'Per-game starter status for season-phases that passed player-level acceptance. Phases absent from seasonPhases are entirely UNKNOWN.',
+    description: 'seasonPhases = any phase with at least one established row. Use fullCensusPhases for completeness claims. Phases absent from seasonPhases are entirely UNKNOWN.',
   },
   generatedAt: new Date().toISOString(),
   sourceRevisions: METHOD_VERSIONS,
   absentKeyMeans: { starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved', starterEvidence: null },
   evidenceSubtypes: {
     explicit_true: 'the source literally flagged this athlete as a starter',
+    forced_true_official_constraints: 'not directly observed; identical in EVERY feasible assignment satisfying the official season start totals and the corrupted candidate sets',
+    forced_false_official_constraints: 'not directly observed; excluded in EVERY feasible assignment under the same constraints',
     validated_complement_false: 'not flagged, within a team-game independently validated to carry exactly five flags; NOT an athlete-level explicit negative from the feed',
   },
   totalHistoricalRows: rows.length,

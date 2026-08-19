@@ -14,7 +14,7 @@ for (const [playerId, list] of Object.entries(summary.byPlayer)) for (const r of
   assert.ok(coverage >= 0 && coverage <= 1);
   assert.ok(known >= 0 && known <= gp);
   const phaseKey = `${r[hx.season]} ${r[hx.seasonType]}`;
-  if ((summary.starterCoveragePhases || []).includes(phaseKey)) {
+  if ((summary.starterFullCensusPhases || []).includes(phaseKey)) {
     assert.notEqual(starts, null, `covered starter phase must be established: ${phaseKey}`);
     // A covered phase is a full census EXCEPT for enumerated upstream source gaps: appearances
     // leaguegamelog reports that the box score omits entirely, so no source can establish them.
@@ -25,6 +25,11 @@ for (const [playerId, list] of Object.entries(summary.byPlayer)) for (const r of
       `covered phase must establish every appearance except enumerated source gaps: ${phaseKey} (${gaps} gap(s))`);
     if (!gaps) assert.equal(coverage, 1, `accepted full-census starter phase must have complete coverage: ${phaseKey}`);
     knownRows += gp;
+  } else if ((summary.starterPartialPhases || []).includes(phaseKey)) {
+    // Reconstruction fills only what is forced in EVERY feasible solution, so a partial phase may
+    // legitimately be anywhere from 0 to fully covered. What must hold is that nothing is invented:
+    // coverage never exceeds 1 and known never exceeds appearances (both asserted above).
+    assert.ok(coverage >= 0 && coverage <= 1, `partial phase coverage out of range: ${phaseKey}`);
   } else {
     assert.equal(starts, null, `uncovered starter phase must stay unknown: ${phaseKey}`);
     assert.equal(coverage, 0);
@@ -37,7 +42,8 @@ assert.equal(summary.inventory.allPlayerSeasonPhaseRows, 7561);
 assert.equal(summary.inventory.allHistoricalPlayers, 1453);
 // Coverage moved from 28,086 to 216,452 once the remaining seven regular seasons and nine playoff
 // phases were crawled. Pinning the exact number keeps an accidental coverage REGRESSION visible.
-assert.equal(summary.inventory.starterKnownAppearancesAll, 216452);
+// 216,452 direct + 17,075 reconstructed. Pinned so a coverage REGRESSION stays visible.
+assert.equal(summary.inventory.starterKnownAppearancesAll, 233527);
 assert.ok(Array.isArray(summary.starterCoveragePhases) && summary.starterCoveragePhases.length > 0, 'starter coverage phases must come from canonical artifact scope');
 assert.ok(summary.starterCoveragePhases.includes('2023-24 Regular Season'));
 assert.ok(summary.starterCoveragePhases.includes('2023-24 Playoffs'));
@@ -46,9 +52,11 @@ for (const season of ['2017-18', '2018-19', '2019-20', '2020-21', '2021-22', '20
   assert.ok(summary.starterCoveragePhases.includes(`${season} Regular Season`), `${season} regular must be covered`);
   assert.ok(summary.starterCoveragePhases.includes(`${season} Playoffs`), `${season} playoffs must be covered`);
 }
+// The corrupted seasons must NEVER be claimed as a full census. They may appear as partial,
+// because reconstruction fills only logically forced assignments there.
 for (const season of ['2015-16', '2016-17']) {
-  assert.ok(!summary.starterCoveragePhases.some((p) => p.startsWith(season)),
-    `${season} START_POSITION is corrupted league-wide; it must never be reported as covered`);
+  assert.ok(!summary.starterFullCensusPhases.some((p) => p.startsWith(season)),
+    `${season} START_POSITION is corrupted league-wide; it must never be reported as a full census`);
 }
 // Exactly one appearance in the whole ten-season history has no establishable starter status.
 assert.equal((summary.starterSourceGaps || []).length, 1, 'enumerated upstream source gaps');

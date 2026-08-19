@@ -49,11 +49,15 @@ for (const [rel, league] of [['scripts/data/rosters_nba.json', 'NBA'], ['scripts
 
 const starterByKey = new Map();
 let starterSourceGaps = [];
+let starterFullCensusPhases = [];
+let starterPartialPhases = [];
 let starterCoveragePhases = [];
 const starterFile = path.join(HIST, 'starters/player_game_starters.json');
 if (fs.existsSync(starterFile)) {
   const s = JSON.parse(fs.readFileSync(starterFile, 'utf8'));
   // v2 interns provenance into a legend and encodes starter as 0/1; v1 stored strings per row.
+  starterFullCensusPhases = Array.isArray(s.scope?.fullCensusPhases) ? [...s.scope.fullCensusPhases].sort() : [];
+  starterPartialPhases = Array.isArray(s.scope?.partialPhases) ? [...s.scope.partialPhases].sort() : [];
   starterSourceGaps = (s.sourceGaps || []).map((g) => ({ season: g.season, seasonType: g.seasonType, playerId: g.playerId, gameId: g.gameId }));
   if (s.onUnknownSchemaVersion === 'FAIL_CLOSED' && ![1, 2].includes(s.schemaVersion)) {
     throw new Error(`unsupported starter artifact schemaVersion ${s.schemaVersion}`);
@@ -105,6 +109,8 @@ const namedPlayers = Object.values(playerIndex).filter((x) => x.name && !/^Playe
 const artifact = {
   schemaVersion: 1,
   starterSourceGaps,
+  starterFullCensusPhases,
+  starterPartialPhases,
   generatedAt: GENERATED_AT,
   seasons: prov.seasons,
   source: 'historical leaguegamelog cache + canonical starter artifact',

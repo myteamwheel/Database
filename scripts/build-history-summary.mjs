@@ -21,11 +21,15 @@ const GENERATED_AT = process.env.BUILD_GENERATED_AT || new Date().toISOString();
 const starterByKey = new Map();
 let starterSchemaVersion = null;
 let starterCoveragePhases = [];
+let starterFullCensusPhases = [];
+let starterPartialPhases = [];
 let starterSourceGaps = [];
 if (fs.existsSync(starterFile)) {
   const s = JSON.parse(fs.readFileSync(starterFile, 'utf8'));
   starterSchemaVersion = s.schemaVersion ?? null;
   starterCoveragePhases = Array.isArray(s.scope?.seasonPhases) ? [...s.scope.seasonPhases].sort() : [];
+  starterFullCensusPhases = Array.isArray(s.scope?.fullCensusPhases) ? [...s.scope.fullCensusPhases].sort() : [];
+  starterPartialPhases = Array.isArray(s.scope?.partialPhases) ? [...s.scope.partialPhases].sort() : [];
   // Appearances inside an otherwise-complete phase that NO source can establish (present in
   // leaguegamelog, absent from the box score). Carried through so consumers can tell a real
   // upstream gap apart from incomplete crawling, and so tests can allow exactly these and no others.
@@ -173,6 +177,8 @@ for (const id of currentIds) {
 const artifact = {
   schemaVersion: 1,
   starterSourceGaps,
+  starterFullCensusPhases,
+  starterPartialPhases,
   generatedAt: GENERATED_AT,
   seasons,
   source: 'local historical leaguegamelog cache + canonical starter artifact',
@@ -192,6 +198,8 @@ const starterKnownAll = all.reduce((sum, r) => sum + r.starterKnownAppearances, 
 const productArtifact = {
   schemaVersion: 1,
   starterSourceGaps,
+  starterFullCensusPhases,
+  starterPartialPhases,
   generatedAt: artifact.generatedAt,
   seasons,
   source: artifact.source,
