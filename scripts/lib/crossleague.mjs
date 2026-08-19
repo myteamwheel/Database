@@ -35,29 +35,79 @@ const quantile = (sorted, q) => {
  *
  * @returns {{optimalMpg, minutesDelta, projectedAtOptimal, supportedBands, confidence}|null}
  */
+export const OPTIMAL_CONFIG = {
+  minEffectiveN: 8,     // a band built on fewer effective comparables is not evidence
+  minSupport: 50,       // TULIP's own support score for the band
+  // The winner's lower bound must beat the current band's point estimate by at least this
+  // fraction of the current band's upper half-interval. A bare ">" let a 0.01 margin qualify
+  // (Jahmir Young: lower bound -1.23 against a current projection of -1.24), which is noise
+  // wearing a recommendation's clothes. Full interval non-overlap was also tested and admitted
+  // ZERO players league-wide, so it is too strict to be informative.
+  marginFractionOfInterval: 0.25,
+};
+
+/**
+ * Search TULIP's frontier for the workload with the highest projected impact.
+ *
+ * TULIP evaluates a FIXED target and never asks which workload is best. The frontier already
+ * projects 12-36 MPG, so the answer is a selection problem over those bands.
+ *
+ * Selecting by the highest POINT ESTIMATE is wrong, and produced visibly absurd results: Keegan
+ * Murray (34.5 MPG) came out at 12 MPG because that band's point estimate was -1.78 versus -6.93
+ * at 24 MPG -- but it rested on 6.6 effective comparables with an interval of [-5.5, 1.93] that
+ * overlapped every other band. The argmax was ranking noise. Three changes fix it:
+ *
+ *   1. ELIGIBILITY. A band needs real evidence behind it (effective N and support), not merely
+ *      enough raw comparables to clear TULIP's abstention test.
+ *   2. LOWER CONFIDENCE BOUND. Bands are ranked by the bottom of their interval, not the middle,
+ *      so a thin pool with a wide interval cannot win on optimism alone.
+ *   3. DISTINGUISHABILITY. The winner's lower bound must beat the CURRENT workload's point
+ *      estimate. If it does not, the honest answer is "no change indicated" -- reported as 0 with
+ *      indicated:false -- rather than a large number drawn from overlapping intervals.
+ *
+ * Ties are broken toward the band nearest current minutes, so an undetermined case drifts to the
+ * status quo instead of to an extreme.
+ */
 export function optimalMinutes(frontierPoints, currentMpg) {
   if (!Array.isArray(frontierPoints)) return null;
-  const supported = frontierPoints.filter((p) => p && p.abstain !== true && fin(p.projectedImpact));
-  if (supported.length < 2) return null;
+  const lcb = (p) => (Array.isArray(p.interval) && fin(p.interval[0]) ? p.interval[0] : p.projectedImpact);
 
-  let best = supported[0];
-  for (const p of supported) if (p.projectedImpact > best.projectedImpact) best = p;
+  const eligible = frontierPoints.filter((p) => p && p.abstain !== true && fin(p.projectedImpact)
+    && fin(p.effectiveN) && p.effectiveN >= OPTIMAL_CONFIG.minEffectiveN
+    && fin(p.support) && p.support >= OPTIMAL_CONFIG.minSupport);
+  if (eligible.length < 2 || !fin(currentMpg)) return null;
 
-  // How clearly the peak stands out is REPORTED rather than used to suppress the estimate. An
-  // earlier version refused whenever the across-band spread was narrower than the best band's own
-  // interval, which dropped 823 of 829 eligible players: that interval is the uncertainty of the
-  // LEVEL, not of the DIFFERENCE between bands, so it is the wrong yardstick for a comparison.
-  const impacts = supported.map((p) => p.projectedImpact);
+  // The band that best represents what he plays now is the reference point.
+  const cur = eligible.reduce((a, b) =>
+    Math.abs(b.mpg - currentMpg) < Math.abs(a.mpg - currentMpg) ? b : a);
+
+  let best = eligible[0];
+  for (const p of eligible) {
+    const d = lcb(p) - lcb(best);
+    if (d > 1e-9) best = p;
+    else if (Math.abs(d) <= 1e-9
+      && Math.abs(p.mpg - currentMpg) < Math.abs(best.mpg - currentMpg)) best = p;  // tie -> status quo
+  }
+
+  const curUpper = Array.isArray(cur.interval) && fin(cur.interval[1]) ? cur.interval[1] : cur.projectedImpact;
+  const margin = OPTIMAL_CONFIG.marginFractionOfInterval * Math.abs(curUpper - cur.projectedImpact);
+  const indicated = best.mpg !== cur.mpg && lcb(best) > cur.projectedImpact + margin;
+  const impacts = eligible.map((p) => p.projectedImpact);
   const spread = Math.max(...impacts) - Math.min(...impacts);
   const iv = Array.isArray(best.interval) && best.interval.length === 2
     ? Math.abs(best.interval[1] - best.interval[0]) : null;
 
   return {
-    optimalMpg: best.mpg,
-    minutesDelta: fin(currentMpg) ? round(best.mpg - Number(currentMpg), 1) : null,
-    projectedAtOptimal: round(best.projectedImpact, 2),
-    supportedBands: supported.length,
-    // Spread relative to the interval: how clearly the peak stands out from its own uncertainty.
+    optimalMpg: indicated ? best.mpg : cur.mpg,
+    minutesDelta: indicated ? round(best.mpg - Number(currentMpg), 1) : 0,
+    projectedAtOptimal: round((indicated ? best : cur).projectedImpact, 2),
+    lowerBoundAtOptimal: round(lcb(indicated ? best : cur), 2),
+    currentBandProjection: round(cur.projectedImpact, 2),
+    supportedBands: eligible.length,
+    // false = the evidence does not distinguish any workload from the current one.
+    indicated,
+    marginRequired: round(margin, 2),
+    marginAchieved: round(lcb(best) - cur.projectedImpact, 2),
     confidence: fin(iv) && iv > 0 ? round(spread / iv, 2) : null,
   };
 }

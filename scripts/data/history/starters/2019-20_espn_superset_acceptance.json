@@ -1,0 +1,57 @@
+{
+ "schemaVersion": 2,
+ "season": "2019-20",
+ "scope": "Regular Season + Playoffs present in historical cache",
+ "exhaustive": true,
+ "accepted": false,
+ "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "expected": {
+  "regularGames": 1059,
+  "playoffGames": 83,
+  "games": 1142,
+  "teamGames": 2284,
+  "starterEdges": 11420
+ },
+ "measured": {
+  "gamesSampled": 1142,
+  "nbaMissing": 0,
+  "espnMissing": 0,
+  "gameMappingFailures": 4,
+  "espnStarterCountNot5": 0,
+  "teamGamesTested": 2276,
+  "starterEdgesTested": 11380,
+  "identityMapFailures": 0,
+  "supersetViolations": 0
+ },
+ "inputs": {
+  "regularSeason": {
+   "path": "scripts/data/history/2019-20/gamelog.json",
+   "bytes": 9050381,
+   "sha256": "16856568b53c667b5b55bef4cf870f367c6fbfccde40e3b677d6dbf90b9e800f"
+  },
+  "playoffs": {
+   "path": "scripts/data/history/2019-20/gamelog_playoffs.json",
+   "bytes": 673927,
+   "sha256": "d69eb499f5c817bfdae053023415d80bb0217c1facdd9f808a23de4258d84fa2"
+  }
+ },
+ "checkerFingerprint": {
+  "path": "scripts/espn-superset-test.mjs",
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+ },
+ "gateFingerprint": {
+  "path": "scripts/espn-full-season-gate.mjs",
+  "bytes": 7431,
+  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+ },
+ "failures": [
+  "team-games tested 2276 != 2284",
+  "starter edges tested 11380 != 11420",
+  "ESPN<->NBA game mapping failures: 4"
+ ],
+ "checker": "scripts/espn-superset-test.mjs",
+ "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
+ "generatedAt": "2026-08-19T07:13:11.725Z",
+ "stdoutSha256": "871613ddbfe00c04895100e2a6b7b2be72b2832b2c07224589ccda102742b33c"
+}

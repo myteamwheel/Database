@@ -1,0 +1,53 @@
+{
+ "schemaVersion": 2,
+ "season": "2020-21",
+ "scope": "Regular Season + Playoffs present in historical cache",
+ "exhaustive": true,
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
+ "expected": {
+  "regularGames": 1080,
+  "playoffGames": 85,
+  "games": 1165,
+  "teamGames": 2330,
+  "starterEdges": 11650
+ },
+ "measured": {
+  "gamesSampled": 1165,
+  "nbaMissing": 0,
+  "espnMissing": 0,
+  "gameMappingFailures": 0,
+  "espnStarterCountNot5": 0,
+  "teamGamesTested": 2330,
+  "starterEdgesTested": 11650,
+  "identityMapFailures": 0,
+  "supersetViolations": 0
+ },
+ "inputs": {
+  "regularSeason": {
+   "path": "scripts/data/history/2020-21/gamelog.json",
+   "bytes": 9316872,
+   "sha256": "532691267e3caf23bbc56148f0a8462f199604007a2e8b6000e41c0003d9aead"
+  },
+  "playoffs": {
+   "path": "scripts/data/history/2020-21/gamelog_playoffs.json",
+   "bytes": 741474,
+   "sha256": "8de7e8c4f108787a2172978f3df474452836f1f0416edb24a9c1d45ce6d0d0b5"
+  }
+ },
+ "checkerFingerprint": {
+  "path": "scripts/espn-superset-test.mjs",
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+ },
+ "gateFingerprint": {
+  "path": "scripts/espn-full-season-gate.mjs",
+  "bytes": 7431,
+  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+ },
+ "failures": [],
+ "checker": "scripts/espn-superset-test.mjs",
+ "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
+ "generatedAt": "2026-08-19T07:25:22.828Z",
+ "stdoutSha256": "f4834d52636b45e5ba58b9bce17e9f498ba42a3f581cefe7d5728088d7632962"
+}

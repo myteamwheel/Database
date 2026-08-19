@@ -54,3 +54,56 @@ test.describe('Column tooltips', () => {
     expect(bare, `headers rendered with no title attribute: ${bare.join(', ')}`).toEqual([]);
   });
 });
+
+test.describe('Stat explainer UI', () => {
+  test('hovering a column header shows a styled panel with what / plain words / formula', async ({ page }) => {
+    await open(page);
+    const th = page.locator('thead th.has-tip').first();
+    await th.hover();
+    await page.waitForSelector('#statTip.show', { timeout: 5000 });
+    const tip = await page.evaluate(() => {
+      const el = document.getElementById('statTip');
+      return { visible: el.classList.contains('show'), text: el.innerText, keys: [...el.querySelectorAll('.tip-k')].map((k) => k.innerText) };
+    });
+    expect(tip.visible).toBe(true);
+    // CSS uppercases these labels, so compare case-insensitively.
+    expect(tip.keys.join('|').toLowerCase()).toContain('what it is');
+    expect(tip.text.length).toBeGreaterThan(40);
+
+    // The browser's own tooltip must not double up on top of the styled one.
+    expect(await th.getAttribute('title')).toBeNull();
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(200);
+    expect(await th.getAttribute('title')).not.toBeNull();   // restored for screen readers
+  });
+
+  test('the panel stays inside the viewport', async ({ page }) => {
+    await open(page);
+    const ths = page.locator('thead th.has-tip');
+    const n = Math.min(await ths.count(), 8);
+    for (let i = 0; i < n; i++) {
+      await ths.nth(i).hover();
+      await page.waitForTimeout(120);
+      const ok = await page.evaluate(() => {
+        const r = document.getElementById('statTip').getBoundingClientRect();
+        return r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1;
+      });
+      expect(ok, `tooltip escaped the viewport on header ${i}`).toBe(true);
+    }
+  });
+
+  test('Stat guide lists every documented column and is searchable', async ({ page }) => {
+    await open(page);
+    await page.click('#statGuideBtn');
+    await page.waitForSelector('#sgList .stat-guide-item', { timeout: 5000 });
+    const all = await page.locator('#sgList .stat-guide-item').count();
+    expect(all).toBeGreaterThan(80);
+    await page.fill('#sgSearch', 'tulip');
+    await page.waitForTimeout(250);
+    const filtered = await page.locator('#sgList .stat-guide-item').count();
+    expect(filtered).toBeGreaterThan(0);
+    expect(filtered).toBeLessThan(all);
+    const txt = await page.locator('#sgList').innerText();
+    expect(txt.toLowerCase()).toContain('how it is calculated');
+  });
+});

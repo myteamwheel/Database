@@ -1,0 +1,53 @@
+{
+ "schemaVersion": 2,
+ "season": "2023-24",
+ "scope": "Regular Season + Playoffs present in historical cache",
+ "exhaustive": true,
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
+ "expected": {
+  "regularGames": 1230,
+  "playoffGames": 82,
+  "games": 1312,
+  "teamGames": 2624,
+  "starterEdges": 13120
+ },
+ "measured": {
+  "gamesSampled": 1312,
+  "nbaMissing": 0,
+  "espnMissing": 0,
+  "gameMappingFailures": 0,
+  "espnStarterCountNot5": 0,
+  "teamGamesTested": 2624,
+  "starterEdgesTested": 13120,
+  "identityMapFailures": 0,
+  "supersetViolations": 0
+ },
+ "inputs": {
+  "regularSeason": {
+   "path": "scripts/data/history/2023-24/gamelog.json",
+   "bytes": 10677781,
+   "sha256": "07d1bfd12748a27c36dc9593fff449f6c7f3358a370a0886bd16a4ddcc1ac836"
+  },
+  "playoffs": {
+   "path": "scripts/data/history/2023-24/gamelog_playoffs.json",
+   "bytes": 671176,
+   "sha256": "fc5301be860cad69ee4d18961f43ea4a54bf6513ed561301316876dca8b3cd11"
+  }
+ },
+ "checkerFingerprint": {
+  "path": "scripts/espn-superset-test.mjs",
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+ },
+ "gateFingerprint": {
+  "path": "scripts/espn-full-season-gate.mjs",
+  "bytes": 7431,
+  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+ },
+ "failures": [],
+ "checker": "scripts/espn-superset-test.mjs",
+ "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
+ "generatedAt": "2026-08-19T08:10:15.689Z",
+ "stdoutSha256": "37c0d9a0e8f24b4c44618e95ba3cac4d776a664806111c1bf9c80870a8f3915e"
+}

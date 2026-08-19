@@ -1,0 +1,57 @@
+{
+ "schemaVersion": 2,
+ "season": "2017-18",
+ "scope": "Regular Season + Playoffs present in historical cache",
+ "exhaustive": true,
+ "accepted": false,
+ "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "expected": {
+  "regularGames": 1230,
+  "playoffGames": 82,
+  "games": 1312,
+  "teamGames": 2624,
+  "starterEdges": 13120
+ },
+ "measured": {
+  "gamesSampled": 1312,
+  "nbaMissing": 0,
+  "espnMissing": 0,
+  "gameMappingFailures": 0,
+  "espnStarterCountNot5": 1,
+  "teamGamesTested": 2624,
+  "starterEdgesTested": 13121,
+  "identityMapFailures": 0,
+  "supersetViolations": 1
+ },
+ "inputs": {
+  "regularSeason": {
+   "path": "scripts/data/history/2017-18/gamelog.json",
+   "bytes": 10534368,
+   "sha256": "b13d80ed281c65b1b8e50bbb3a04b4de73804dfad5216a8d7935424c7b22b7bd"
+  },
+  "playoffs": {
+   "path": "scripts/data/history/2017-18/gamelog_playoffs.json",
+   "bytes": 685780,
+   "sha256": "c52ee61b382f5e80f690a1e450836e4cbe8d012292a4d9fc83d352ae810ca820"
+  }
+ },
+ "checkerFingerprint": {
+  "path": "scripts/espn-superset-test.mjs",
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+ },
+ "gateFingerprint": {
+  "path": "scripts/espn-full-season-gate.mjs",
+  "bytes": 7431,
+  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+ },
+ "failures": [
+  "starter edges tested 13121 != 13120",
+  "ESPN team-games not showing exactly five starters: 1",
+  "superset violations: 1"
+ ],
+ "checker": "scripts/espn-superset-test.mjs",
+ "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
+ "generatedAt": "2026-08-19T06:39:51.206Z",
+ "stdoutSha256": "c41d826aeb6a4ec39f8afc1b1c42fa1bd8a2f9f330026e2e748e0b52ad4687b9"
+}

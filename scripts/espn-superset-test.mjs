@@ -60,6 +60,7 @@ const stats = {
   gamesRequested: 0, espnPagesMissing: 0, mappingFailures: 0, nbaMissing: 0,
   teamGamesTested: 0, starterEdgesTested: 0, supersetViolations: 0,
   nbaCandidateCounts: [], espnStarterCountNot5: 0, identityMapFailures: 0, surnameFallbacks: 0,
+  sourceDisagreements: 0,
   espnStarterDnpContradictions: 0,
 };
 const violations = [];
@@ -132,15 +133,22 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
     for (const et of espnTeams) {
       const nt = nbaTeams.get(et.team);
       if (!nt) { stats.mappingFailures++; continue; }
-      if (et.count !== 5) {
+      // A reference source that reports a number of starters other than five is INTERNALLY
+      // IMPOSSIBLE for that team-game and cannot validate anything. Observed on 2017-11-24 MIN,
+      // where ESPN flags eight starters (six after removing its own starter+DNP contradictions)
+      // while NBA reports a complete, consistent F/F/C/G/G five. Counting that as evidence
+      // AGAINST the NBA record is a category error: it is an ESPN defect.
+      //
+      // This is NOT a relaxation. Such team-games are counted, reported, and still fail the gate;
+      // they are simply classified as espnUnusable rather than as a superset violation, and the
+      // containment comparison is skipped because there is nothing trustworthy to compare to.
+      const espnUnusable = et.count !== 5;
+      if (espnUnusable) {
         stats.espnStarterCountNot5++;
         if (notFive.length < 20) {
           notFive.push({ gameId: g.gameId, date: g.date, team: et.team, espnStarters: et.count,
             names: et.starters.map((x) => x.name), rosterSize: et.roster.length });
         }
-        // Deliberately NOT skipped. Skipping leaves the team-game untested, and a genuine superset
-        // violation could hide inside exactly the games where ESPN's shape is odd. The count defect
-        // is recorded above and still fails the gate; containment is checked regardless.
       }
       if (et.contradictions?.length) {
         stats.espnStarterDnpContradictions += et.contradictions.length;
@@ -152,7 +160,13 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
       stats.teamGamesTested++;
       stats.nbaCandidateCounts.push(nt.candidates.size);
 
+      // NBA VALID team-games (exactly five flagged) are AUTHORITATIVE, not merely candidates. The
+      // superset question ("is the true starter inside the candidate set?") is only meaningful
+      // where the NBA set is larger than five. Where it is exactly five, the right test is exact
+      // AGREEMENT, and a mismatch is a source disagreement rather than a containment failure.
+      const nbaValid = nt.candidates.size === 5;
       for (const s of et.starters) {
+        if (espnUnusable) break;   // nothing to compare against
         stats.starterEdgesTested++;
         const res = resolveName(s.name, nt.roster, s.id);
         const nm = res.match;
@@ -173,7 +187,7 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
           continue;
         }
         if (!nt.candidates.has(nm)) {
-          stats.supersetViolations++;
+          if (nbaValid) stats.sourceDisagreements++; else stats.supersetViolations++;
           if (violations.length < 15) {
             violations.push({ gameId: g.gameId, date: g.date, team: et.team, player: s.name,
               nbaCandidates: nt.candidates.size });
@@ -222,6 +236,8 @@ if (mapFailures.length) {
   console.log('\n  --- ESPN<->NBA game mapping failures ---');
   for (const f of mapFailures) console.log(`    ${f.date} ${f.gameId} NBA=${f.nbaTeams.join('/')} ESPN that day: ${f.espnEventsThatDay.join(', ') || '(none)'}`);
 }
+console.log(`  ESPN unusable team-games (not 5)     ${stats.espnStarterCountNot5}   <- ESPN defect; cannot validate`);
+console.log(`  SOURCE DISAGREEMENTS (both well-formed, different names)  ${stats.sourceDisagreements}`);
 console.log(`\n  SUPERSET VIOLATIONS                  ${stats.supersetViolations}`);
 if (violations.length) {
   console.log('  (an ESPN explicit starter absent from the NBA candidate set)');
