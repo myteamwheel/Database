@@ -107,3 +107,38 @@ test.describe('Stat explainer UI', () => {
     expect(txt.toLowerCase()).toContain('how it is calculated');
   });
 });
+
+test.describe('Keyboard and accessibility', () => {
+  test('sortable headers are keyboard operable and announce their sort state', async ({ page }) => {
+    await open(page);
+    const th = page.locator('thead th[data-sort]').nth(9);
+    const key = await th.getAttribute('data-sort');
+    await th.focus();
+    // Focus alone must surface the explainer — the mouse is not the only way in.
+    await page.waitForSelector('#statTip.show', { timeout: 5000 });
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe(key);
+    const sorted = await page.locator(`thead th[data-sort="${key}"]`).getAttribute('aria-sort');
+    expect(['ascending', 'descending']).toContain(sorted);
+  });
+
+  test('no unlabelled form controls', async ({ page }) => {
+    await open(page);
+    const bad = await page.evaluate(() => [...document.querySelectorAll('input,select')]
+      .filter((i) => i.type !== 'checkbox' && i.type !== 'hidden')
+      .filter((i) => !i.closest('label') && !i.getAttribute('aria-label') && !document.querySelector(`label[for="${i.id}"]`))
+      .map((i) => i.id || i.type));
+    expect(bad, `controls with no accessible name: ${bad.join(', ')}`).toEqual([]);
+  });
+
+  test('the page never scrolls horizontally, at desktop or mobile width', async ({ page }) => {
+    for (const [w, h] of [[1440, 900], [768, 1024], [390, 844]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await open(page);
+      await page.waitForTimeout(300);
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(over, `page overflows horizontally at ${w}px by ${over}px`).toBeLessThanOrEqual(2);
+    }
+  });
+});

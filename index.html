@@ -107,12 +107,12 @@
       </div>
       <p class="tiny" id="labNote"></p>
       <div class="lab-grid">
-        <select class="labMetric" id="labMetric1"></select><input class="labWeight" id="labWeight1" type="number" value="1" step="0.25" />
-        <select class="labMetric" id="labMetric2"></select><input class="labWeight" id="labWeight2" type="number" value="0" step="0.25" />
-        <select class="labMetric" id="labMetric3"></select><input class="labWeight" id="labWeight3" type="number" value="0" step="0.25" />
-        <select class="labMetric" id="labMetric4"></select><input class="labWeight" id="labWeight4" type="number" value="0" step="0.25" />
+        <select class="labMetric" id="labMetric1" aria-label="Formula Lab metric 1"></select><input class="labWeight" id="labWeight1" aria-label="Formula Lab weight 1" type="number" value="1" step="0.25" />
+        <select class="labMetric" id="labMetric2" aria-label="Formula Lab metric 2"></select><input class="labWeight" id="labWeight2" aria-label="Formula Lab weight 2" type="number" value="0" step="0.25" />
+        <select class="labMetric" id="labMetric3" aria-label="Formula Lab metric 3"></select><input class="labWeight" id="labWeight3" aria-label="Formula Lab weight 3" type="number" value="0" step="0.25" />
+        <select class="labMetric" id="labMetric4" aria-label="Formula Lab metric 4"></select><input class="labWeight" id="labWeight4" aria-label="Formula Lab weight 4" type="number" value="0" step="0.25" />
         <label class="check" style="grid-column:span 2" title="Allow ingredients that cover different sets of games"><input id="allowMixedScope" type="checkbox" /> Allow mixed season scopes</label>
-        <select class="labMetric" id="labCohort" title="Population the percentiles are computed against">
+        <select class="labMetric" id="labCohort" aria-label="Formula Lab ranking cohort" title="Population the percentiles are computed against">
           <option value="league">Rank vs whole league</option>
           <option value="filtered">Rank vs current filtered set</option>
         </select><button id="applyLab" class="button">Apply Lab Score</button>
@@ -147,9 +147,9 @@
   <dialog id="ruleDialog" class="modal">
     <h2>Add numeric filter</h2>
     <div class="rule-grid">
-      <select id="ruleMetric"></select>
-      <select id="ruleOp"><option value=">=">≥</option><option value="<=">≤</option><option value=">">&gt;</option><option value="<">&lt;</option></select>
-      <input id="ruleValue" type="number" step="0.01" value="0" />
+      <select id="ruleMetric" aria-label="Filter rule metric"></select>
+      <select id="ruleOp" aria-label="Filter rule comparison"><option value=">=">≥</option><option value="<=">≤</option><option value=">">&gt;</option><option value="<">&lt;</option></select>
+      <input id="ruleValue" aria-label="Filter rule value" type="number" step="0.01" value="0" />
     </div>
     <p class="tiny" id="ruleUnitHint"></p>
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>

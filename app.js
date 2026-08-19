@@ -760,7 +760,11 @@ function render(){
   $('tableHead').innerHTML=cols.map(key=>{
     const d=colDef(key);
     const hasTip = !!d.help;
-    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" title="${esc(d.help||d.label)}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
+    // tabindex + role make the header a real control: it can be reached by keyboard, which is
+    // also what makes the focus-triggered explainer panel reachable without a mouse. aria-sort
+    // announces the current ordering to screen readers.
+    const aria = sortKey===key ? (sortDir<0?'descending':'ascending') : 'none';
+    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}" title="${esc(d.help||d.label)}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
   document.querySelectorAll('[data-sort]').forEach(th=>{
@@ -772,6 +776,10 @@ function render(){
     th.addEventListener('mouseleave',()=>{ if(th.dataset.title!==undefined) th.setAttribute('title', th.dataset.title); hideStatTip(); });
     th.addEventListener('focus',()=>showStatTip(th, th.dataset.sort));
     th.addEventListener('blur',hideStatTip);
+    th.addEventListener('keydown',(e)=>{
+      if(e.key!=='Enter'&&e.key!==' ') return;
+      e.preventDefault(); th.click();
+    });
   });
   document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
   document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
