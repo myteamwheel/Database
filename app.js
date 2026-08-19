@@ -528,6 +528,27 @@ function filteredPlayers(){
   return list;
 }
 
+/**
+ * Keep the "Sort by" / "Order" dropdowns and the clickable column headers showing the same state.
+ * The dropdown lists the columns currently on screen, so every option sorts something the user can
+ * actually see, and sorting the full database no longer requires discovering that headers are
+ * clickable and scrolling sideways to find the column.
+ */
+function syncSortControls(cols){
+  const sel=$('sortField'); if(!sel) return;
+  const sortable=cols.filter(k=>k!=='select');
+  const sig=sortable.join('|');
+  if(sel.dataset.sig!==sig){
+    sel.dataset.sig=sig;
+    sel.innerHTML=sortable.map(k=>`<option value="${esc(k)}">${esc(colDef(k).label)}</option>`).join('');
+  }
+  // If the active sort column is not in this view (e.g. after switching preset), fall back to the
+  // first sortable column rather than showing a selection that does not exist.
+  if(!sortable.includes(sortKey)) sortKey = sortable.includes('grade') ? 'grade' : sortable[0];
+  sel.value=sortKey;
+  const ord=$('sortOrder'); if(ord) ord.value=String(sortDir);
+}
+
 function renderSummary(list){
   const all=currentPlayers();
   const filtered=list.length!==all.length;
@@ -568,6 +589,7 @@ function render(){
   const scoped=shown.filter(p=>p.teamScopedTo).length;
   $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
+  syncSortControls(cols);
   $('tableHead').innerHTML=cols.map(key=>{
     const d=colDef(key);
     return `<th class="${key==='name'?'left':''}" data-sort="${esc(key)}" title="${esc(d.help||d.label)}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
@@ -890,6 +912,10 @@ function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
   ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','viewPreset','rowLimit']
     .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',render));
+  // Sort controls must SET the sort state, not merely re-render, so they get explicit handlers
+  // rather than joining the generic list above.
+  $('sortField').addEventListener('change',()=>{sortKey=$('sortField').value;render();});
+  $('sortOrder').addEventListener('change',()=>{sortDir=Number($('sortOrder').value)||-1;render();});
   $('resetBtn').onclick=reset;$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=applyLab;
   $('catalogBtn').onclick=openFieldCatalog;
   $('compareBtn').onclick=openCompare;$('clearCompareBtn').onclick=()=>{compared.clear();render()};

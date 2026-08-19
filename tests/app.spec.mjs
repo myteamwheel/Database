@@ -671,3 +671,46 @@ test.describe('TULIP column', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('Sort control', () => {
+  test('a Sort by dropdown sorts the whole database, including by TULIP', async ({ page }) => {
+    const errors = await open(page);
+
+    // The control must exist in the filter panel — not require discovering that column headers
+    // are clickable and scrolling sideways through 24 columns to find one.
+    const options = await page.$$eval('#sortField option', (os) => os.map((o) => o.text.trim()));
+    expect(options).toContain('TULIP');
+    expect(options).toContain('Grade');
+
+    await page.selectOption('#sortField', 'tulip.leagueDelta');
+    await page.selectOption('#sortOrder', '-1');
+    await page.waitForTimeout(500);
+
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    const idx = headers.findIndex((h) => h.startsWith('TULIP'));
+    const read = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
+      const c = r.querySelectorAll('td');
+      return (c[i]?.innerText || '').trim();
+    }), idx);
+
+    const desc = (await read()).map(Number).filter(Number.isFinite);
+    expect(desc.length).toBeGreaterThan(3);
+    for (let i = 1; i < desc.length; i++) expect(desc[i]).toBeLessThanOrEqual(desc[i - 1]);
+
+    // Order dropdown flips direction, and abstentions still never surface at the top.
+    await page.selectOption('#sortOrder', '1');
+    await page.waitForTimeout(500);
+    const ascCells = await read();
+    expect(ascCells[0]).not.toBe('—');
+    const asc = ascCells.map(Number).filter(Number.isFinite);
+    for (let i = 1; i < asc.length; i++) expect(asc[i]).toBeGreaterThanOrEqual(asc[i - 1]);
+
+    // The dropdown and the clickable header are one state, not two.
+    await page.locator('thead th').nth(idx).click();
+    await page.waitForTimeout(500);
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe('tulip.leagueDelta');
+    expect(await page.$eval('#sortOrder', (s) => s.value)).toBe('-1');
+
+    expect(errors).toEqual([]);
+  });
+});
