@@ -1,0 +1,19 @@
+{
+ "season": "2020-21",
+ "seasonType": "Regular Season",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T23:47:11.314Z",
+ "gamesRequested": 1080,
+ "gamesCached": 1080,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 2160,
+  "invalid": 0,
+  "missing": 0,
+  "total": 2160
+ },
+ "playerGameRows": 28859,
+ "sha256": "6bc344d2707da118",
+ "invalidExamples": []
+}

@@ -114,6 +114,10 @@ export const NAME_ALIASES = {
   // so the two NBA endpoints disagree with each other about the same player. The surname fallback
   // cannot bridge this — "nenehilario" does not end in "nene" — so it needs an explicit alias.
   nene: 'nenehilario',
+  // ESPN includes the middle name; NBA does not. Verified as the same athlete: DAL, 2017-01-26,
+  // unique surname match within that team-game roster. Promoted out of the surname fallback so
+  // the fallback is not load-bearing for a known, checkable case.
+  pierredeshawnjackson: 'pierrejackson',
 };
 
 export const IDENTITY_CLASSES = [

@@ -1,0 +1,19 @@
+{
+ "season": "2017-18",
+ "seasonType": "Regular Season",
+ "endpoint": "https://stats.nba.com/stats/boxscoretraditionalv2",
+ "source": "boxscoretraditionalv2/START_POSITION",
+ "fetchedAt": "2026-08-18T22:24:56.307Z",
+ "gamesRequested": 1230,
+ "gamesCached": 1230,
+ "failedGameIds": [],
+ "teamGames": {
+  "valid": 2460,
+  "invalid": 0,
+  "missing": 0,
+  "total": 2460
+ },
+ "playerGameRows": 30980,
+ "sha256": "26977a17544ab70b",
+ "invalidExamples": []
+}

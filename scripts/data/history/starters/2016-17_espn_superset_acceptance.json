@@ -1,0 +1,53 @@
+{
+ "schemaVersion": 2,
+ "season": "2016-17",
+ "scope": "Regular Season + Playoffs present in historical cache",
+ "exhaustive": true,
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
+ "expected": {
+  "regularGames": 1230,
+  "playoffGames": 79,
+  "games": 1309,
+  "teamGames": 2618,
+  "starterEdges": 13090
+ },
+ "measured": {
+  "gamesSampled": 1309,
+  "nbaMissing": 0,
+  "espnMissing": 0,
+  "gameMappingFailures": 0,
+  "espnStarterCountNot5": 0,
+  "teamGamesTested": 2618,
+  "starterEdgesTested": 13090,
+  "identityMapFailures": 0,
+  "supersetViolations": 0
+ },
+ "inputs": {
+  "regularSeason": {
+   "path": "scripts/data/history/2016-17/gamelog.json",
+   "bytes": 10545608,
+   "sha256": "de4aa5e2b0b2a65f2c5f30d57499e7f757c627d323a80ab2dab62f450ac841d4"
+  },
+  "playoffs": {
+   "path": "scripts/data/history/2016-17/gamelog_playoffs.json",
+   "bytes": 689035,
+   "sha256": "e13d70f430ad983db3b16a96c3aef2485d91744cab2eb8277c2425c25425b18c"
+  }
+ },
+ "checkerFingerprint": {
+  "path": "scripts/espn-superset-test.mjs",
+  "bytes": 11577,
+  "sha256": "728c565f896446fb5d16bcba0fd68bc0a5ae99899d886d0c09997394efaaa8d3"
+ },
+ "gateFingerprint": {
+  "path": "scripts/espn-full-season-gate.mjs",
+  "bytes": 7431,
+  "sha256": "925c118eb0f0bfa548a3c6b4490a852af23bb360d82b0ccbe4b0951cbc7b45be"
+ },
+ "failures": [],
+ "checker": "scripts/espn-superset-test.mjs",
+ "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
+ "generatedAt": "2026-08-19T00:50:48.471Z",
+ "stdoutSha256": "c9c52a2c2d007abe80210432d77f12d60b6cd6cfecd4b230ab81c3d05cc54d82"
+}
