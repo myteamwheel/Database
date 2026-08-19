@@ -5,7 +5,7 @@ import { featuresAsOf, rollingRoleFeaturesAsOf, historicalReadiness } from '../s
 const summary = JSON.parse(fs.readFileSync(new URL('../scripts/data/history/player_history_product.json', import.meta.url), 'utf8'));
 const hx = Object.fromEntries(summary.rowSchema.map((k, i) => [k, i]));
 let rows = 0, knownRows = 0;
-for (const list of Object.values(summary.byPlayer)) for (const r of list) {
+for (const [playerId, list] of Object.entries(summary.byPlayer)) for (const r of list) {
   rows++;
   const gp = r[hx.gp], starts = r[hx.starts], share = r[hx.startShareOfAppearances], coverage = r[hx.starterCoverage], known = r[hx.starterKnownAppearances];
   assert.ok(gp > 0, 'historical product rows are appearance-based');
@@ -16,8 +16,14 @@ for (const list of Object.values(summary.byPlayer)) for (const r of list) {
   const phaseKey = `${r[hx.season]} ${r[hx.seasonType]}`;
   if ((summary.starterCoveragePhases || []).includes(phaseKey)) {
     assert.notEqual(starts, null, `covered starter phase must be established: ${phaseKey}`);
-    assert.equal(coverage, 1, `accepted full-census starter phase must have complete coverage: ${phaseKey}`);
-    assert.equal(known, gp);
+    // A covered phase is a full census EXCEPT for enumerated upstream source gaps: appearances
+    // leaguegamelog reports that the box score omits entirely, so no source can establish them.
+    // Only rows with a recorded gap may fall short, and only by exactly the recorded amount.
+    const gaps = (summary.starterSourceGaps || []).filter(
+      (g) => g.season === r[hx.season] && g.seasonType === r[hx.seasonType] && g.playerId === Number(playerId)).length;
+    assert.equal(known, gp - gaps,
+      `covered phase must establish every appearance except enumerated source gaps: ${phaseKey} (${gaps} gap(s))`);
+    if (!gaps) assert.equal(coverage, 1, `accepted full-census starter phase must have complete coverage: ${phaseKey}`);
     knownRows += gp;
   } else {
     assert.equal(starts, null, `uncovered starter phase must stay unknown: ${phaseKey}`);
@@ -29,10 +35,23 @@ assert.equal(rows, summary.inventory.currentPlayerSeasonPhaseRows);
 assert.equal(Object.keys(summary.byPlayer).length, summary.inventory.currentPlayersWithHistory);
 assert.equal(summary.inventory.allPlayerSeasonPhaseRows, 7561);
 assert.equal(summary.inventory.allHistoricalPlayers, 1453);
-assert.equal(summary.inventory.starterKnownAppearancesAll, 28086);
+// Coverage moved from 28,086 to 216,452 once the remaining seven regular seasons and nine playoff
+// phases were crawled. Pinning the exact number keeps an accidental coverage REGRESSION visible.
+assert.equal(summary.inventory.starterKnownAppearancesAll, 216452);
 assert.ok(Array.isArray(summary.starterCoveragePhases) && summary.starterCoveragePhases.length > 0, 'starter coverage phases must come from canonical artifact scope');
 assert.ok(summary.starterCoveragePhases.includes('2023-24 Regular Season'));
 assert.ok(summary.starterCoveragePhases.includes('2023-24 Playoffs'));
+// Every clean-era phase is now a full census; the two corrupted seasons must NOT appear.
+for (const season of ['2017-18', '2018-19', '2019-20', '2020-21', '2021-22', '2022-23', '2024-25']) {
+  assert.ok(summary.starterCoveragePhases.includes(`${season} Regular Season`), `${season} regular must be covered`);
+  assert.ok(summary.starterCoveragePhases.includes(`${season} Playoffs`), `${season} playoffs must be covered`);
+}
+for (const season of ['2015-16', '2016-17']) {
+  assert.ok(!summary.starterCoveragePhases.some((p) => p.startsWith(season)),
+    `${season} START_POSITION is corrupted league-wide; it must never be reported as covered`);
+}
+// Exactly one appearance in the whole ten-season history has no establishable starter status.
+assert.equal((summary.starterSourceGaps || []).length, 1, 'enumerated upstream source gaps');
 assert.ok(knownRows > 0, 'starter-known current-player history should exist');
 
 const fixture = [

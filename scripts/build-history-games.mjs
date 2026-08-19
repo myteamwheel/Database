@@ -48,17 +48,21 @@ for (const [rel, league] of [['scripts/data/rosters_nba.json', 'NBA'], ['scripts
 }
 
 const starterByKey = new Map();
+let starterSourceGaps = [];
 let starterCoveragePhases = [];
 const starterFile = path.join(HIST, 'starters/player_game_starters.json');
 if (fs.existsSync(starterFile)) {
   const s = JSON.parse(fs.readFileSync(starterFile, 'utf8'));
-  if (s.onUnknownSchemaVersion === 'FAIL_CLOSED' && s.schemaVersion !== 1) {
+  // v2 interns provenance into a legend and encodes starter as 0/1; v1 stored strings per row.
+  starterSourceGaps = (s.sourceGaps || []).map((g) => ({ season: g.season, seasonType: g.seasonType, playerId: g.playerId, gameId: g.gameId }));
+  if (s.onUnknownSchemaVersion === 'FAIL_CLOSED' && ![1, 2].includes(s.schemaVersion)) {
     throw new Error(`unsupported starter artifact schemaVersion ${s.schemaVersion}`);
   }
   starterCoveragePhases = Array.isArray(s.scope?.seasonPhases) ? [...s.scope.seasonPhases].sort() : [];
   const ix = Object.fromEntries((s.schema || []).map((k, i) => [k, i]));
   for (const row of s.rows || []) {
-    starterByKey.set(`${row[ix.gameId]}|${row[ix.playerId]}|${row[ix.teamId]}`, row[ix.starter]);
+    starterByKey.set(`${row[ix.gameId]}|${row[ix.playerId]}|${row[ix.teamId]}`,
+      s.schemaVersion === 2 ? row[ix.starter] === 1 : row[ix.starter]);
   }
 }
 
@@ -100,6 +104,7 @@ const namedPlayers = Object.values(playerIndex).filter((x) => x.name && !/^Playe
 
 const artifact = {
   schemaVersion: 1,
+  starterSourceGaps,
   generatedAt: GENERATED_AT,
   seasons: prov.seasons,
   source: 'historical leaguegamelog cache + canonical starter artifact',

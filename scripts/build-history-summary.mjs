@@ -21,22 +21,42 @@ const GENERATED_AT = process.env.BUILD_GENERATED_AT || new Date().toISOString();
 const starterByKey = new Map();
 let starterSchemaVersion = null;
 let starterCoveragePhases = [];
+let starterSourceGaps = [];
 if (fs.existsSync(starterFile)) {
   const s = JSON.parse(fs.readFileSync(starterFile, 'utf8'));
   starterSchemaVersion = s.schemaVersion ?? null;
   starterCoveragePhases = Array.isArray(s.scope?.seasonPhases) ? [...s.scope.seasonPhases].sort() : [];
-  if (s.onUnknownSchemaVersion === 'FAIL_CLOSED' && starterSchemaVersion !== 1) {
+  // Appearances inside an otherwise-complete phase that NO source can establish (present in
+  // leaguegamelog, absent from the box score). Carried through so consumers can tell a real
+  // upstream gap apart from incomplete crawling, and so tests can allow exactly these and no others.
+  starterSourceGaps = (s.sourceGaps || []).map((g) => ({
+    season: g.season, seasonType: g.seasonType, playerId: g.playerId, gameId: g.gameId, reason: g.reason,
+  }));
+  // v1 carried the provenance strings on every row. v2 interns them into `legend` and stores an
+  // index, which cut the artifact from 30.3 MB to 8.1 MB once coverage reached ~216k rows.
+  if (s.onUnknownSchemaVersion === 'FAIL_CLOSED' && ![1, 2].includes(starterSchemaVersion)) {
     throw new Error(`unsupported starter artifact schemaVersion ${starterSchemaVersion}`);
   }
   const schema = s.schema || [];
   const ix = Object.fromEntries(schema.map((k, i) => [k, i]));
+  const legend = Array.isArray(s.legend) ? s.legend : null;
+  const decode = (row) => {
+    if (starterSchemaVersion === 2) {
+      const L = legend?.[row[ix.provenance]] || {};
+      return {
+        starter: row[ix.starter] === 1,
+        source: L.starterSource, validation: L.starterValidation, evidence: L.starterEvidence,
+      };
+    }
+    return {
+      starter: row[ix.starter], source: row[ix.starterSource],
+      validation: row[ix.starterValidation], evidence: row[ix.starterEvidence],
+    };
+  };
   for (const row of s.rows || []) {
     const k = `${row[ix.gameId]}|${row[ix.playerId]}|${row[ix.teamId]}`;
     starterByKey.set(k, {
-      starter: row[ix.starter],
-      source: row[ix.starterSource],
-      validation: row[ix.starterValidation],
-      evidence: row[ix.starterEvidence],
+      ...decode(row),
     });
   }
 }
@@ -152,6 +172,7 @@ for (const id of currentIds) {
 
 const artifact = {
   schemaVersion: 1,
+  starterSourceGaps,
   generatedAt: GENERATED_AT,
   seasons,
   source: 'local historical leaguegamelog cache + canonical starter artifact',
@@ -170,6 +191,7 @@ fs.writeFileSync(OUT, JSON.stringify(artifact));
 const starterKnownAll = all.reduce((sum, r) => sum + r.starterKnownAppearances, 0);
 const productArtifact = {
   schemaVersion: 1,
+  starterSourceGaps,
   generatedAt: artifact.generatedAt,
   seasons,
   source: artifact.source,

@@ -27,7 +27,13 @@ for (const [playerId, list] of Object.entries(product.byPlayer)) {
     const phaseKey = `${r[ix.season]} ${r[ix.seasonType]}`;
     const started = r[ix.started];
     if (covered.has(phaseKey)) {
-      assert.equal(typeof started, 'boolean', `accepted starter phase must be known: ${phaseKey}`);
+      // Null is permitted ONLY for an enumerated upstream source gap: an appearance leaguegamelog
+      // reports that the box score omits entirely, so no source can establish it. Anything else
+      // null inside an accepted phase is a real regression.
+      const isGap = (product.starterSourceGaps || []).some(
+        (g) => g.gameId === r[ix.gameId] && g.playerId === Number(playerId));
+      if (isGap) assert.equal(started, null, `source gap must stay null: ${phaseKey}`);
+      else assert.equal(typeof started, 'boolean', `accepted starter phase must be known: ${phaseKey}`);
       known++;
     } else {
       assert.equal(started, null, `unaccepted starter phase must remain null: ${phaseKey}`);

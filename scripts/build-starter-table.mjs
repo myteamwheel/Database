@@ -33,6 +33,7 @@ export const METHOD_VERSIONS = {
 
 const prov = JSON.parse(fs.readFileSync(path.join(HIST, 'provenance.json'), 'utf8'));
 const rows = [];
+const sourceGaps = [];
 
 for (const season of prov.seasons) {
   for (const [file, st, slug] of [
@@ -58,6 +59,15 @@ for (const season of prov.seasons) {
       const k = `${g.gameId}|${g.playerId}|${g.teamId}`;
       const hit = byKey.get(k);
       const status = tgStatus.get(`${g.gameId}|${g.teamId}`);
+      // Upstream source gap: leaguegamelog lists this appearance but boxscoretraditionalv2 has no
+      // row for the player at all, so no starter evidence exists even though the team-game itself
+      // is VALID. Observed for Dennis Schroder, LAL, 2022-11-06 (0 min, 0 pts). Enumerated rather
+      // than smoothed over: the phase is otherwise a full census and this must stay visible.
+      if (!hit && status === 'VALID') {
+        sourceGaps.push({ season, seasonType: st, gameId: g.gameId, gameDate: g.gameDate,
+          playerId: g.playerId, playerName: g.playerName, teamId: g.teamId,
+          reason: 'present in leaguegamelog, absent from boxscoretraditionalv2 PlayerStats' });
+      }
       let starter = null, source = 'UNKNOWN', validation = 'unresolved', evidence = null;
       if (hit && status === 'VALID') {
         starter = hit.started;
@@ -130,7 +140,9 @@ for (const r of rows) {
   tg.set(k, (tg.get(k) || 0) + (r.starter === true ? 1 : 0));
 }
 const bad = [...tg.entries()].filter(([, n]) => n !== 5);
-console.log(`\n  written team-games with starters != 5: ${bad.length} of ${tg.size}`);
+console.log(`\n  upstream source gaps (in leaguegamelog, absent from box score): ${sourceGaps.length}`);
+for (const g of sourceGaps.slice(0, 5)) console.log(`    ${g.season} ${g.gameDate} ${g.playerName} (${g.playerId}) game ${g.gameId}`);
+console.log(`  written team-games with starters != 5: ${bad.length} of ${tg.size}`);
 if (bad.length) { console.log('    ' + JSON.stringify(bad.slice(0, 5))); process.exitCode = 1; }
 
 // Persist ONLY rows whose status is established. A row absent from this file is UNKNOWN by
@@ -138,14 +150,37 @@ if (bad.length) { console.log('    ' + JSON.stringify(bad.slice(0, 5))); process
 // 60 MB in every clone. Consumers must default missing keys to
 // {starter: null, starterSource: 'UNKNOWN', starterValidation: 'unresolved'}.
 const known_rows = rows.filter((r) => r.starterSource !== 'UNKNOWN');
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+
+// Provenance triples repeat on every row: at ~216k rows the literal strings
+// ("DIRECT_NBA", "validated_direct", "explicit_true", plus the method-version URL) cost ~60 bytes
+// each and pushed the artifact to 30.3 MB, over the guard. They are interned into a legend and
+// referenced by index instead. Same information, no per-row string repetition.
+const legend = [];
+const legendIndex = new Map();
+const comboCode = (r) => {
+  const k = `${r.starterSource}|${r.starterMethodVersion}|${r.starterValidation}|${r.starterEvidence}`;
+  if (!legendIndex.has(k)) {
+    legendIndex.set(k, legend.length);
+    legend.push({
+      starterSource: r.starterSource, starterMethodVersion: r.starterMethodVersion,
+      starterValidation: r.starterValidation, starterEvidence: r.starterEvidence,
+    });
+  }
+  return legendIndex.get(k);
+};
+
 const artifact = {
   schemaVersion: SCHEMA_VERSION,
   // Consumers MUST fail closed on an unrecognised schemaVersion rather than best-effort parse.
   onUnknownSchemaVersion: 'FAIL_CLOSED',
   rowKey: ['gameId', 'playerId', 'teamId'],
-  schema: ['gameId', 'playerId', 'teamId', 'starter', 'starterSource', 'starterMethodVersion',
-    'starterValidation', 'starterEvidence'],
+  schema: ['gameId', 'playerId', 'teamId', 'starter', 'provenance'],
+  encoding: {
+    starter: '1 = started, 0 = did not start. Never null in this file — an unresolved row is absent.',
+    provenance: 'index into `legend`, which carries starterSource / starterMethodVersion / starterValidation / starterEvidence',
+  },
+  legend,
   scope: {
     leagueId: '00',
     seasonPhases: [...new Set(known_rows.map((r) => `${r.season} ${r.seasonType}`))].sort(),
@@ -160,8 +195,10 @@ const artifact = {
   },
   totalHistoricalRows: rows.length,
   establishedRows: known_rows.length,
-  rows: known_rows.map((r) => [r.gameId, r.playerId, r.teamId, r.starter, r.starterSource,
-    r.starterMethodVersion, r.starterValidation, r.starterEvidence]),
+  // Enumerated in full, not summarised: each is an appearance inside an otherwise-complete phase
+  // that no source can establish. Consumers must treat these as UNKNOWN, never as false.
+  sourceGaps,
+  rows: known_rows.map((r) => [r.gameId, r.playerId, r.teamId, r.starter ? 1 : 0, comboCode(r)]),
 };
 const f = path.join(OUT, 'player_game_starters.json');
 const payload = JSON.stringify(artifact);
