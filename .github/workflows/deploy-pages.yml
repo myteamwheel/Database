@@ -7,9 +7,12 @@
 # that differs from what was audited.
 name: Deploy to GitHub Pages
 
+# The github-pages environment restricts deployments to the repository's DEFAULT branch by
+# default. This repo's default is v3-official-data, so a run triggered only on main failed
+# before executing a single step. Both branches are kept in sync, so deploy from either.
 on:
   push:
-    branches: [main]
+    branches: [main, v3-official-data]
     paths:
       - 'index.html'
       - 'history-lab.html'
