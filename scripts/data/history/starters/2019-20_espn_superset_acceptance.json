@@ -3,8 +3,8 @@
  "season": "2019-20",
  "scope": "Regular Season + Playoffs present in historical cache",
  "exhaustive": true,
- "accepted": false,
- "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
  "expected": {
   "regularGames": 1059,
   "playoffGames": 83,
@@ -16,10 +16,12 @@
   "gamesSampled": 1142,
   "nbaMissing": 0,
   "espnMissing": 0,
-  "gameMappingFailures": 4,
+  "gameMappingFailures": 0,
+  "dateOffsetMatches": 4,
+  "espnScoreboardGaps": 0,
   "espnStarterCountNot5": 0,
-  "teamGamesTested": 2276,
-  "starterEdgesTested": 11380,
+  "teamGamesTested": 2284,
+  "starterEdgesTested": 11420,
   "identityMapFailures": 0,
   "sourceDisagreements": 0,
   "supersetViolations": 0
@@ -38,21 +40,19 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 12880,
-  "sha256": "717e4455af206402e441e4d3477d7571d473a366c9f0791c3476753e61815063"
+  "bytes": 15263,
+  "sha256": "a074effa6d1e84f8830c60826e2761d28e0a5d365532dabc6f3432ac3b5c7759"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
-  "bytes": 9234,
-  "sha256": "1f62cd1ec14236714ac9b42dfff5aea193f66a0077ecd66c8eb5f3d9765c7346"
+  "bytes": 11104,
+  "sha256": "50c9a0fa18bcb144d650b230166c9e471d145d7af5f936f88e4fae98bc83280c"
  },
- "failures": [
-  "team-games tested 2276 != 2284",
-  "starter edges tested 11380 != 11420 (expected 11420 minus 0 untestable team-games x 5)",
-  "ESPN<->NBA game mapping failures: 4"
- ],
+ "failures": [],
  "crossCheckCoverage": {
   "teamGamesComparable": 2284,
+  "espnScoreboardGapGames": 0,
+  "dateOffsetMatches": 4,
   "teamGamesTotal": 2284,
   "espnUnusableTeamGames": 0,
   "sharePct": 100,
@@ -60,6 +60,6 @@
  },
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-19T11:39:26.178Z",
- "stdoutSha256": "068845cb3508642bc69d4e1988f26e09d63d267a910641cb33057413e92fa0f0"
+ "generatedAt": "2026-08-19T13:11:51.337Z",
+ "stdoutSha256": "b2eb5a707edc120b5a5f06ae7eb015fc008e7781561c70b736b9229f046c2d37"
 }

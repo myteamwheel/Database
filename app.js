@@ -503,7 +503,16 @@ function showStatTip(th, key){
 }
 function hideStatTip(){ if (tipEl && !tipPinned) tipEl.classList.remove('show'); }
 
-/** Full browsable reference for every column the app can show. */
+/**
+ * Full browsable reference for every column the app can show.
+ *
+ * ONE dialog instance, reused. An earlier version built a fresh <dialog> per open, which gave every
+ * copy the same element ids — so document.getElementById('sgClose') resolved to the FIRST, already
+ * closed, dialog. The live one never closed and never removed itself, leaking a dialog per open
+ * (observed climbing 6 -> 7 -> 8 -> 9 with four orphans left in the DOM). Queries are also scoped
+ * to the dialog now rather than going through document.
+ */
+let statGuideDlg = null;
 function openStatGuide(){
   const seen = new Map();
   for (const keys of Object.values(PRESETS)) for (const k of keys) {
@@ -521,20 +530,26 @@ function openStatGuide(){
         + sec('What it is', h.what) + sec('In plain words', h.plain)
         + sec('How it is calculated', h.formula, 'sg-formula') + sec('Note', h.note) + '</div>';
     }).join('') || '<p>No stat matches that search.</p>';
-  const dlg = document.createElement('dialog');
-  dlg.className = 'modal wide';
-  dlg.innerHTML = `<h2>Stat guide</h2>
-    <p>Every column in the database: what it is, what it shows in plain words, and how it is calculated. ${items.length} stats documented.</p>
-    <input class="stat-guide-search" id="sgSearch" type="search" placeholder="Search stats, e.g. TULIP, true shooting, readiness\u2026" />
-    <div class="stat-guide-list" id="sgList">${render('')}</div>
-    <div class="modal-actions"><button class="button" id="sgClose">Close</button></div>`;
-  document.body.appendChild(dlg);
-  dlg.showModal();
-  dlg.querySelector('#sgSearch').addEventListener('input', (e) => {
-    dlg.querySelector('#sgList').innerHTML = render(e.target.value.trim().toLowerCase());
-  });
-  dlg.querySelector('#sgClose').onclick = () => dlg.close();
-  dlg.addEventListener('close', () => dlg.remove());
+
+  if (!statGuideDlg) {
+    statGuideDlg = document.createElement('dialog');
+    statGuideDlg.className = 'modal wide';
+    statGuideDlg.innerHTML = `<h2>Stat guide</h2>
+      <p class="sg-count"></p>
+      <input class="stat-guide-search" data-sg="search" type="search" aria-label="Search stats" placeholder="Search stats, e.g. TULIP, true shooting, readiness\u2026" />
+      <div class="stat-guide-list" data-sg="list"></div>
+      <div class="modal-actions"><button class="button" data-sg="close">Close</button></div>`;
+    document.body.appendChild(statGuideDlg);
+    statGuideDlg.querySelector('[data-sg="search"]').addEventListener('input', (e) => {
+      statGuideDlg.querySelector('[data-sg="list"]').innerHTML = render(e.target.value.trim().toLowerCase());
+    });
+    statGuideDlg.querySelector('[data-sg="close"]').onclick = () => statGuideDlg.close();
+  }
+  statGuideDlg.querySelector('.sg-count').textContent =
+    `Every column in the database: what it is, what it shows in plain words, and how it is calculated. ${items.length} stats documented.`;
+  statGuideDlg.querySelector('[data-sg="search"]').value = '';
+  statGuideDlg.querySelector('[data-sg="list"]').innerHTML = render('');
+  statGuideDlg.showModal();
 }
 
 function colDef(key){

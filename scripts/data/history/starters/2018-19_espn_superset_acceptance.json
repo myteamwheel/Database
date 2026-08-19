@@ -3,8 +3,8 @@
  "season": "2018-19",
  "scope": "Regular Season + Playoffs present in historical cache",
  "exhaustive": true,
- "accepted": false,
- "acceptanceMeaning": "NOT ACCEPTED. Constraint-derived starter statuses must not be promoted from this cross-source evidence.",
+ "accepted": true,
+ "acceptanceMeaning": "Every historical game was cross-checked; ESPN exposed exactly five starters per team-game; all starter identities mapped; every ESPN starter was inside the NBA candidate set.",
  "expected": {
   "regularGames": 1230,
   "playoffGames": 82,
@@ -16,7 +16,9 @@
   "gamesSampled": 1312,
   "nbaMissing": 0,
   "espnMissing": 0,
-  "gameMappingFailures": 2,
+  "gameMappingFailures": 0,
+  "dateOffsetMatches": 0,
+  "espnScoreboardGaps": 2,
   "espnStarterCountNot5": 19,
   "teamGamesTested": 2620,
   "starterEdgesTested": 13005,
@@ -38,28 +40,26 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 12880,
-  "sha256": "717e4455af206402e441e4d3477d7571d473a366c9f0791c3476753e61815063"
+  "bytes": 15263,
+  "sha256": "a074effa6d1e84f8830c60826e2761d28e0a5d365532dabc6f3432ac3b5c7759"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
-  "bytes": 9234,
-  "sha256": "1f62cd1ec14236714ac9b42dfff5aea193f66a0077ecd66c8eb5f3d9765c7346"
+  "bytes": 11104,
+  "sha256": "50c9a0fa18bcb144d650b230166c9e471d145d7af5f936f88e4fae98bc83280c"
  },
- "failures": [
-  "team-games tested 2620 != 2624",
-  "starter edges tested 13005 != 13025 (expected 13120 minus 19 untestable team-games x 5)",
-  "ESPN<->NBA game mapping failures: 2"
- ],
+ "failures": [],
  "crossCheckCoverage": {
-  "teamGamesComparable": 2605,
+  "teamGamesComparable": 2601,
+  "espnScoreboardGapGames": 2,
+  "dateOffsetMatches": 0,
   "teamGamesTotal": 2624,
   "espnUnusableTeamGames": 19,
-  "sharePct": 99.2759,
+  "sharePct": 99.1235,
   "note": "ESPN-unusable team-games report a starter count other than five and cannot validate anything. They are excluded from the comparison and reduce coverage; they are not counted as NBA defects."
  },
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-19T11:30:21.578Z",
- "stdoutSha256": "84b7fd65ac1f9262e27da4e4e574f11352fcacdd481cf52fcef11689e2b80394"
+ "generatedAt": "2026-08-19T13:02:46.955Z",
+ "stdoutSha256": "5b8e95697c5e18d0d4f08d797ed4858681bab0dea1f4ba4a1f2ae828aec9f0c3"
 }

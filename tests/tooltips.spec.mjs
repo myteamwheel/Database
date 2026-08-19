@@ -95,16 +95,31 @@ test.describe('Stat explainer UI', () => {
   test('Stat guide lists every documented column and is searchable', async ({ page }) => {
     await open(page);
     await page.click('#statGuideBtn');
-    await page.waitForSelector('#sgList .stat-guide-item', { timeout: 5000 });
-    const all = await page.locator('#sgList .stat-guide-item').count();
+    await page.waitForSelector('[data-sg="list"] .stat-guide-item', { timeout: 5000 });
+    const all = await page.locator('[data-sg="list"] .stat-guide-item').count();
     expect(all).toBeGreaterThan(80);
-    await page.fill('#sgSearch', 'tulip');
+    await page.fill('[data-sg="search"]', 'tulip');
     await page.waitForTimeout(250);
-    const filtered = await page.locator('#sgList .stat-guide-item').count();
+    const filtered = await page.locator('[data-sg="list"] .stat-guide-item').count();
     expect(filtered).toBeGreaterThan(0);
     expect(filtered).toBeLessThan(all);
-    const txt = await page.locator('#sgList').innerText();
+    const txt = await page.locator('[data-sg="list"]').innerText();
     expect(txt.toLowerCase()).toContain('how it is calculated');
+
+    // Opening and closing repeatedly must not accumulate dialogs. The first version created a new
+    // <dialog> per open, giving every copy the same element ids, so the close button resolved to an
+    // already-closed dialog and the live one leaked.
+    const before = await page.locator('dialog').count();
+    for (let i = 0; i < 3; i++) {
+      await page.click('[data-sg="close"]');
+      await page.waitForTimeout(150);
+      await page.click('#statGuideBtn');
+      await page.waitForTimeout(200);
+    }
+    expect(await page.locator('dialog').count()).toBe(before);
+    await page.click('[data-sg="close"]');
+    await page.waitForTimeout(150);
+    expect(await page.locator('dialog[open]').count()).toBe(0);
   });
 });
 
