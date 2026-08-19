@@ -91,7 +91,10 @@ if (stderr) process.stderr.write(stderr);
 
 function metric(label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const m = stdout.match(new RegExp(`^\\s*${escaped}\\s+(\\d+)\\s*$`, 'm'));
+  // Tolerate an explanatory suffix after the number ("... 2   <- ESPN has no usable record").
+  // Anchoring on end-of-line made three metrics parse as null the moment those annotations were
+  // added, and a null silently became 0 in the arithmetic below.
+  const m = stdout.match(new RegExp(`^\\s*${escaped}\\s+(\\d+)\\s*(?:<-.*)?$`, 'm'));
   return m ? Number(m[1]) : null;
 }
 
