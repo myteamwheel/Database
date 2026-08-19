@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-19T01:40:11.348Z",
-  "sourceCommit": "c72ae63848bc82f256d3cde795f76ac66c31e64c",
+  "generatedAt": "2026-08-19T06:01:44.737Z",
+  "sourceCommit": "86a66f4ebc756e0a30e6f4839a87539191b22a4c",
   "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
   "allAccepted": false,
   "results": [
@@ -223,7 +223,7 @@
       "teamGames": 985,
       "starterEdges": 4925,
       "perPlayerStartMismatches": 426,
-      "evidenceSha256": "1b0b70629c1763c50cbb0ae6ca722147384bff881a25bdf9758e3a933d8a8d36",
+      "evidenceSha256": "3d022f22da0f3c7853d5b88a19f6543cd05acd8ac3856bb9c6589a632c130a49",
       "logPresent": true,
       "logSha256": "7663550f37815616d4d9ec1f1605e1d14f0429d87f1ecd4e9f2a3538046087b8",
       "logTail": [
