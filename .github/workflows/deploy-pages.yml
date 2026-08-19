@@ -48,12 +48,19 @@ jobs:
           set -euo pipefail
           test -f public/data.json || { echo "public/data.json missing — run npm run build"; exit 1; }
           test -f index.html || { echo "index.html missing"; exit 1; }
+          # Assert against the REAL shape (d.leagues.NBA / d.leagues.GLEAGUE). An earlier version
+          # guessed d.nba / d.players.nba, found nothing, and failed every deploy — the guard was
+          # rejecting a perfectly good payload because the guard itself was wrong.
           node -e "
             const d = require('./public/data.json');
-            const nba = d.nba?.length ?? d.players?.nba?.length ?? 0;
-            const g = d.gleague?.length ?? d.players?.gleague?.length ?? 0;
-            if (!nba && !g) { console.error('data.json parsed but contains no player rows'); process.exit(1); }
-            console.log('data.json OK:', nba, 'NBA rows,', g, 'G League rows');
+            const nba = d.leagues?.NBA?.length ?? 0;
+            const g = d.leagues?.GLEAGUE?.length ?? 0;
+            if (!nba || !g) {
+              console.error('data.json is missing player rows: NBA=' + nba + ' GLEAGUE=' + g);
+              console.error('leagues keys: ' + Object.keys(d.leagues || {}).join(', '));
+              process.exit(1);
+            }
+            console.log('data.json OK: ' + nba + ' NBA rows, ' + g + ' G League rows');
           "
 
       - name: Assemble site
