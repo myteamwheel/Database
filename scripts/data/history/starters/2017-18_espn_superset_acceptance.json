@@ -17,6 +17,8 @@
   "nbaMissing": 0,
   "espnMissing": 0,
   "gameMappingFailures": 0,
+  "dateOffsetMatches": 0,
+  "espnScoreboardGaps": 0,
   "espnStarterCountNot5": 1,
   "teamGamesTested": 2624,
   "starterEdgesTested": 13115,
@@ -38,17 +40,19 @@
  },
  "checkerFingerprint": {
   "path": "scripts/espn-superset-test.mjs",
-  "bytes": 12880,
-  "sha256": "717e4455af206402e441e4d3477d7571d473a366c9f0791c3476753e61815063"
+  "bytes": 15263,
+  "sha256": "a074effa6d1e84f8830c60826e2761d28e0a5d365532dabc6f3432ac3b5c7759"
  },
  "gateFingerprint": {
   "path": "scripts/espn-full-season-gate.mjs",
-  "bytes": 9234,
-  "sha256": "1f62cd1ec14236714ac9b42dfff5aea193f66a0077ecd66c8eb5f3d9765c7346"
+  "bytes": 10274,
+  "sha256": "ce41176f5e27e4fed23f3a81da58acd3914240c379b473665d5d9da181584065"
  },
  "failures": [],
  "crossCheckCoverage": {
   "teamGamesComparable": 2623,
+  "espnScoreboardGapGames": 0,
+  "dateOffsetMatches": 0,
   "teamGamesTotal": 2624,
   "espnUnusableTeamGames": 1,
   "sharePct": 99.9619,
@@ -56,6 +60,6 @@
  },
  "checker": "scripts/espn-superset-test.mjs",
  "checkerMode": "exhaustive-via-step-1-with-independent-count-reconciliation",
- "generatedAt": "2026-08-19T11:19:58.177Z",
- "stdoutSha256": "92fe44d95ed0083e8b31be9764cb5e210cee0c0ba87fc3ed82ec63bfe0418080"
+ "generatedAt": "2026-08-19T12:52:10.883Z",
+ "stdoutSha256": "1e77c2d6b749a1b2a48a7d399b7c6d6613be4bd9cf5ba0886d89149f99c563e0"
 }

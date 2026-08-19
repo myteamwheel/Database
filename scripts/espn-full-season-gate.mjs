@@ -21,6 +21,22 @@ if (!season) {
   process.exit(2);
 }
 
+
+// A gate that dies without a verdict is indistinguishable from one still running, and that is how
+// three consecutive runs left stale acceptance records in place while appearing merely slow. Any
+// uncaught failure is now reported AS A REJECTION, loudly, with a non-zero exit.
+function crashOut(err) {
+  console.error('\n' + '='.repeat(78));
+  console.error(`FULL-SEASON ESPN SUPERSET GATE: REJECTED (gate crashed before reaching a verdict)`);
+  console.error(`  season: ${season}`);
+  console.error(`  error:  ${err && err.stack ? err.stack.split('\n').slice(0, 4).join('\n          ') : err}`);
+  console.error('  No acceptance record was written. Treat this season as NOT gated.');
+  console.error('='.repeat(78));
+  process.exit(1);
+}
+process.on('uncaughtException', crashOut);
+process.on('unhandledRejection', crashOut);
+
 function sha256File(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
@@ -122,6 +138,12 @@ if (measured.gamesSampled !== expectedGames) failures.push(`games checked ${meas
 // Edges are only tested where ESPN is usable, so the expected edge count is reduced by the
 // team-games ESPN itself reports impossibly. Those are counted separately below.
 const untestable = measured.espnStarterCountNot5 || 0;
+const gapGames = measured.espnScoreboardGaps || 0;
+// Team-games are only comparable where ESPN has a usable record of the game at all.
+const expectedTeamGames = (expectedGames - gapGames) * 2;
+if (measured.teamGamesTested !== expectedTeamGames) {
+  failures.push(`team-games tested ${measured.teamGamesTested} != ${expectedTeamGames} (${expectedGames} games minus ${gapGames} ESPN scoreboard gaps, x2)`);
+}
 const expectedEdges = (expectedGames - gapGames) * 10 - untestable * 5;
 if (measured.starterEdgesTested !== expectedEdges) {
   failures.push(`starter edges tested ${measured.starterEdgesTested} != ${expectedEdges} (${expectedGames} games, minus ${gapGames} ESPN scoreboard gaps and ${untestable} untestable team-games)`);
