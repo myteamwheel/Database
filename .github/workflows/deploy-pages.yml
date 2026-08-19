@@ -67,10 +67,23 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site/public
-          cp index.html history-lab.html app.js workspace.js styles.css _site/
+          # Copy ALL root-level web assets by glob rather than an enumerated list. The enumerated
+          # version silently shipped a broken site when history-lab.js was added later: the page
+          # deployed fine and 404'd on its own script. A glob cannot go stale that way.
+          cp *.html *.js *.css _site/
           cp -R public/. _site/public/
           # .nojekyll stops GitHub stripping paths that begin with an underscore.
           touch _site/.nojekyll
+          # Every <script src> and <link href> the pages reference must exist in _site, or the
+          # deploy is broken in a way a 200 on the root URL will not reveal.
+          missing=0
+          for page in _site/*.html; do
+            for ref in $(grep -oE '(src|href)="[^":]+\.(js|css)"' "$page" | sed -E 's/.*="([^"]+)"/\1/'); do
+              if [ ! -f "_site/$ref" ]; then echo "MISSING asset $ref referenced by $(basename "$page")"; missing=1; fi
+            done
+          done
+          [ "$missing" = "0" ] || { echo "refusing to deploy a site with missing assets"; exit 1; }
+          echo "all referenced assets present"
           du -sh _site
 
       - uses: actions/configure-pages@v5
