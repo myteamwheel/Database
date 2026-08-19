@@ -108,11 +108,11 @@ const BASE_COLS = {
   magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
-  'opt.optimalMpg':{label:'TULIP MPG',type:'1',help:'WHAT: the minutes-per-game workload at which this player\u2019s projected on-court impact is highest. PLAIN: roughly how much he should play for the team to get the most out of him. FORMULA: TULIP projects impact at 12/16/20/24/28/32/36 MPG using comparable players at each workload; this is the band with the highest projection, counting only bands with enough comparables. Blank means fewer than two bands had support.'},
-  'opt.minutesDelta':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game this player should be getting for the team to get the most out of him. This is the headline TULIP number. FORMULA: TULIP MPG minus his current MPG, where TULIP MPG is the workload with the highest projected impact. PLAIN: how many more (+) or fewer (-) minutes a game the evidence points to. FORMULA: opt.optimalMpg - current MPG. Positive means underused, negative means the projection peaks below what he already plays. This is an observational comparison against similar players, NOT a causal claim about what happens if his minutes change.'},
-  'opt.projectedAtOptimal':{label:'Proj @ TULIP MPG',type:'signed2',help:'WHAT: projected on-court impact at the best-MPG workload. PLAIN: how good the model thinks he would be at that workload. FORMULA: the TULIP projected impact value of the winning role band.'},
-  'opt.confidence':{label:'TULIP conf',type:'2',help:'WHAT: how clearly the peak stands out. PLAIN: higher means the best workload is distinct, near 0 means the curve is flat and the peak is inside the noise. FORMULA: (max projected impact across supported bands - min) / width of the best band\u2019s confidence interval.'},
-  'opt.supportedBands':{label:'Bands',type:'int',help:'WHAT: how many of the seven role bands had enough comparable players to project. PLAIN: how much of the minutes range the estimate actually saw. FORMULA: count of bands (12-36 MPG) where TULIP did not abstain.'},
+  'opt.targetMpg':{label:'TULIP MPG',type:'1',help:'WHAT: the workload this player should be at. PLAIN: what his minutes would look like if his team spent them in line with what each player produces. FORMULA: current MPG + TULIP, held inside 6 to 35.3 MPG.'},
+  'opt.gapVsTeam':{label:'Value vs team',type:'signed2',help:'WHAT: his shrunk BPM minus his team\'s minute-weighted average BPM. PLAIN: how much better or worse he is than the average minute his team currently buys. FORMULA: shrunk BPM - sum(BPM x minutes)/sum(minutes) across his eligible team-mates.'},
+  'opt.shrunkBpm':{label:'BPM (shrunk)',type:'signed2',help:'WHAT: box plus/minus after pulling small samples toward the league average. PLAIN: his per-100-possession value including defence, with short samples trusted less. FORMULA: (minutes x BPM + 400 x leagueBPM) / (minutes + 400).'},
+  'opt.bpm':{label:'BPM',type:'signed1',help:'WHAT: box plus/minus, points per 100 possessions above league average, offence and defence. PLAIN: his overall per-possession value. FORMULA: Basketball-Reference BPM; OBPM + DBPM.'},
+  'opt.minutesDelta':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game this player should get, judged against how his own team currently spends its minutes. PLAIN: is his team using him too little or too much? FORMULA: (his shrunk BPM - his team\'s minute-weighted average BPM) x 2.2 minutes per BPM point, clamped to +/-8 and kept inside a 6-35.3 MPG range. BPM includes defence via DBPM. NOTE: 35.3 is the p95 of 1,409 real player-seasons and no player has exceeded 38.0; the clamp exists because one season of box-score data cannot support telling a coach to move a rotation by 25 minutes.'},
   nbaReadiness:{label:'NBA %',type:'1',help:'WHAT (G League only): modelled probability this player would be an effective NBA player. PLAIN: percent chance he holds his own in an NBA rotation. FORMULA: ridge logistic regression on five robust z-scored skill blocks \u2014 playmaking, connecting, defense, hustle proxy, 3PT efficiency \u2014 fitted on 85 players who logged 150+ minutes in BOTH leagues this season. "Effective" = NBA rate grade at or above the median of NBA players with 500+ minutes. SCORING VOLUME AND USAGE ARE EXCLUDED. Leave-one-out AUC 0.65, so it ranks better than chance but is far from decisive. Single season, and fitted only on players who already got an NBA call-up.'},
   'rb.playmaking':{label:'RB play',type:'2',help:'WHAT: playmaking block score inside NBA %. PLAIN: passing volume and ball security relative to the G League. FORMULA: mean robust z-score of assist rate, assists per 100 possessions, and assist-to-turnover ratio.'},
   'rb.connecting':{label:'RB connect',type:'2',help:'WHAT: connective-play block score. PLAIN: keeps the ball moving without coughing it up, and is willing to space the floor. FORMULA: weighted robust z of assist ratio (+1) and 3PT attempt rate (+0.6), minus turnover ratio (-1.2).'},
@@ -325,8 +325,8 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','opt.minutesDelta','opt.optimalMpg','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
-  workload:['select','viewRank','name','team','position','age','gp','mpg','grade','tulip.leagueDelta','opt.optimalMpg','opt.minutesDelta','opt.projectedAtOptimal','opt.confidence','opt.supportedBands'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','opt.minutesDelta','opt.targetMpg','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  workload:['select','viewRank','name','team','position','age','gp','mpg','grade','opt.minutesDelta','opt.targetMpg','opt.gapVsTeam','opt.shrunkBpm','opt.bpm','tulip.leagueDelta'],
   nbaready:['select','viewRank','name','team','position','age','gp','mpg','grade','nbaReadiness','rb.playmaking','rb.connecting','rb.defense','rb.hustle','rb.shooting'],
   per36:['select','viewRank','name','team','position','mpg','p36.pts','p36.reb','p36.ast','p36.stl','p36.blk','p36.tov','p36.fg3','p36.ts','p36.fg3Pct'],
   per36nba:['select','viewRank','name','team','position','mpg','p36n.pts','p36n.reb','p36n.ast','p36n.stl','p36n.blk','p36n.tov','p36n.fg3','p36n.ts','p36n.fg3Pct','nbaReadiness'],
@@ -655,8 +655,8 @@ const STINT_FIELDS = {gp:'gp',minutes:'min',mpg:'mpg',pts:'pts',reb:'reb',ast:'a
 // though it were computed for that stint.
 const SEASON_ONLY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','rank',
   'tulip.leagueDelta','tulip.neutralDelta','tulip.projectedImpact','tulip.support','tulip.tier',
-  'tulip.verdict','tulip.targetMpg','opt.optimalMpg','opt.minutesDelta','opt.projectedAtOptimal',
-  'opt.confidence','opt.supportedBands','nbaReadiness','rb.playmaking','rb.connecting','rb.defense',
+  'tulip.verdict','tulip.targetMpg','opt.minutesDelta',
+  'nbaReadiness','rb.playmaking','rb.connecting','rb.defense',
   'rb.hustle','rb.shooting',
   'ts','efg','usg','astPct','astRatio','orebPct','drebPct','rebPct','toRatio','tovPct',
   'offRtg','defRtg','netRtg','pace','pie','poss','stlPer100','blkPer100','astPer100','tovPer100',

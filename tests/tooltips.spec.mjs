@@ -35,7 +35,7 @@ test.describe('Column tooltips', () => {
   test('derived-metric tooltips state what it is, in plain words, and the formula', async ({ page }) => {
     await open(page);
     // The metrics a reader cannot infer from the label must explain themselves.
-    const keys = ['tulip.leagueDelta', 'opt.optimalMpg', 'opt.minutesDelta', 'opt.confidence', 'nbaReadiness',
+    const keys = ['tulip.leagueDelta', 'opt.minutesDelta', 'opt.targetMpg', 'opt.gapVsTeam', 'nbaReadiness',
       'rb.defense', 'rb.hustle', 'p36.pts', 'p36n.pts', 'p36n.ts', 'custom.twoWayIndex'];
     const bad = await page.evaluate((ks) => ks.map((k) => {
       const h = String(colDef(k)?.help || '');

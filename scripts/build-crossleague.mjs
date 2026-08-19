@@ -2,9 +2,10 @@
 // Run after build-v3.mjs (needs grades and TULIP frontiers) and before build-artifact.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
+import { tulipMinutes } from './lib/minutes-response.mjs';
 import { fileURLToPath } from 'node:url';
 import {
-  optimalMinutes, readinessFeatures, READINESS_BLOCKS, fitLogistic, predict, auc,
+  readinessFeatures, READINESS_BLOCKS, fitLogistic, predict, auc,
   per36TranslationFactors, paceAdjustment, translateTo36, nbaTo36,
 } from './lib/crossleague.mjs';
 
@@ -20,22 +21,43 @@ console.log('='.repeat(78));
 console.log('CROSS-LEAGUE MODELS');
 console.log('='.repeat(78));
 
-/* ---------------------------------------------------------- 1. optimal minutes */
+/* ---------------------------------------------------------- 1. TULIP minutes advice
+ * Computed per TEAM, because the question is whether a roster is spending its minutes on the right
+ * people. Multi-team players are excluded: their season line mixes rosters, so "his team" is not
+ * well defined for them. BPM is required, which is why the G League gets no TULIP — that league's
+ * feed carries no BPM, and substituting a different metric would put the two leagues on scales
+ * that are not comparable. */
 let optCount = 0, optNull = 0;
-for (const p of [...nbaAll, ...glAll]) {
-  const o = optimalMinutes(p.tulip?.frontier, p.mpg);
-  p.optimal = o || null;
-  if (o) optCount++; else optNull++;
+{
+  const byTeam = new Map();
+  const withBpm = nbaAll.filter((p) => p.appeared && fin(p.mpg) && p.mpg > 0 && fin(p.bpm)
+    && fin(p.gp) && p.gp > 0 && !(p.teamCount > 1));
+  const leagueBpm = withBpm.length ? withBpm.reduce((a, p) => a + p.bpm, 0) / withBpm.length : -0.8;
+  for (const p of withBpm) {
+    if (!byTeam.has(p.team)) byTeam.set(p.team, []);
+    byTeam.get(p.team).push(p);
+  }
+  const advice = new Map();
+  for (const [, roster] of byTeam) {
+    const out = tulipMinutes(roster.map((p) => ({ playerId: p.playerId, bpm: p.bpm, gp: p.gp, mpg: p.mpg })), leagueBpm);
+    if (out) for (const a of out) advice.set(a.playerId, a);
+  }
+  for (const p of [...nbaAll, ...glAll]) {
+    const a = advice.get(p.playerId) || null;
+    p.optimal = a;
+    if (a) optCount++; else optNull++;
+  }
+  console.log(`\n--- TULIP minutes advice ---`);
+  console.log(`  teams: ${byTeam.size} · league BPM prior ${leagueBpm.toFixed(2)}`);
+  console.log(`  players with advice: ${optCount} of ${nbaAll.length + glAll.length}`);
+  console.log(`  no advice (multi-team, under the minutes floor, or no BPM incl. all G League): ${optNull}`);
 }
-console.log(`\n--- optimal minutes ---`);
-console.log(`  players with an optimal-workload estimate: ${optCount} of ${nbaAll.length + glAll.length}`);
-console.log(`  not estimable (fewer than 2 supported bands, or peak inside its own interval): ${optNull}`);
 const deltas = [...nbaAll, ...glAll].filter((p) => fin(p.optimal?.minutesDelta)).map((p) => p.optimal.minutesDelta);
 if (deltas.length) {
   const s = [...deltas].sort((a, b) => a - b);
   console.log(`  minutes delta: min ${s[0]}, median ${s[Math.floor(s.length / 2)]}, max ${s[s.length - 1]}`);
-  console.log(`  players whose model-preferred workload is ABOVE current: ${deltas.filter((x) => x > 0).length}`);
-  console.log(`  BELOW current: ${deltas.filter((x) => x < 0).length}`);
+  console.log(`  advised to play MORE: ${deltas.filter((x) => x > 0.4).length}`);
+  console.log(`  advised to play LESS: ${deltas.filter((x) => x < -0.4).length}`);
 }
 
 /* ------------------------------------------------- 2. NBA readiness (G League) */
