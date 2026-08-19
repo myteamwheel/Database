@@ -46,11 +46,29 @@ for (const league of ['NBA', 'GLEAGUE']) {
   const customKeys = new Set(records.flatMap((p) => Object.keys(p.custom || {})));
   const compKeys = new Set(records.flatMap((p) => Object.keys(p.components || {})));
 
+  // Which tulip.* scalars are actually populated for at least one non-abstaining player.
+  const tulipKeys = new Set();
+  for (const p of d.leagues[league]) {
+    const c = p.tulip?.card;
+    if (!c || c.abstain === true) continue;
+    if (Number.isFinite(c.rotation?.leagueReferencedDelta)) tulipKeys.add('leagueDelta');
+    if (Number.isFinite(c.rotation?.neutralRotationDelta)) tulipKeys.add('neutralDelta');
+    if (Number.isFinite(c.projection?.projectedImpact)) tulipKeys.add('projectedImpact');
+    if (Number.isFinite(c.projection?.support)) tulipKeys.add('support');
+    if (c.evidenceTier?.tier) tulipKeys.add('tier');
+    if (c.rotation?.verdict) tulipKeys.add('verdict');
+    if (Number.isFinite(c.targetMpg)) tulipKeys.add('targetMpg');
+  }
+
   const resolves = (key) => {
     if (PSEUDO.has(key)) return true;
     if (key.startsWith('stats.')) return statKeys.has(key.slice(6));
     if (key.startsWith('custom.')) return customKeys.has(key.slice(7));
     if (key.startsWith('components.')) return compKeys.has(key.slice(11));
+    // TULIP fields are derived from the per-player tulip.card object rather than being top-level
+    // keys, and they are legitimately null for every player TULIP abstains on. "Resolves" here
+    // means at least one player carries a real value, which is the same bar as every other field.
+    if (key.startsWith('tulip.')) return tulipKeys.has(key.slice(6));
     return topKeys.has(key);
   };
   // A field may legitimately be absent in one league (tracking in the G League) as long as the

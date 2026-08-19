@@ -39,6 +39,21 @@ const get = (p, key) => {
   if (key.startsWith('custom.')) return p.custom?.[key.slice(7)] ?? null;
   if (key.startsWith('components.')) return p.components?.[key.slice(11)] ?? null;
   if (key.startsWith('skill.')) return p.skillProfile?.[key.slice(6)] ?? null;
+  if (key.startsWith('tulip.')) {
+    const c = p.tulip?.card;
+    // An abstention is NOT a zero. Returning null puts the player at the end of the sort in both
+    // directions instead of ranking him as mid-table or worst, which a 0 would do.
+    if (!c || c.abstain === true) return null;
+    const sub = key.slice(6);
+    if (sub === 'leagueDelta') return c.rotation?.abstain ? null : (c.rotation?.leagueReferencedDelta ?? null);
+    if (sub === 'neutralDelta') return c.rotation?.abstain ? null : (c.rotation?.neutralRotationDelta ?? null);
+    if (sub === 'projectedImpact') return c.projection?.projectedImpact ?? null;
+    if (sub === 'support') return c.projection?.support ?? null;
+    if (sub === 'tier') return c.evidenceTier?.tier ?? null;
+    if (sub === 'verdict') return c.rotation?.verdict ?? null;
+    if (sub === 'targetMpg') return c.targetMpg ?? null;
+    return null;
+  }
   return p[key] ?? null;
 };
 const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
@@ -89,6 +104,13 @@ const BASE_COLS = {
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
   reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
+  'tulip.leagueDelta':{label:'TULIP',type:'signed2',help:'Role-expansion value against a MEDIAN league rotation slot, at the player’s target minutes. Blank means TULIP abstained — usually too few comparables, or the player already plays too many minutes for expansion to be a question. Blank is not zero and always sorts last.'},
+  'tulip.neutralDelta':{label:'TULIP neutral',type:'signed2',help:'Same projection measured against a median team-mate rather than the weakest one. Displacing the weakest player flatters expansion by construction, so this is the fairer read.'},
+  'tulip.projectedImpact':{label:'TULIP proj',type:'signed2',help:'Projected on-court impact at the target minutes, from comparable players'},
+  'tulip.support':{label:'TULIP support',type:'int',help:'Evidence support score behind the projection (0-100)'},
+  'tulip.tier':{label:'TULIP tier',type:'text',help:'Evidence tier A-D. D means the projection rests entirely on comparable players.'},
+  'tulip.verdict':{label:'TULIP verdict',type:'text',help:'EXPAND ROLE / HOLD, from the rotation comparison'},
+  'tulip.targetMpg':{label:'TULIP target',type:'1',help:'Minutes level the projection was evaluated at'},
   pts:{label:'PTS',type:'1'}, reb:{label:'REB',type:'1'}, oreb:{label:'OREB',type:'1'}, dreb:{label:'DREB',type:'1'},
   ast:{label:'AST',type:'1'}, stl:{label:'STL',type:'1'}, blk:{label:'BLK',type:'1'}, blka:{label:'BLKA',type:'1'},
   tov:{label:'TOV',type:'1'}, pf:{label:'PF',type:'1'}, pfd:{label:'PFD',type:'1'},
@@ -261,7 +283,8 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  tulip:['select','viewRank','name','team','position','age','gp','mpg','grade','tulip.leagueDelta','tulip.neutralDelta','tulip.projectedImpact','tulip.targetMpg','tulip.support','tulip.tier','tulip.verdict'],
   scoring:['select','viewRank','name','team','grade','pts','fg','fga','fgPct','fg3','fg3a','fg3Pct','ft','fta','ftPct','efg','ts','fg3Ar','ftr','usg','custom.selfCreatedPts36','custom.paintPts36','custom.efficiencyOverExpected'],
   shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_catch_shoot_pts','stats.trk_catchshoot_catch_shoot_fga','stats.trk_pullup_pull_up_pts','stats.trk_pullup_pull_up_fga'],
   playmaking:['select','viewRank','name','team','grade','ast','tov','astPct','astRatio','astTo','astPer100','tovPer100','toRatio','usg','custom.creationLoad36','custom.selfSufficiencyIndex'],
@@ -288,7 +311,7 @@ const PRESETS = {
   tracking:['select','viewRank','name','team','grade','stats.trk_drives_drives','stats.trk_drives_drive_pts','stats.trk_passing_passes_made','stats.trk_passing_potential_ast','stats.trk_passing_ast_points_created','stats.trk_touches_touches','stats.trk_touches_time_of_poss','stats.trk_touches_paint_touches','stats.trk_rebounding_reb_contest_pct','stats.trk_defense_def_rim_fg_pct','stats.hustle_contested_shots','stats.hustle_deflections','stats.hustle_charges_drawn','stats.hustle_screen_assists','stats.hustle_loose_balls_recovered','stats.hustle_box_outs'],
 };
 
-const PRESET_LABELS = {overall:'Overall',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
+const PRESET_LABELS = {overall:'Overall',tulip:'TULIP Role Expansion',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
   splitsExplorer:'Splits: scoring',splitsShooting:'Splits: efficiency',splitsMonthly:'Splits: by month',
@@ -448,7 +471,11 @@ function playedFor(p,team){
 const STINT_FIELDS = {gp:'gp',minutes:'min',mpg:'mpg',pts:'pts',reb:'reb',ast:'ast',
   stl:'stl',blk:'blk',fgPct:'fgPct',fg3Pct:'fg3Pct',ftPct:'ftPct',plusMinus:'plusMinus'};
 /** Season-only fields that must not be shown beside stint numbers. */
+// TULIP is computed once on the full-season line, so a per-team stint row must not display it as
+// though it were computed for that stint.
 const SEASON_ONLY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWeight','rank',
+  'tulip.leagueDelta','tulip.neutralDelta','tulip.projectedImpact','tulip.support','tulip.tier',
+  'tulip.verdict','tulip.targetMpg',
   'ts','efg','usg','astPct','astRatio','orebPct','drebPct','rebPct','toRatio','tovPct',
   'offRtg','defRtg','netRtg','pace','pie','poss','stlPer100','blkPer100','astPer100','tovPer100',
   'defWs','per','ows','dws','ws','ws48','obpm','dbpm','bpm','vorp','stlPct','blkPct',

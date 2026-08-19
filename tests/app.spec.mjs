@@ -618,3 +618,56 @@ test.describe('TULIP', () => {
     expect(r.missingDelta).toBe(0);   // both questions always answered
   });
 });
+
+test.describe('TULIP column', () => {
+  test('TULIP is a sortable column on the default view and abstentions never rank as zero', async ({ page }) => {
+    const errors = await open(page);
+
+    // Present on the DEFAULT preset, not buried in a secondary view.
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    expect(headers).toContain('TULIP');
+    expect(await page.$eval('#viewPreset', (s) => s.value)).toBe('overall');
+
+    const idx = headers.indexOf('TULIP');
+    const readCol = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
+      const c = r.querySelectorAll('td');
+      return { name: (c[3]?.innerText || '').split('\n')[0].trim(), tulip: (c[i]?.innerText || '').trim() };
+    }), idx);
+
+    // Click by column index: the header text gains a sort arrow after the first click, so a
+    // text-matching locator stops resolving. The FIRST click on a numeric column sorts
+    // descending, which is what we want to check first.
+    const th = page.locator('thead th').nth(idx);
+    await th.click();
+    await page.waitForTimeout(500);
+
+    const desc = await readCol();
+    const nums = desc.map((r) => Number(r.tulip)).filter((n) => Number.isFinite(n));
+    expect(nums.length).toBeGreaterThan(3);
+    // Monotonically non-increasing among the values that exist.
+    for (let i = 1; i < nums.length; i++) expect(nums[i]).toBeLessThanOrEqual(nums[i - 1]);
+    // The top of a descending sort must be a real value, never a blank abstention.
+    expect(desc[0].tulip).not.toBe('—');
+
+    // Ascending: abstentions must STILL sort last. If a blank were coerced to 0 it would surface
+    // at the top here, ranking a player TULIP refused to judge as though it scored him zero.
+    await th.click();
+    await page.waitForTimeout(500);
+    const asc = await readCol();
+    expect(asc[0].tulip).not.toBe('—');
+    expect(Number(asc[0].tulip)).toBeLessThan(0);
+
+    expect(errors).toEqual([]);
+  });
+
+  test('a dedicated TULIP preset exposes the projection fields', async ({ page }) => {
+    const errors = await open(page);
+    await page.selectOption('#viewPreset', 'tulip');
+    await page.waitForTimeout(500);
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    for (const h of ['TULIP', 'TULIP NEUTRAL', 'TULIP PROJ', 'TULIP SUPPORT', 'TULIP TIER', 'TULIP VERDICT']) {
+      expect(headers).toContain(h);
+    }
+    expect(errors).toEqual([]);
+  });
+});
