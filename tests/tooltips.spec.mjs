@@ -142,3 +142,36 @@ test.describe('Keyboard and accessibility', () => {
     }
   });
 });
+
+test.describe('Smoke: every view renders', () => {
+  test.setTimeout(180000);
+  test('every preset renders rows and columns in both leagues', async ({ page }) => {
+    const errors = await open(page);
+    // Driven through the app's own change handler rather than selectOption, which waits for
+    // actionability on a control the render loop replaces.
+    const broken = await page.evaluate(async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const bad = [];
+      const sel = document.getElementById('viewPreset');
+      const presets = [...sel.options].map((o) => o.value);
+      const tabs = [...document.querySelectorAll('.league-tab')];
+      for (const tab of tabs) {
+        tab.click();
+        await wait(250);
+        const league = tab.innerText.trim().split(/\s+/)[0];
+        for (const p of presets) {
+          sel.value = p;
+          sel.dispatchEvent(new Event('change'));
+          await wait(40);
+          const rows = document.querySelectorAll('#tableBody tr').length;
+          const cols = document.querySelectorAll('thead th').length;
+          const err = document.querySelector('#tableBody .error')?.innerText || '';
+          if (rows === 0 || cols < 3 || err) bad.push(`${league}/${p}: rows=${rows} cols=${cols} ${err}`);
+        }
+      }
+      return bad;
+    });
+    expect(broken, `views that failed to render:\n${broken.join('\n')}`).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+});
