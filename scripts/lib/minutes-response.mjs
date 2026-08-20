@@ -201,7 +201,10 @@ export const ALLOC_CONFIG = {
   ceilingMpg: 35.3,      // p95 of 1,409 player-seasons; ZERO exceeded 38.0
   floorMpg: 6,
   maxAdvice: 8,          // widest recommendation this will make in either direction
-  minutesPerBpmPoint: 2.2,
+  // Expressed per STANDARD DEVIATION of the league's own value metric rather than per BPM point,
+  // so the same rate is meaningful in a league that has no BPM. 6.6 preserves the NBA behaviour
+  // this was calibrated against (2.2 minutes per BPM point x an NBA BPM spread of about 3.0).
+  minutesPerSd: 6.6,
   shrinkMinutes: 400,
   minMinutes: 250,
 };
@@ -230,13 +233,35 @@ export const ALLOC_CONFIG = {
  * The clamp is the point, not a fudge. Nothing in one season of box-score data supports telling a
  * coach to move a rotation by 25 minutes.
  */
+/**
+ * Standardise a league's own value metric within that league.
+ *
+ * Each league is scored on a metric it actually publishes — BPM for the NBA, PIE for the G League —
+ * and converted to a minute-weighted z-score inside its own population. An earlier version fitted
+ * BPM from NBA players and PREDICTED it for the G League; the fit was strong (R2 0.90 held out) but
+ * it assumed the relationship between box-score inputs and BPM transfers between leagues, and there
+ * is no G League BPM anywhere to test that against. Standardising within league removes the
+ * assumption entirely: a player is compared to his own league, which is all TULIP ever needed.
+ */
+export function standardiseValue(players, key) {
+  const rows = players.filter((p) => fin(p[key]) && fin(p.mpg) && fin(p.gp) && p.mpg > 0 && p.gp > 0)
+    .map((p) => ({ ...p, totalMin: p.mpg * p.gp }));
+  const den = rows.reduce((a, p) => a + p.totalMin, 0);
+  if (!rows.length || den <= 0) return { mean: 0, sd: 1, rows: [] };
+  const mean = rows.reduce((a, p) => a + p[key] * p.totalMin, 0) / den;
+  const varr = rows.reduce((a, p) => a + p.totalMin * (p[key] - mean) ** 2, 0) / den;
+  const sd = Math.sqrt(varr) || 1;
+  return { mean, sd, rows: rows.map((p) => ({ ...p, z: (p[key] - mean) / sd })) };
+}
+
 export function tulipMinutes(roster, leagueBpm = -0.8, minMinutes = ALLOC_CONFIG.minMinutes) {
   const K = ALLOC_CONFIG.shrinkMinutes;
+  // `z` is the player's value in his OWN league's standard-deviation units, so the prior is 0.
   const rows = roster
-    .filter((p) => fin(p.bpm) && fin(p.mpg) && fin(p.gp) && p.mpg > 0 && p.gp > 0)
+    .filter((p) => fin(p.z) && fin(p.mpg) && fin(p.gp) && p.mpg > 0 && p.gp > 0)
     .map((p) => {
       const totalMin = p.mpg * p.gp;
-      return { ...p, totalMin, shrunk: (totalMin * p.bpm + K * leagueBpm) / (totalMin + K) };
+      return { ...p, totalMin, shrunk: (totalMin * p.z) / (totalMin + K) };
     });
   // Floor is caller-supplied so a shorter league is not judged against an 82-game bar.
   const eligible = rows.filter((p) => p.totalMin >= minMinutes);
@@ -248,7 +273,7 @@ export function tulipMinutes(roster, leagueBpm = -0.8, minMinutes = ALLOC_CONFIG
 
   return eligible.map((p) => {
     const gap = p.shrunk - teamValuePerMinute;
-    const raw = gap * ALLOC_CONFIG.minutesPerBpmPoint;
+    const raw = gap * ALLOC_CONFIG.minutesPerSd;
     const clamped = Math.max(-ALLOC_CONFIG.maxAdvice, Math.min(ALLOC_CONFIG.maxAdvice, raw));
     // Never advise past what anyone actually sustains, or below a real rotation floor.
     const target = Math.max(ALLOC_CONFIG.floorMpg, Math.min(ALLOC_CONFIG.ceilingMpg, p.mpg + clamped));
@@ -257,7 +282,7 @@ export function tulipMinutes(roster, leagueBpm = -0.8, minMinutes = ALLOC_CONFIG
       currentMpg: round(p.mpg, 1),
       targetMpg: round(target, 1),
       minutesDelta: round(target - p.mpg, 1),
-      bpm: round(p.bpm, 1),
+      bpm: round(p.rawValue, 1),
       shrunkBpm: round(p.shrunk, 2),
       teamValuePerMinute: round(teamValuePerMinute, 2),
       gapVsTeam: round(gap, 2),
