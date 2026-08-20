@@ -48,22 +48,49 @@ let optCount = 0, optNull = 0;
     throw new Error(`G League BPM proxy is too weak to use (R2 ${proxy ? proxy.r2 : 'n/a'}); refusing to publish it`);
   }
   console.log(`  G League BPM proxy: fitted on ${proxy.n} NBA players, R2 ${proxy.r2}, RMSE ${proxy.rmse}`);
+  // The 250-minute floor was sized for an 82-game NBA season. The G League plays about 50, with a
+  // median of 29 appearances, so the same absolute floor silently excluded 126 players for the
+  // crime of playing in a shorter league. Scale it by the ratio of median season workloads.
+  const medMin = (list) => {
+    const v = list.filter((p) => p.appeared && fin(p.mpg) && fin(p.gp) && p.mpg > 0)
+      .map((p) => p.mpg * p.gp).sort((a, b) => a - b);
+    return v.length ? v[Math.floor(v.length / 2)] : null;
+  };
+  const nbaMed = medMin(nbaAll), glMed = medMin(glAll);
+  const glFloor = nbaMed && glMed ? Math.round(250 * (glMed / nbaMed)) : 250;
+  console.log(`  minutes floor: NBA 250 · G League ${glFloor} (median total minutes ${Math.round(glMed)} vs ${Math.round(nbaMed)})`);
+
   let glProxied = 0;
+  const glProxies = [];
   for (const p of glAll) {
-    if (!p.appeared || !fin(p.mpg) || !(p.mpg > 0) || !fin(p.gp) || p.teamCount > 1) continue;
+    if (!p.appeared || !fin(p.mpg) || !(p.mpg > 0) || !fin(p.gp)) continue;
     const est = predictLinear(proxy, p);
     if (!fin(est)) continue;
     p.bpmProxy = Number(est.toFixed(2));
+    glProxies.push(est);
     glProxied++;
-    const key = `GL|${p.team}`;
+  }
+  // Shrink G League players toward the G LEAGUE mean. Using the NBA prior pulled them toward a
+  // population they are not drawn from, biasing every G League estimate in the same direction.
+  const glPrior = glProxies.length ? glProxies.reduce((a, b) => a + b, 0) / glProxies.length : leagueBpm;
+  console.log(`  shrinkage prior: NBA ${leagueBpm.toFixed(2)} · G League ${glPrior.toFixed(2)} (own-league mean)`);
+  for (const p of glAll) {
+    if (!fin(p.bpmProxy) || !fin(p.mpg) || !fin(p.gp)) continue;
+    if (p.mpg * p.gp < glFloor) continue;
+    // Multi-team players are assigned to the team they played MOST for rather than dropped. The
+    // G League runs on call-ups and assignments, so excluding them removed 97 real rotation players.
+    const team = p.primaryTeam || p.team;
+    const key = `GL|${team}`;
     if (!byTeam.has(key)) byTeam.set(key, []);
-    byTeam.get(key).push({ ...p, bpm: est, __lg: 'GL' });
+    byTeam.get(key).push({ ...p, bpm: p.bpmProxy, __lg: 'GL', __prior: glPrior });
   }
   console.log(`  G League players given a proxied BPM: ${glProxied}`);
 
   const advice = new Map();
   for (const [, roster] of byTeam) {
-    const out = tulipMinutes(roster.map((p) => ({ playerId: p.playerId, bpm: p.bpm, gp: p.gp, mpg: p.mpg })), leagueBpm);
+    const prior = roster[0].__prior ?? leagueBpm;
+    const out = tulipMinutes(roster.map((p) => ({ playerId: p.playerId, bpm: p.bpm, gp: p.gp, mpg: p.mpg })), prior,
+      roster[0].__lg === 'GL' ? glFloor : 250);
     if (out) for (const a of out) advice.set(`${roster[0].__lg}|${a.playerId}`, a);
   }
   for (const p of nbaAll) { const a = advice.get(`NBA|${p.playerId}`) || null; p.optimal = a; if (a) optCount++; else optNull++; }

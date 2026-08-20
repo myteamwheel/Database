@@ -230,7 +230,7 @@ export const ALLOC_CONFIG = {
  * The clamp is the point, not a fudge. Nothing in one season of box-score data supports telling a
  * coach to move a rotation by 25 minutes.
  */
-export function tulipMinutes(roster, leagueBpm = -0.8) {
+export function tulipMinutes(roster, leagueBpm = -0.8, minMinutes = ALLOC_CONFIG.minMinutes) {
   const K = ALLOC_CONFIG.shrinkMinutes;
   const rows = roster
     .filter((p) => fin(p.bpm) && fin(p.mpg) && fin(p.gp) && p.mpg > 0 && p.gp > 0)
@@ -238,7 +238,8 @@ export function tulipMinutes(roster, leagueBpm = -0.8) {
       const totalMin = p.mpg * p.gp;
       return { ...p, totalMin, shrunk: (totalMin * p.bpm + K * leagueBpm) / (totalMin + K) };
     });
-  const eligible = rows.filter((p) => p.totalMin >= ALLOC_CONFIG.minMinutes);
+  // Floor is caller-supplied so a shorter league is not judged against an 82-game bar.
+  const eligible = rows.filter((p) => p.totalMin >= minMinutes);
   if (eligible.length < 5) return null;
 
   // The team's current "purchase price": value per minute it is actually buying today.
