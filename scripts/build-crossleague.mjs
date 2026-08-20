@@ -34,8 +34,9 @@ let optCount = 0, optNull = 0;
     && fin(p.gp) && p.gp > 0 && !(p.teamCount > 1));
   const leagueBpm = withBpm.length ? withBpm.reduce((a, p) => a + p.bpm, 0) / withBpm.length : -0.8;
   for (const p of withBpm) {
-    if (!byTeam.has(p.team)) byTeam.set(p.team, []);
-    byTeam.get(p.team).push(p);
+    const key = `NBA|${p.team}`;
+    if (!byTeam.has(key)) byTeam.set(key, []);
+    byTeam.get(key).push({ ...p, __lg: 'NBA' });
   }
   // The G League feed carries no BPM, which would leave half the database without TULIP. Rather
   // than swap in a different metric on an incomparable scale, BPM is FITTED from inputs both
@@ -54,18 +55,21 @@ let optCount = 0, optNull = 0;
     if (!fin(est)) continue;
     p.bpmProxy = Number(est.toFixed(2));
     glProxied++;
-    if (!byTeam.has(p.team)) byTeam.set(p.team, []);
-    byTeam.get(p.team).push({ ...p, bpm: est });
+    const key = `GL|${p.team}`;
+    if (!byTeam.has(key)) byTeam.set(key, []);
+    byTeam.get(key).push({ ...p, bpm: est, __lg: 'GL' });
   }
   console.log(`  G League players given a proxied BPM: ${glProxied}`);
 
   const advice = new Map();
   for (const [, roster] of byTeam) {
     const out = tulipMinutes(roster.map((p) => ({ playerId: p.playerId, bpm: p.bpm, gp: p.gp, mpg: p.mpg })), leagueBpm);
-    if (out) for (const a of out) advice.set(a.playerId, a);
+    if (out) for (const a of out) advice.set(`${roster[0].__lg}|${a.playerId}`, a);
   }
-  for (const p of [...nbaAll, ...glAll]) {
-    const a = advice.get(p.playerId) || null;
+  for (const p of nbaAll) { const a = advice.get(`NBA|${p.playerId}`) || null; p.optimal = a; if (a) optCount++; else optNull++; }
+  for (const p of glAll)  { const a = advice.get(`GL|${p.playerId}`)  || null; p.optimal = a; if (a) optCount++; else optNull++; }
+  if (false) for (const p of []) {
+    const a = null;
     p.optimal = a;
     if (a) optCount++; else optNull++;
   }
