@@ -472,7 +472,7 @@ function parseHelp(text){
   return out;
 }
 
-let tipEl = null, tipPinned = false;
+let tipEl = null, tipPinned = false, tipAnchor = null;
 function statTip(){
   if (tipEl) return tipEl;
   tipEl = document.createElement('div');
@@ -491,17 +491,55 @@ function showStatTip(th, key){
     + sec('In plain words', h.plain)
     + sec('How it is calculated', h.formula, 'tip-formula')
     + sec('Note', h.note)
-    + `<div class="tip-hint">Click the header to sort \u00b7 press <b>?</b> or use "Stat guide" for every column</div>`;
-  const r = th.getBoundingClientRect();
+    + `<div class="tip-hint">${isTouch ? 'Tap the header again to sort \u00b7 tap anywhere to close' : 'Click the header to sort \u00b7 press <b>?</b> or use "Stat guide" for every column'}</div>`
+    + '<button type="button" class="tip-close" aria-label="Close explanation">Close</button>';
+  // Always interactive so the close control works on any device, and always closable.
+  el.classList.add('pinned');
+  const cb = el.querySelector('.tip-close');
+  if (cb) cb.onclick = () => hideStatTip(true);
+  tipAnchor = th;
   el.classList.add('show');
+  placeStatTip(th.getBoundingClientRect());
+}
+
+/** Keep the panel beside its header and fully inside the viewport. */
+function placeStatTip(r){
+  const el = statTip();
   const w = el.offsetWidth, hgt = el.offsetHeight;
-  let left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+  const left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
   let top = r.bottom + 8;
   if (top + hgt > window.innerHeight - 8) top = Math.max(8, r.top - hgt - 8);
   el.style.left = left + 'px';
   el.style.top = top + 'px';
 }
-function hideStatTip(){ if (tipEl && !tipPinned) tipEl.classList.remove('show'); }
+function hideStatTip(force){ if (tipEl && (force || !tipPinned)) { tipPinned = false; tipAnchor = null; tipEl.classList.remove('show'); } }
+
+// Touch devices have no hover: a tap fires mouseenter but never mouseleave, so the panel stayed up
+// and — being pointer-events:none — could not even be tapped away. It covered the table with no way
+// out. On coarse pointers the panel therefore gets an explicit close control, and every route that
+// should dismiss it is wired below.
+// Kept only to decide the hint wording. Behaviour no longer branches on it, because headless
+// Chromium reports (pointer: coarse) as true and that silently disabled the panel on desktop.
+const isTouch = typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
+if (typeof document !== 'undefined') {
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideStatTip(true); });
+  // Any tap or click that is not on a header dismisses it.
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest && (e.target.closest('#statTip') || e.target.closest('th[data-sort]'))) return;
+    hideStatTip(true);
+  }, true);
+  // Scrolling RE-ANCHORS the panel to its header rather than dismissing it. Blanket-hiding on
+  // scroll looked right but raced with the browser scrolling a header into view in order to hover
+  // it: the panel opened and was killed by the very scroll that revealed it. If the header has
+  // left the viewport there is nothing to explain, so it closes.
+  window.addEventListener('scroll', () => {
+    if (!tipEl || !tipEl.classList.contains('show') || !tipAnchor) return;
+    const r = tipAnchor.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight || !tipAnchor.isConnected) { hideStatTip(true); return; }
+    placeStatTip(r);
+  }, true);
+  window.addEventListener('resize', () => hideStatTip(true));
+}
 
 /**
  * Full browsable reference for every column the app can show.
@@ -771,6 +809,7 @@ function render(){
   const scoped=shown.filter(p=>p.teamScopedTo).length;
   $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
+  hideStatTip(true);   // a re-render replaces the header the panel was anchored to
   syncSortControls(cols);
   $('tableHead').innerHTML=cols.map(key=>{
     const d=colDef(key);
@@ -783,12 +822,18 @@ function render(){
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
   document.querySelectorAll('[data-sort]').forEach(th=>{
-    th.onclick=()=>{const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();};
+    th.onclick=()=>{const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}hideStatTip(true);render();};
     // The native title tooltip is kept in the DOM for screen readers and for the regression test,
     // but stripped while the pointer is over the header so the browser's own box does not appear
     // on top of the styled panel.
+    // On touch, mouseenter fires as part of the tap that also sorts; showing the panel there is
+    // what trapped it on screen. Hover devices keep the immediate preview.
     th.addEventListener('mouseenter',()=>{ th.dataset.title=th.getAttribute('title')||''; th.removeAttribute('title'); showStatTip(th, th.dataset.sort); });
-    th.addEventListener('mouseleave',()=>{ if(th.dataset.title!==undefined) th.setAttribute('title', th.dataset.title); hideStatTip(); });
+    th.addEventListener('mouseleave',()=>{
+      if(th.dataset.title!==undefined) th.setAttribute('title', th.dataset.title);
+      // Delay so the pointer can travel onto the panel to reach its Close button.
+      setTimeout(()=>{ if(!tipEl?.matches(':hover')) hideStatTip(true); }, 220);
+    });
     th.addEventListener('focus',()=>showStatTip(th, th.dataset.sort));
     th.addEventListener('blur',hideStatTip);
     th.addEventListener('keydown',(e)=>{

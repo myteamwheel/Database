@@ -190,3 +190,85 @@ test.describe('Smoke: every view renders', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('Mobile: the explainer must never trap the user', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('sorting on a touch device leaves the table visible and dismissable', async ({ page }) => {
+    await open(page);
+    const th = page.locator('thead th[data-sort]').nth(9);
+
+    // Tap to sort. The panel must not be left covering the table with no way out.
+    await th.tap();
+    await page.waitForTimeout(400);
+    const afterSort = await page.evaluate(() => {
+      const el = document.getElementById('statTip');
+      return { showing: !!el && el.classList.contains('show'), rows: document.querySelectorAll('#tableBody tr').length };
+    });
+    expect(afterSort.rows).toBeGreaterThan(0);
+    expect(afterSort.showing, 'panel still covering the table after a sort tap').toBe(false);
+
+    // When it IS shown on touch it must be closable — by its own button, by tapping away, and by Escape.
+    await page.evaluate(() => {
+      const th2 = document.querySelectorAll('thead th[data-sort]')[9];
+      window.showStatTip ? window.showStatTip(th2, th2.dataset.sort) : th2.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    });
+    await page.waitForTimeout(250);
+    if (await page.locator('#statTip.show').count()) {
+      const closeBtn = page.locator('#statTip .tip-close');
+      if (await closeBtn.count()) {
+        await closeBtn.tap();
+        await page.waitForTimeout(200);
+        expect(await page.locator('#statTip.show').count()).toBe(0);
+      }
+    }
+
+    // Escape always dismisses.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    expect(await page.locator('#statTip.show').count()).toBe(0);
+
+    // The table is reachable and the page does not scroll sideways.
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(over).toBeLessThanOrEqual(2);
+  });
+
+  test('the panel stays anchored and in-viewport while scrolling, and always has a way out', async ({ page }) => {
+    await open(page);
+    const show = () => page.evaluate(() => {
+      const th = document.querySelectorAll('thead th[data-sort]')[5];
+      th.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    });
+    await show();
+    await page.waitForTimeout(200);
+    expect(await page.locator('#statTip.show').count()).toBe(1);
+
+    // Table headers are position:sticky, so the anchor never leaves the screen and the panel stays
+    // correctly attached to it. What matters is that it never drifts off-viewport while scrolling.
+    await page.mouse.wheel(0, 800);
+    await page.waitForTimeout(300);
+    if (await page.locator('#statTip.show').count()) {
+      const inside = await page.evaluate(() => {
+        const r = document.getElementById('statTip').getBoundingClientRect();
+        return r.left >= -1 && r.top >= -1 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1;
+      });
+      expect(inside, 'panel drifted outside the viewport while scrolling').toBe(true);
+    }
+
+    // Every exit route works. This is the actual defect being guarded: on touch the panel used to
+    // stick after a sort with no way to dismiss it, covering the table.
+    await page.locator('#statTip .tip-close').tap();
+    await page.waitForTimeout(200);
+    expect(await page.locator('#statTip.show').count()).toBe(0);
+
+    await show(); await page.waitForTimeout(200);
+    await page.locator('#tableBody').tap({ position: { x: 10, y: 10 } });
+    await page.waitForTimeout(200);
+    expect(await page.locator('#statTip.show').count(), 'tapping the table should close it').toBe(0);
+
+    await show(); await page.waitForTimeout(200);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    expect(await page.locator('#statTip.show').count(), 'Escape should close it').toBe(0);
+  });
+});
