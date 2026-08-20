@@ -2,7 +2,7 @@
 // Run after build-v3.mjs (needs grades and TULIP frontiers) and before build-artifact.mjs.
 import fs from 'node:fs';
 import path from 'node:path';
-import { tulipMinutes } from './lib/minutes-response.mjs';
+import { tulipMinutes, fitLinear, predictLinear, BPM_PROXY_INPUTS } from './lib/minutes-response.mjs';
 import { fileURLToPath } from 'node:url';
 import {
   readinessFeatures, READINESS_BLOCKS, fitLogistic, predict, auc,
@@ -37,6 +37,28 @@ let optCount = 0, optNull = 0;
     if (!byTeam.has(p.team)) byTeam.set(p.team, []);
     byTeam.get(p.team).push(p);
   }
+  // The G League feed carries no BPM, which would leave half the database without TULIP. Rather
+  // than swap in a different metric on an incomparable scale, BPM is FITTED from inputs both
+  // leagues publish and predicted for G League players. The fit is validated below and the build
+  // fails if it degrades — a proxy that does not reproduce BPM is worse than none, because it looks
+  // like the real thing.
+  const proxy = fitLinear(withBpm.filter((p) => p.mpg * p.gp >= 250), BPM_PROXY_INPUTS, 'bpm');
+  if (!proxy || proxy.r2 < 0.85) {
+    throw new Error(`G League BPM proxy is too weak to use (R2 ${proxy ? proxy.r2 : 'n/a'}); refusing to publish it`);
+  }
+  console.log(`  G League BPM proxy: fitted on ${proxy.n} NBA players, R2 ${proxy.r2}, RMSE ${proxy.rmse}`);
+  let glProxied = 0;
+  for (const p of glAll) {
+    if (!p.appeared || !fin(p.mpg) || !(p.mpg > 0) || !fin(p.gp) || p.teamCount > 1) continue;
+    const est = predictLinear(proxy, p);
+    if (!fin(est)) continue;
+    p.bpmProxy = Number(est.toFixed(2));
+    glProxied++;
+    if (!byTeam.has(p.team)) byTeam.set(p.team, []);
+    byTeam.get(p.team).push({ ...p, bpm: est });
+  }
+  console.log(`  G League players given a proxied BPM: ${glProxied}`);
+
   const advice = new Map();
   for (const [, roster] of byTeam) {
     const out = tulipMinutes(roster.map((p) => ({ playerId: p.playerId, bpm: p.bpm, gp: p.gp, mpg: p.mpg })), leagueBpm);
@@ -50,7 +72,7 @@ let optCount = 0, optNull = 0;
   console.log(`\n--- TULIP minutes advice ---`);
   console.log(`  teams: ${byTeam.size} · league BPM prior ${leagueBpm.toFixed(2)}`);
   console.log(`  players with advice: ${optCount} of ${nbaAll.length + glAll.length}`);
-  console.log(`  no advice (multi-team, under the minutes floor, or no BPM incl. all G League): ${optNull}`);
+  console.log(`  no advice (multi-team, under the minutes floor, or missing inputs): ${optNull}`);
 }
 const deltas = [...nbaAll, ...glAll].filter((p) => fin(p.optimal?.minutesDelta)).map((p) => p.optimal.minutesDelta);
 if (deltas.length) {

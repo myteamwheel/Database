@@ -265,3 +265,58 @@ export function tulipMinutes(roster, leagueBpm = -0.8) {
     };
   });
 }
+
+/* ==================================================================================
+ * G League BPM proxy
+ *
+ * The G League feed carries no BPM, which would have meant no TULIP for half the database. Rather
+ * than substitute a different metric on an incomparable scale, BPM is FITTED from inputs both
+ * leagues publish and then predicted for G League players.
+ *
+ * Fitted on the NBA players who have a real BPM, so the coefficients come from the metric itself
+ * rather than being invented. The fit quality is reported and asserted at build time — a proxy that
+ * does not reproduce BPM is worse than no proxy, because it looks like the real thing.
+ * ================================================================================== */
+export const BPM_PROXY_INPUTS = ['pie', 'usg', 'ts', 'astPct', 'rebPct', 'tovPct',
+  'stlPer100', 'blkPer100', 'netRtg', 'ftr', 'fg3Ar'];
+
+/** Ordinary least squares with an intercept, solved by Gaussian elimination. */
+export function fitLinear(rows, xKeys, yKey) {
+  const X = [], y = [];
+  for (const r of rows) {
+    if (!fin(r[yKey]) || xKeys.some((k) => !fin(r[k]))) continue;
+    X.push([1, ...xKeys.map((k) => Number(r[k]))]);
+    y.push(Number(r[yKey]));
+  }
+  const n = X.length, m = xKeys.length + 1;
+  if (n < m * 10) return null;
+  const A = Array.from({ length: m }, () => new Array(m + 1).fill(0));
+  for (let i = 0; i < n; i++) for (let a = 0; a < m; a++) {
+    for (let b = 0; b < m; b++) A[a][b] += X[i][a] * X[i][b];
+    A[a][m] += X[i][a] * y[i];
+  }
+  for (let c = 0; c < m; c++) {
+    let piv = c;
+    for (let r2 = c + 1; r2 < m; r2++) if (Math.abs(A[r2][c]) > Math.abs(A[piv][c])) piv = r2;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    if (Math.abs(A[c][c]) < 1e-12) return null;
+    for (let r2 = 0; r2 < m; r2++) {
+      if (r2 === c) continue;
+      const f = A[r2][c] / A[c][c];
+      for (let k = c; k <= m; k++) A[r2][k] -= f * A[c][k];
+    }
+  }
+  const coef = A.map((row, i) => row[m] / A[i][i]);
+  const my = y.reduce((a, b) => a + b, 0) / n;
+  let ssr = 0, sst = 0;
+  for (let i = 0; i < n; i++) {
+    const pred = X[i].reduce((a, v, k) => a + v * coef[k], 0);
+    ssr += (y[i] - pred) ** 2; sst += (y[i] - my) ** 2;
+  }
+  return { coef, xKeys, n, r2: round(1 - ssr / sst, 4), rmse: round(Math.sqrt(ssr / n), 3) };
+}
+
+export function predictLinear(model, row) {
+  if (!model || model.xKeys.some((k) => !fin(row[k]))) return null;
+  return model.coef[0] + model.xKeys.reduce((a, k, i) => a + model.coef[i + 1] * Number(row[k]), 0);
+}
