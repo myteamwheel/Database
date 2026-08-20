@@ -18,7 +18,7 @@
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run tulip:verify && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
+    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run tulip:verify && npm run tulip:backtest && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
     "test:browser": "playwright test",
     "audit:presets": "node scripts/audit-presets.mjs",
     "diagnostics": "node scripts/diagnostics.mjs",
@@ -40,7 +40,8 @@
     "gate:starter": "node scripts/starter-full-season-gate.mjs",
     "gate:starter:espn": "node scripts/espn-starter-full-season-gate.mjs",
     "build:crossleague": "node scripts/build-crossleague.mjs",
-    "test:tooltips": "playwright test tests/tooltips.spec.mjs"
+    "test:tooltips": "playwright test tests/tooltips.spec.mjs",
+    "tulip:backtest": "node scripts/tulip-backtest.mjs"
   },
   "engines": {
     "node": ">=20"
