@@ -25,7 +25,7 @@
   const MODES = [
     ['database', 'Database'], ['player', 'Player'], ['compare', 'Compare'],
     ['scatter', 'Scatter'], ['similarity', 'Similarity'], ['teamfit', 'Team Fit'],
-    ['tulip', 'TULIP'],
+    ['tulip', 'Role Value'],
   ];
 
   function renderNav() {
@@ -244,7 +244,7 @@
     const teamText = (r) => (r.teams || []).join('/') || '—';
     const phase = (r) => r.seasonType === 'Playoffs' ? 'PO' : 'RS';
     const peakText = (row, key, suffix = '') => row && fin(row[key]) ? `${num(row[key])}${suffix} · ${esc(row.season)}` : '—';
-    return `<h3>Historical NBA record <span class="tiny">2015-16 through 2024-25 · descriptive, not TULIP Forecast</span></h3>
+    return `<h3>Historical NBA record <span class="tiny">2015-16 through 2024-25 · descriptive historical record, not a forecast</span></h3>
       ${summary ? `<div class="ws-grid">
         <div class="ws-card"><div class="k">Historical seasons</div><div class="v">${summary.seasons}</div><p class="tiny">${summary.games} RS games · ${summary.teams} team${summary.teams === 1 ? '' : 's'}</p></div>
         <div class="ws-card"><div class="k">Peak scoring</div><div class="v">${peakText(summary.peakPts, 'pts')}</div><p class="tiny">regular-season PPG</p></div>
@@ -587,9 +587,9 @@
       </tbody></table></div>`;
   }
 
-  /* ------------------------------------------------------------ TULIP MODE */
+  /* ------------------------------------------------------- ROLE VALUE MODE */
   /**
-   * TULIP is a role-change question, so the UI leads with the scenario, then the evidence, then
+   * Role Value is a role-change question, so the UI leads with the scenario, then the evidence, then
    * the decision. The single most important visual job is separating "the model expects decline"
    * from "the model has no evidence" — they are drawn differently and never merged.
    */
@@ -601,7 +601,7 @@
         return bv - av;
       });
     const p = byId(state.tulipPlayer) || cands.find((x) => !x.tulip.card.abstain) || cands[0];
-    if (!p) return '<p class="loading">No TULIP data for this league.</p>';
+    if (!p) return '<p class="loading">No Role Value data for this league.</p>';
     state.tulipPlayer = p.playerId;
     const t = p.tulip;
     const target = state.tulipTarget ?? t.defaultTarget;
@@ -628,7 +628,7 @@
         <div class="eyebrow">INSUFFICIENT EVIDENCE</div>
         <h3>No projection at ${band.mpg} MPG</h3>
         <p>${esc(band.abstainReason || 'Not enough comparable players occupied this role.')}</p>
-        <p class="tiny">This is <b>not</b> a prediction of decline. TULIP abstains rather than
+        <p class="tiny">This is <b>not</b> a prediction of decline. Role Value abstains rather than
         manufacturing a number when the evidence is not there.</p>
       </div>` + frontierBlock(t, target) + comparablesNote();
     }
@@ -642,7 +642,7 @@
         <div class="ws-card"><div class="k">Projected impact at ${target} mpg</div>
           <div class="v">${proj ? num(proj.projectedImpact, 2) : '—'}</div>
           <p class="tiny">${proj && proj.interval ? `80% interval ${num(proj.interval[0], 2)} to ${num(proj.interval[1], 2)}` : ''}</p></div>
-        <div class="ws-card"><div class="k">TULIP Support</div><div class="v">${proj ? proj.support : '—'}<span class="tiny">/100</span></div>
+        <div class="ws-card"><div class="k">Role Value support</div><div class="v">${proj ? proj.support : '—'}<span class="tiny">/100</span></div>
           <p class="tiny">${proj ? `${proj.comparables} comparables · effective n ${num(proj.effectiveN, 1)} · mean similarity ${num(proj.meanSimilarity, 1)}` : ''}</p></div>
         <div class="ws-card"><div class="k">Evidence tier</div><div class="v">${esc(card.evidenceTier?.tier || '—')}</div>
           <p class="tiny">${esc(card.evidenceTier?.label || '')}</p></div>
@@ -733,19 +733,19 @@
   }
 
   function comparablesNote() {
-    return `<p class="tiny"><b>What this is.</b> TULIP Evidence v0.1 — a comparable-based
+    return `<p class="tiny"><b>Not TULIP Capacity.</b> This is Role Value (TULIP Evidence v0.1), a different and separate tool: it asks what a bigger role would be WORTH on the player's current team. TULIP Capacity asks how many minutes he would SUSTAIN after an offseason move elsewhere. <b>What this is.</b> A comparable-based
       role-expansion estimator that currently consumes ONE season of aggregate and starter/bench
       split data. The project now contains ten seasons of historical game logs, but they are not
       yet used by this estimator. It is observational, not causal: comparables who already occupy
       a big role are selected, and that selection is not corrected for. On-court differential is
       a team result, shrunk toward the team mean but still unreliable in magnitude — read the sign
-      and ordering, not the number. TULIP Forecast remains unavailable until the historical data
+      and ordering, not the number. A multi-season forecast remains unavailable until the historical data
       are wired into a leakage-safe chronological validation pipeline and beat required baselines.</p>`;
   }
 
   /** Frontier: projected impact against target role, with support and abstention drawn apart. */
   function frontierBlock(t, target) {
-    return `<h3>TULIP Frontier</h3>
+    return `<h3>Role Value Frontier</h3>
       <p class="tiny">Blue band = 80% interval. Bar height = support. Hollow markers = the model
       has <b>no evidence</b> at that role, which is different from expecting decline.</p>
       <canvas id="tuCanvas" width="1000" height="380" style="width:100%;max-width:1000px"
@@ -837,7 +837,7 @@
       ctx.fillStyle = '#ffd166'; ctx.fillText('target ' + tgt, PX(tgt) + 6, pad + 30);
     }
     $('tuLegend').innerHTML = `X = target role (MPG) · Y = projected on-court impact ·
-      faint bars = TULIP Support at that role ·
+      faint bars = Role Value support at that role ·
       <span style="color:#9be38f">green</span> = current role ·
       <span style="color:#ffd166">amber</span> = selected target ·
       hollow marker = <b>insufficient evidence</b> (not a predicted decline)`;

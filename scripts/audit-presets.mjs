@@ -60,6 +60,17 @@ for (const league of ['NBA', 'GLEAGUE']) {
     if (Number.isFinite(c.targetMpg)) tulipKeys.add('targetMpg');
   }
 
+  // TULIP Capacity V1 lives on p.tulipCapacity and is legitimately absent wherever V1 abstains —
+  // notably the ENTIRE G League, which V1 is not validated for. Same bar as every other field:
+  // at least one player in this league must carry a real value.
+  const capKeys = new Set();
+  for (const p of d.leagues[league]) {
+    const c = p.tulipCapacity;
+    if (!c || c.abstain) continue;
+    for (const [k, v] of Object.entries(c)) if (v !== null && v !== undefined && k !== 'abstain') capKeys.add(k);
+    if (Number.isFinite(c.supportCount)) capKeys.add('evidence');
+  }
+
   // Cross-league derived fields live on nested objects rather than as top-level keys.
   const derived = { opt: new Set(), rb: new Set(), p36: new Set(), p36n: new Set() };
   for (const p of d.leagues[league]) {
@@ -76,6 +87,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
     // TULIP fields are derived from the per-player tulip.card object rather than being top-level
     // keys, and they are legitimately null for every player TULIP abstains on. "Resolves" here
     // means at least one player carries a real value, which is the same bar as every other field.
+    if (key.startsWith('tc.')) return capKeys.has(key.slice(3));
     if (key.startsWith('tulip.')) return tulipKeys.has(key.slice(6));
     if (key.startsWith('opt.')) return derived.opt.has(key.slice(4));
     if (key.startsWith('rb.')) return derived.rb.has(key.slice(3));
@@ -86,12 +98,16 @@ for (const league of ['NBA', 'GLEAGUE']) {
   };
   // A field may legitimately be absent in one league (tracking in the G League) as long as the
   // preset itself is hidden there. These are the presets each league actually offers.
-  const leagueOnly = { tracking: 'NBA', splits: 'GLEAGUE', nbaready: 'GLEAGUE', per36nba: 'GLEAGUE' };
+  const leagueOnly = { tracking: 'NBA', splits: 'GLEAGUE', nbaready: 'GLEAGUE', per36nba: 'GLEAGUE',
+    capacity: 'NBA' };
 
   const otherLeague = league === 'NBA' ? 'GLEAGUE' : 'NBA';
   const otherStats = new Set(d.leagues[otherLeague].filter((p) => p.appeared)
     .flatMap((p) => Object.keys(p.stats || {})));
-  const existsSomewhere = (k) => resolves(k) || (k.startsWith('stats.') && otherStats.has(k.slice(6)));
+  const otherHasCapacity = d.leagues[otherLeague].some((p) => p.tulipCapacity && p.tulipCapacity.abstain !== true);
+  const existsSomewhere = (k) => resolves(k)
+    || (k.startsWith('stats.') && otherStats.has(k.slice(6)))
+    || (k.startsWith('tc.') && otherHasCapacity);
 
   const dead = [], leagueAbsent = [];
   for (const [name, keys] of Object.entries(P)) {

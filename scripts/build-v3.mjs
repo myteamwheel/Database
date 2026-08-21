@@ -26,6 +26,7 @@ import { tulipCard, frontier, optimiseRotation, evidenceTier, roleScaleResponse,
 import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEMA,
          AVAILABILITY_ROW_SCHEMA, TRANSACTION_ROW_SCHEMA } from './lib/history.mjs';
 import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
+import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -598,6 +599,28 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
     [team, optimiseRotation(roster, pool, opts)]));
 }
 
+/* --------------------------------------------------- TULIP CAPACITY V1 */
+// The CURRENT user-facing TULIP product. Consumes the frozen model card; never re-derives it.
+// The build FAILS if the card is missing or its hash does not match the frozen identifier, so a
+// deploy can never silently ship the legacy team-relative formulation as "TULIP".
+//
+// NBA ONLY. V1 was validated on NBA cross-team offseason transitions; the frozen card contains no
+// validated G League application, so G League rows abstain rather than borrow an unvalidated number.
+const capacityIndex = buildCapacityIndex(SEASON);
+let capScored = 0, capAbstained = 0;
+const capAbstainReasons = {};
+for (const r of nba.records) {
+  const c = capacityForRecord(r, capacityIndex);
+  r.tulipCapacity = c;
+  if (c.abstain) { capAbstained++; capAbstainReasons[c.reason] = (capAbstainReasons[c.reason] || 0) + 1; }
+  else capScored++;
+}
+for (const r of gl.records) {
+  r.tulipCapacity = { abstain: true, reason: 'not_validated_for_gleague', version: capacityIndex.card.version };
+}
+console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained} `
+  + `(${JSON.stringify(capAbstainReasons)}) · G League abstains by design`);
+
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
 // This prevents methodology/UI prose from drifting when the player pool or source data changes.
 const tulipValidationSnapshot = tulipDiagnostics(nba.records, TULIP_CONFIG);
@@ -768,6 +791,20 @@ const out = {
       crossoverSample: pairs.length,
       caveat: 'Translation factors are measured from players who appeared in BOTH leagues in 2025-26 only, with at least five games on each side. That is enough to describe what happened to this cohort and NOT enough to project an NBA career. Estimates are exploratory; no NBA-success probability is offered because there are no historical outcome labels here to validate one.',
     },
+  },
+  tulipCapacityMeta: {
+    version: capacityIndex.card.version,
+    cardSha256: capacityIndex.id,
+    frozenAt: capacityIndex.card.frozenAt,
+    whatItIs: capacityIndex.card.whatItIs,
+    scopeValidated: capacityIndex.card.eligiblePopulation.scopeValidated,
+    scopeNotValidated: capacityIndex.card.eligiblePopulation.scopeNotValidated,
+    features: capacityIndex.card.features,
+    evidenceGrade: capacityIndex.card.evidenceGrade,
+    benchmarks: capacityIndex.card.frozenBenchmarks,
+    limitations: capacityIndex.card.knownLimitations,
+    coverage: { scored: capScored, abstained: capAbstained, reasons: capAbstainReasons },
+    note: 'Legacy team-relative TULIP (BPM gap x 2.2) is NOT this product and is no longer presented as TULIP.',
   },
   tulipMeta: {
     version: 'TULIP Evidence v0.1',

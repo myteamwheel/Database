@@ -1,0 +1,287 @@
+{
+  "version": "TULIP_CAPACITY_V1",
+  "frozenAt": "2026-08-21T01:24:50.909Z",
+  "whatItIs": "Predictive estimate of sustainable workload (MPG) after an OFFSEASON team change. NOT a causal or physiological latent minute ceiling.",
+  "eligiblePopulation": {
+    "rule": "NBA player-team transitions with >=20 games on Team A before the cutoff and >=10 games on Team B after",
+    "scopeValidated": "OFFSEASON / cross-season acquisitions only",
+    "scopeNotValidated": "IN-SEASON trades — incremental value over Team A season MPG NOT established",
+    "n": {
+      "total": 1470,
+      "offseason": 970,
+      "inSeason": 500,
+      "players": 627
+    }
+  },
+  "predictionCutoff": "Immediately before the player's first Team B game. All inputs from Team A / pre-transition history only.",
+  "targets": {
+    "primary_tFirst10": "mean MPG over the first 10 Team B games",
+    "t6to15": "mean MPG over Team B games 6-15 (requires >=15) — reduces immediate-transition noise",
+    "tRest": "mean MPG over all Team B games in that stint"
+  },
+  "features": [
+    "aSeasonMpg",
+    "aRecent10",
+    "aRecent5",
+    "aTrend",
+    "aStartRate",
+    "aGames",
+    "aSeasons",
+    "aCareerHighMpg",
+    "age",
+    "heightIn",
+    "weight",
+    "draftPick",
+    "undrafted",
+    "aGsPer36",
+    "aTs",
+    "aFgaPer36",
+    "aAstPer36",
+    "aRebPer36",
+    "aPfPer36"
+  ],
+  "featuresConsideredAndExcluded": {
+    "destinationContext": [
+      "bAhead",
+      "bMinsAhead",
+      "bBestAhead",
+      "bDepth"
+    ],
+    "reason": "The destination-context variables TESTED HERE added little incremental predictive value (54.6% vs 54.7% matched-pair concordance). This is a statement about these features, not about whether destination fit matters."
+  },
+  "preprocessing": "z-score each feature using TRAINING mean/sd; ridge penalty 1e-5 * n on slopes only, never the intercept; missing attributes default age 26, height 78in, weight 210lb, draftPick 61, undrafted 1 (0.1% of rows).",
+  "trainingSeasons": [
+    "2015-16",
+    "2016-17",
+    "2017-18",
+    "2018-19",
+    "2019-20",
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+    "2024-25"
+  ],
+  "validation": {
+    "grouped": "5-fold grouped by PLAYER — no player appears in both train and test",
+    "chronological": "train 2015-16, 2016-17, 2017-18, 2018-19, 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 -> holdout 2024-25 (n=155)",
+    "note": "Both are reported. Chronological validation is NOT player-disjoint (92 of 138 holdout players appear in earlier seasons); grouped CV is the player-disjoint result. Neither alone is sufficient."
+  },
+  "uncertainty": "Empirical residual quantiles from TRAINING data only. 50% interval = pred + [q25, q75]; 80% = pred + [q10, q90].",
+  "evidenceGrade": {
+    "basis": "count of TRAINING transitions with Team A season MPG within +/-3 of the candidate",
+    "thresholds": {
+      "A": ">=300",
+      "B": ">=150",
+      "C": ">=60",
+      "D": "<60"
+    },
+    "status": "CONVENIENCE LABEL, NOT A STATISTICAL GUARANTEE. The cutoffs were chosen for readability and have not been separately validated. The raw support count is always shown alongside.",
+    "inSeasonOverride": "Incremental TULIP evidence: Unproven — season-MPG baseline recommended"
+  },
+  "frozenBenchmarks": {
+    "groupedByPlayer": {
+      "tFirst10": {
+        "teamASeasonMpg": 5.209,
+        "tulip": 5.05,
+        "maeGain": 0.159,
+        "ci95": [
+          0.068,
+          0.24
+        ],
+        "dR2": 0.0229
+      },
+      "t6to15": {
+        "teamASeasonMpg": 5.183,
+        "tulip": 5.072,
+        "maeGain": 0.111,
+        "ci95": [
+          0.035,
+          0.201
+        ],
+        "dR2": 0.0255
+      },
+      "tRest": {
+        "teamASeasonMpg": 4.938,
+        "tulip": 4.729,
+        "maeGain": 0.209,
+        "ci95": [
+          0.109,
+          0.281
+        ],
+        "dR2": 0.0374
+      }
+    },
+    "chronologicalHoldout2024_25": {
+      "teamASeasonMpg": 5.522,
+      "tulip": 5.357,
+      "naiveRecent10": 6.233,
+      "n": 155
+    },
+    "matchedPairsOnTeamASeasonMpg": {
+      "pairs": 73052,
+      "baseline": "51.0% [50.4, 51.6]",
+      "tulip": "54.7% [53.4, 56.5]",
+      "gapGE3": "61.4% (n=15187)",
+      "gapGE5": "68.1% (n=2518)"
+    },
+    "byMoveType": {
+      "offseason": {
+        "n": 970,
+        "base": 5.087,
+        "tulip": 4.964,
+        "gain": 0.122,
+        "ci95": [
+          0.035,
+          0.221
+        ],
+        "verdict": "VALIDATED"
+      },
+      "inSeason": {
+        "n": 500,
+        "base": 4.938,
+        "tulip": 4.898,
+        "gain": 0.04,
+        "ci95": [
+          -0.075,
+          0.188
+        ],
+        "verdict": "NOT ESTABLISHED"
+      }
+    }
+  },
+  "knownLimitations": [
+    "Individual MAE ~5.0-5.4 MPG. This is a ranking and comparison tool, not a precise minute forecast.",
+    "In-season trades: no demonstrated incremental value over Team A season MPG.",
+    "On the 2024-25 offseason holdout the advantage is inconsistent by quintile — worse than baseline in the two lowest-workload quintiles (6.26 vs 5.81, 6.69 vs 6.62), better in the upper three. n=18 per quintile.",
+    "Predictive, NOT causal. Teams trade, waive and sign players for reasons the box score cannot observe; that selection is baked into the training data.",
+    "No position field: height/weight act as a positional proxy.",
+    "Holdout n=155 transitions is modest.",
+    "Rest-of-season target is rest-of-STINT with that team, not literally the season end."
+  ],
+  "sourceHashes": {
+    "lib/starter-flags.mjs": "195e11f3198f84f6",
+    "portability-study.mjs": "b8ae2d1084a91726",
+    "portability-eval.mjs": "7f41c4a26db549ee",
+    "final-gate.mjs": "ecb8343666a51ca2",
+    "tulip-capacity-product.mjs": "e25744ebd6b179dc",
+    "transitions.json": "0586498f7d16f8c9"
+  },
+  "productionModel": {
+    "intercept": 19.29034013605443,
+    "coefficients": {
+      "aSeasonMpg": 3.2629260034178005,
+      "aRecent10": -0.7832307883771327,
+      "aRecent5": 1.7008221448574186,
+      "aTrend": -0.7519310869590035,
+      "aStartRate": 0.1707117916209503,
+      "aGames": 1.5291140586179153,
+      "aSeasons": -1.5499056565708982,
+      "aCareerHighMpg": 0.8215308394902142,
+      "age": -0.7878604572948309,
+      "heightIn": 0.16539482842035344,
+      "weight": -0.35225005152468897,
+      "draftPick": -0.28253549073288153,
+      "undrafted": -0.08124479271983502,
+      "aGsPer36": 1.3136780581079093,
+      "aTs": -0.3683735065718191,
+      "aFgaPer36": 0.08074751306802234,
+      "aAstPer36": 0.05318135585589671,
+      "aRebPer36": -0.5619733843835687,
+      "aPfPer36": -0.1290295326940158
+    },
+    "standardization": {
+      "aSeasonMpg": {
+        "mean": 20.35842787797132,
+        "sd": 7.924788078862301
+      },
+      "aRecent10": {
+        "mean": 20.547346938775522,
+        "sd": 8.333986014701424
+      },
+      "aRecent5": {
+        "mean": 20.45700680272109,
+        "sd": 8.729522309282052
+      },
+      "aTrend": {
+        "mean": -0.13639455782312931,
+        "sd": 5.306378070329755
+      },
+      "aStartRate": {
+        "mean": 0.29887755102040914,
+        "sd": 0.38159230297074653
+      },
+      "aGames": {
+        "mean": 231.67074829931974,
+        "sd": 151.1072976491917
+      },
+      "aSeasons": {
+        "mean": 4.07687074829932,
+        "sd": 2.263329917759951
+      },
+      "aCareerHighMpg": {
+        "mean": 25.221203843647164,
+        "sd": 7.689201675843163
+      },
+      "age": {
+        "mean": 28.555102040816326,
+        "sd": 3.9583749787735902
+      },
+      "heightIn": {
+        "mean": 78.5265306122449,
+        "sd": 3.3872977316043915
+      },
+      "weight": {
+        "mean": 218.23809523809524,
+        "sd": 25.351443580395593
+      },
+      "draftPick": {
+        "mean": 29.208843537414968,
+        "sd": 20.4431330891165
+      },
+      "undrafted": {
+        "mean": 0.19047619047619047,
+        "sd": 0.39267672624929845
+      },
+      "aGsPer36": {
+        "mean": 11.536855284393662,
+        "sd": 3.8547119569653896
+      },
+      "aTs": {
+        "mean": 0.5486172219809992,
+        "sd": 0.0739341707673669
+      },
+      "aFgaPer36": {
+        "mean": 12.046030695252032,
+        "sd": 3.2788416540750736
+      },
+      "aAstPer36": {
+        "mean": 3.3713443420652434,
+        "sd": 2.0698499777399713
+      },
+      "aRebPer36": {
+        "mean": 6.600071486359953,
+        "sd": 3.1457912450969814
+      },
+      "aPfPer36": {
+        "mean": 3.169588183041227,
+        "sd": 1.1207162771835548
+      }
+    },
+    "residualQuantiles": {
+      "q10": -8.010361103877294,
+      "q25": -4.379109975129779,
+      "q50": 0.13168009345975662,
+      "q75": 4.33287684968424,
+      "q90": 7.857744913386917
+    }
+  },
+  "validationModel": {
+    "note": "used ONLY for the out-of-sample historical leaderboard",
+    "intercept": 19.330418250950604,
+    "residualQuantiles": {
+      "q25": -4.358453334594476,
+      "q75": 4.329256373371329
+    }
+  }
+}

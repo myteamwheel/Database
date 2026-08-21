@@ -44,6 +44,15 @@ const get = (p, key) => {
   if (key.startsWith('rb.')) return p.readinessBlocks?.[key.slice(3)] ?? null;
   if (key.startsWith('p36.')) return p.per36?.[key.slice(4)] ?? null;
   if (key.startsWith('p36n.')) return p.per36Nba?.[key.slice(5)] ?? null;
+  if (key.startsWith('tc.')) {
+    // TULIP Capacity V1. An abstention is a real null so the player sorts to the END in both
+    // directions — never 0.0, which would rank him as a genuine low-capacity player.
+    const c = p.tulipCapacity;
+    if (!c || c.abstain === true) return null;
+    const sub = key.slice(3);
+    if (sub === 'evidence') return c.supportCount ?? null;
+    return c[sub] ?? null;
+  }
   if (key.startsWith('tulip.')) {
     const c = p.tulip?.card;
     // An abstention is NOT a zero. Returning null puts the player at the end of the sort in both
@@ -108,11 +117,17 @@ const BASE_COLS = {
   magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
-  'opt.targetMpg':{label:'TULIP MPG',type:'1',help:'WHAT: the workload this player should be at. PLAIN: what his minutes would look like if his team spent them in line with what each player produces. FORMULA: current MPG + TULIP, held inside 6 to 35.3 MPG.'},
+  'tc.capacityMpg':{label:'TULIP Capacity',type:'1',help:'WHAT: the MPG this player would be expected to SUSTAIN after an offseason move to another NBA team. PLAIN: if a team signed or traded for him this offseason, what workload does his own history say he can hold? FORMULA: TULIP Capacity V1 \u2014 a frozen linear model over his previous team\u0027s workload history (season MPG, recent-10, recent-5, trend, start rate, career games/seasons, career-high MPG), his attributes (age, height, weight, draft slot) and his production profile (GameScore/36, TS%, FGA/AST/REB/PF per 36). NO destination-team information is used. SCOPE: validated for OFFSEASON acquisitions only; NOT validated for in-season trades. VALIDATED: on 970 offseason transitions the strongest simple baseline (Team A season MPG) has MAE 5.087 and V1 has MAE 4.964 \u2014 an incremental gain of +0.122 MPG, 95% CI [0.035, 0.221]. Across cross-team windows: first 10 games 5.209\u21925.050, games 6-15 5.183\u21925.072, rest-of-stint 4.938\u21924.729. Among two players with the SAME Team A season MPG, V1 picks the one who sustains more 54.7% of the time versus 51.0% for the baseline; when V1 separates two players by 5+ MPG that rises to 68.1%. This is a real, statistically supported, INCREMENTAL improvement \u2014 not magic. UNCERTAINTY IS LARGE: the 50% range spans about 8.7 MPG, so use this to compare and rank players, not as an exact minutes forecast. PREDICTIVE, NOT CAUSAL: it is not a physiological minutes ceiling, not proof he should get these minutes, and not an estimate of what happens if a coach hands him X minutes. Blank means V1 abstained (too little history, or missing required inputs) \u2014 blank is NOT zero and always sorts last. Model: TULIP Capacity V1, card-sha256:96cb2f34c6cd06c3.'},
+  'tc.headroom':{label:'Headroom',type:'signed1',help:'WHAT: TULIP Capacity minus his Team A season MPG. PLAIN: how much more (+) or less (-) workload his history says he could sustain after an offseason move, compared with what he actually played. FORMULA: Capacity - Team A season MPG. Positive does not mean a team SHOULD play him more; it means comparable players with his profile sustained more after moving. Blank when V1 abstains.'},
+  'tc.teamASeasonMpg':{label:'Team A MPG',type:'1',help:'WHAT: his minutes per game this season \u2014 the workload the prediction is made FROM, and the strongest simple baseline TULIP Capacity has to beat. PLAIN: what he actually played this year.'},
+  'tc.interval50Low':{label:'Range low',type:'1',help:'Lower bound of the 50% likely range for TULIP Capacity, from the frozen V1 residual distribution. Half of comparable players landed inside this range; half did not.'},
+  'tc.interval50High':{label:'Range high',type:'1',help:'Upper bound of the 50% likely range for TULIP Capacity, from the frozen V1 residual distribution. The range is about 8.7 MPG wide \u2014 individual predictions are not precise.'},
+  'tc.evidence':{label:'Evidence',type:'int',help:'WHAT: the number of historical cross-team transitions with a similar Team A season MPG (within 3 MPG) behind this prediction. PLAIN: how much comparable history supports it. The letter grade shown in the player detail (A \u2265300, B \u2265150, C \u226560, D <60) is a CONVENIENCE LABEL FOR READABILITY, NOT A STATISTICAL GUARANTEE \u2014 the cutoffs were chosen for legibility and were not separately validated, which is why the raw count is the sortable value.'},
+  'opt.targetMpg':{label:'Legacy target MPG',type:'1',help:'SUPERSEDED \u2014 this is NOT the current TULIP product. Retained for continuity with earlier builds. WHAT: the old team-relative workload target. PLAIN: what his minutes would look like if his team spent them in line with what each player produces. FORMULA: current MPG + TULIP, held inside 6 to 35.3 MPG.'},
   'opt.gapVsTeam':{label:'Value vs team',type:'signed2',help:'WHAT: his shrunk BPM minus his team\'s minute-weighted average BPM. PLAIN: how much better or worse he is than the average minute his team currently buys. FORMULA: shrunk BPM - sum(BPM x minutes)/sum(minutes) across his eligible team-mates.'},
   'opt.shrunkBpm':{label:'BPM (shrunk)',type:'signed2',help:'WHAT: box plus/minus after pulling small samples toward the league average. PLAIN: his per-100-possession value including defence, with short samples trusted less. FORMULA: (minutes x BPM + 400 x leagueBPM) / (minutes + 400).'},
   'opt.bpm':{label:'BPM',type:'signed1',help:'WHAT: box plus/minus, points per 100 possessions above league average, offence and defence. PLAIN: his overall per-possession value. FORMULA: NBA uses Basketball-Reference BPM (OBPM + DBPM). The G League publishes no BPM, so it is PREDICTED by a least-squares model fitted on NBA players from inputs both leagues report - PIE, usage, true shooting, assist/rebound/turnover rates, steals and blocks per 100, net rating, free-throw rate and 3-point rate. Fit R2 0.92 in-sample, 0.90 on held-out players, RMSE 0.9 BPM points.'},
-  'opt.minutesDelta':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game this player should get, judged against how his own team currently spends its minutes. PLAIN: is his team using him too little or too much? FORMULA: (his shrunk BPM - his team\'s minute-weighted average BPM) x 2.2 minutes per BPM point, clamped to +/-8 and kept inside a 6-35.3 MPG range. BPM includes defence via DBPM. G League players have no published BPM, so theirs is PREDICTED from inputs both leagues share, using a model fitted on NBA players (R2 0.92, held-out 0.90) - see the BPM column. VALIDATED: across 245 team-season transitions in 10 seasons, teams that shifted minutes toward higher-value players improved their win rate (t = 3.42, r = 0.214). NOTE: the DIRECTION and ORDER are validated; the SIZE is advisory. Real teams reallocate far less than this figure suggests - the most improved quartile applies about 0.24 minutes per BPM point versus the 2.2 used here - but observed season-over-season minute changes are dominated by roster turnover, aging and injury, so they do not identify the right magnitude either. Read the ranking as the signal. 35.3 is the p95 of 1,409 player-seasons; none exceeded 38.0.'},
+  'opt.minutesDelta':{label:'Team-rel minutes (legacy)',type:'signed1',help:'SUPERSEDED \u2014 this is NOT the current TULIP product. The current product is TULIP Capacity V1 (see the TULIP Capacity column), which predicts sustainable workload after an offseason move and was validated on cross-team transitions. This legacy figure is a team-relative minute-allocation suggestion and is kept only for continuity with earlier builds. WHAT: how many more (+) or fewer (-) minutes per game this player should get, judged against how his own team currently spends its minutes. PLAIN: is his team using him too little or too much? FORMULA: (his shrunk BPM - his team\'s minute-weighted average BPM) x 2.2 minutes per BPM point, clamped to +/-8 and kept inside a 6-35.3 MPG range. BPM includes defence via DBPM. G League players have no published BPM, so theirs is PREDICTED from inputs both leagues share, using a model fitted on NBA players (R2 0.92, held-out 0.90) - see the BPM column. VALIDATED: across 245 team-season transitions in 10 seasons, teams that shifted minutes toward higher-value players improved their win rate (t = 3.42, r = 0.214). NOTE: the DIRECTION and ORDER are validated; the SIZE is advisory. Real teams reallocate far less than this figure suggests - the most improved quartile applies about 0.24 minutes per BPM point versus the 2.2 used here - but observed season-over-season minute changes are dominated by roster turnover, aging and injury, so they do not identify the right magnitude either. Read the ranking as the signal. 35.3 is the p95 of 1,409 player-seasons; none exceeded 38.0.'},
   nbaReadiness:{label:'NBA %',type:'1',help:'WHAT (G League only): modelled probability this player would be an effective NBA player. PLAIN: percent chance he holds his own in an NBA rotation. FORMULA: ridge logistic regression on five robust z-scored skill blocks \u2014 playmaking, connecting, defense, hustle proxy, 3PT efficiency \u2014 fitted on 85 players who logged 150+ minutes in BOTH leagues this season. "Effective" = NBA rate grade at or above the median of NBA players with 500+ minutes. SCORING VOLUME AND USAGE ARE EXCLUDED. Leave-one-out AUC 0.65, so it ranks better than chance but is far from decisive. Single season, and fitted only on players who already got an NBA call-up.'},
   'rb.playmaking':{label:'RB play',type:'2',help:'WHAT: playmaking block score inside NBA %. PLAIN: passing volume and ball security relative to the G League. FORMULA: mean robust z-score of assist rate, assists per 100 possessions, and assist-to-turnover ratio.'},
   'rb.connecting':{label:'RB connect',type:'2',help:'WHAT: connective-play block score. PLAIN: keeps the ball moving without coughing it up, and is willing to space the floor. FORMULA: weighted robust z of assist ratio (+1) and 3PT attempt rate (+0.6), minus turnover ratio (-1.2).'},
@@ -146,7 +161,7 @@ const BASE_COLS = {
   'p36.efg':{label:'eFG% (own)',type:'pct',help:'WHAT: eFG% in his own league. PLAIN: shooting efficiency as actually recorded. FORMULA: unchanged from the season line \u2014 rates do not scale with minutes.'},
   'p36n.efg':{label:'eFG% NBA',type:'pct',help:'WHAT (G League only): projected eFG% against NBA competition. PLAIN: how his shooting efficiency should hold up a level up. FORMULA: his own eFG% PLUS the median DIFFERENCE observed among dual-league players (TS -5.8pts, 3P -2.3pts, eFG -3.0pts). A difference is used rather than a ratio because multiplying a percentage distorts badly near the tails.'},
   reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
-  'tulip.leagueDelta':{label:'Role Value',type:'signed2',help:'WHAT: role-expansion VALUE (not a minutes recommendation \u2014 see the TULIP column for that) against a MEDIAN league rotation slot, at the player’s target minutes. PLAIN: how much the team would gain per 100 possessions by giving him a bigger role, compared with a typical rotation player rather than with his own weakest team-mate. FORMULA: projected on-court impact at the target minutes (from comparable players at that workload) MINUS the league-median rotation-slot impact. The league reference is used because the team-referenced version correlates -0.91 with whoever would be displaced and only +0.18 with the candidate, so it mostly measures the team-mate, not the player. Blank means TULIP abstained — too few comparables, or he already plays too many minutes for expansion to be a question. Blank is NOT zero and always sorts last.'},
+  'tulip.leagueDelta':{label:'Role Value',type:'signed2',help:'WHAT: role-expansion VALUE (not a minutes recommendation, and NOT TULIP Capacity \u2014 a different, superseded column) against a MEDIAN league rotation slot, at the player’s target minutes. PLAIN: how much the team would gain per 100 possessions by giving him a bigger role, compared with a typical rotation player rather than with his own weakest team-mate. FORMULA: projected on-court impact at the target minutes (from comparable players at that workload) MINUS the league-median rotation-slot impact. The league reference is used because the team-referenced version correlates -0.91 with whoever would be displaced and only +0.18 with the candidate, so it mostly measures the team-mate, not the player. Blank means TULIP abstained — too few comparables, or he already plays too many minutes for expansion to be a question. Blank is NOT zero and always sorts last.'},
   'tulip.neutralDelta':{label:'Role Value neutral',type:'signed2',help:'Same projection measured against a median team-mate rather than the weakest one. Displacing the weakest player flatters expansion by construction, so this is the fairer read.'},
   'tulip.projectedImpact':{label:'Role Value proj',type:'signed2',help:'Projected on-court impact at the target minutes, from comparable players'},
   'tulip.support':{label:'Role Value support',type:'int',help:'Evidence support score behind the projection (0-100)'},
@@ -325,8 +340,9 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','opt.minutesDelta','opt.targetMpg','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
-  workload:['select','viewRank','name','team','position','age','gp','mpg','grade','opt.minutesDelta','opt.targetMpg','opt.gapVsTeam','opt.shrunkBpm','opt.bpm','tulip.leagueDelta'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tc.capacityMpg','tc.headroom','tc.evidence','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  workload:['select','viewRank','name','team','position','age','gp','mpg','grade','tc.capacityMpg','tc.teamASeasonMpg','tc.headroom','tc.evidence','tulip.leagueDelta'],
+  capacity:['select','viewRank','name','team','position','age','gp','tc.teamASeasonMpg','tc.capacityMpg','tc.headroom','tc.interval50Low','tc.interval50High','tc.evidence','grade'],
   nbaready:['select','viewRank','name','team','position','age','gp','mpg','grade','nbaReadiness','rb.playmaking','rb.connecting','rb.defense','rb.hustle','rb.shooting'],
   per36:['select','viewRank','name','team','position','mpg','p36.pts','p36.reb','p36.ast','p36.stl','p36.blk','p36.tov','p36.fg3','p36.ts','p36.fg3Pct'],
   per36nba:['select','viewRank','name','team','position','mpg','p36n.pts','p36n.reb','p36n.ast','p36n.stl','p36n.blk','p36n.tov','p36n.fg3','p36n.ts','p36n.fg3Pct','nbaReadiness'],
@@ -357,7 +373,7 @@ const PRESETS = {
   tracking:['select','viewRank','name','team','grade','stats.trk_drives_drives','stats.trk_drives_drive_pts','stats.trk_passing_passes_made','stats.trk_passing_potential_ast','stats.trk_passing_ast_points_created','stats.trk_touches_touches','stats.trk_touches_time_of_poss','stats.trk_touches_paint_touches','stats.trk_rebounding_reb_contest_pct','stats.trk_defense_def_rim_fg_pct','stats.hustle_contested_shots','stats.hustle_deflections','stats.hustle_charges_drawn','stats.hustle_screen_assists','stats.hustle_loose_balls_recovered','stats.hustle_box_outs'],
 };
 
-const PRESET_LABELS = {overall:'Overall',workload:'TULIP (minutes)',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
+const PRESET_LABELS = {overall:'Overall',workload:'TULIP Capacity',capacity:'TULIP Capacity (detail)',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
   splitsExplorer:'Splits: scoring',splitsShooting:'Splits: efficiency',splitsMonthly:'Splits: by month',
@@ -647,8 +663,11 @@ function populateSelectors(){
   const hasSplits=players.some(p=>p.showcaseGP>0);
   const hasTracking=players.some(p=>p.stats&&p.stats.trk_drives_drives!==undefined);
   const hasMonths=players.some(p=>p.stats&&Object.keys(p.stats).some(k=>/^sit_month\d+_gp$/.test(k)));
+  // TULIP Capacity V1 is validated for NBA offseason acquisitions only, so the dedicated view is
+  // offered only where at least one player actually has a supported prediction.
+  const hasCapacity=players.some(p=>p.tulipCapacity&&p.tulipCapacity.abstain!==true);
   $('viewPreset').innerHTML=Object.entries(PRESET_LABELS).filter(([k])=>
-    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)
+    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(k!=='capacity'||hasCapacity)
   ).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
 }
 
@@ -937,6 +956,51 @@ function openPlayer(id){
     ? `drafted ${esc(p.draftYear)} rd ${esc(p.draftRound)} pick ${esc(p.draftNumber)}`
     : p.draftStatus==='undrafted' ? 'undrafted' : 'draft status unknown';
 
+  // TULIP Capacity V1. Never rendered without its uncertainty range, and never rendered at all
+  // where V1 abstains — an abstention is shown as an explicit reason, not as a number.
+  const tcap=(()=>{
+    const c=p.tulipCapacity;
+    const meta=DATA.tulipCapacityMeta||{};
+    if(!c) return '';
+    if(c.abstain){
+      const why={
+        not_validated_for_gleague:'TULIP Capacity V1 is not validated for G League-to-NBA or G League team changes, so no value is shown.',
+        insufficient_team_a_history:'Not enough games this season to support a prediction (V1 requires at least 20).',
+        missing_required_workload_inputs:'Required workload inputs are unavailable for this player.',
+        missing_required_production_inputs:'Required production inputs are unavailable for this player.',
+        no_game_log_for_source_season:'No game log for the source season.',
+        no_rows:'No game rows for the source season.',
+      }[c.reason]||'V1 could not produce a supported prediction for this player.';
+      return `<div class="crossover"><div class="eyebrow">TULIP CAPACITY \u2014 INSUFFICIENT EVIDENCE</div>
+        <p class="tiny">${esc(why)} A value of 0.0 would be a false claim, so none is shown.</p>
+        <p class="tiny">Model: ${esc(meta.version||'TULIP Capacity V1')} \u00b7 ${esc(meta.cardSha256?'card-sha256:'+meta.cardSha256:'')}</p></div>`;
+    }
+    return `<div class="crossover"><div class="eyebrow">TULIP CAPACITY \u00b7 ${esc(c.scopeLabel||'')}</div>
+      <div class="player-grid">
+        <div class="detail-card"><div class="k">TULIP Capacity</div><div class="v">${num(c.capacityMpg)} MPG</div></div>
+        <div class="detail-card"><div class="k">Team A MPG</div><div class="v">${num(c.teamASeasonMpg)}</div></div>
+        <div class="detail-card"><div class="k">Headroom</div><div class="v">${signed(c.headroom)}</div></div>
+        <div class="detail-card"><div class="k">50% likely range</div><div class="v">${num(c.interval50Low)}\u2013${num(c.interval50High)}</div></div>
+        <div class="detail-card"><div class="k">Evidence</div><div class="v">${esc(c.evidenceNote||'\u2014')}</div></div>
+      </div>
+      <p class="tiny"><b>What this means.</b> The MPG this player would be expected to sustain after an
+      OFFSEASON move to another NBA team, predicted from his own previous-team history only. No
+      destination-team information is used.</p>
+      <p class="tiny"><b>What it is not.</b> Predictive, not causal. It is not a physiological minutes
+      ceiling, not proof he should receive these minutes, not an estimate of what happens if a coach
+      hands him a given workload, and NOT validated for in-season trades.</p>
+      <p class="tiny"><b>How good is it?</b> Against the strongest simple baseline (Team A season MPG,
+      MAE 5.087) V1 reaches MAE 4.964 on 970 offseason transitions \u2014 an incremental gain of
+      +0.122 MPG, 95% CI [0.035, 0.221]. Among two players with the same Team A season MPG it picks
+      the one who sustains more 54.7% of the time versus 51.0% for the baseline, rising to 68.1% when
+      it separates them by 5+ MPG. Real and statistically supported, but incremental \u2014 the 50%
+      range is about 8.7 MPG wide, so use it to compare players rather than as an exact forecast.</p>
+      <p class="tiny">The evidence letter (A \u2265300, B \u2265150, C \u226560, D &lt;60 comparable
+      transitions) is a convenience label for readability, not a statistical guarantee; the raw count
+      is shown beside it. Model: ${esc(c.version||'TULIP_CAPACITY_V1')} \u00b7
+      ${esc(meta.cardSha256?'card-sha256:'+meta.cardSha256:'')}</p></div>`;
+  })();
+
   $('playerDialogBody').innerHTML=`<div class="player-hero"><div><div class="eyebrow">${esc(p.leagueLabel)}${finite(p.rank)?` · RANK #${p.rank} of ${DATA.counts[p.league]}`:''}</div>
       <h2>${esc(p.name)}</h2>${scopeNote}
       <p>${esc(p.team)} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')} · ${p.weight?p.weight+' lb':'—'} · ${esc(p.country||'—')}</p>
@@ -954,7 +1018,7 @@ function openPlayer(id){
       ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
       ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
-    </div>${stints}${crossover}
+    </div>${stints}${tcap}${crossover}
     <h3>All retained source fields</h3>${raw}`;
   $('playerDialog').showModal();
 }

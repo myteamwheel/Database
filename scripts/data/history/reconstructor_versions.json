@@ -1,0 +1,24 @@
+{
+ "versions": [
+  {
+   "label": "v1-team-lineup-state",
+   "frozenAt": "2026-08-20T06:15:57.780Z",
+   "ruleHashes": {
+    "scripts/lib/lineup.mjs": "50732d799f41dc92",
+    "scripts/lib/rotation.mjs": "3d847b0e6102341c"
+   },
+   "metrics": {
+    "developmentSet": {
+     "games": "9",
+     "openingFive": "100.0%",
+     "q2Open": "94.4%",
+     "q3Open": "100.0%",
+     "stintCount": "99.0%",
+     "firstEntryMean": "0.01",
+     "totalMinMean": "0.20"
+    }
+   },
+   "note": "Development metrics only. Validation must be run ONCE against this frozen version."
+  }
+ ]
+}

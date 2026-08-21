@@ -538,7 +538,9 @@ test.describe('TULIP', () => {
     await page.click('[data-mode="tulip"]');
     await page.waitForTimeout(900);
     const txt = await page.$eval('#workspace', (e) => e.textContent);
-    for (const needle of ['TULIP Support', 'Evidence tier', 'Role-Scale Response',
+    // Renamed: only TULIP Capacity V1 carries the user-facing TULIP name now. This workspace is
+    // the comparables-based Role Value tool, which is a different question entirely.
+    for (const needle of ['Role Value support', 'Evidence tier', 'Role-Scale Response',
       'PLAYER / LEAGUE READ', 'TEAM DECISION READ', 'Candidate projection', 'Median team-mate',
       'Lineup adjustment', 'TULIP Evidence v0.1']) {
       expect(txt, `missing: ${needle}`).toContain(needle);
@@ -625,11 +627,14 @@ test.describe('TULIP column', () => {
 
     // Present on the DEFAULT preset, not buried in a secondary view.
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    expect(headers).toContain('TULIP');       // now the minutes recommendation
-    expect(headers).toContain('ROLE VALUE');  // the former TULIP number, renamed
+    // The current product is TULIP Capacity V1 (sustainable MPG after an offseason move). The
+    // legacy team-relative minutes column is retired from the default view.
+    expect(headers).toContain('TULIP CAPACITY');
+    expect(headers).toContain('HEADROOM');
+    expect(headers).not.toContain('TULIP MPG');   // legacy presentation must be gone
     expect(await page.$eval('#viewPreset', (s) => s.value)).toBe('overall');
 
-    const idx = headers.indexOf('TULIP');
+    const idx = headers.indexOf('TULIP CAPACITY');
     const readCol = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
       const c = r.querySelectorAll('td');
       return { name: (c[3]?.innerText || '').split('\n')[0].trim(), tulip: (c[i]?.innerText || '').trim() };
@@ -656,7 +661,20 @@ test.describe('TULIP column', () => {
     await page.waitForTimeout(500);
     const asc = await readCol();
     expect(asc[0].tulip).not.toBe('—');
-    expect(Number(asc[0].tulip)).toBeLessThan(0);
+    // TULIP Capacity is an absolute workload in MPG, so unlike the old signed minutes delta the
+    // smallest real value is positive. The invariant under test is the one that matters: the top of
+    // an ascending sort is a REAL prediction, not an abstention coerced to zero.
+    const ascNums = asc.map((r) => Number(r.tulip)).filter((n) => Number.isFinite(n));
+    expect(ascNums.length).toBeGreaterThan(3);
+    expect(ascNums[0]).toBeGreaterThan(0);
+    for (let i = 1; i < ascNums.length; i++) expect(ascNums[i]).toBeGreaterThanOrEqual(ascNums[i - 1]);
+    // and no abstention is ranked ABOVE a real prediction. (Checking the literal last rows is not
+    // reliable — the table paginates — but ordering within what IS rendered is.)
+    const firstBlank = asc.findIndex((r) => r.tulip === '—');
+    if (firstBlank !== -1) {
+      const anyRealAfterBlank = asc.slice(firstBlank).some((r) => Number.isFinite(Number(r.tulip)) && r.tulip !== '—');
+      expect(anyRealAfterBlank).toBe(false);
+    }
 
     expect(errors).toEqual([]);
   });
@@ -680,10 +698,10 @@ test.describe('Sort control', () => {
     // The control must exist in the filter panel — not require discovering that column headers
     // are clickable and scrolling sideways through 24 columns to find one.
     const options = await page.$$eval('#sortField option', (os) => os.map((o) => o.text.trim()));
-    expect(options).toContain('TULIP');
+    expect(options).toContain('TULIP Capacity');
     expect(options).toContain('Grade');
 
-    await page.selectOption('#sortField', 'opt.minutesDelta');
+    await page.selectOption('#sortField', 'tc.capacityMpg');
     await page.selectOption('#sortOrder', '-1');
     await page.waitForTimeout(500);
 
@@ -709,7 +727,7 @@ test.describe('Sort control', () => {
     // The dropdown and the clickable header are one state, not two.
     await page.locator('thead th').nth(idx).click();
     await page.waitForTimeout(500);
-    expect(await page.$eval('#sortField', (s) => s.value)).toBe('opt.minutesDelta');
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe('tc.capacityMpg');
     expect(await page.$eval('#sortOrder', (s) => s.value)).toBe('-1');
 
     expect(errors).toEqual([]);

@@ -1,4 +1,4 @@
-// Exogenous workload shocks: the identification strategy behind TULIP v3.
+// Exogenous opportunity-shock design: the identification strategy behind TULIP v3.
 //
 // THE PROBLEM THIS SOLVES. Observed minutes are assigned by coaches IN RESPONSE to performance, so
 // "players produce more per minute when they play more" is measured across ten seasons two ways
@@ -36,7 +36,7 @@ export const SHOCK_CONFIG = {
   minBaselineMpg: 8,
   // A regular only counts as ABSENT if he played recently. Without this, a player who was traded,
   // shut down for the season, or sent to the G League counted as "absent" for every remaining game,
-  // which put an absent regular in 81.7% of team-games and turned the instrument into a proxy for
+  // which put an absent regular in 81.7% of team-games and turned the shock design into a proxy for
   // roster churn rather than injury. Requiring recent activity isolates the temporary absences that
   // actually free minutes.
   recentWindow: 5,
@@ -131,10 +131,22 @@ export function detectAbsences(rows) {
             min: p.min, row: p,
             baselineMpg: h.minutes / h.games,
             baselineGames: h.games,
-            // The instrument: how much established rotation workload was unavailable.
+            // PRE-EVENT quality and form, accumulated from prior games only. These are the controls
+            // the decisive selection test requires: without them, "opener predicts later" cannot be
+            // separated from "better players open hot and stay good".
+            preGsPer36: h.minutes > 0 ? (h.gs / h.minutes) * 36 : null,
+            preTs: h.tsa > 0 ? h.pts / (2 * h.tsa) : null,
+            preFgaPer36: h.minutes > 0 ? (h.fga / h.minutes) * 36 : null,
+            preAstPer36: h.minutes > 0 ? (h.ast / h.minutes) * 36 : null,
+            preTovPer36: h.minutes > 0 ? (h.tov / h.minutes) * 36 : null,
+            preRebPer36: h.minutes > 0 ? (h.reb / h.minutes) * 36 : null,
+            preStartRate: h.games > 0 ? h.starts / h.games : null,
+            // Recent form: production over the player's last five games before this one.
+            preForm5: h.recent.length ? h.recent.slice(-5).reduce((a, b) => a + b, 0) / Math.min(5, h.recent.length) : null,
+            // The shock: how much established rotation workload was unavailable.
             absentRegulars: absentRegulars.length,
             absentMinutes: absentRegulars.reduce((a, x) => a + x.priorMpg, 0),
-            // The subset that meets every temporary-absence condition. This is the instrument;
+            // The subset that meets every temporary-absence condition. This is the shock design;
             // the looser count above is kept only for comparison.
             confirmedTemporary: absentRegulars.filter((x) => x.returns).length,
             confirmedTemporaryMinutes: absentRegulars.filter((x) => x.returns).reduce((a, x) => a + x.priorMpg, 0),
@@ -152,8 +164,16 @@ export function detectAbsences(rows) {
           });
         }
         // Update history AFTER recording, so a game never informs its own baseline.
-        const cur = hist.get(key) || { games: 0, minutes: 0, lastGameIndex: -99, playedIndices: [] };
+        const cur = hist.get(key) || { games: 0, minutes: 0, lastGameIndex: -99, playedIndices: [],
+          gs: 0, pts: 0, tsa: 0, fga: 0, ast: 0, tov: 0, reb: 0, starts: 0, recent: [] };
         cur.games++; cur.minutes += p.min; cur.lastGameIndex = gameIndex; cur.playedIndices.push(gameIndex);
+        const gsv = (p.pts ?? 0) + 0.4 * (p.fgm ?? 0) - 0.7 * (p.fga ?? 0) - 0.4 * ((p.fta ?? 0) - (p.ftm ?? 0))
+          + 0.7 * (p.oreb ?? 0) + 0.3 * (p.dreb ?? 0) + (p.stl ?? 0) + 0.7 * (p.ast ?? 0) + 0.7 * (p.blk ?? 0)
+          - 0.4 * (p.pf ?? 0) - (p.tov ?? 0);
+        cur.gs += gsv; cur.pts += p.pts ?? 0; cur.tsa += (p.fga ?? 0) + 0.44 * (p.fta ?? 0);
+        cur.fga += p.fga ?? 0; cur.ast += p.ast ?? 0; cur.tov += p.tov ?? 0; cur.reb += p.reb ?? 0;
+        if (p.started === true) cur.starts++;
+        if (p.min > 0) cur.recent.push((gsv / p.min) * 36);
         hist.set(key, cur);
         seen.add(key);
       }
@@ -163,8 +183,13 @@ export function detectAbsences(rows) {
 }
 
 /**
- * First-stage check: does a team-mate's absence actually MOVE the player's minutes?
- * An instrument that does not shift the treatment is useless, and this is the test that says so.
+ * Relevance check: does a team-mate's absence actually MOVE the player's minutes?
+ *
+ * TERMINOLOGY. This is an exogenous opportunity-shock design, a natural experiment — NOT
+ * instrumental-variables estimation. Nothing here runs a two-stage least squares, so calling the
+ * absence an "instrument" would imply stronger identification than the model has. It is a shock
+ * whose relevance is tested here and whose exogeneity is probed by the pre-trend and placebo tests
+ * below.
  */
 export function firstStage(obs) {
   const pts = obs.filter((o) => fin(o.min) && fin(o.baselineMpg) && fin(o.absentMinutes))
@@ -252,4 +277,230 @@ export function preTrendAndPlacebo(obs) {
     placeboMatched: r(matched),
     matchWindow: { baselineMpg: [bLo, bHi], baselineGames: [gLo, gHi] },
   };
+}
+
+/* ==================================================================================
+ * ROLE OVERLAP
+ *
+ * An absent player's minutes are not equally available to everyone on the roster. A 28-MPG centre
+ * going out frees very little for a small point guard. Binary positional matching ("C replaces C")
+ * is too crude for modern rotations, so overlap is CONTINUOUS.
+ *
+ * Historical game logs carry no position or height, so the role vector is built from the production
+ * that defines role — how a player rebounds, creates, protects the rim and shoots. Two players with
+ * similar profiles compete for the same minutes regardless of what position they are listed at,
+ * which is closer to how rotations actually work than a label would be.
+ * ================================================================================== */
+export const ROLE_AXES = ['bigness', 'creation', 'perimeter', 'usage'];
+
+/** Per-36 role vector from accumulated box-score totals. */
+export function roleVector(tot) {
+  const m = tot.min;
+  if (!fin(m) || m <= 0) return null;
+  const p36 = (v) => (fin(v) ? (v / m) * 36 : 0);
+  const reb = p36(tot.reb), blk = p36(tot.blk), ast = p36(tot.ast);
+  const fg3a = p36(tot.fg3a), fga = p36(tot.fga), ftaR = p36(tot.fta);
+  return {
+    // Interior presence: rebounding and rim protection.
+    bigness: reb * 0.6 + blk * 3.0,
+    // Playmaking load.
+    creation: ast,
+    // Perimeter orientation; a stretch big scores mid-range here, a centre near zero.
+    perimeter: fg3a,
+    // Shot volume, standing in for usage which the logs do not carry directly.
+    usage: fga + 0.44 * ftaR,
+  };
+}
+
+/**
+ * Overlap in [0,1] between an absent player and a potential beneficiary.
+ * Scaled by the spread of each axis across the league so no single axis dominates by unit size.
+ */
+export function roleOverlap(a, b, scale) {
+  if (!a || !b) return 0;
+  let d2 = 0;
+  for (const k of ROLE_AXES) {
+    const s = scale[k] || 1;
+    d2 += ((a[k] - b[k]) / s) ** 2;
+  }
+  // Gaussian falloff: identical profiles score 1, and similarity decays smoothly with distance
+  // rather than at an arbitrary cutoff.
+  return Math.exp(-d2 / (2 * ROLE_AXES.length));
+}
+
+/** League-wide spread per axis, used to normalise the distance above. */
+export function roleScale(vectors) {
+  const out = {};
+  for (const k of ROLE_AXES) {
+    const v = vectors.map((x) => x[k]).filter(fin);
+    const m = v.reduce((a, b) => a + b, 0) / (v.length || 1);
+    out[k] = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length || 1)) || 1;
+  }
+  return out;
+}
+
+/**
+ * Calibrate the overlap width against ACTUAL minute redistribution.
+ *
+ * The width must not be tuned because a number "looks too low". The empirical question is: when a
+ * rotation player misses a game, which team-mates actually absorb his minutes? Fit the width so
+ * predicted overlap best explains observed redistribution, and the role model is anchored to
+ * basketball behaviour instead of to intuition.
+ *
+ * Role vectors passed in MUST be built from pre-shock games only. If they are computed from
+ * season-end totals, the expanded role being studied contaminates the features used to classify it.
+ *
+ * @param {Array} events  [{ absentVec, gainers:[{vec, minutesGained}] }]
+ */
+export function calibrateOverlapWidth(events, scale, widths = [0.5, 0.75, 1, 1.5, 2, 3, 4, 6]) {
+  const results = [];
+  for (const w of widths) {
+    // Correlate predicted overlap with the share of the absent player's minutes each team-mate
+    // actually picked up.
+    const xs = [], ys = [];
+    for (const ev of events) {
+      const tot = ev.gainers.reduce((a, g) => a + Math.max(0, g.minutesGained), 0);
+      if (tot <= 0) continue;
+      for (const g of ev.gainers) {
+        let d2 = 0;
+        for (const k of ROLE_AXES) { const s = scale[k] || 1; d2 += ((ev.absentVec[k] - g.vec[k]) / s) ** 2; }
+        xs.push(Math.exp(-d2 / (2 * w * w)));
+        ys.push(Math.max(0, g.minutesGained) / tot);
+      }
+    }
+    const n = xs.length;
+    if (n < 50) { results.push({ width: w, n, insufficient: true }); continue; }
+    const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0, syy = 0;
+    for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; }
+    results.push({ width: w, n, r: Number((sxy / Math.sqrt(sxx * syy)).toFixed(4)) });
+  }
+  const usable = results.filter((r) => !r.insufficient && fin(r.r));
+  const best = usable.length ? usable.reduce((a, b) => (b.r > a.r ? b : a)) : null;
+  return { results, best };
+}
+
+/* ==================================================================================
+ * ABSENCE EPISODES — separating treatment from outcome in time
+ *
+ * THE DANGER THIS ADDRESSES. Once realized minute gain becomes the treatment, same-game reverse
+ * causality returns: a player who is playing well gets left on the floor, so "+9 minutes" is partly
+ * an EFFECT of the performance being measured. Reading that as "he handled +9 minutes" repeats the
+ * coach-selection error that made the naive workload curves useless.
+ *
+ * THE FIX. Treat a continuous absence as one EPISODE, then split it in time:
+ *   treatment  = workload change measured on the FIRST game of the episode
+ *   outcome    = performance on the SUBSEQUENT games of the episode
+ * This eliminates MECHANICAL same-game outcome contamination. It does NOT make the treatment
+ * exogenous: a coach can still expand the opening-game workload in response to how the player is
+ * performing that night, so opener minutes remain endogenous to opener performance. A player who
+ * plays well early may both reach the +10 bucket AND be likely to play well again, so the design
+ * can still learn "players good enough to earn +10 stay good" rather than "this profile handles
+ * +10". quantifyOpenerSelection() below measures how large that residual bias is instead of
+ * assuming it away. Episodes with only one game yield no outcome and are dropped.
+ *
+ * This is still NOT a clean causal estimate — a coach chooses who gets the opening using knowledge
+ * this data does not hold. The honest framing is predictive: when players with this pre-event
+ * profile actually receive an externally opened larger role, how often do they stay effective?
+ * ================================================================================== */
+export const EPISODE_CONFIG = {
+  minEpisodeGames: 2,      // one game gives treatment but no independent outcome
+  maxEpisodeGames: 20,
+  minTreatmentGain: 2,     // below this the role did not meaningfully expand
+};
+
+/**
+ * Group per-game observations into absence episodes per player.
+ * @param {Array} obs output of detectAbsences, already carrying baselineMpg and confirmedTemporary
+ */
+export function buildEpisodes(obs) {
+  const byPlayer = new Map();
+  for (const o of obs) {
+    const k = `${o.playerId}|${o.teamId}|${o.season}`;
+    if (!byPlayer.has(k)) byPlayer.set(k, []);
+    byPlayer.get(k).push(o);
+  }
+  const episodes = [];
+  for (const [key, list] of byPlayer) {
+    list.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let cur = null;
+    for (const o of list) {
+      const shocked = o.confirmedTemporary > 0;
+      if (shocked) {
+        if (!cur) cur = { key, playerId: o.playerId, season: o.season, games: [] };
+        cur.games.push(o);
+      } else if (cur) {
+        if (cur.games.length >= EPISODE_CONFIG.minEpisodeGames) episodes.push(cur);
+        cur = null;
+      }
+    }
+    if (cur && cur.games.length >= EPISODE_CONFIG.minEpisodeGames) episodes.push(cur);
+  }
+  return episodes
+    .filter((e) => e.games.length <= EPISODE_CONFIG.maxEpisodeGames)
+    .map((e) => {
+      const opener = e.games[0];
+      const later = e.games.slice(1);
+      // TREATMENT from the opener only.
+      const treatment = opener.min - opener.baselineMpg;
+      // OUTCOME workload and production from later games only.
+      const lm = later.reduce((a, g) => a + g.min, 0);
+      return {
+        playerId: e.playerId, season: e.season, episodeGames: e.games.length,
+        baselineMpg: opener.baselineMpg,
+        baselineGames: opener.baselineGames,
+        // Pre-event quality and form, carried through from the opener so the selection test can
+        // condition on what was known BEFORE the opening game.
+        pre: {
+          preGsPer36: opener.preGsPer36, preTs: opener.preTs, preFgaPer36: opener.preFgaPer36,
+          preAstPer36: opener.preAstPer36, preTovPer36: opener.preTovPer36,
+          preRebPer36: opener.preRebPer36, preStartRate: opener.preStartRate, preForm5: opener.preForm5,
+        },
+        treatmentGain: treatment,
+        sustainedMpg: later.length ? lm / later.length : null,
+        // Rows for the later games, so production outcomes can be computed by the caller without
+        // ever touching the opener that defined the treatment.
+        outcomeRows: later.map((g) => g.row),
+        openerRow: opener.row,
+        meaningful: treatment >= EPISODE_CONFIG.minTreatmentGain,
+      };
+    })
+    .filter((e) => e.outcomeRows.length > 0);
+}
+
+/**
+ * Quantify how much of the treatment is earned rather than assigned.
+ *
+ * Within a treatment bucket, split episodes by whether the OPENING game went unusually well or
+ * badly for that player. If only the hot openers sustain the role and perform later, then bucket
+ * membership is largely a reward for the opener and the design still carries heavy selection.
+ * If hot and cold openers sustain similarly, the expansion looks more like an assignment.
+ *
+ * @param {Array} episodes  buildEpisodes output
+ * @param {(row:any)=>number} scoreOf  per-game production, e.g. game score per 36
+ */
+export function quantifyOpenerSelection(episodes, scoreOf, bands = [[2, 4], [4, 6], [6, 8], [8, 10], [10, 99]]) {
+  const out = [];
+  for (const [lo, hi] of bands) {
+    const grp = episodes.filter((e) => e.meaningful && e.treatmentGain >= lo && e.treatmentGain < hi
+      && fin(e.sustainedMpg) && e.outcomeRows.length);
+    if (grp.length < 40) { out.push({ band: `${lo}-${hi}`, n: grp.length, insufficient: true }); continue; }
+    const withScores = grp.map((e) => ({
+      openerScore: scoreOf(e.openerRow),
+      laterScore: e.outcomeRows.reduce((a, r) => a + scoreOf(r), 0) / e.outcomeRows.length,
+      sustainedGain: e.sustainedMpg - e.baselineMpg,
+    })).filter((x) => fin(x.openerScore) && fin(x.laterScore));
+    const sorted = [...withScores].sort((a, b) => a.openerScore - b.openerScore);
+    const q = Math.floor(sorted.length / 3);
+    const cold = sorted.slice(0, q), hot = sorted.slice(-q);
+    const mean = (a, k) => a.reduce((x, y) => x + y[k], 0) / a.length;
+    out.push({
+      band: `${lo}-${hi}`, n: withScores.length,
+      coldOpenerLater: Number(mean(cold, 'laterScore').toFixed(2)),
+      hotOpenerLater: Number(mean(hot, 'laterScore').toFixed(2)),
+      coldSustainedGain: Number(mean(cold, 'sustainedGain').toFixed(2)),
+      hotSustainedGain: Number(mean(hot, 'sustainedGain').toFixed(2)),
+    });
+  }
+  return out;
 }

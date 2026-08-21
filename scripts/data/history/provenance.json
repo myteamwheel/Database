@@ -1,16 +1,7 @@
 {
- "generatedAt": "2026-08-17T19:53:28.969Z",
+ "generatedAt": "2026-08-21T01:38:36.083Z",
  "seasons": [
-  "2015-16",
-  "2016-17",
-  "2017-18",
-  "2018-19",
-  "2019-20",
-  "2020-21",
-  "2021-22",
-  "2022-23",
-  "2023-24",
-  "2024-25"
+  "2025-26"
  ],
  "notes": {
   "started": "leaguegamelog does not report a starter flag, so per-game `started` is null. Season-level starter/bench splits are stored separately and support a season starter SHARE only.",
@@ -19,303 +10,33 @@
  },
  "datasets": [
   {
-   "dataset": "2015-16/Regular Season/gamelog",
+   "dataset": "2025-26/Regular Season/gamelog",
    "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2015-16&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26078,
-   "bytes": 10508890,
-   "sha256": "49e7681732c0206b",
-   "fetchedAt": "2026-08-17T19:52:00.069Z",
+   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2025-26&SeasonType=Regular+Season&Sorter=DATE",
+   "rows": 26651,
+   "bytes": 10780297,
+   "sha256": "ab7130ab5069869a",
+   "fetchedAt": "2026-08-21T01:38:27.805Z",
    "source": "stats.nba.com"
   },
   {
-   "dataset": "2015-16/Playoffs/gamelog",
+   "dataset": "2025-26/Playoffs/gamelog",
    "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2015-16&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1900,
-   "bytes": 753728,
-   "sha256": "20e409af6a3cbf4f",
-   "fetchedAt": "2026-08-17T19:52:01.818Z",
+   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2025-26&SeasonType=Playoffs&Sorter=DATE",
+   "rows": 1921,
+   "bytes": 765035,
+   "sha256": "3562064efc9da481",
+   "fetchedAt": "2026-08-21T01:38:29.646Z",
    "source": "stats.nba.com"
   },
   {
-   "dataset": "2015-16/starter_splits",
+   "dataset": "2025-26/starter_splits",
    "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2015-16&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 769,
-   "bytes": 44361,
-   "sha256": "81fb76d12ae1dd11",
-   "fetchedAt": "2026-08-17T19:52:08.313Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2016-17/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2016-17&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26139,
-   "bytes": 10545608,
-   "sha256": "de4aa5e2b0b2a65f",
-   "fetchedAt": "2026-08-17T19:52:08.593Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2016-17/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2016-17&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1737,
-   "bytes": 689035,
-   "sha256": "e13d70f430ad983d",
-   "fetchedAt": "2026-08-17T19:52:10.279Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2016-17/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2016-17&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 771,
-   "bytes": 44980,
-   "sha256": "ed1aebfcb535f7ca",
-   "fetchedAt": "2026-08-17T19:52:17.122Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2017-18/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2017-18&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26107,
-   "bytes": 10534368,
-   "sha256": "b13d80ed281c65b1",
-   "fetchedAt": "2026-08-17T19:52:17.371Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2017-18/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2017-18&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1729,
-   "bytes": 685780,
-   "sha256": "c52ee61b382f5e80",
-   "fetchedAt": "2026-08-17T19:52:19.051Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2017-18/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2017-18&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 840,
-   "bytes": 49149,
-   "sha256": "f533f94f85638b74",
-   "fetchedAt": "2026-08-17T19:52:26.948Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2018-19/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2018-19&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26101,
-   "bytes": 10542020,
-   "sha256": "d215a7467672b141",
-   "fetchedAt": "2026-08-17T19:52:27.191Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2018-19/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2018-19&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1761,
-   "bytes": 699826,
-   "sha256": "e56ba7a09a4c4d34",
-   "fetchedAt": "2026-08-17T19:52:28.952Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2018-19/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2018-19&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 845,
-   "bytes": 49378,
-   "sha256": "02021b34f5bcaa62",
-   "fetchedAt": "2026-08-17T19:52:36.603Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2019-20/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2019-20&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 22393,
-   "bytes": 9050381,
-   "sha256": "16856568b53c667b",
-   "fetchedAt": "2026-08-17T19:52:36.850Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2019-20/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2019-20&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1694,
-   "bytes": 673927,
-   "sha256": "d69eb499f5c817bf",
-   "fetchedAt": "2026-08-17T19:52:38.553Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2019-20/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2019-20&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 836,
-   "bytes": 49044,
-   "sha256": "e806b2629f67f01e",
-   "fetchedAt": "2026-08-17T19:52:45.378Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2020-21/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2020-21&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 23054,
-   "bytes": 9316872,
-   "sha256": "532691267e3caf23",
-   "fetchedAt": "2026-08-17T19:52:45.609Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2020-21/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2020-21&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1864,
-   "bytes": 741474,
-   "sha256": "8de7e8c4f108787a",
-   "fetchedAt": "2026-08-17T19:52:47.368Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2020-21/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2020-21&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 865,
-   "bytes": 51079,
-   "sha256": "809c39f291d0cb06",
-   "fetchedAt": "2026-08-17T19:52:53.956Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2021-22/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2021-22&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26039,
-   "bytes": 10526800,
-   "sha256": "30c55cc456650dcd",
-   "fetchedAt": "2026-08-17T19:52:54.260Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2021-22/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2021-22&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1892,
-   "bytes": 753250,
-   "sha256": "6da2984c8976eb81",
-   "fetchedAt": "2026-08-17T19:52:55.967Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2021-22/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2021-22&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 943,
-   "bytes": 55255,
-   "sha256": "5a81012ef4a0e37a",
-   "fetchedAt": "2026-08-17T19:53:02.572Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2022-23/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2022-23&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 25895,
-   "bytes": 10469428,
-   "sha256": "6c209fcdf3118c96",
-   "fetchedAt": "2026-08-17T19:53:02.857Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2022-23/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2022-23&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1728,
-   "bytes": 688078,
-   "sha256": "05459cd83a103d7e",
-   "fetchedAt": "2026-08-17T19:53:04.572Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2022-23/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2022-23&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 852,
-   "bytes": 50124,
-   "sha256": "91c582ce8228b2e6",
-   "fetchedAt": "2026-08-17T19:53:10.983Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2023-24/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2023-24&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26401,
-   "bytes": 10677781,
-   "sha256": "07d1bfd12748a27c",
-   "fetchedAt": "2026-08-17T19:53:11.238Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2023-24/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2023-24&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1685,
-   "bytes": 671176,
-   "sha256": "fc5301be860cad69",
-   "fetchedAt": "2026-08-17T19:53:12.923Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2023-24/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2023-24&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 873,
-   "bytes": 51399,
-   "sha256": "575b2e2129794350",
-   "fetchedAt": "2026-08-17T19:53:19.916Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2024-25/Regular Season/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2024-25&SeasonType=Regular+Season&Sorter=DATE",
-   "rows": 26306,
-   "bytes": 10639774,
-   "sha256": "e09fbcc8d7062eed",
-   "fetchedAt": "2026-08-17T19:53:20.193Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2024-25/Playoffs/gamelog",
-   "endpoint": "https://stats.nba.com/stats/leaguegamelog",
-   "parameters": "Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2024-25&SeasonType=Playoffs&Sorter=DATE",
-   "rows": 1804,
-   "bytes": 719071,
-   "sha256": "3dc2de37678b7543",
-   "fetchedAt": "2026-08-17T19:53:21.882Z",
-   "source": "stats.nba.com"
-  },
-  {
-   "dataset": "2024-25/starter_splits",
-   "endpoint": "https://stats.nba.com/stats/leaguedashplayerstats",
-   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2024-25&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
-   "rows": 901,
-   "bytes": 53267,
-   "sha256": "58ba7dbcc4c3868e",
-   "fetchedAt": "2026-08-17T19:53:28.968Z",
+   "parameters": "College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2025-26&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=Starters&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
+   "rows": 945,
+   "bytes": 55713,
+   "sha256": "1015f4373fca9c8f",
+   "fetchedAt": "2026-08-21T01:38:36.082Z",
    "source": "stats.nba.com"
   }
  ]

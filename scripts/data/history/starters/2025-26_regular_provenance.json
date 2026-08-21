@@ -1,0 +1,10 @@
+{
+  "season": "2025-26",
+  "seasonType": "Regular Season",
+  "generatedAt": "2026-08-21T02:50:59.164Z",
+  "source": "boxscoretraditionalv3/position",
+  "note": "boxscoretraditionalv2 returns HTTP 200 with zero PlayerStats rows for ~97% of 2025-26 games (verified non-transient over repeated attempts). v3 returns complete boxes for the same games, so v3 is the source for this season. Starters are the DECLARED position field, never inferred from minutes.",
+  "teamGames": 2460,
+  "starterEdges": 12300,
+  "invalidTeamGames": 0
+}
