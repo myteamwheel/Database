@@ -27,6 +27,7 @@ jobs:
           # bloated clones, but remains immutable in this repository's history at c17bc8d. Archive
           # it into the ignored working tree without touching the index.
           git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
             scripts/data/history/2015-16 scripts/data/history/2016-17 \
             scripts/data/history/2017-18 scripts/data/history/2018-19 \
             scripts/data/history/2019-20 scripts/data/history/2020-21 \
