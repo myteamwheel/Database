@@ -1395,6 +1395,16 @@ function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
   ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','viewPreset','rowLimit']
     .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',render));
+  // Opening the TULIP Beta view sorted by anything other than TULIP hides the point of it, so the
+  // preset selects its own headline sort once. Any later manual sort is left alone.
+  $('viewPreset').addEventListener('change',()=>{
+    if($('viewPreset').value==='tulipbeta'){
+      sortKey='tb.tulip'; sortDir=-1;
+      if($('sortField')) $('sortField').value='tb.tulip';
+      if($('sortOrder')) $('sortOrder').value='-1';
+      render();
+    }
+  });
   // Sort controls must SET the sort state, not merely re-render, so they get explicit handlers
   // rather than joining the generic list above.
   $('sortField').addEventListener('change',()=>{sortKey=$('sortField').value;render();});
