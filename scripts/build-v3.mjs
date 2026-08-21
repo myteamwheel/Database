@@ -793,6 +793,13 @@ const out = {
     },
   },
   tulipCapacityMeta: {
+    // The frozen artifact keeps its original identifier for provenance; the SHIPPED METRIC is
+    // renamed. It predicts the workload a coach is likely to give after an offseason move, which is
+    // a role projection, not a capacity estimate. See TULIP_DEFINITION.md.
+    displayName: 'Projected Role MPG',
+    isCapacityMetric: false,
+    renamedFrom: 'TULIP Capacity',
+    renameReason: 'Target is observed post-move MPG, an outcome chosen by coaches and shaped by depth chart, roster construction, injuries and contract status. That is a role projection; calling it capacity overstated what it measures.',
     version: capacityIndex.card.version,
     cardSha256: capacityIndex.id,
     frozenAt: capacityIndex.card.frozenAt,
@@ -804,7 +811,7 @@ const out = {
     benchmarks: capacityIndex.card.frozenBenchmarks,
     limitations: capacityIndex.card.knownLimitations,
     coverage: { scored: capScored, abstained: capAbstained, reasons: capAbstainReasons },
-    note: 'Legacy team-relative TULIP (BPM gap x 2.2) is NOT this product and is no longer presented as TULIP.',
+    note: 'Legacy team-relative TULIP (BPM gap x 2.2) is NOT this product and is no longer presented as TULIP. Neither is this metric TULIP Capacity: the original team-independent sustainable-effective-workload question remains unsolved and its name is reserved.',
   },
   tulipMeta: {
     version: 'TULIP Evidence v0.1',

@@ -627,14 +627,16 @@ test.describe('TULIP column', () => {
 
     // Present on the DEFAULT preset, not buried in a secondary view.
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    // The current product is TULIP Capacity V1 (sustainable MPG after an offseason move). The
-    // legacy team-relative minutes column is retired from the default view.
-    expect(headers).toContain('TULIP CAPACITY');
-    expect(headers).toContain('HEADROOM');
+    // The shipped minutes metric is Projected Role MPG (workload likely to be RECEIVED after an
+    // offseason move). It is deliberately NOT called capacity. The legacy team-relative column is
+    // retired from the default view.
+    expect(headers).toContain('PROJECTED ROLE MPG');
+    expect(headers).toContain('PROJ VS CURRENT');
+    expect(headers).not.toContain('TULIP CAPACITY');
     expect(headers).not.toContain('TULIP MPG');   // legacy presentation must be gone
     expect(await page.$eval('#viewPreset', (s) => s.value)).toBe('overall');
 
-    const idx = headers.indexOf('TULIP CAPACITY');
+    const idx = headers.indexOf('PROJECTED ROLE MPG');
     const readCol = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
       const c = r.querySelectorAll('td');
       return { name: (c[3]?.innerText || '').split('\n')[0].trim(), tulip: (c[i]?.innerText || '').trim() };
@@ -698,7 +700,7 @@ test.describe('Sort control', () => {
     // The control must exist in the filter panel — not require discovering that column headers
     // are clickable and scrolling sideways through 24 columns to find one.
     const options = await page.$$eval('#sortField option', (os) => os.map((o) => o.text.trim()));
-    expect(options).toContain('TULIP Capacity');
+    expect(options).toContain('Projected Role MPG');
     expect(options).toContain('Grade');
 
     await page.selectOption('#sortField', 'tc.capacityMpg');
@@ -706,7 +708,10 @@ test.describe('Sort control', () => {
     await page.waitForTimeout(500);
 
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    const idx = headers.findIndex((h) => h.startsWith('TULIP'));
+    const idx = headers.findIndex((h) => h.startsWith('PROJECTED ROLE MPG'));
+    // A missing header would give -1, and Playwright's .nth(-1) silently selects the LAST column,
+    // which turns a broken lookup into a confusing assertion failure elsewhere.
+    expect(idx).toBeGreaterThan(-1);
     const read = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
       const c = r.querySelectorAll('td');
       return (c[i]?.innerText || '').trim();

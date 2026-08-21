@@ -69,7 +69,7 @@ t('8 G League never receives a V1 prediction', () => {
 t('9 legacy x2.2 TULIP is not presented as the current TULIP', () => {
   assert.ok(!/'opt\.minutesDelta':\{label:'TULIP'/.test(app), 'legacy minutesDelta still labelled TULIP');
   assert.ok(!/'opt\.targetMpg':\{label:'TULIP MPG'/.test(app), 'legacy targetMpg still labelled TULIP MPG');
-  assert.ok(/'tc\.capacityMpg':\{label:'TULIP Capacity'/.test(app), 'TULIP Capacity column missing');
+  assert.ok(/'tc\.capacityMpg':\{label:'Projected Role MPG'/.test(app), 'Projected Role MPG column missing');
 });
 t('10 no UI text claims V1 is validated in-season', () => {
   // Remove explicitly NEGATED statements first, otherwise "NOT validated for in-season trades" —
@@ -83,6 +83,14 @@ t('11 capacity and headroom are sortable numeric accessors', () => {
   assert.ok(/key\.startsWith\('tc\.'\)/.test(app), 'tc.* accessor missing');
   assert.ok(/if \(!c \|\| c\.abstain === true\) return null;[\s\S]{0,200}sub === 'evidence'/.test(app),
     'tc.* accessor does not null out abstentions');
+});
+t('12a shipped metric does NOT claim to be a capacity estimate', () => {
+  // The frozen artifact id may still contain the old name, but nothing user-facing may present the
+  // metric as capacity. See TULIP_DEFINITION.md.
+  assert.strictEqual(data.tulipCapacityMeta.displayName, 'Projected Role MPG');
+  assert.strictEqual(data.tulipCapacityMeta.isCapacityMetric, false);
+  assert.ok(!/label:'TULIP Capacity'/.test(app), 'a column is still labelled TULIP Capacity');
+  assert.ok(/not a capacity metric/i.test(app), 'UI does not state that this is not a capacity metric');
 });
 t('12 payload carries the frozen benchmark numbers for the UI to quote', () => {
   const b = data.tulipCapacityMeta.benchmarks;
