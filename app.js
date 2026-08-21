@@ -1094,12 +1094,17 @@ function openCompare(){
   // Compare the rows as displayed, so team-only mode is not silently undone here either.
   const ps=[...compared].map(id=>displayedRow(id)).filter(Boolean);
   const scoped=ps.filter(p=>p.teamScopedTo);
-  const rows=['rank','grade','gp','mpg','pts','reb','ast','stl','blk','tov','ts','efg','usg','astPct','rebPct',
+  // TULIP leads the comparison: the whole point of comparing two players is often "which of these
+  // should be playing more", and a row that silently omits it makes the tool answer a lesser question.
+  const rows=['tb.tulip','tb.currentMpg','tb.recommendedMpg','tb.confidence','tb.valueGapSd',
+    'rank','grade','gp','mpg','pts','reb','ast','stl','blk','tov','ts','efg','usg','astPct','rebPct',
     'offRtg','defRtg','netRtg','pie','per','ws48','bpm','vorp',...CUSTOM_KEYS];
   $('compareDialogBody').innerHTML=`<h2>Player comparison</h2>`
     +(scoped.length?`<p class="tiny">${scoped.map(p=>esc(p.name)+' — '+esc(p.teamScopedTo)+' stint only').join(' · ')}</p>`:'')
     +`<div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${
-    rows.filter(k=>ps.some(p=>finite(get(p,k)))).map(k=>`<tr><td class="left">${esc(colDef(k).label)}</td>${ps.map(p=>`<td>${fmt(get(p,k),colDef(k).type)}</td>`).join('')}</tr>`).join('')
+    rows.filter(k=>ps.some(p=>{const v=get(p,k);
+      // text columns (e.g. Confidence) are never "finite", so keep any non-empty value too
+      return colDef(k).type==='text' ? (v!==null&&v!==undefined&&v!=='') : finite(v);})).map(k=>`<tr><td class="left">${esc(colDef(k).label)}</td>${ps.map(p=>`<td>${fmt(get(p,k),colDef(k).type)}</td>`).join('')}</tr>`).join('')
   }</tbody></table></div>`;
   $('compareDialog').showModal();
 }
