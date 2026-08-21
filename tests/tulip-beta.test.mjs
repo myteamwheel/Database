@@ -98,5 +98,53 @@ t('13 abstentions null out in the accessor so they sort last', () => {
   assert.ok(/key\.startsWith\('tb\.'\)/.test(app), 'tb.* accessor missing');
   assert.ok(/const c = p\.tulipBeta;[\s\S]{0,160}return null;/.test(app), 'accessor does not null abstentions');
 });
+// ---- team-ledger regression: a future UI change must not silently break zero-sum conservation ----
+console.log('\nTULIP Beta team-ledger regression');
+const t2 = (n, fn) => { try { fn(); console.log(`  PASS  ${n}`); pass++; } catch (e) { console.log(`  FAIL  ${n} — ${e.message}`); fail++; } };
+const byTeam = {};
+for (const p of nba) if (p.tulipBeta && !p.tulipBeta.abstain) (byTeam[p.team] = byTeam[p.team] || []).push(p);
+
+t2('T1 every team ledger sums to zero within rounding', () => {
+  for (const [team, arr] of Object.entries(byTeam)) {
+    const s = arr.reduce((a, p) => a + p.tulipBeta.tulip, 0);
+    // each delta rounds to 0.1 independently; a roster of n can drift at most n*0.05
+    const tol = Math.max(0.11, arr.length * 0.05);
+    assert.ok(Math.abs(s) <= tol, `${team}: net ${s.toFixed(2)} exceeds rounding tolerance ${tol.toFixed(2)}`);
+  }
+});
+t2('T2 minutes gained equals minutes surrendered per team', () => {
+  for (const [team, arr] of Object.entries(byTeam)) {
+    const g = arr.filter((p) => p.tulipBeta.tulip > 0).reduce((a, p) => a + p.tulipBeta.tulip, 0);
+    const s = arr.filter((p) => p.tulipBeta.tulip < 0).reduce((a, p) => a - p.tulipBeta.tulip, 0);
+    const tol = Math.max(0.11, arr.length * 0.05);
+    assert.ok(Math.abs(g - s) <= tol, `${team}: gained ${g.toFixed(2)} vs surrendered ${s.toFixed(2)}`);
+  }
+});
+t2('T3 team recommended total equals team current total', () => {
+  for (const [team, arr] of Object.entries(byTeam)) {
+    const cur = arr.reduce((a, p) => a + p.tulipBeta.currentMpg, 0);
+    const rec = arr.reduce((a, p) => a + p.tulipBeta.recommendedMpg, 0);
+    const tol = Math.max(0.11, arr.length * 0.05);
+    assert.ok(Math.abs(rec - cur) <= tol, `${team}: current ${cur.toFixed(1)} vs recommended ${rec.toFixed(1)}`);
+  }
+});
+t2('T4 every team has both sides of the ledger or neither', () => {
+  for (const [team, arr] of Object.entries(byTeam)) {
+    const g = arr.filter((p) => p.tulipBeta.tulip > 0).length;
+    const s = arr.filter((p) => p.tulipBeta.tulip < 0).length;
+    assert.ok((g > 0 && s > 0) || (g === 0 && s === 0), `${team}: ${g} gaining, ${s} surrendering — one-sided ledger`);
+  }
+});
+t2('T5 team allocation view exists and states the non-validation', () => {
+  assert.ok(/function openTeamAllocation/.test(app), 'openTeamAllocation missing');
+  assert.ok(/MINUTES GAINED/.test(app) && /MINUTES SURRENDERED/.test(app), 'gained/surrendered ledger missing');
+  assert.ok(/have not been validated as win-maximizing/i.test(app), 'team-level non-validation wording missing');
+  assert.ok(!/optimal rotation|proven best allocation|expected wins added/i.test(app), 'forbidden overclaiming language present');
+  assert.ok(/View \$\{esc\(p\.team/.test(app), 'per-player link to team allocation missing');
+});
+t2('T6 no G League team appears in the allocation view data', () => {
+  const glTeams = new Set(gl.filter((p) => p.tulipBeta && !p.tulipBeta.abstain).map((p) => p.team));
+  assert.strictEqual(glTeams.size, 0, `G League teams with TULIP: ${[...glTeams].join(', ')}`);
+});
 console.log(`\n${fail === 0 ? 'ALL PASS' : `${fail} FAILURE(S)`} · ${pass} passed`);
 process.exit(fail === 0 ? 0 : 1);

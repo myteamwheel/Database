@@ -909,6 +909,102 @@ function displayedRow(id){
       || currentPlayers().find(x=>x.playerId===id) || null;
 }
 
+
+/* ---------------------------------------------------------- TULIP TEAM VIEW */
+// TULIP is a ZERO-SUM roster allocation. Read player-by-player it looks like six independent
+// "play him more" claims; read as a team ledger it is obvious that every added minute is taken from
+// a team-mate. This view exists so the conservation is visible rather than implied.
+let teamAllocDlg = null;
+function openTeamAllocation(team){
+  if(!teamAllocDlg){
+    teamAllocDlg=document.createElement('dialog');
+    teamAllocDlg.className='modal wide';
+    document.body.appendChild(teamAllocDlg);
+    teamAllocDlg.addEventListener('click',e=>{ if(e.target.dataset && e.target.dataset.taClose!==undefined) teamAllocDlg.close(); });
+  }
+  const all=[].concat(...Object.values(DATA.leagues||{}));
+  const teams=[...new Set(all.filter(p=>p.tulipBeta&&!p.tulipBeta.abstain).map(p=>p.team))].sort();
+  if(!team){
+    teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation</h2>
+      <p class="tiny">Pick a team to see its full reallocation ledger. TULIP Beta is NBA-only.</p>
+      <div class="raw-grid">${teams.map(t=>`<button class="button" data-teamalloc="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+      <div class="modal-actions"><button class="button" data-ta-close>Close</button></div>`;
+    if(!teamAllocDlg.open) teamAllocDlg.showModal();
+    return;
+  }
+  const roster=all.filter(p=>p.team===team&&p.tulipBeta&&!p.tulipBeta.abstain)
+    .sort((a,b)=>b.tulipBeta.tulip-a.tulipBeta.tulip);
+  if(!roster.length){
+    teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation — ${esc(team)}</h2>
+      <p class="tiny">No eligible players with a TULIP Beta recommendation for this team.</p>
+      <div class="modal-actions"><button class="button" data-ta-close>Close</button></div>`;
+    if(!teamAllocDlg.open) teamAllocDlg.showModal();
+    return;
+  }
+  const curTot=roster.reduce((a,p)=>a+p.tulipBeta.currentMpg,0);
+  const recTot=roster.reduce((a,p)=>a+p.tulipBeta.recommendedMpg,0);
+  const net=recTot-curTot;
+  const gained=roster.filter(p=>p.tulipBeta.tulip>0);
+  const surrendered=roster.filter(p=>p.tulipBeta.tulip<0).slice().sort((a,b)=>a.tulipBeta.tulip-b.tulipBeta.tulip);
+  const gTot=gained.reduce((a,p)=>a+p.tulipBeta.tulip,0);
+  const sTot=surrendered.reduce((a,p)=>a+p.tulipBeta.tulip,0);
+  const li=(p)=>`<div class="raw-row"><span>${esc(p.name)}</span><b>${signed(p.tulipBeta.tulip)}</b></div>`;
+  const ev=(p)=>{const c=p.tulipBeta;return c.evidenceTier?`${esc(c.evidenceTier)} · ${num(c.evidenceFactor,2)}`:'—';};
+  teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation — ${esc(team)}</h2>
+    <div class="player-grid">
+      <div class="detail-card"><div class="k">Current eligible MPG</div><div class="v">${num(curTot)}</div></div>
+      <div class="detail-card"><div class="k">Recommended eligible MPG</div><div class="v">${num(recTot)}</div></div>
+      <div class="detail-card"><div class="k">Net reallocation</div><div class="v">${signed(net)}</div></div>
+      <div class="detail-card"><div class="k">Eligible players</div><div class="v">${roster.length}</div></div>
+    </div>
+    <p class="tiny">TULIP Beta reallocates a team's existing player-minute workload toward players
+    favored by its team-relative performance and role evidence. Positive values gain minutes;
+    negative values surrender minutes. The roster ledger is conserved. TULIP Beta is experimental and
+    its exact MPG recommendations have not been validated as win-maximizing. Net reallocation is
+    0.0 apart from per-player rounding to one decimal.</p>
+    <div class="crossover">
+      <div class="eyebrow">MINUTES GAINED &nbsp;(${signed(gTot)})</div>
+      <div class="raw-grid">${gained.length?gained.map(li).join(''):'<div class="raw-row"><span>none</span><b>0.0</b></div>'}</div>
+    </div>
+    <div class="crossover">
+      <div class="eyebrow">MINUTES SURRENDERED &nbsp;(${signed(sTot)})</div>
+      <div class="raw-grid">${surrendered.length?surrendered.map(li).join(''):'<div class="raw-row"><span>none</span><b>0.0</b></div>'}</div>
+    </div>
+    <p class="tiny">The two totals balance: every minute gained is funded by a minute surrendered on
+    this roster. The allocator moves only what can actually be sourced, so it does not produce a
+    unique one-to-one transfer between named players — the ledger is roster-level.</p>
+    <div class="table-wrap"><table class="compare-table"><thead><tr>
+      <th class="left">Player</th><th>Current MPG</th><th>TULIP</th><th>Recommended MPG</th><th>Support</th><th>Role evidence</th></tr></thead>
+      <tbody>${roster.map(p=>`<tr>
+        <td class="left"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button></td>
+        <td>${num(p.tulipBeta.currentMpg)}</td>
+        <td><b>${signed(p.tulipBeta.tulip)}</b></td>
+        <td>${num(p.tulipBeta.recommendedMpg)}</td>
+        <td>${esc(p.tulipBeta.confidence||'—')}</td>
+        <td>${ev(p)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="tiny">Support is the strength of the data and evidence behind each recommendation's
+    inputs, not a probability that the recommendation is correct. Role evidence shows the evidence
+    tier and the attenuation factor applied to any expansion.</p>
+    <div class="modal-actions">
+      <button class="button" data-teamalloc="">Another team</button>
+      <button class="button" data-ta-close>Close</button></div>`;
+  if(!teamAllocDlg.open) teamAllocDlg.showModal();
+}
+// Delegated so dynamically rendered buttons (player detail, team picker, table rows) all work.
+document.addEventListener('DOMContentLoaded',()=>{
+  const btn=document.getElementById('tulipAllocBtn');
+  if(btn) btn.addEventListener('click',()=>{
+    const t=($('teamFilter')&&$('teamFilter').value)||'';
+    openTeamAllocation(t&&t!=='All teams'?t:null);
+  });
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest && e.target.closest('[data-teamalloc]');
+  if(b){ e.preventDefault(); openTeamAllocation(b.dataset.teamalloc||null); return; }
+  const pl=e.target.closest && e.target.closest('[data-player]');
+  if(pl && teamAllocDlg && teamAllocDlg.open){ teamAllocDlg.close(); openPlayer(pl.dataset.player); }
+});
+
 function openPlayer(id){
   const p=displayedRow(id); if(!p)return;
 
@@ -1015,6 +1111,7 @@ function openPlayer(id){
       (tier ${esc(c.evidenceTier||'\u2014')}, applied factor ${num(c.evidenceFactor,2)}), and by the
       fact that a team only has 240 minutes to give.</p>
       ${mateRows}
+      <p class="tiny"><button class="button" data-teamalloc="${esc(p.team||'')}">View ${esc(p.team||'team')} TULIP Allocation</button></p>
       <p class="tiny"><b>Status: experimental beta.</b> The direction is based on team-relative player
       value; the magnitude is constrained by workload/role evidence and a zero-sum roster allocator.
       Historical causal testing did not establish that the exact MPG deltas maximize wins, so treat
