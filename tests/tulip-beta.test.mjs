@@ -84,7 +84,9 @@ t('10 payload declares experimental status and the non-validation', () => {
 t('11 UI exposes TULIP columns and states beta status', () => {
   assert.ok(/'tb\.tulip':\{label:'TULIP'/.test(app), 'TULIP column missing');
   assert.ok(/'tb\.recommendedMpg':\{label:'Recommended MPG'/.test(app), 'Recommended MPG missing');
-  assert.ok(/'tb\.confidence':\{label:'Confidence'/.test(app), 'Confidence missing');
+  assert.ok(/'tb\.confidence':\{label:'Support'/.test(app), 'Support column missing');
+  assert.ok(/NOT PROBABILITY OF CORRECTNESS/.test(app), 'support-vs-probability distinction absent');
+  assert.ok(/TULIP Beta recommends/.test(app), 'detail does not frame the number as a recommendation');
   assert.ok(/EXPERIMENTAL BETA|experimental beta/i.test(app), 'beta status absent from UI');
   assert.ok(/did not establish that the exact MPG deltas maximize wins/i.test(app), 'non-validation absent from UI');
 });

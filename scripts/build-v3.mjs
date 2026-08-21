@@ -852,6 +852,8 @@ const out = {
     direction: 'Based on team-relative player value (shrunk BPM vs the minute-weighted team average).',
     magnitude: 'HEURISTIC. Starts from a per-SD movement, then compressed by workload state, role evidence and the roster minute ledger.',
     notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
+    supportRating: 'The HIGH/MEDIUM/LOW field is RECOMMENDATION SUPPORT, not probability of correctness. It describes the strength of the data and evidence behind the recommendation inputs (minutes sample, role-evidence tier, whether the recommended workload sits inside historically observed support). It does NOT express a likelihood that the MPG recommendation is win-optimal.',
+    framing: 'Outputs are recommendations from this heuristic. A positive value means TULIP Beta flags the player as underutilized under its own model; it is not an established finding about how the team is using him.',
     zeroSum: 'Recommended minutes conserve each eligible roster ledger: every minute granted is sourced from a team-mate.',
     gleague: 'Not supported: no published G League BPM and no standardized-PIE value implementation in this repository. G League abstains rather than improvising.',
     ...(nba.tulipBetaMeta || {}),
