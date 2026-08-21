@@ -1,63 +1,93 @@
-# TULIP — frozen definition
+# TULIP — official definition
 
-**Frozen 2026-08-21, before any further modelling work. Written first, deliberately, because the
-previous attempt drifted from this question to an easier-to-validate proxy and then took this name.**
+**Locked 2026-08-21. This supersedes the previous definition in this file. Written before any
+modelling work, deliberately, because this project has twice drifted from the intended question to an
+easier-to-validate proxy and then taken the TULIP name with it.**
 
 ## The definition
 
-> TULIP estimates a player's team-independent sustainable-and-effective NBA workload. It seeks to
-> identify how many minutes the player can productively handle, not how many minutes a coach is
-> likely to assign him. Observed future MPG may be evidence about capacity but cannot itself define
-> the target.
+> **TULIP (Team Utilization & Lineup Impact Projection) estimates the change in minutes per game a
+> player should receive, relative to his current workload, if his team's objective is to maximize
+> expected winning. TULIP is team-relative and zero-sum: additional minutes recommended for one
+> player must come from another player. A positive TULIP means the team is likely underutilizing the
+> player; a negative TULIP means those minutes are likely more valuable elsewhere.**
 
-## What TULIP must output
+## The displayed product
 
-| field | meaning |
-|---|---|
-| TULIP Capacity | estimated sustainable EFFECTIVE MPG, independent of current team |
-| Current MPG | what he is actually playing |
-| TULIP Headroom | Capacity − Current MPG |
+One number:
 
-Interpretation the metric must support:
-- **+6** — evidence he could effectively handle about six more MPG
-- **0** — roughly at his sustainable workload
-- **−3** — current workload may exceed what his performance/profile supports
+    TULIP: +3.8 MPG
+    Current 19.4 -> Recommended 23.2
+
+Users must not have to understand several competing TULIP concepts. TULIP Score, Role Evidence and
+any workload-response curve are INTERNAL INGREDIENTS, not separate headline metrics.
+
+## What TULIP must optimize
+
+Given 240 regulation player-minutes per team per game, redistribute them across the roster to
+maximize expected team performance / win probability. This requires the **marginal value of the next
+minute** for each player — not merely who is better:
+
+- what happens to expected winning if this player goes 18 -> 19 MPG?
+- 25 -> 26?
+- 34 -> 35?
+
+TULIP is then the solution to that allocation problem, and the roster ledger must balance:
+**sum of positive TULIP minutes = sum of negative TULIP minutes.**
+
+## Worked shape
+
+| player | actual MPG | win-optimal MPG | TULIP |
+|---|---:|---:|---:|
+| Jokic | 34.8 | 35.6 | +0.8 |
+| Starter B | 31.0 | 30.4 | -0.6 |
+| Bench C | 17.2 | 22.0 | +4.8 |
+| Bench D | 18.5 | 13.5 | -5.0 |
 
 ## What TULIP is NOT
 
-- NOT a prediction of how many minutes a future coach will assign him.
-- NOT observed future MPG, which is contaminated by coach preference, depth chart, roster
-  construction, injuries, contract status, team strategy, lineup fit and organisational politics.
-- NOT a metric that may change because a player's roster changed. Capacity is team-independent by
-  construction; if a roster change moves the number, the number is not capacity.
+- NOT a hypothetical future coach's assignment.
+- NOT a trade or acquisition scenario.
+- NOT "how many minutes could his body theoretically survive."
+- NOT a generic player grade or ranking.
+- NOT a per-player recommendation that ignores where the minutes come from.
 
-## The failure this document exists to prevent
+## The Jokic test
 
-TULIP_CAPACITY_V1 (card-sha256:96cb2f34c6cd06c3) was validated against **sustained MPG on a new team
-after an offseason move**. That is a legitimate, validated ROLE PROJECTION. It is not capacity, and
-naming it "TULIP Capacity" overstated what it measures. Symptom: it rates Nikola Jokic at 32.5 MPG
-against 34.8 actual — not a finding that Jokic cannot handle more, but the model learning that
-high-minute players regress toward lower minutes after changing teams.
+The question is never "what do historically similar 30-year-olds play?" It is: **would Denver's
+expected chance of winning improve by moving one minute between Jokic and a team-mate?** If another
+Jokic minute is still worth more than the alternative, and there is no meaningful performance
+deterioration at that workload, TULIP stays positive until the marginal values converge. An
+optimization metric must behave this way.
 
-**Rule going forward:** any candidate TULIP target must be defensible as a measure of what the PLAYER
-can sustain effectively. If the target is an outcome a coach chooses, it is a role-projection target
-and must be named accordingly, no matter how well it validates.
+Symmetrically, a productive 16-MPG bench player does not automatically deserve +8. That requires
+evidence about what actually happens when players with his profile take on 20, 24, 28 MPG — which is
+where the expanded-role / opportunity-shock research becomes load-bearing.
 
-## What is already built and reusable
+## Superseded definitions, recorded so they cannot creep back
 
-The opportunity-shock infrastructure was originally pointed at the right question and remains valid:
-teammate-absence shocks, expanded-role episodes, pre-event player profiles, opener workload,
-sustained workload, starter data, role persistence, performance-retention components, and
-out-of-sample validation machinery.
+1. **Team-relative BPM gap x 2.2** (legacy). Retired: arbitrary coefficient, clamped, never
+   validated as a win-maximizing magnitude.
+2. **"TULIP Capacity" = team-independent sustainable-effective workload.** This was the previous
+   contents of this file. It is NOT the definition of TULIP. Capacity may survive as an INGREDIENT
+   (does the player hold up at higher workload?), but the headline metric is the allocation answer
+   above.
+3. **Projected Role MPG** (`TULIP_CAPACITY_V1`, card-sha256:96cb2f34c6cd06c3). Currently shipped.
+   Predicts the workload a coach is likely to ASSIGN after an offseason move. Valid, validated, and
+   explicitly NOT TULIP. Keep it, keep its name, do not let it reclaim the TULIP label.
 
-Known complication, recorded honestly: per-minute effectiveness showed **no strong generic decline as
-workload increased** once pre-event quality was controlled for. That does not prove capacity does not
-exist — it means "find where performance falls off" is not cleanly identifiable from the data used so
-far. The original TULIP problem is **partially unsolved**, and saying so is preferable to substituting
-a coach-assignment proxy and calling it capacity.
+## The remaining, unsolved problem — stated plainly
 
-## Current product status
+The newer TULIP Score work is conceptually closer to this definition than the Capacity model, because
+it asks who deserves minutes relative to the team-mates currently getting them, and its allocator
+conserves the roster minute ledger.
 
-- `TULIP_CAPACITY_V1` — frozen, immutable, KEPT. Internal identifier retains its original string for
-  provenance; its USER-FACING name is now **Projected Role MPG**, with no claim of capacity.
-- **TULIP Capacity** — reserved. Not shipped. Unsolved.
+But by its own handoff: *TULIP Score is a team-relative direction/ranking signal, while Allocation
+Delta is an advisory translation and is not a prospectively validated outcome estimate.*
+
+So current evidence supports **"this player should move UP or DOWN in the rotation"** far better than
+**"exactly +4.7 MPG maximizes wins."** The definition above requires the second.
+
+**Therefore: the displayed number may not be presented as the win-maximizing answer until the minute
+MAGNITUDE is validated prospectively against team outcomes. Direction and ranking may be presented as
+such today; magnitude may not.** Closing that gap is the open work.
