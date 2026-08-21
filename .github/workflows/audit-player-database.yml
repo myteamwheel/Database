@@ -37,14 +37,12 @@ jobs:
           node scripts/audit-history.mjs
           node scripts/verify-history-hashes.mjs
 
-      # The source refresh cannot run here because stats.nba.com is unreliable from hosted runners,
-      # but the deterministic build DOES run entirely from committed source snapshots. Rebuild first
-      # so source/UI changes are tested against the artifact they actually produce.
-      - name: Rebuild generated data from committed source snapshots
-        env:
-          BUILD_COMMIT: ${{ github.sha }}
+      # The current-season raw game-log cache intentionally stays out of Git. Rebuild only the
+      # explanation trace over the canonical committed model outputs, with assertions that every
+      # pre-existing output is unchanged, then regenerate the browser artifact from that result.
+      - name: Rebuild explanation trace over canonical model outputs
         run: |
-          node scripts/build-v3.mjs
+          node scripts/enrich-tulip-beta-trace.mjs
           node scripts/build-artifact.mjs
 
       - name: Audit rebuilt player data
@@ -54,7 +52,10 @@ jobs:
         run: node scripts/audit-presets.mjs
 
       - name: Verify TULIP metadata against recomputed diagnostics
-        run: node scripts/tulip-verify.mjs
+        run: |
+          node scripts/tulip-verify.mjs
+          npm run test:tulipbeta
+          npm run test:tulipcapacity
 
       - name: Verify tracked historical products and strict role-feature timing
         run: npm run test:history

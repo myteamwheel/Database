@@ -47,6 +47,7 @@ jobs:
         shell: bash
         run: |
           git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
             scripts/data/history/2015-16 scripts/data/history/2016-17 \
             scripts/data/history/2017-18 scripts/data/history/2018-19 \
             scripts/data/history/2019-20 scripts/data/history/2020-21 \
@@ -56,15 +57,15 @@ jobs:
           node scripts/audit-history.mjs
           node scripts/verify-history-hashes.mjs
 
-      - name: Build from committed source snapshots
-        env:
-          BUILD_COMMIT: ${{ github.sha }}
+      - name: Rebuild explanation trace over canonical model outputs
         run: |
-          node scripts/build-v3.mjs
+          node scripts/enrich-tulip-beta-trace.mjs
           node scripts/build-artifact.mjs
           node scripts/audit-v3.mjs
           node scripts/audit-presets.mjs
           node scripts/tulip-verify.mjs
+          npm run test:tulipbeta
+          npm run test:tulipcapacity
           npm run test:history
           npm run test:starter
           node scripts/verify-artifact.mjs
