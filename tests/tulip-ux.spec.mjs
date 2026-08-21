@@ -52,23 +52,13 @@ async function playerWith(page, direction) {
     // For the positive explanation, exercise all three visibly different path values where the
     // current payload permits it. This stays data-driven and never names or special-cases a player.
     if (sign > 0) {
-      candidates.sort((a, b) => {
-        const constrained = (player) => {
-          const c = player.tulipBeta;
-          const raw = c.valueGapSd * 6.6;
-          return Math.min(raw * c.evidenceFactor, Math.max(0, c.supportedCeiling - c.currentMpg));
-        };
-        return Math.abs(constrained(b) - b.tulipBeta.tulip)
-          - Math.abs(constrained(a) - a.tulipBeta.tulip);
-      });
+      candidates.sort((a, b) => Math.abs(b.tulipBeta.constrainedDelta - b.tulipBeta.tulip)
+        - Math.abs(a.tulipBeta.constrainedDelta - a.tulipBeta.tulip));
     }
-    const player = candidates[0];
+    const player = candidates.find((candidate) => Number.isFinite(candidate.tulipBeta.rawSignalDelta)
+      && Number.isFinite(candidate.tulipBeta.constrainedDelta));
     if (!player) return null;
     const c = player.tulipBeta;
-    const raw = Number.isFinite(c.rawSignalDelta) ? c.rawSignalDelta : c.valueGapSd * 6.6;
-    const constrained = Number.isFinite(c.constrainedDelta) ? c.constrainedDelta : raw > 0
-      ? Math.min(raw * c.evidenceFactor, Math.max(0, c.supportedCeiling - c.currentMpg))
-      : Math.max(raw, -Math.max(0, c.currentMpg - 6));
     return {
       playerId: String(player.playerId),
       team: player.team,
@@ -79,8 +69,8 @@ async function playerWith(page, direction) {
       supportedCeiling: c.supportedCeiling,
       evidenceFactor: c.evidenceFactor,
       evidenceTier: c.evidenceTier,
-      raw,
-      constrained,
+      raw: c.rawSignalDelta,
+      constrained: c.constrainedDelta,
     };
   }, direction);
 }

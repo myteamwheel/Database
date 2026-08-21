@@ -98,3 +98,29 @@ th.has-tip:hover::after{background:var(--accent);opacity:1}
 @media (hover: none), (pointer: coarse){
   #statTip{max-width:min(92vw,420px);max-height:60vh;overflow:auto;pointer-events:auto}
 }
+
+/* TULIP explanation and roster controls. These expose the existing calculation path; they do not
+   introduce a second score or imply that the experimental recommendation is validated. */
+.tulip-why{margin:16px 0;padding:14px;border:1px solid #31506b;border-radius:12px;background:#0d151f}
+.tulip-why h3{font-size:15px;margin:0 0 9px}
+.tulip-why-list{display:grid;gap:5px}
+.tulip-why-list p{margin:0;font-size:12px}
+.tulip-constraint-path{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr) auto minmax(150px,1fr);
+  align-items:stretch;gap:8px;margin-top:13px}
+.tulip-constraint-step{display:grid;gap:3px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.tulip-constraint-step span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tulip-constraint-step b{font-size:16px}
+.tulip-constraint-step small{color:var(--muted);font-size:10px}
+.tulip-constraint-arrow{align-self:center;color:var(--accent);font-size:20px}
+.team-allocation-controls{display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;
+  margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.team-allocation-filters{display:flex;gap:7px;flex-wrap:wrap}
+.team-allocation-filters [aria-pressed="true"]{border-color:var(--accent);color:#fff;background:#162638}
+.team-allocation-controls label{display:grid;gap:4px;min-width:180px;color:var(--muted);font-size:11px;font-weight:700}
+.role-evidence-label{display:block;color:var(--text);font-weight:700}
+@media(max-width:760px){
+  .tulip-constraint-path{grid-template-columns:1fr}
+  .tulip-constraint-arrow{transform:rotate(90deg);justify-self:center}
+  .team-allocation-controls{align-items:stretch;flex-direction:column}
+  .team-allocation-controls label{width:100%}
+}

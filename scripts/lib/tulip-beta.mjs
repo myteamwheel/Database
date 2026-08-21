@@ -98,7 +98,8 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
   for (const p of elig) {
     const gap = shrunk.get(p.playerId) - teamAvg;
     const gapSd = gap / leagueGapSd;
-    let desired = gapSd * BETA_CONFIG.minutesPerSd;
+    const rawSignalDelta = gapSd * BETA_CONFIG.minutesPerSd;
+    let desired = rawSignalDelta;
 
     // --- workload state: what has this player actually sustained? ---
     const wh = workloadHistory(p);
@@ -114,7 +115,7 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     } else {
       desired = Math.max(desired, -headDown);          // cannot take minutes he does not have
     }
-    rows.push({ p, gap, gapSd, desired, ceiling, evF, shrunkBpm: shrunk.get(p.playerId) });
+    rows.push({ p, gap, gapSd, rawSignalDelta, desired, ceiling, evF, shrunkBpm: shrunk.get(p.playerId) });
   }
 
   // --- zero-sum: every granted minute is sourced from a team-mate ---
@@ -127,6 +128,8 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     let final = 0;
     if (r.desired > 0 && P > 0) final = r.desired * (T / P);
     else if (r.desired < 0 && N > 0) final = r.desired * (T / N);
+    const rosterBalanceFactor = r.desired > 0 ? (P > 0 ? T / P : 0)
+      : r.desired < 0 ? (N > 0 ? T / N : 0) : 0;
     final = Math.round(final * 10) / 10;
     const rec = Math.round((Number(r.p.mpg) + final) * 10) / 10;
     out.set(r.p.playerId, {
@@ -136,6 +139,11 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
       valueGap: Math.round(r.gap * 100) / 100,
       valueGapSd: Math.round(r.gapSd * 100) / 100,
       shrunkBpm: Math.round(r.shrunkBpm * 100) / 100,
+      // Explanation-only trace of the existing calculation. These fields expose the path without
+      // changing it: team-relative signal -> workload/role constraint -> roster-balanced TULIP.
+      rawSignalDelta: Math.round(r.rawSignalDelta * 10) / 10,
+      constrainedDelta: Math.round(r.desired * 10) / 10,
+      rosterBalanceFactor: Math.round(rosterBalanceFactor * 1000) / 1000,
       supportedCeiling: Math.round(r.ceiling * 10) / 10,
       evidenceTier: (r.p.tulip && r.p.tulip.card && r.p.tulip.card.evidenceTier && r.p.tulip.card.evidenceTier.tier) || null,
       evidenceFactor: Math.round(r.evF * 100) / 100,
