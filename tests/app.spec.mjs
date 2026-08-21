@@ -627,16 +627,15 @@ test.describe('TULIP column', () => {
 
     // Present on the DEFAULT preset, not buried in a secondary view.
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    // The shipped minutes metric is Projected Role MPG (workload likely to be RECEIVED after an
-    // offseason move). It is deliberately NOT called capacity. The legacy team-relative column is
-    // retired from the default view.
-    expect(headers).toContain('PROJECTED ROLE MPG');
-    expect(headers).toContain('PROJ VS CURRENT');
+    // The default view now leads with TULIP Beta: how many more/fewer MPG a player should get.
+    // Projected Role MPG remains a separate product with its own preset and must NOT be called TULIP.
+    expect(headers).toContain('TULIP');
+    expect(headers).toContain('RECOMMENDED MPG');
     expect(headers).not.toContain('TULIP CAPACITY');
     expect(headers).not.toContain('TULIP MPG');   // legacy presentation must be gone
     expect(await page.$eval('#viewPreset', (s) => s.value)).toBe('overall');
 
-    const idx = headers.indexOf('PROJECTED ROLE MPG');
+    const idx = headers.indexOf('TULIP');
     const readCol = () => page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => {
       const c = r.querySelectorAll('td');
       return { name: (c[3]?.innerText || '').split('\n')[0].trim(), tulip: (c[i]?.innerText || '').trim() };
@@ -663,12 +662,11 @@ test.describe('TULIP column', () => {
     await page.waitForTimeout(500);
     const asc = await readCol();
     expect(asc[0].tulip).not.toBe('—');
-    // TULIP Capacity is an absolute workload in MPG, so unlike the old signed minutes delta the
-    // smallest real value is positive. The invariant under test is the one that matters: the top of
-    // an ascending sort is a REAL prediction, not an abstention coerced to zero.
+    // TULIP is a SIGNED reallocation, so an ascending sort legitimately starts negative. The
+    // invariant under test: the top is a REAL value, not an abstention coerced to zero.
     const ascNums = asc.map((r) => Number(r.tulip)).filter((n) => Number.isFinite(n));
     expect(ascNums.length).toBeGreaterThan(3);
-    expect(ascNums[0]).toBeGreaterThan(0);
+    expect(ascNums[0]).toBeLessThan(0);
     for (let i = 1; i < ascNums.length; i++) expect(ascNums[i]).toBeGreaterThanOrEqual(ascNums[i - 1]);
     // and no abstention is ranked ABOVE a real prediction. (Checking the literal last rows is not
     // reliable — the table paginates — but ordering within what IS rendered is.)
@@ -700,15 +698,16 @@ test.describe('Sort control', () => {
     // The control must exist in the filter panel — not require discovering that column headers
     // are clickable and scrolling sideways through 24 columns to find one.
     const options = await page.$$eval('#sortField option', (os) => os.map((o) => o.text.trim()));
-    expect(options).toContain('Projected Role MPG');
+    expect(options).toContain('TULIP');
     expect(options).toContain('Grade');
 
-    await page.selectOption('#sortField', 'tc.capacityMpg');
+    await page.selectOption('#sortField', 'tb.tulip');
     await page.selectOption('#sortOrder', '-1');
     await page.waitForTimeout(500);
 
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    const idx = headers.findIndex((h) => h.startsWith('PROJECTED ROLE MPG'));
+    // The header gains a sort arrow once sorted, so match on prefix rather than equality.
+    const idx = headers.findIndex((h) => h.startsWith('TULIP'));
     // A missing header would give -1, and Playwright's .nth(-1) silently selects the LAST column,
     // which turns a broken lookup into a confusing assertion failure elsewhere.
     expect(idx).toBeGreaterThan(-1);
@@ -732,7 +731,7 @@ test.describe('Sort control', () => {
     // The dropdown and the clickable header are one state, not two.
     await page.locator('thead th').nth(idx).click();
     await page.waitForTimeout(500);
-    expect(await page.$eval('#sortField', (s) => s.value)).toBe('tc.capacityMpg');
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe('tb.tulip');
     expect(await page.$eval('#sortOrder', (s) => s.value)).toBe('-1');
 
     expect(errors).toEqual([]);

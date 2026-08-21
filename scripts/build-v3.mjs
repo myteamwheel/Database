@@ -27,6 +27,7 @@ import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEM
          AVAILABILITY_ROW_SCHEMA, TRANSACTION_ROW_SCHEMA } from './lib/history.mjs';
 import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
+import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -621,6 +622,59 @@ for (const r of gl.records) {
 console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained} `
   + `(${JSON.stringify(capAbstainReasons)}) · G League abstains by design`);
 
+/* ------------------------------------------------------------- TULIP BETA */
+// The user-facing TULIP: a zero-sum minute-reallocation estimate. Direction from team-relative
+// value; magnitude heuristic and constrained by workload state, role evidence and the roster's
+// finite minute pool. EXPERIMENTAL — causal validation did not establish that these deltas maximize
+// wins, and the UI says so.
+//
+// NBA only. G League has no published BPM and the standardized-PIE value implementation is not part
+// of this repository, so G League abstains rather than improvising a second value scale.
+{
+  const finB = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+  const played = nba.records.filter((r) => r.appeared && finB(r.bpm) && finB(r.mpg));
+  const pool = played.filter((r) => (r.minutes || 0) >= BETA_CONFIG.minMinutes && r.mpg >= BETA_CONFIG.minMpg);
+  const totM = pool.reduce((a, r) => a + Number(r.minutes), 0);
+  const leagueBpm = pool.reduce((a, r) => a + Number(r.bpm) * Number(r.minutes), 0) / Math.max(1, totM);
+  const byTeam = {};
+  for (const r of nba.records) (byTeam[r.team] = byTeam[r.team] || []).push(r);
+  // League SD of the team-relative gap, computed once so every team is on one scale.
+  const gaps = [];
+  for (const t of Object.keys(byTeam)) {
+    const e = byTeam[t].filter((r) => r.appeared && finB(r.bpm) && finB(r.mpg) && (r.minutes || 0) >= BETA_CONFIG.minMinutes && r.mpg >= BETA_CONFIG.minMpg);
+    if (e.length < 5) continue;
+    const sh = new Map(e.map((r) => [r.playerId, (Number(r.minutes) * Number(r.bpm) + BETA_CONFIG.shrinkMinutes * leagueBpm) / (Number(r.minutes) + BETA_CONFIG.shrinkMinutes)]));
+    const tm = e.reduce((a, r) => a + Number(r.mpg), 0);
+    const avg = e.reduce((a, r) => a + sh.get(r.playerId) * Number(r.mpg), 0) / tm;
+    for (const r of e) gaps.push(sh.get(r.playerId) - avg);
+  }
+  const mg = gaps.reduce((a, b) => a + b, 0) / Math.max(1, gaps.length);
+  const leagueGapSd = Math.sqrt(gaps.reduce((a, b) => a + (b - mg) ** 2, 0) / Math.max(1, gaps.length)) || 1;
+
+  let betaScored = 0, betaAbstain = 0;
+  const ledger = [];
+  for (const t of Object.keys(byTeam)) {
+    const m = tulipBetaForTeam(byTeam[t], { leagueBpm, leagueGapSd });
+    if (m.size) ledger.push({ team: t, sum: [...m.values()].reduce((a, v) => a + v.tulip, 0), n: m.size });
+    for (const r of byTeam[t]) {
+      const v = m.get(r.playerId);
+      if (v) { r.tulipBeta = v; betaScored++; }
+      else {
+        r.tulipBeta = { abstain: true, status: 'BETA',
+          reason: !r.appeared ? 'no_appearance'
+            : !finB(r.bpm) ? 'no_value_metric'
+            : (r.minutes || 0) < BETA_CONFIG.minMinutes ? 'insufficient_minutes'
+            : r.mpg < BETA_CONFIG.minMpg ? 'below_rotation_threshold' : 'team_roster_too_small' };
+        betaAbstain++;
+      }
+    }
+  }
+  for (const r of gl.records) r.tulipBeta = { abstain: true, status: 'BETA', reason: 'not_supported_for_gleague' };
+  const worst = ledger.reduce((a, x) => Math.max(a, Math.abs(x.sum)), 0);
+  console.log(`TULIP Beta: scored ${betaScored}, abstained ${betaAbstain} · teams ${ledger.length} · worst ledger imbalance ${worst.toFixed(2)} MPG (rounding only) · G League abstains by design`);
+  nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length, worstLedgerImbalance: worst };
+}
+
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
 // This prevents methodology/UI prose from drifting when the player pool or source data changes.
 const tulipValidationSnapshot = tulipDiagnostics(nba.records, TULIP_CONFIG);
@@ -791,6 +845,16 @@ const out = {
       crossoverSample: pairs.length,
       caveat: 'Translation factors are measured from players who appeared in BOTH leagues in 2025-26 only, with at least five games on each side. That is enough to describe what happened to this cohort and NOT enough to project an NBA career. Estimates are exploratory; no NBA-success probability is offered because there are no historical outcome labels here to validate one.',
     },
+  },
+  tulipBetaMeta: {
+    status: 'EXPERIMENTAL BETA',
+    whatItIs: 'Zero-sum estimate of how many MPG a team could reallocate toward or away from each player, from team-relative player value, current workload, role evidence and the actual team-mates consuming those minutes.',
+    direction: 'Based on team-relative player value (shrunk BPM vs the minute-weighted team average).',
+    magnitude: 'HEURISTIC. Starts from a per-SD movement, then compressed by workload state, role evidence and the roster minute ledger.',
+    notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
+    zeroSum: 'Recommended minutes conserve each eligible roster ledger: every minute granted is sourced from a team-mate.',
+    gleague: 'Not supported: no published G League BPM and no standardized-PIE value implementation in this repository. G League abstains rather than improvising.',
+    ...(nba.tulipBetaMeta || {}),
   },
   tulipCapacityMeta: {
     // The frozen artifact keeps its original identifier for provenance; the SHIPPED METRIC is
