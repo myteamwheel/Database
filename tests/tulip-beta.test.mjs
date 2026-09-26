@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { fileURLToPath } from 'node:url';
+import { tulipBetaForTeam, BETA_CONFIG } from '../scripts/lib/tulip-beta.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const D = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
 const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
@@ -13,7 +14,7 @@ console.log('TULIP Beta engineering validation');
 
 t('1 every eligible team ledger conserves (sum of deltas ~ 0)', () => {
   const byTeam = {};
-  for (const p of nba) if (p.tulipBeta && !p.tulipBeta.abstain) (byTeam[p.team] = byTeam[p.team] || []).push(p);
+  for (const p of nba) if (p.tulipBeta && !p.tulipBeta.abstain) (byTeam[p.currentTeam] = byTeam[p.currentTeam] || []).push(p);
   let worst = 0, worstT = null;
   for (const [team, arr] of Object.entries(byTeam)) {
     const s = arr.reduce((a, p) => a + p.tulipBeta.tulip, 0);
@@ -68,7 +69,7 @@ t('7 recommendation never exceeds the supported ceiling', () => {
 });
 t('8 NBA coverage is substantial', () => {
   const sc = nba.filter((p) => p.tulipBeta && !p.tulipBeta.abstain).length;
-  assert.ok(sc > 400, `only ${sc} scored`);
+  assert.ok(sc > 250, `only ${sc} current-roster players scored`);
   console.log(`        (${sc} of ${nba.length} NBA rows scored)`);
 });
 t('9 G League abstains — never improvised', () => {
@@ -98,11 +99,39 @@ t('13 abstentions null out in the accessor so they sort last', () => {
   assert.ok(/key\.startsWith\('tb\.'\)/.test(app), 'tb.* accessor missing');
   assert.ok(/const c = p\.tulipBeta;[\s\S]{0,160}return null;/.test(app), 'accessor does not null abstentions');
 });
+t('14 current TULIP has no arbitrary +/-8 MPG delta cap', () => {
+  assert.strictEqual(BETA_CONFIG.floorMpg, 0);
+  assert.ok(BETA_CONFIG.ceilingHardCap >= 40);
+  assert.ok(BETA_CONFIG.minutesPerSd >= 9);
+
+  // Synthetic current roster: one elite low-minute player has both workload support and enough
+  // minutes available from teammates. This must be able to move by >8 MPG.
+  const mk = (id, bpm, mpg) => ({
+    playerId: String(id), appeared: true, bpm, mpg, minutes: 1000,
+    history: [['2025-26', 'Regular Season', [], 60, Math.max(mpg, id === 1 ? 35 : mpg)]],
+    tulip: {
+      frontier: [{ mpg: 40, abstain: false }],
+      card: { evidenceTier: { tier: 'A' }, projection: { counterfactualSupport: { status: 'OK' } } },
+      roleScaleResponse: { response: 'SUPPORTED' },
+    },
+  });
+  const roster = [mk(1, 10, 5), mk(2, -2, 20), mk(3, -2, 20), mk(4, -2, 20), mk(5, -2, 20)];
+  const out = tulipBetaForTeam(roster, { leagueBpm: 0, leagueGapSd: 1 });
+  const delta = out.get('1')?.tulip;
+  assert.ok(Number.isFinite(delta) && delta > 8, `synthetic supported expansion only moved ${delta} MPG`);
+});
+t('15 scored NBA rows belong to the current roster/team scope', () => {
+  for (const p of nba) {
+    if (!p.tulipBeta || p.tulipBeta.abstain) continue;
+    assert.ok(p.currentRoster && p.currentTeam, `${p.name}: scored without current roster team`);
+  }
+});
+
 // ---- team-ledger regression: a future UI change must not silently break zero-sum conservation ----
 console.log('\nTULIP Beta team-ledger regression');
 const t2 = (n, fn) => { try { fn(); console.log(`  PASS  ${n}`); pass++; } catch (e) { console.log(`  FAIL  ${n} — ${e.message}`); fail++; } };
 const byTeam = {};
-for (const p of nba) if (p.tulipBeta && !p.tulipBeta.abstain) (byTeam[p.team] = byTeam[p.team] || []).push(p);
+for (const p of nba) if (p.tulipBeta && !p.tulipBeta.abstain) (byTeam[p.currentTeam] = byTeam[p.currentTeam] || []).push(p);
 
 t2('T1 every team ledger sums to zero within rounding', () => {
   for (const [team, arr] of Object.entries(byTeam)) {
@@ -140,7 +169,7 @@ t2('T5 team allocation view exists and states the non-validation', () => {
   assert.ok(/MINUTES GAINED/.test(app) && /MINUTES SURRENDERED/.test(app), 'gained/surrendered ledger missing');
   assert.ok(/have not been validated as win-maximizing/i.test(app), 'team-level non-validation wording missing');
   assert.ok(!/optimal rotation|proven best allocation|expected wins added/i.test(app), 'forbidden overclaiming language present');
-  assert.ok(/View \$\{esc\(p\.team/.test(app), 'per-player link to team allocation missing');
+  assert.ok(/View \$\{esc\(p\.currentTeam/.test(app), 'per-player current-team allocation link missing');
 });
 t2('T6 no G League team appears in the allocation view data', () => {
   const glTeams = new Set(gl.filter((p) => p.tulipBeta && !p.tulipBeta.abstain).map((p) => p.team));
