@@ -160,6 +160,7 @@ const BLOCKS = {
     },
   },
   role: {
+    // Archetype/role block: creation load, shot volume, playmaking and rebounding shape.
     weight: 0.22,
     axes: {
       mpg: { scale: 5, weight: 0.45, label: 'minutes/role' },
@@ -323,6 +324,8 @@ function fmtSize(x) {
 function relation(target, comp) {
   const t = target.features, c = comp.features;
   const mods = [];
+  if (fin(t.fg3Pct) && fin(c.fg3Pct) && t.fg3Pct - c.fg3Pct > 0.04) mods.push('better three-point shooting');
+  else if (fin(t.fg3Pct) && fin(c.fg3Pct) && c.fg3Pct - t.fg3Pct > 0.04) mods.push('worse three-point shooting');
   if (fin(t.threeRate) && fin(c.threeRate) && t.threeRate - c.threeRate > 0.10) mods.push('more three-point oriented');
   else if (fin(t.threeRate) && fin(c.threeRate) && c.threeRate - t.threeRate > 0.10) mods.push('less three-point oriented');
   if (fin(t.ts) && fin(c.ts) && t.ts - c.ts > 0.045) mods.push('more scoring-efficient');
@@ -409,7 +412,7 @@ data.analysis.playerCompsMeta = {
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
-  priority: 'physical profile first, then role/production, scoring mix, defensive activity; current-season deep style used when common',
+  priority: 'physical profile first, then archetype/role and production, scoring mix, defensive activity; current-season deep style used when common',
   physicalWeight: 0.46,
   positionGate: false,
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
