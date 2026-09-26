@@ -91,6 +91,73 @@ async function download(url, label) {
   throw new Error(`${label} download failed: ${last?.message || last}`);
 }
 
+const livePlayerBoxFallbacks = [];
+async function hydrateLivePlayerBoxIfMissing(espnGameId, playerBoxCsv, playerBoxByGame) {
+  if ((playerBoxByGame.get(espnGameId) || []).length) return false;
+  const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${encodeURIComponent(espnGameId)}`;
+  let last;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120_000);
+      const response = await fetch(url, {
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: { 'User-Agent': 'TulipBasketball-starter-acceptance-gate/1.0' },
+      });
+      clearTimeout(timer);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      const json = JSON.parse(text);
+      if (String(json?.header?.id || '') !== String(espnGameId)) {
+        throw new Error(`event id mismatch ${json?.header?.id || 'missing'}`);
+      }
+      const seasonType = String(json?.header?.season?.type ?? '');
+      const groups = json?.boxscore?.players;
+      if (!Array.isArray(groups) || !groups.length) throw new Error('summary has no boxscore.players');
+      const rows = [];
+      const rowFor = (fields) => {
+        const row = Array(playerBoxCsv.headers.length).fill('');
+        for (const [key, val] of Object.entries(fields)) {
+          const i = playerBoxCsv.index[key];
+          if (i != null) row[i] = val;
+        }
+        return row;
+      };
+      for (const group of groups) {
+        const teamId = String(group?.team?.id ?? '');
+        const statsGroups = Array.isArray(group?.statistics) ? group.statistics : [];
+        for (const statGroup of statsGroups) {
+          const athletes = Array.isArray(statGroup?.athletes) ? statGroup.athletes : [];
+          for (const a of athletes) {
+            const athleteId = String(a?.athlete?.id ?? '');
+            if (!teamId || !athleteId) continue;
+            rows.push(rowFor({
+              game_id: String(espnGameId),
+              season_type: seasonType,
+              team_id: teamId,
+              athlete_id: athleteId,
+              athlete_display_name: a?.athlete?.displayName ?? '',
+              starter: a?.starter === true ? 'true' : 'false',
+            }));
+          }
+        }
+      }
+      if (!rows.length) throw new Error('summary player box parsed to zero rows');
+      playerBoxByGame.set(String(espnGameId), rows);
+      const fp = sha256Buffer(Buffer.from(text));
+      livePlayerBoxFallbacks.push({ espnGameId: String(espnGameId), url, ...fp, rows: rows.length });
+      console.log(`    live ESPN summary fallback: ${espnGameId} · ${rows.length} player rows`);
+      return true;
+    } catch (error) {
+      last = error;
+      if (attempt < 4) await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
+  }
+  console.warn(`    live ESPN summary fallback failed for ${espnGameId}: ${last?.message || last}`);
+  return false;
+}
+
 
 // RFC-4180-enough parser for the release CSVs: quoted fields, escaped quotes, CRLF/LF.
 function parseCsvBuffer(buf, label) {
@@ -541,6 +608,7 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
         });
       }
     }
+    await hydrateLivePlayerBoxIfMissing(rec.espnGameId, playerBoxCsv, playerBoxByGame);
     const gameAssignments = evaluateMappedGame({
       seasonType, rec, localGame, playerBoxCsv, playerBoxByGame, playerCsv, playerByKey, failures,
       exactNameIndex: splitExpectation.exactNameIndex || null,
@@ -588,6 +656,9 @@ const accepted = phaseResults.every((x) => x.accepted) && perPlayerStarts.pass &
 
 const implementation = { gate: { path: path.relative(ROOT, fileURLToPath(import.meta.url)), ...sha256File(fileURLToPath(import.meta.url)) } };
 const sourceAssets = Object.fromEntries(Object.entries(assets).map(([key, a]) => [key, { url: a.url, bytes: a.bytes, sha256: a.sha256 }]));
+sourceAssets.livePlayerBoxFallbacks = livePlayerBoxFallbacks.map((x) => ({
+  espnGameId: x.espnGameId, url: x.url, bytes: x.bytes, sha256: x.sha256, rows: x.rows,
+}));
 const sourceContract = {
   provider: 'ESPN data processed and published by SportsDataverse/hoopR',
   playerBox: 'starter=true only; never inferred from minutes',
