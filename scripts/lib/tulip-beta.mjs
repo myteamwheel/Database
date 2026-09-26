@@ -18,12 +18,13 @@
 export const BETA_CONFIG = {
   shrinkMinutes: 400,      // BPM shrinkage toward league mean for small samples
   minMinutes: 200,         // below this a player is not an allocation candidate
-  minMpg: 4,
-  minutesPerSd: 6.6,       // HEURISTIC desired movement per SD of team-relative value. Retained
-                           // rather than inventing a second arbitrary coefficient; it is only the
-                           // STARTING desire, which the constraints below then compress.
-  floorMpg: 6,             // a rotation player is not driven below this by reallocation
-  ceilingHardCap: 38.0,    // no recommendation exceeds observed sustainable workload
+  minMpg: 0.5,
+  minutesPerSd: 10.0,      // HEURISTIC starting movement per SD of team-relative value.
+                           // There is deliberately NO arbitrary +/-8 MPG delta clamp. The actual
+                           // bounds come from workload evidence, a 0-40 MPG feasible range, and the
+                           // roster's zero-sum minute supply.
+  floorMpg: 0,             // a player may be recommended out of the rotation when the signal is strong
+  ceilingHardCap: 40.0,    // feasible NBA workload ceiling; not an +/- delta cap
 };
 
 const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
