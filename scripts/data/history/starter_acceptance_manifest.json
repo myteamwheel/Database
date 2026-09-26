@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-21T19:21:21.263Z",
-  "sourceCommit": "f3c5fc647383bf8096438e067682ac9abbf7f24d",
+  "generatedAt": "2026-09-26T05:15:48.747Z",
+  "sourceCommit": "8ff85b1fca1adbae5a57a2ea4a9c9e797501ba28",
   "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
   "allAccepted": false,
   "results": [
@@ -223,13 +223,13 @@
       "teamGames": 985,
       "starterEdges": 4925,
       "perPlayerStartMismatches": 426,
-      "evidenceSha256": "6b22328c7b5c6d534417170d7a53eaecb1b75dfd243d7bd6a41f39f91a630087",
+      "evidenceSha256": "05d7aed7b679c6c30035962a003130b10c4933d5e1f2af8c7c27f39c42845026",
       "logPresent": true,
-      "logSha256": "7663550f37815616d4d9ec1f1605e1d14f0429d87f1ecd4e9f2a3538046087b8",
+      "logSha256": "f08c59836620bfa605737ee8e80efb384cbb0acd03497a9d48d2f2016aba7394",
       "logTail": [
         "Exhaustive ESPN -> NBA starter acceptance gate: 2025-26",
         "mode: current-season schedule crosswalk",
-        "downloaded source assets: player box 17729582 B, schedule xwalk 150611 B, player xwalk 65122 B",
+        "downloaded source assets: player box 17729581 B, schedule xwalk 150611 B, player xwalk 65122 B",
         "  Regular Season: FAIL · 1230 games · 885/2460 team-games",
         "  Playoffs: FAIL · 87 games · 100/174 team-games",
         "per-player regular starts: FAIL · 426 mismatches",

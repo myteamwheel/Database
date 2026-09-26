@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-21T19:20:40.658Z",
+  "generatedAt": "2026-09-26T05:15:16.921Z",
   "season": "2025-26",
   "accepted": false,
   "mode": "current-season-crosswalk-validated",
@@ -22,8 +22,8 @@
   "sourceAssets": {
     "playerBox": {
       "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_player_boxscores/player_box_2026.csv",
-      "bytes": 17729582,
-      "sha256": "e8ed7965edb5005269eb72de708672665a463acf77559636be11938bbaacf4f9"
+      "bytes": 17729581,
+      "sha256": "7a4868da67ae7f6ebfba23389e04220be2e3f69d2e56a3942c02aa56f1becc89"
     },
     "scheduleCrosswalk": {
       "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_crosswalk/nba_schedule_crosswalk_2026.csv",
