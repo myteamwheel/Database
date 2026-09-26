@@ -306,6 +306,50 @@ identically even though they are ranked separately.
 
 ---
 
+## Player Comps
+
+The analysis workspace includes a dedicated **Player Comps** mode. For every current player with a
+usable professional sample it returns the three closest historical player-seasons from the same
+league, plus a three-player blend and plain-language shorthand.
+
+The match is deliberately **size-first rather than position-first**. Listed professional height and
+weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
+where they were actually measured. No wingspan or length value is estimated for a non-participant.
+The physical block carries 46% of the declared historical match weight, followed by role/production
+(22%), scoring style (19%) and defensive/rebounding activity (13%). Positions may cross when the
+body and game genuinely match.
+
+Historical pools currently cover **NBA 2009-10 through 2025-26** and **G League 2014-15 through
+2025-26**. Older seasons do not have the same tracking/shot-zone inventory as 2025-26, so the engine
+uses the common historical feature set (usage, per-36 production, shooting mix, efficiency,
+free-throw pressure, playmaking, rebounding, steals and blocks) and only adds deeper current-season
+style axes when both sides actually have them. It does not invent historical mid-range, paint,
+tracking or length data that was never acquired.
+
+## Current NBA roster identity
+
+NBA team identity is now split into two explicit concepts:
+
+- **currentTeam** — the current 2026-27 NBA.com player-index roster snapshot. The main NBA Team
+  column, team filter, Team Fit and TULIP team allocation use this field.
+- **seasonTeam / teams** — the team or stints that produced the 2025-26 statistics. These remain
+  intact for historical/stint views.
+
+That distinction prevents an offseason acquisition from appearing under his old club while also
+preventing his 2025-26 statistics from being falsely relabelled as production for the new club.
+Incoming roster players with no 2025-26 NBA performance row are carried as roster-only and remain
+ungraded.
+
+## TULIP Beta allocation range
+
+TULIP Beta remains **experimental decision support, not a validated win-optimal coaching model**.
+The allocator no longer has an arbitrary small-delta ceiling. Its feasible recommendation range is
+0-40 MPG, with the realized change constrained by the player's supported workload, role evidence and
+the team's zero-sum minute ledger. A supported player can therefore move by more than eight MPG in
+either direction when the roster can supply or absorb those minutes.
+
+The separate **Projected Role MPG** model is unchanged and retains its frozen model identifier.
+
 ## Interface
 
 Separate NBA and G League panels; every visible column sortable; search across name, team,
