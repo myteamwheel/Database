@@ -391,7 +391,8 @@ player-season history is attached to current player records, and a **145,430-row
 log product** is shipped as `public/history-games.json.gz` and loaded on demand in the Player
 workspace. These rows remain deliberately separate from the 2025-26 season-aggregate table and from
 TULIP Evidence. Still not covered in the product layer: arbitrary cross-player opponent/date-range
-querying, on/off, shot-zone and possession/lineup data.
+querying, historical injury/inactive and transaction timelines, historical on/off, shot-zone and
+possession/lineup data. Those fields stay absent rather than being inferred.
 
 For the post-handoff state, validation results and known limits, see `docs/TAKEOVER_AUDIT_2026-08-17.md`.
 
@@ -405,9 +406,18 @@ Player workspace shows prior NBA regular-season and playoff phases separately, w
 scoring/rebounding/playmaking, true shooting, and starter information where the canonical starter artifact has actually established it.
 
 Starter history is provenance-aware: an unknown starter status stays unknown and is never rendered
-as a bench appearance. At takeover, canonical per-game starter coverage is complete for 2023-24
-regular season and playoffs and absent elsewhere until the source-specific acceptance gates pass.
-This historical layer is **descriptive product data**, not TULIP Forecast training data.
+as a bench appearance. The current 2025-26 ESPN→NBA gate is exhaustively accepted: all 1,230
+regular-season games and 85 played playoff games reconcile at five starters per team, with zero
+regular-season per-player start mismatches. Two conditional playoff schedule slots that never
+materialized are excluded only after both the published ESPN player-box release and ESPN's live
+summary endpoint show no game (hard 404).
+
+For 2015-16 through 2024-25, the current SportsDataverse release no longer publishes the required
+season-specific ESPN↔NBA schedule/player crosswalk assets. Those historical cross-source gates are
+therefore recorded as **blocked by upstream crosswalk availability**, not falsely accepted and not
+filled with guessed identities. Existing canonical/local starter evidence remains usable where
+established; uncovered rows remain unknown. This historical layer is **descriptive product data**,
+not TULIP Forecast training data.
 
 ## Roster-only players
 
