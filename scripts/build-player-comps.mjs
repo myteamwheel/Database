@@ -403,7 +403,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const target = currentHistoricalTarget(p, pool);
     if (!target) continue;
     const targetDeep = deepOverlay(p);
-    const top = [];
+    // Pool is player-SEASON based, but the requested output is three distinct PLAYERS. Keep only
+    // each candidate player's single best-matching historical season before ranking the final three.
+    const bestByPlayer = new Map();
     for (const cand of pool) {
       if (cand.playerId === target.playerId || cand.minutes < minMinutes) continue;
       const candCurrent = cand.season === '2025-26' ? currentByLeaguePid[lg].get(cand.playerId) : null;
@@ -413,13 +415,11 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       let score = m.score;
       if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
       const item = { cand, m: { ...m, score } };
-      if (top.length < 8) {
-        top.push(item); top.sort((a, b) => b.m.score - a.m.score);
-      } else if (score > top.at(-1).m.score) {
-        top[top.length - 1] = item; top.sort((a, b) => b.m.score - a.m.score);
-      }
+      const prior = bestByPlayer.get(cand.playerId);
+      if (!prior || item.m.score > prior.m.score) bestByPlayer.set(cand.playerId, item);
     }
-    const best = top.slice(0, 3).map((x) => serializeComp(target, x.cand, x.m));
+    const top = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 3);
+    const best = top.map((x) => serializeComp(target, x.cand, x.m));
     if (!best.length) continue;
     const total = best.reduce((a, x) => a + Math.max(1, x.similarity), 0);
     const blend = best.map((x) => ({ name: x.name, season: x.season, share: Math.round(100 * Math.max(1, x.similarity) / total) }));
