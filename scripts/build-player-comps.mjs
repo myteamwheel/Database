@@ -437,6 +437,12 @@ for (const lg of ['NBA', 'GLEAGUE']) {
         weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
         wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
       },
+      targetStats: {
+        mpg: r1(target.features.mpg), pts36: r1(target.features.pts36),
+        reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
+        ts: r2(target.features.ts), threeRate: r2(target.features.threeRate),
+        stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+      },
     };
   }
 }
