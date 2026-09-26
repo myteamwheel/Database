@@ -73,7 +73,7 @@ function evidenceFactor(p, targetMpg) {
 function confidenceOf(p, finalDelta, ceiling) {
   const mins = Number(p.minutes) || 0;
   const tier = p.tulip && p.tulip.card && p.tulip.card.evidenceTier && p.tulip.card.evidenceTier.tier;
-  const inSupport = Math.abs(finalDelta) <= 3 || (Number(p.mpg) + finalDelta) <= ceiling;
+  const inSupport = (Number(p.mpg) + finalDelta) <= ceiling + 0.05;
   if (mins >= 800 && (tier === 'A' || tier === 'B') && inSupport) return 'HIGH';
   if (mins >= 300 && (tier === 'A' || tier === 'B' || inSupport)) return 'MEDIUM';
   return 'LOW';
