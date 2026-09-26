@@ -583,8 +583,10 @@ for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   const played = side.records.filter((r) => r.appeared && r.skillProfile);
   const byTeam = {};
   for (const r of played) {
-    // A player counts toward every team he actually appeared for.
-    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    // NBA uses the current 2026-27 roster; G League remains 2025-26 until new rosters publish.
+    const teams = league === 'NBA'
+      ? [r.currentTeam].filter(Boolean)
+      : ((r.teams || []).length ? r.teams.map((t) => t.team) : [r.team]);
     for (const t of new Set(teams.filter(Boolean))) {
       (byTeam[t] = byTeam[t] || []).push({ player: r, profile: r.skillProfile });
     }
@@ -603,7 +605,8 @@ for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   }
   // Each player's fit with his own team, for the profile page.
   for (const r of played) {
-    const tp = teamProfiles[league][r.team];
+    const ownTeam = league === 'NBA' ? r.currentTeam : r.team;
+    const tp = ownTeam ? teamProfiles[league][ownTeam] : null;
     if (tp) r.ownTeamFit = teamFit(r.skillProfile, tp.needs);
   }
 }
@@ -617,7 +620,9 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   const opts = { weights: SIMILARITY_WEIGHTS, config: TULIP_CONFIG };
   const rosters = {};
   for (const r of played) {
-    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    const teams = lgKey === 'NBA'
+      ? [r.currentTeam || r.team]
+      : ((r.teams || []).length ? r.teams.map((t) => t.team) : [r.team]);
     for (const t of new Set(teams.filter(Boolean))) (rosters[t] = rosters[t] || []).push(r);
   }
   // League median rotation impact: the reference the league-referenced delta uses, so a player is
@@ -632,10 +637,11 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   for (const r of played) {
     // Default scenario: a meaningful but realistic expansion of the current role.
     const target = Math.min(34, Math.max(r.mpg + 6, 20));
-    const card = tulipCard(r, pool, rosters[r.team] || played, target, opts);
+    const roleTeam = lgKey === 'NBA' ? (r.currentTeam || r.team) : r.team;
+    const card = tulipCard(r, pool, rosters[roleTeam] || played, target, opts);
     // Recompute the rotation with the league reference attached (tulipCard cannot know it).
     if (!card.abstain && card.projection && !card.projection.abstain) {
-      card.rotation = rotationDelta(r, rosters[r.team] || played, target, card.projection,
+      card.rotation = rotationDelta(r, rosters[roleTeam] || played, target, card.projection,
         leagueMedianRotationImpact);
     }
     const fr = frontier(r, pool, opts);
