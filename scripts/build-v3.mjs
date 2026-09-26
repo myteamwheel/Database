@@ -59,10 +59,10 @@ const compactRows = (t) => (t?.rows || []).map((row) =>
   Object.fromEntries((t.headers || []).map((h, i) => [h, row[i]])));
 const currentNbaRosterRows = compactRows(projectionInputs?.rosters2627);
 const currentNbaRoster = new Map(currentNbaRosterRows
-  .filter((r) => r.PERSON_ID && r.TEAM_ABBREVIATION)
+  .filter((r) => r.PERSON_ID && r.TEAM_ABBREVIATION && Number(r.ROSTER_STATUS) === 1)
   .map((r) => [Number(r.PERSON_ID), r.TEAM_ABBREVIATION]));
 const currentNbaRosterBio = new Map(currentNbaRosterRows
-  .filter((r) => r.PERSON_ID).map((r) => [Number(r.PERSON_ID), r]));
+  .filter((r) => r.PERSON_ID && Number(r.ROSTER_STATUS) === 1).map((r) => [Number(r.PERSON_ID), r]));
 const currentRosterAsOf = projectionInputs?.fetchedAt ? String(projectionInputs.fetchedAt).slice(0, 10) : null;
 const heightInchesFromRoster = (h) => {
   const m = String(h || '').match(/^(\d+)-(\d+(?:\.\d+)?)$/);
