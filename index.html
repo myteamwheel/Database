@@ -9,19 +9,19 @@
 </head>
 <body>
   <header class="topbar">
-    <div>
+    <div class="masthead">
       <div class="eyebrow" id="seasonEyebrow">2025–26</div>
-      <h1>Pro Basketball Performance Database</h1>
+      <h1>Pro Basketball<br>Performance Database</h1>
       <p id="sourceLine">Loading official NBA + NBA G League statistics…</p>
     </div>
-    <div class="header-actions">
-      <a class="button secondary" href="history-lab.html" style="text-decoration:none">History Lab</a>
-      <button id="exportBtn" class="button secondary">Export filtered CSV</button>
-      <button id="catalogBtn" class="button secondary">Field catalog</button>
-      <button id="statGuideBtn">Stat guide</button>
-      <button class="button secondary" id="tulipAllocBtn" type="button">TULIP Team Allocation</button>
-          <button class="button secondary" id="aboutBtn" class="button secondary">Metric definitions</button>
-    </div>
+    <nav class="header-actions" aria-label="Tools">
+      <button class="nav-link" id="tulipAllocBtn" type="button">TULIP by team</button>
+      <a class="nav-link" href="history-lab.html">History Lab</a>
+      <button class="nav-link" id="statGuideBtn" type="button">Stat guide</button>
+      <button class="nav-link" id="aboutBtn" type="button">Definitions</button>
+      <button class="nav-link" id="catalogBtn" type="button">Field catalog</button>
+      <button class="nav-link" id="exportBtn" type="button">Export CSV</button>
+    </nav>
   </header>
 
   <main>
@@ -42,32 +42,14 @@
         <label>Team
           <select id="teamFilter"><option value="">All teams</option></select>
         </label>
-        <label title="For a player who changed teams mid-season, choose whether to show his whole season or only what he did for the selected team.">Team stats
-          <select id="teamMode">
-            <option value="season">Played for team — season totals</option>
-            <option value="only">Stats with this team only</option>
-          </select>
-        </label>
         <label>Position
           <select id="positionFilter"><option value="">All positions</option></select>
         </label>
-        <label>Country
-          <select id="countryFilter"><option value="">All countries</option></select>
-        </label>
-        <label>Minimum games
+        <label>Min games
           <input id="minGp" type="number" min="0" step="1" value="0" />
         </label>
-        <label>Minimum MPG
+        <label>Min MPG
           <input id="minMpg" type="number" min="0" step="1" value="0" />
-        </label>
-        <label>Minimum total minutes
-          <input id="minMin" type="number" min="0" step="50" value="0" />
-        </label>
-        <label>Minimum grade
-          <input id="minGrade" type="number" min="0" max="9.9999" step="0.1" value="0" />
-        </label>
-        <label title="Weight a player's own line carried in the shrinkage. Maximum observed is about 84.">Minimum reliability
-          <input id="minReliability" type="number" min="0" max="100" step="5" value="0" />
         </label>
         <label>View
           <select id="viewPreset"></select>
@@ -81,29 +63,49 @@
             <option value="1">Low to high</option>
           </select>
         </label>
-        <label>Rows
-          <select id="rowLimit">
-            <option value="25">25</option>
-            <option value="50" selected>50</option>
-            <option value="100">100</option>
-            <option value="250">250</option>
-            <option value="9999">All</option>
-          </select>
-        </label>
       </div>
-      <div class="toggle-row">
-        <label class="check"><input id="bothOnly" type="checkbox" /> Played in both NBA and G League</label>
-        <label class="check" title="Players who were on a roster but never appeared. They have no grade."><input id="includeRosterOnly" type="checkbox" /> Include rostered players who never played</label>
-        <button id="resetBtn" class="text-button">Reset filters</button>
-      </div>
+      <details class="more-filters">
+        <summary>More filters</summary>
+        <div class="control-grid">
+          <label>Team stats
+            <select id="teamMode">
+              <option value="season">Played for team — season totals</option>
+              <option value="only">Stats with this team only</option>
+            </select>
+          </label>
+          <label>Country
+            <select id="countryFilter"><option value="">All countries</option></select>
+          </label>
+          <label>Min total minutes
+            <input id="minMin" type="number" min="0" step="50" value="0" />
+          </label>
+          <label>Min grade
+            <input id="minGrade" type="number" min="0" max="9.9999" step="0.1" value="0" />
+          </label>
+          <label>Rows per page
+            <select id="rowLimit">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+              <option value="9999">All</option>
+            </select>
+          </label>
+          <label>Min reliability <span class="hint">0–100; highest observed ≈ 84</span>
+            <input id="minReliability" type="number" min="0" max="100" step="5" value="0" />
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label class="check"><input id="bothOnly" type="checkbox" /> Played in both NBA and G League</label>
+          <label class="check"><input id="includeRosterOnly" type="checkbox" /> Include rostered players who never played</label>
+        </div>
+      </details>
+      <button id="resetBtn" class="text-button reset">Reset filters</button>
     </section>
 
-    <section class="db-only lab-panel">
+    <details class="db-only lab-panel">
+      <summary><span class="lab-title">Formula Lab</span> <span class="hint">Blend up to four metrics into your own sortable score</span></summary>
       <div class="lab-heading">
-        <div>
-          <div class="eyebrow">FORMULA LAB</div>
-          <h2>Build your own sortable composite</h2>
-        </div>
         <p>Choose up to four metrics and weights, from any of the <b id="labFieldCount">—</b> available fields. The lab score uses within-league percentile values so unlike units combine cleanly. Negative weights invert a metric.</p>
       </div>
       <p class="tiny" id="labNote"></p>
@@ -112,19 +114,20 @@
         <select class="labMetric" id="labMetric2" aria-label="Formula Lab metric 2"></select><input class="labWeight" id="labWeight2" aria-label="Formula Lab weight 2" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric3" aria-label="Formula Lab metric 3"></select><input class="labWeight" id="labWeight3" aria-label="Formula Lab weight 3" type="number" value="0" step="0.25" />
         <select class="labMetric" id="labMetric4" aria-label="Formula Lab metric 4"></select><input class="labWeight" id="labWeight4" aria-label="Formula Lab weight 4" type="number" value="0" step="0.25" />
-        <label class="check" style="grid-column:span 2" title="Allow ingredients that cover different sets of games"><input id="allowMixedScope" type="checkbox" /> Allow mixed season scopes</label>
-        <select class="labMetric" id="labCohort" aria-label="Formula Lab ranking cohort" title="Population the percentiles are computed against">
+        <label class="check" style="grid-column:span 2"><input id="allowMixedScope" type="checkbox" /> Allow mixed season scopes</label>
+        <select class="labMetric" id="labCohort" aria-label="Formula Lab ranking cohort">
           <option value="league">Rank vs whole league</option>
           <option value="filtered">Rank vs current filtered set</option>
         </select><button id="applyLab" class="button">Apply Lab Score</button>
       </div>
-    </section>
+    </details>
 
     <section class="db-only active-rules" id="activeRules"></section>
 
     <section class="db-only table-shell">
       <div class="table-toolbar">
-        <div><strong id="resultCount">0</strong> players <span id="sortLabel"></span><span class="tiny" id="rowCapNote"></span></div>
+        <div class="toolbar-status"><strong id="resultCount">0</strong> players <span id="sortLabel"></span>
+          <span class="howto">Tap or click a column to sort · press and hold it for the definition</span><span class="tiny" id="rowCapNote"></span></div>
         <div class="table-toolbar-actions">
           <button id="addRuleBtn" class="button secondary small">+ Add numeric filter</button>
           <button id="clearCompareBtn" class="button secondary small">Clear compare</button>

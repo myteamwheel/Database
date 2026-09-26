@@ -446,9 +446,10 @@
     const css = getComputedStyle(document.body);
     const line = css.getPropertyValue('--line') || '#273142';
     const muted = css.getPropertyValue('--muted') || '#9aabba';
+    const accent = (css.getPropertyValue('--accent') || '#e8402a').trim();
     ctx.strokeStyle = line; ctx.fillStyle = muted; ctx.lineWidth = 1;
     ctx.strokeRect(pad, pad, W - pad * 2, H - pad * 2);
-    ctx.font = '12px system-ui';
+    ctx.font = '12px "Helvetica Neue", Helvetica, Arial, sans-serif';
     for (let i = 0; i <= 4; i++) {
       const gx = xmin + ((xmax - xmin) * i) / 4, gy = ymin + ((ymax - ymin) * i) / 4;
       ctx.fillText(gx.toFixed(gx > 10 ? 0 : 2), PX(gx) - 12, H - pad + 18);
@@ -459,7 +460,7 @@
       ? (() => { const a = p.ageOpeningNight ?? p.age; return a == null ? '—' : a <= 22 ? '≤22' : a <= 26 ? '23-26' : a <= 30 ? '27-30' : '31+'; })()
       : (p[state.scatterColor] ?? '—');
     const groups = [...new Set(pts.map((q) => groupOf(q.p)))];
-    const hue = (g) => `hsl(${(groups.indexOf(g) * 67) % 360} 70% 60%)`;
+    const hue = (g) => `hsl(${(groups.indexOf(g) * 67) % 360} 65% 48%)`;
     const smax = state.scatterSize ? Math.max(...pts.map((q) => (fin(q.s) ? q.s : 0))) || 1 : 1;
 
     for (const q of pts) {
@@ -471,7 +472,7 @@
     // Least-squares trend line.
     const b = sx ? mean(pts.map((q) => (q.x - mx) * (q.y - my))) / (sx * sx) : 0;
     const a = my - b * mx;
-    ctx.strokeStyle = '#63b3ff'; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.beginPath();
     ctx.moveTo(PX(xmin), PY(a + b * xmin)); ctx.lineTo(PX(xmax), PY(a + b * xmax)); ctx.stroke();
 
     $('scStats').innerHTML = `<b>r = ${r.toFixed(3)}</b> · n = ${pts.length} · trend y = ${b.toFixed(3)}x + ${a.toFixed(2)}
@@ -763,6 +764,9 @@
     const css = getComputedStyle(document.body);
     const line = (css.getPropertyValue('--line') || '#273142').trim();
     const muted = (css.getPropertyValue('--muted') || '#9aabba').trim();
+    const accent = (css.getPropertyValue('--accent') || '#e8402a').trim();
+    const pos = (css.getPropertyValue('--pos') || '#157a45').trim();
+    const warn = (css.getPropertyValue('--warn') || '#b7791f').trim();
 
     const supported = pts.filter((f) => !f.abstain && fin(f.projectedImpact));
     const xs = pts.map((f) => f.mpg);
@@ -775,14 +779,15 @@
     const PY = (v) => H - pad - ((v - ymin) / (ymax - ymin || 1)) * (H - pad * 2);
 
     // support bars along the bottom
-    ctx.fillStyle = 'rgba(99,179,255,.16)';
+    ctx.fillStyle = accent; ctx.globalAlpha = 0.14;
     for (const f of pts) {
       const h = ((f.support || 0) / 100) * (H - pad * 2) * 0.28;
       ctx.fillRect(PX(f.mpg) - 16, H - pad - h, 32, h);
     }
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = line; ctx.lineWidth = 1;
     ctx.strokeRect(pad, pad, W - pad * 2, H - pad * 2);
-    ctx.fillStyle = muted; ctx.font = '12px system-ui';
+    ctx.fillStyle = muted; ctx.font = '12px "Helvetica Neue", Helvetica, Arial, sans-serif';
     for (const f of pts) ctx.fillText(String(f.mpg), PX(f.mpg) - 8, H - pad + 18);
     for (let i = 0; i <= 4; i++) {
       const gy = ymin + ((ymax - ymin) * i) / 4;
@@ -790,13 +795,13 @@
     }
     // zero line
     if (ymin < 0 && ymax > 0) {
-      ctx.strokeStyle = 'rgba(154,171,186,.45)'; ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = muted; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(pad, PY(0)); ctx.lineTo(W - pad, PY(0)); ctx.stroke();
       ctx.setLineDash([]);
     }
     // uncertainty band across supported bands
     if (supported.length > 1) {
-      ctx.fillStyle = 'rgba(99,179,255,.20)';
+      ctx.fillStyle = accent; ctx.globalAlpha = 0.18;
       ctx.beginPath();
       supported.forEach((f, i) => { const y = f.interval ? f.interval[1] : f.projectedImpact;
         i ? ctx.lineTo(PX(f.mpg), PY(y)) : ctx.moveTo(PX(f.mpg), PY(y)); });
@@ -804,8 +809,8 @@
         const f = supported[i]; const y = f.interval ? f.interval[0] : f.projectedImpact;
         ctx.lineTo(PX(f.mpg), PY(y));
       }
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#63b3ff'; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.beginPath();
       supported.forEach((f, i) => (i ? ctx.lineTo(PX(f.mpg), PY(f.projectedImpact))
                                     : ctx.moveTo(PX(f.mpg), PY(f.projectedImpact))));
       ctx.stroke();
@@ -818,28 +823,28 @@
         ctx.beginPath(); ctx.arc(x, PY((ymin + ymax) / 2), 6, 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = muted; ctx.fillText('no ev.', x - 16, PY((ymin + ymax) / 2) - 12);
       } else {
-        ctx.fillStyle = '#63b3ff';
+        ctx.fillStyle = accent;
         ctx.beginPath(); ctx.arc(x, PY(f.projectedImpact), 5, 0, Math.PI * 2); ctx.fill();
       }
     }
     // current role marker
     if (fin(p.mpg) && p.mpg >= xmin && p.mpg <= xmax) {
-      ctx.strokeStyle = '#9be38f'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = pos; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.moveTo(PX(p.mpg), pad); ctx.lineTo(PX(p.mpg), H - pad); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#9be38f'; ctx.fillText('current ' + p.mpg.toFixed(1), PX(p.mpg) + 6, pad + 14);
+      ctx.fillStyle = pos; ctx.fillText('current ' + p.mpg.toFixed(1), PX(p.mpg) + 6, pad + 14);
     }
     // chosen target marker
     const tgt = Number(cv.dataset.target);
     if (fin(tgt) && tgt >= xmin && tgt <= xmax) {
-      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
+      ctx.strokeStyle = warn; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(PX(tgt), pad); ctx.lineTo(PX(tgt), H - pad); ctx.stroke();
-      ctx.fillStyle = '#ffd166'; ctx.fillText('target ' + tgt, PX(tgt) + 6, pad + 30);
+      ctx.fillStyle = warn; ctx.fillText('target ' + tgt, PX(tgt) + 6, pad + 30);
     }
     $('tuLegend').innerHTML = `X = target role (MPG) · Y = projected on-court impact ·
       faint bars = Role Value support at that role ·
-      <span style="color:#9be38f">green</span> = current role ·
-      <span style="color:#ffd166">amber</span> = selected target ·
+      <span style="color:var(--pos)">green</span> = current role ·
+      <span style="color:var(--warn)">amber</span> = selected target ·
       hollow marker = <b>insufficient evidence</b> (not a predicted decline)`;
   }
 

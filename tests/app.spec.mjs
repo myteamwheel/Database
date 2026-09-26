@@ -626,7 +626,7 @@ test.describe('TULIP column', () => {
     const errors = await open(page);
 
     // Present on the DEFAULT preset, not buried in a secondary view.
-    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim().toUpperCase()));   // labels are sentence case on screen
     // The default view now leads with TULIP Beta: how many more/fewer MPG a player should get.
     // Projected Role MPG remains a separate product with its own preset and must NOT be called TULIP.
     expect(headers).toContain('TULIP');
@@ -683,7 +683,7 @@ test.describe('TULIP column', () => {
     const errors = await open(page);
     await page.selectOption('#viewPreset', 'tulip');   // the Role Value preset
     await page.waitForTimeout(500);
-    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim().toUpperCase()));   // labels are sentence case on screen
     for (const h of ['ROLE VALUE', 'ROLE VALUE NEUTRAL', 'ROLE VALUE PROJ', 'ROLE VALUE SUPPORT', 'EVIDENCE TIER', 'ROLE VERDICT']) {
       expect(headers).toContain(h);
     }
@@ -705,7 +705,7 @@ test.describe('Sort control', () => {
     await page.selectOption('#sortOrder', '-1');
     await page.waitForTimeout(500);
 
-    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
+    const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim().toUpperCase()));   // labels are sentence case on screen
     // The header gains a sort arrow once sorted, so match on prefix rather than equality.
     const idx = headers.findIndex((h) => h.startsWith('TULIP'));
     // A missing header would give -1, and Playwright's .nth(-1) silently selects the LAST column,

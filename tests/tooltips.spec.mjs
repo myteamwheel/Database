@@ -6,6 +6,15 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PAGE = 'file://' + path.join(ROOT, 'public/standalone.html');
 
+// Press and hold a header long enough to open its explanation (the app uses 450 ms).
+const hold = async (page, locator, ms = 700) => {
+  const b = await locator.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(ms);
+  await page.mouse.up();
+};
+
 const open = async (page) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -46,20 +55,31 @@ test.describe('Column tooltips', () => {
     expect(bad, `tooltips missing plain-words or formula:\n${JSON.stringify(bad, null, 1)}`).toEqual([]);
   });
 
-  test('rendered headers carry the tooltip as a title attribute', async ({ page }) => {
+  test('headers carry no native title tooltip (nothing pops up on hover)', async ({ page }) => {
     await open(page);
-    const bare = await page.$$eval('thead th', (ths) => ths
-      .filter((t) => t.innerText.trim() && !(t.getAttribute('title') || '').trim())
-      .map((t) => t.innerText.trim()));
-    expect(bare, `headers rendered with no title attribute: ${bare.join(', ')}`).toEqual([]);
+    const titled = await page.$$eval('thead th[title]', (ths) => ths.map((t) => t.innerText.trim()));
+    expect(titled, `headers that would show a browser hover box: ${titled.join(', ')}`).toEqual([]);
   });
 });
 
 test.describe('Stat explainer UI', () => {
-  test('hovering a column header shows a styled panel with what / plain words / formula', async ({ page }) => {
+  test('hovering a header shows nothing; one click sorts without opening the panel', async ({ page }) => {
     await open(page);
-    const th = page.locator('thead th.has-tip').first();
+    const th = page.locator('thead th[data-sort="gp"]');
     await th.hover();
+    await page.waitForTimeout(600);
+    expect(await page.locator('#statTip.show').count(), 'hover must not open the explanation').toBe(0);
+    await th.click();
+    await page.waitForTimeout(300);
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe('gp');
+    expect(await page.locator('#statTip.show').count(), 'a click sorts; it must not open the explanation').toBe(0);
+  });
+
+  test('press and hold opens a styled panel with what / plain words / formula, and does not sort', async ({ page }) => {
+    await open(page);
+    const before = await page.$eval('#sortField', (s) => s.value);
+    const th = page.locator('thead th.has-tip').nth(4);
+    await hold(page, th);
     await page.waitForSelector('#statTip.show', { timeout: 5000 });
     const tip = await page.evaluate(() => {
       const el = document.getElementById('statTip');
@@ -70,11 +90,12 @@ test.describe('Stat explainer UI', () => {
     expect(tip.keys.join('|').toLowerCase()).toContain('what it is');
     expect(tip.text.length).toBeGreaterThan(40);
 
-    // The browser's own tooltip must not double up on top of the styled one.
-    expect(await th.getAttribute('title')).toBeNull();
-    await page.mouse.move(5, 5);
+    // The click that ends a hold is swallowed: holding explains, it does not also re-sort.
+    expect(await page.$eval('#sortField', (s) => s.value)).toBe(before);
+    // Clicking anywhere else closes it.
+    await page.mouse.click(5, 5);
     await page.waitForTimeout(200);
-    expect(await th.getAttribute('title')).not.toBeNull();   // restored for screen readers
+    expect(await page.locator('#statTip.show').count()).toBe(0);
   });
 
   test('the panel stays inside the viewport', async ({ page }) => {
@@ -82,7 +103,7 @@ test.describe('Stat explainer UI', () => {
     const ths = page.locator('thead th.has-tip');
     const n = Math.min(await ths.count(), 8);
     for (let i = 0; i < n; i++) {
-      await ths.nth(i).hover();
+      await hold(page, ths.nth(i));
       await page.waitForTimeout(120);
       const ok = await page.evaluate(() => {
         const r = document.getElementById('statTip').getBoundingClientRect();
@@ -129,8 +150,13 @@ test.describe('Keyboard and accessibility', () => {
     const th = page.locator('thead th[data-sort]').nth(9);
     const key = await th.getAttribute('data-sort');
     await th.focus();
-    // Focus alone must surface the explainer — the mouse is not the only way in.
+    await page.waitForTimeout(200);
+    expect(await page.locator('#statTip.show').count(), 'focus alone must not open the panel').toBe(0);
+    // "?" is the keyboard equivalent of press and hold.
+    await page.keyboard.press('Shift+Slash');
     await page.waitForSelector('#statTip.show', { timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await th.focus();
     await page.keyboard.press('Enter');
     await page.waitForTimeout(400);
     expect(await page.$eval('#sortField', (s) => s.value)).toBe(key);
@@ -211,7 +237,7 @@ test.describe('Mobile: the explainer must never trap the user', () => {
     // When it IS shown on touch it must be closable — by its own button, by tapping away, and by Escape.
     await page.evaluate(() => {
       const th2 = document.querySelectorAll('thead th[data-sort]')[9];
-      window.showStatTip ? window.showStatTip(th2, th2.dataset.sort) : th2.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      window.showStatTip(th2, th2.dataset.sort);
     });
     await page.waitForTimeout(250);
     if (await page.locator('#statTip.show').count()) {
@@ -237,7 +263,7 @@ test.describe('Mobile: the explainer must never trap the user', () => {
     await open(page);
     const show = () => page.evaluate(() => {
       const th = document.querySelectorAll('thead th[data-sort]')[5];
-      th.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      window.showStatTip(th, th.dataset.sort);
     });
     await show();
     await page.waitForTimeout(200);

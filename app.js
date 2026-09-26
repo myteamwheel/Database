@@ -522,15 +522,52 @@ function showStatTip(th, key){
     + sec('In plain words', h.plain)
     + sec('How it is calculated', h.formula, 'tip-formula')
     + sec('Note', h.note)
-    + `<div class="tip-hint">${isTouch ? 'Tap the header again to sort \u00b7 tap anywhere to close' : 'Click the header to sort \u00b7 press <b>?</b> or use "Stat guide" for every column'}</div>`
+    + `<div class="tip-hint">${isTouch ? 'Tap a header to sort \u00b7 tap anywhere to close' : 'Click a header to sort \u00b7 Esc or click anywhere to close'}</div>`
     + '<button type="button" class="tip-close" aria-label="Close explanation">Close</button>';
   // Always interactive so the close control works on any device, and always closable.
   el.classList.add('pinned');
+  const host = th.closest('dialog[open]') || document.body;
+  if (el.parentNode !== host) host.appendChild(el);
   const cb = el.querySelector('.tip-close');
   if (cb) cb.onclick = () => hideStatTip(true);
   tipAnchor = th;
   el.classList.add('show');
   placeStatTip(th.getBoundingClientRect());
+}
+
+/**
+ * Column headers: ONE click sorts; PRESS AND HOLD opens the explanation. Nothing happens on hover.
+ * Hover previews opened a large panel every time the pointer crossed the header row, and on touch
+ * the same tap both sorted and opened it. Holding is deliberate, works identically with a mouse,
+ * a trackpad and a finger, and the click that ends a hold is swallowed so it never also sorts.
+ * Keyboard: Enter or Space sorts, "?" explains.
+ */
+const HOLD_MS=450;
+function wireHeader(th, key, onSort){
+  let timer=null, held=false, start=null;
+  const cancel=()=>{ clearTimeout(timer); timer=null; start=null; th.classList.remove('pressing'); };
+  th.addEventListener('pointerdown',(e)=>{
+    if(e.button!==0) return;
+    held=false; start={x:e.clientX,y:e.clientY};
+    th.classList.add('pressing');
+    timer=setTimeout(()=>{ timer=null; held=true; th.classList.remove('pressing'); showStatTip(th, key); }, HOLD_MS);
+  });
+  // A drag or scroll is not a hold.
+  th.addEventListener('pointermove',(e)=>{ if(start&&Math.hypot(e.clientX-start.x,e.clientY-start.y)>8) cancel(); });
+  th.addEventListener('pointerup',cancel);
+  th.addEventListener('pointercancel',cancel);
+  th.addEventListener('pointerleave',cancel);
+  // Long-press on touch would otherwise open the system menu or start a text selection.
+  th.addEventListener('contextmenu',(e)=>{ if(held||timer) e.preventDefault(); });
+  th.addEventListener('click',(e)=>{
+    if(held){ held=false; e.preventDefault(); e.stopPropagation(); return; }
+    hideStatTip(true); onSort();
+  });
+  th.addEventListener('keydown',(e)=>{
+    if(e.key==='?'||(e.key==='/'&&e.shiftKey)){ e.preventDefault(); showStatTip(th, key); return; }
+    if(e.key!=='Enter'&&e.key!==' ') return;
+    e.preventDefault(); hideStatTip(true); onSort();
+  });
 }
 
 /** Keep the panel beside its header and fully inside the viewport. */
@@ -556,7 +593,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideStatTip(true); });
   // Any tap or click that is not on a header dismisses it.
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest && (e.target.closest('#statTip') || e.target.closest('th[data-sort]'))) return;
+    if (e.target.closest && (e.target.closest('#statTip') || e.target.closest('th[data-sort],th[data-ta-col]'))) return;
     hideStatTip(true);
   }, true);
   // Scrolling RE-ANCHORS the panel to its header rather than dismissing it. Blanket-hiding on
@@ -570,6 +607,7 @@ if (typeof document !== 'undefined') {
     placeStatTip(r);
   }, true);
   window.addEventListener('resize', () => hideStatTip(true));
+  document.addEventListener('close', () => hideStatTip(true), true);   // a closing dialog takes its header with it
 }
 
 /**
@@ -752,6 +790,18 @@ function teamScoped(p,team,mode){
   return q;
 }
 
+/**
+ * Ordinal labels sort by what they mean, not alphabetically. Sorting Support alphabetically put
+ * MEDIUM above HIGH; High-to-low must read HIGH, MEDIUM, LOW.
+ */
+const ORDINAL={'tb.confidence':{HIGH:3,MEDIUM:2,LOW:1},'tulip.tier':{A:4,B:3,C:2,D:1}};
+function sortValue(p,key){
+  const v=get(p,key);
+  const scale=ORDINAL[key];
+  if(scale) return v===null||v===undefined?null:(scale[String(v).toUpperCase()]??null);
+  return v;
+}
+
 function filteredPlayers(){
   const q=fold($('searchInput').value.trim());
   const team=$('teamFilter').value, pos=$('positionFilter').value, country=$('countryFilter').value;
@@ -775,10 +825,13 @@ function filteredPlayers(){
         &&(p.teamScopedTo||(p.reliabilityWeight||0)>=minRel)&&applyRules(p);
     });
   list.sort((a,b)=>{
-    const av=get(a,sortKey),bv=get(b,sortKey);
+    const av=sortValue(a,sortKey),bv=sortValue(b,sortKey);
     if(finite(av)&&finite(bv))return (Number(av)-Number(bv))*sortDir;
     if(finite(av))return -1;if(finite(bv))return 1;
-    return String(av??'').localeCompare(String(bv??''))*sortDir;
+    // Blank is not a value: it sorts last in both directions, for text columns too.
+    const ab=av===null||av==='', bb=bv===null||bv==='';
+    if(ab||bb) return ab===bb?0:ab?1:-1;
+    return String(av).localeCompare(String(bv))*sortDir;
   });
   return list;
 }
@@ -853,29 +906,12 @@ function render(){
     // also what makes the focus-triggered explainer panel reachable without a mouse. aria-sort
     // announces the current ordering to screen readers.
     const aria = sortKey===key ? (sortDir<0?'descending':'ascending') : 'none';
-    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}" title="${esc(d.help||d.label)}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
+    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
-  document.querySelectorAll('[data-sort]').forEach(th=>{
-    th.onclick=()=>{const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}hideStatTip(true);render();};
-    // The native title tooltip is kept in the DOM for screen readers and for the regression test,
-    // but stripped while the pointer is over the header so the browser's own box does not appear
-    // on top of the styled panel.
-    // On touch, mouseenter fires as part of the tap that also sorts; showing the panel there is
-    // what trapped it on screen. Hover devices keep the immediate preview.
-    th.addEventListener('mouseenter',()=>{ th.dataset.title=th.getAttribute('title')||''; th.removeAttribute('title'); showStatTip(th, th.dataset.sort); });
-    th.addEventListener('mouseleave',()=>{
-      if(th.dataset.title!==undefined) th.setAttribute('title', th.dataset.title);
-      // Delay so the pointer can travel onto the panel to reach its Close button.
-      setTimeout(()=>{ if(!tipEl?.matches(':hover')) hideStatTip(true); }, 220);
-    });
-    th.addEventListener('focus',()=>showStatTip(th, th.dataset.sort));
-    th.addEventListener('blur',hideStatTip);
-    th.addEventListener('keydown',(e)=>{
-      if(e.key!=='Enter'&&e.key!==' ') return;
-      e.preventDefault(); th.click();
-    });
-  });
+  document.querySelectorAll('#tableHead [data-sort]').forEach(th=>wireHeader(th, th.dataset.sort, ()=>{
+    const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();
+  }));
   document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
   document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
   document.querySelectorAll('[data-compare]').forEach(c=>c.onchange=()=>{if(c.checked){if(compared.size>=5){c.checked=false;return}compared.add(c.dataset.compare)}else compared.delete(c.dataset.compare);updateCompare();});
@@ -886,10 +922,15 @@ function cell(p,key){
   const def=colDef(key),v=get(p,key);
   if(key==='select')return `<td><input class="compare-check" type="checkbox" data-compare="${esc(p.playerId)}" ${compared.has(p.playerId)?'checked':''}></td>`;
   if(key==='name'){
-    const multi=(p.teamCount||1)>1?`<span class="multi-badge" title="${esc((p.teams||[]).map(s=>`${s.team} ${s.gp}g`).join(' · '))}">${p.teamCount} TM</span>`:'';
-    return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" title="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${esc(p.team||'')} · ${esc(p.position||'—')}</span></td>`;
+    const multi=(p.teamCount||1)>1?`<span class="multi-badge" aria-label="${esc((p.teams||[]).map(s=>`${s.team} ${s.gp}g`).join(' · '))}">${p.teamCount} TM</span>`:'';
+    return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${esc(p.team||'')} · ${esc(p.position||'—')}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${fmt(v,def.type)}</td>`;
+  // Direction is the point of a TULIP value, so it reads at a glance: green gains, red gives up.
+  if(key==='tb.tulip'||key==='tb.valueGapSd'){
+    const cls=finite(v)&&Number(v)>0?'metric-good':finite(v)&&Number(v)<0?'metric-bad':'';
+    return `<td class="${cls}">${fmt(v,def.type)}</td>`;
+  }
   return `<td class="${key==='viewRank'||key==='rank'?'rank':''}">${fmt(v,def.type)}</td>`;
 }
 
@@ -1075,11 +1116,12 @@ function openTeamAllocation(team,{preserveState=false}={}){
       </label>
     </div>
     <div class="table-wrap"><table class="compare-table"><thead><tr>
-      <th class="left">Player</th><th>Current MPG</th><th>TULIP</th><th>Recommended MPG</th><th>Support</th><th>Role evidence</th></tr></thead>
+      <th class="left">Player</th>${[['current','tb.currentMpg','Current MPG'],['tulip','tb.tulip','TULIP'],['recommended','tb.recommendedMpg','Recommended MPG'],['support','tb.confidence','Support']]
+        .map(([k,help,label])=>`<th class="sortable" tabindex="0" data-ta-col="${k}" data-help="${help}" aria-sort="${teamAllocState.sort===k?'descending':'none'}">${label}${teamAllocState.sort===k?' ↓':''}</th>`).join('')}<th>Role evidence</th></tr></thead>
       <tbody data-ta-roster-body>${visible.map(p=>`<tr data-ta-direction="${teamAllocationDirection(p)}">
         <td class="left"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button></td>
         <td>${num(p.tulipBeta.currentMpg)}</td>
-        <td><b>${signed(p.tulipBeta.tulip)}</b></td>
+        <td class="${p.tulipBeta.tulip>0?'metric-good':p.tulipBeta.tulip<0?'metric-bad':''}"><b>${signed(p.tulipBeta.tulip)}</b></td>
         <td>${num(p.tulipBeta.recommendedMpg)}</td>
         <td>${esc(p.tulipBeta.confidence||'—')}</td>
         <td>${ev(p)}</td></tr>`).join('')||'<tr><td colspan="6" class="tiny">No players match this filter.</td></tr>'}</tbody></table></div>
@@ -1089,6 +1131,10 @@ function openTeamAllocation(team,{preserveState=false}={}){
     <div class="modal-actions">
       <button class="button" data-teamalloc="">Another team</button>
       <button class="button" data-ta-close>Close</button></div>`;
+  // Same header contract as the main table: click sorts, press and hold explains.
+  teamAllocDlg.querySelectorAll('[data-ta-col]').forEach(th=>wireHeader(th, th.dataset.help, ()=>{
+    teamAllocState.sort=th.dataset.taCol; openTeamAllocation(team,{preserveState:true});
+  }));
   if(!teamAllocDlg.open) teamAllocDlg.showModal();
 }
 // Delegated so dynamically rendered buttons (player detail, team picker, table rows) all work.
