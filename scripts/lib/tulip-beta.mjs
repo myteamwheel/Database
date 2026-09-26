@@ -12,7 +12,8 @@
 // FOUR THINGS SHAPE THE NUMBER, in order:
 //   1. team-relative value    who deserves minutes versus the team-mates actually consuming them
 //   2. workload state         a +1 SD player at 12 MPG and at 34 MPG must not get the same delta
-//   3. role evidence          expansion is attenuated where history does not support that workload
+//   3. role evidence          expansion is attenuated where history does not support that workload,
+//                            but historical workload is not a hard cap on a breakout recommendation
 //   4. zero-sum allocation    every minute granted is sourced from a team-mate; the ledger conserves
 
 export const BETA_CONFIG = {
@@ -106,13 +107,18 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     const wh = workloadHistory(p);
     const ceiling = Math.min(BETA_CONFIG.ceilingHardCap,
       Math.max(Number(p.mpg), wh.careerHigh, wh.sustained, supportedFrontierMpg(p)));
-    const headUp = Math.max(0, ceiling - Number(p.mpg));
+    const headUp = Math.max(0, BETA_CONFIG.ceilingHardCap - Number(p.mpg));
     const headDown = Math.max(0, Number(p.mpg) - BETA_CONFIG.floorMpg);
 
     let evF = 1;
     if (desired > 0) {
       evF = evidenceFactor(p, Number(p.mpg) + desired);
-      desired = Math.min(desired * evF, headUp);       // evidence attenuates, ceiling caps
+      // Historical/role evidence is a SUPPORT signal, not a hard prohibition on growth. The old
+      // implementation capped positive movement at the highest workload already observed/supported,
+      // which made genuine breakouts mechanically unable to move much beyond ~8 MPG. Keep the
+      // evidence attenuation, but let a strong signal expand anywhere inside the feasible 0-40 MPG
+      // range. Confidence drops when the final recommendation exceeds the supported workload.
+      desired = Math.min(desired * evF, headUp);
     } else {
       desired = Math.max(desired, -headDown);          // cannot take minutes he does not have
     }
