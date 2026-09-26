@@ -51,6 +51,8 @@
   }
 
   /* ------------------------------------------------- shared UI fragments */
+  const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || p.team || 'Unsigned') : (p?.team || '—');
+
   const bar = (label, v, extra = '') =>
     `<div class="pbar"><span class="pbar-l">${esc(label)}</span>
       <span class="pbar-t"><i style="width:${fin(v) ? Math.max(1, Math.min(100, v)) : 0}%"></i></span>
@@ -59,7 +61,7 @@
   const playerPicker = (id, selected, label) =>
     `<label>${esc(label)}<select id="${id}">${
       players().slice().sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(p.team)}</option>`).join('')
+        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(teamOf(p))}</option>`).join('')
     }</select></label>`;
 
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
@@ -161,7 +163,7 @@
     <div class="ws-head">
       <div>${playerPicker('wsPlayerSel', p.playerId, 'Player')}</div>
       <div class="ws-title"><h2>${esc(p.name)}</h2>
-        <p class="tiny">${esc(p.leagueLabel)} · ${esc(p.team)} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')} · ${p.gp} games · ${num(p.mpg)} mpg</p></div>
+        <p class="tiny">${esc(p.leagueLabel)} · ${esc(teamOf(p))} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')} · ${p.gp} games · ${num(p.mpg)} mpg</p></div>
     </div>
 
     <div class="ws-grid">
@@ -174,7 +176,7 @@
       <div class="ws-card"><div class="k">Reliability</div><div class="v">${num(p.reliabilityWeight)}</div>
         <p class="tiny">coverage ${num(p.gradeCoverage)}%</p></div>
       ${cr.position ? `<div class="ws-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${cr.position.rank}</div><p class="tiny">of ${cr.position.of}</p></div>` : ''}
-      ${cr.team ? `<div class="ws-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
+      ${cr.team ? `<div class="ws-card"><div class="k">2025-26 ${esc(p.seasonTeam || p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
     </div>
 
     <div class="ws-cols">
@@ -195,7 +197,7 @@
     <h3>Archetypes <span class="tiny">rule-based, with the axes that drove each score</span></h3>
     <div class="arche-row">${arche || '<p class="tiny">Not enough profile data.</p>'}</div>
 
-    ${p.ownTeamFit ? `<h3>Fit with ${esc(p.team)}</h3>
+    ${p.ownTeamFit ? `<h3>Fit with ${esc(teamOf(p))}</h3>
       <div class="ws-card wide"><div class="v">${p.ownTeamFit.score}/100</div>
         <p class="tiny">${[...p.ownTeamFit.strengths, ...p.ownTeamFit.weaknesses].map(esc).join('<br>')}</p>
         <p class="tiny">Fit is not quality — it measures how well this profile answers what the roster lacks.</p></div>` : ''}
@@ -383,7 +385,7 @@
     return `<h2>Compare</h2>
       ${cross ? '<p class="tiny"><b>Cross-league comparison.</b> Each league is graded against its own population, so grades are not on a shared scale.</p>' : ''}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>
-        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(p.team)} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
+        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamOf(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
         <tbody>${metrics.filter((k) => ps.some((p) => fin(valueOf(p, k)))).map((k) => {
           const b = best(k);
           return `<tr><td class="left">${esc(window.__wsLabel(k))}</td>${ps.map((p) => {
@@ -688,7 +690,7 @@
           A league-referenced role-expansion value — not context-free player quality.</p>
           <div class="v big">${num(rot?.leagueReferencedDelta, 2)}</div></section>
         <section class="read-block"><div class="eyebrow">TEAM DECISION READ</div>
-          <p class="tiny">Whether reallocating minutes from realistic players on <b>${esc(p.team)}</b>
+          <p class="tiny">Whether reallocating minutes from realistic players on <b>${esc(teamOf(p))}</b>
           appears beneficial. Dominated by who currently holds those minutes.</p>
           <div class="v big">${num(rot?.neutralRotationDelta, 2)}</div></section>
       </div>
@@ -752,7 +754,7 @@
         ${cands.filter((x) => !x.tulip.card.abstain && x.tulip.card.rotation && !x.tulip.card.rotation.abstain)
           .slice(0, 25).map((x) => `<tr>
           <td class="left"><button class="player-link" data-tulip="${esc(x.playerId)}">${esc(x.name)}</button>
-            <span class="tiny">${esc(x.team)}</span></td>
+            <span class="tiny">${esc(teamOf(x))}</span></td>
           <td>${num(x.mpg)}</td><td>${num(x.tulip.card.targetMpg)}</td>
           <td><b>${num(x.tulip.card.rotation.leagueReferencedDelta, 2)}</b></td>
           <td>${num(x.tulip.card.rotation.neutralRotationDelta, 2)}</td>
