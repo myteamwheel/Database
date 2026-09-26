@@ -92,6 +92,7 @@ async function download(url, label) {
 }
 
 const livePlayerBoxFallbacks = [];
+const liveSummaryNotFound = new Set();
 async function hydrateLivePlayerBoxIfMissing(espnGameId, playerBoxCsv, playerBoxByGame) {
   if ((playerBoxByGame.get(espnGameId) || []).length) return false;
   const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${encodeURIComponent(espnGameId)}`;
@@ -106,7 +107,11 @@ async function hydrateLivePlayerBoxIfMissing(espnGameId, playerBoxCsv, playerBox
         headers: { 'User-Agent': 'TulipBasketball-starter-acceptance-gate/1.0' },
       });
       clearTimeout(timer);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const e = new Error(`HTTP ${response.status}`);
+        e.status = response.status;
+        throw e;
+      }
       const text = await response.text();
       const json = JSON.parse(text);
       if (String(json?.header?.id || '') !== String(espnGameId)) {
@@ -151,6 +156,10 @@ async function hydrateLivePlayerBoxIfMissing(espnGameId, playerBoxCsv, playerBox
       return true;
     } catch (error) {
       last = error;
+      if (error?.status === 404) {
+        liveSummaryNotFound.add(String(espnGameId));
+        break;
+      }
       if (attempt < 4) await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
   }
@@ -506,21 +515,35 @@ function historicalExpectedGames(phaseInputs) {
   return Object.fromEntries(Object.entries(phaseInputs).map(([phase, input]) => [phase, [...input.games.keys()].sort()]));
 }
 
-function currentExpectedGames(scheduleCsv, splitExpectation) {
-  // NBA game-id families: 002 = regular season, 004 = playoffs. We intentionally exclude
-  // preseason/all-star/play-in here to preserve the same Regular Season + Playoffs contract as
-  // scripts/fetch-history.mjs.
-  const regular = [], playoffs = [];
+async function currentExpectedGames(scheduleCsv, splitExpectation, playerBoxCsv, playerBoxByGame) {
+  // NBA game-id families: 002 = regular season, 004 = playoffs. The schedule source includes
+  // conditional postseason slots (for example Games 6/7 that become unnecessary when a series ends).
+  // Regular season is independently locked by the official StarterBench split. For playoffs, a game
+  // is in the played universe only when ESPN has an actual player box in the season release OR its
+  // live summary endpoint. A hard ESPN 404 means the conditional event did not materialize; network
+  // failures are NOT treated that way and remain failures downstream.
+  const regular = [], playoffCandidates = [], omittedConditional = [];
   for (const row of scheduleCsv.rows) {
     const nba = clean(value(scheduleCsv, row, 'nba_game_id'));
+    const espn = clean(value(scheduleCsv, row, 'espn_game_id'));
     if (nba.startsWith('002')) regular.push(nba);
-    else if (nba.startsWith('004')) playoffs.push(nba);
+    else if (nba.startsWith('004')) playoffCandidates.push({ nba, espn });
+  }
+  const playoffs = [];
+  for (const g of playoffCandidates) {
+    if (!(playerBoxByGame.get(g.espn) || []).length) {
+      await hydrateLivePlayerBoxIfMissing(g.espn, playerBoxCsv, playerBoxByGame);
+    }
+    if ((playerBoxByGame.get(g.espn) || []).length) playoffs.push(g.nba);
+    else if (liveSummaryNotFound.has(g.espn)) omittedConditional.push({ nbaGameId: g.nba, espnGameId: g.espn });
+    else playoffs.push(g.nba); // fail closed later if source retrieval failed for any other reason
   }
   const expectedRegularFromSplit = [...splitExpectation.starts.values()].reduce((a, b) => a + b, 0) / 10;
   if (!Number.isInteger(expectedRegularFromSplit)) throw new Error(`current starter split edge total does not imply an integer game count: ${expectedRegularFromSplit}`);
   return {
     games: { 'Regular Season': [...new Set(regular)].sort(), Playoffs: [...new Set(playoffs)].sort() },
     expectedRegularFromSplit,
+    omittedConditional,
   };
 }
 
@@ -577,9 +600,10 @@ if (hasHistoricalCache) {
   expectedGames = historicalExpectedGames(phaseInputs);
 } else {
   splitExpectation = currentStarterExpectation(season);
-  const current = currentExpectedGames(scheduleCsv, splitExpectation);
+  const current = await currentExpectedGames(scheduleCsv, splitExpectation, playerBoxCsv, playerBoxByGame);
   expectedGames = current.games;
   currentCountExpectation = current.expectedRegularFromSplit;
+  if (current.omittedConditional.length) console.log(`  omitted ${current.omittedConditional.length} conditional playoff schedule slot(s) with ESPN 404 and no player box`);
 }
 
 const failures = [];
