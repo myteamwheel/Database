@@ -544,7 +544,9 @@
       const diff = (q.biggestDifferences || []).map((x) => esc(x.label)).join(', ') || '—';
       return `<section class="ws-card wide comp-card" data-comp-rank="${i + 1}">
         <div class="eyebrow">#${i + 1} HISTORICAL COMP · ${esc(q.season)} ${esc(q.team || '')}</div>
-        <h3><button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>
+        <h3>${byId(q.playerId)
+          ? `<button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>`
+          : `<span class="historical-comp-name">${esc(q.name)}</span>`}
           <span class="tiny">${esc(q.position || '')}${rel}</span></h3>
         <div class="player-grid">
           <div class="ws-card"><div class="k">Overall match</div><div class="v">${num(q.similarity, 1)}%</div>
