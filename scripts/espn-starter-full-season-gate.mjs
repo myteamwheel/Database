@@ -21,7 +21,7 @@ const CURRENT_SPLIT = path.join(ROOT, 'scripts/data/splits_nba/starter.json');
 const SOURCE_REPO = 'sportsdataverse/sportsdataverse-data';
 const SOURCE_TAG = 'espn_nba_player_boxscores';
 const XWALK_TAG = 'nba_crosswalk';
-const GATE_SCHEMA_VERSION = 1;
+const GATE_SCHEMA_VERSION = 2;
 const ASSIGNMENT_SCHEMA_VERSION = 2;
 const MIN_CROSSWALK_CONFIDENCE = 0.92;
 const CURRENT_SEASON = '2025-26';
@@ -38,6 +38,12 @@ function bool(v) { return /^(true|t|1)$/i.test(String(v ?? '').trim()); }
 function clean(v) {
   const s = String(v ?? '').trim();
   return /^(na|nan|null)$/i.test(s) ? '' : s;
+}
+function normalizeName(v) {
+  return clean(v).normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, '')
+    .replace(/[^a-z0-9]+/g, '');
 }
 function int(v, label) {
   const n = Number(v);
@@ -77,8 +83,7 @@ async function download(url, label) {
       return { label, url, buffer: buf, ...sha256Buffer(buf) };
     } catch (error) {
       last = error;
-      // A missing release asset is permanent, not a transient network error. Let the caller use
-      // the consolidated crosswalk immediately instead of retrying the same known 404 four times.
+      // A missing release asset is permanent, not a transient network error.
       if (error?.status === 404) break;
       if (attempt < 4) await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
@@ -162,14 +167,24 @@ function currentStarterExpectation(season) {
   const rs = Array.isArray(json.resultSets) ? json.resultSets[0] : json.resultSets;
   if (!rs?.headers || !rs?.rowSet) throw new Error(`${season}: malformed scripts/data/splits_nba/starter.json`);
   const idx = Object.fromEntries(rs.headers.map((h, i) => [h, i]));
-  for (const col of ['PLAYER_ID', 'GP']) if (!(col in idx)) throw new Error(`${season}: current starter split missing ${col}`);
-  const starts = new Map();
+  for (const col of ['PLAYER_ID', 'PLAYER_NAME', 'GP']) if (!(col in idx)) throw new Error(`${season}: current starter split missing ${col}`);
+  const starts = new Map(), exactNameIndex = new Map();
   for (const row of rs.rowSet) {
     const id = String(row[idx.PLAYER_ID]);
+    const name = clean(row[idx.PLAYER_NAME]);
     if (starts.has(id)) throw new Error(`${season}: duplicate current starter split player ${id}`);
     starts.set(id, int(row[idx.GP], `${season} current starter GP ${id}`));
+    const key = normalizeName(name);
+    if (key) {
+      if (!exactNameIndex.has(key)) exactNameIndex.set(key, []);
+      exactNameIndex.get(key).push({ nbaPlayerId: id, nbaPlayerName: name });
+    }
   }
-  return { file: CURRENT_SPLIT, starts, fingerprint: sha256File(CURRENT_SPLIT), source: 'tracked 2025-26 NBA StarterBench=Starters split' };
+  return {
+    file: CURRENT_SPLIT, starts, exactNameIndex,
+    fingerprint: sha256File(CURRENT_SPLIT),
+    source: 'tracked 2025-26 NBA StarterBench=Starters split',
+  };
 }
 
 function verifyHistoryProvenance(season, phaseInputs, splitInput) {
@@ -265,28 +280,43 @@ function scheduleRecord(csv, row) {
   };
 }
 
-function resolvePlayer(playerCsv, rows, espnTeamId, espnAthleteId, failures, context) {
-  if (!rows?.length) {
-    addFailure(failures, 'PLAYER_MISSING_FROM_CROSSWALK', { ...context, espnTeamId, espnAthleteId });
-    return null;
-  }
-  const candidates = rows.map((row) => ({
+function resolvePlayer(playerCsv, rows, espnTeamId, espnAthleteId, failures, context, espnName, exactNameIndex) {
+  const candidates = (rows || []).map((row) => ({
     nbaPlayerId: clean(value(playerCsv, row, 'nba_player_id')),
     method: clean(value(playerCsv, row, 'match_method')),
     confidence: Number(value(playerCsv, row, 'match_confidence')),
     nbaPlayerName: 'nba_player_name' in playerCsv.index ? clean(value(playerCsv, row, 'nba_player_name')) : '',
     espnFullName: 'espn_full_name' in playerCsv.index ? clean(value(playerCsv, row, 'espn_full_name')) : '',
-  })).filter((x) => x.nbaPlayerId && x.method && x.method !== 'unmatched' && Number.isFinite(x.confidence) && x.confidence >= MIN_CROSSWALK_CONFIDENCE);
+  })).filter((x) => x.nbaPlayerId && x.method && x.method !== 'unmatched'
+    && Number.isFinite(x.confidence) && x.confidence >= MIN_CROSSWALK_CONFIDENCE);
   const ids = new Set(candidates.map((x) => x.nbaPlayerId));
-  if (ids.size !== 1) {
-    addFailure(failures, 'PLAYER_CROSSWALK_NOT_UNIQUE_OR_CONFIDENT', {
-      ...context, espnTeamId, espnAthleteId, rows: rows.length,
-      acceptableCandidates: candidates.map((x) => ({ nbaPlayerId: x.nbaPlayerId, method: x.method, confidence: x.confidence })),
-    });
-    return null;
+  if (ids.size === 1) return candidates.find((x) => x.nbaPlayerId === [...ids][0]);
+
+  // The published 2026 player crosswalk was assembled from later/current rosters, so players who
+  // started earlier in 2025-26 but were subsequently traded/waived can be absent. For the CURRENT
+  // season only, fall back to an EXACT normalized-name join against NBA's independently fetched
+  // StarterBench=Starters split. This is not fuzzy matching: the official split must contain exactly
+  // one NBA player with the same normalized full name.
+  const nameKey = normalizeName(espnName);
+  const nameMatches = nameKey && exactNameIndex ? (exactNameIndex.get(nameKey) || []) : [];
+  if (nameMatches.length === 1) {
+    const x = nameMatches[0];
+    return {
+      nbaPlayerId: x.nbaPlayerId,
+      nbaPlayerName: x.nbaPlayerName,
+      espnFullName: clean(espnName),
+      method: 'official_starter_split_exact_name',
+      confidence: 1,
+    };
   }
-  const chosen = candidates.find((x) => x.nbaPlayerId === [...ids][0]);
-  return chosen;
+
+  addFailure(failures, rows?.length ? 'PLAYER_CROSSWALK_NOT_UNIQUE_OR_CONFIDENT' : 'PLAYER_MISSING_FROM_CROSSWALK', {
+    ...context, espnTeamId, espnAthleteId, espnName: clean(espnName),
+    rows: rows?.length || 0,
+    acceptableCandidates: candidates.map((x) => ({ nbaPlayerId: x.nbaPlayerId, method: x.method, confidence: x.confidence })),
+    exactOfficialNameMatches: nameMatches.map((x) => ({ nbaPlayerId: x.nbaPlayerId, nbaPlayerName: x.nbaPlayerName })),
+  });
+  return null;
 }
 
 function validateScheduleRecord(rec, failures, context) {
@@ -306,7 +336,7 @@ function validateScheduleRecord(rec, failures, context) {
 }
 
 function evaluateMappedGame({
-  seasonType, rec, localGame, playerBoxCsv, playerBoxByGame, playerCsv, playerByKey, failures,
+  seasonType, rec, localGame, playerBoxCsv, playerBoxByGame, playerCsv, playerByKey, failures, exactNameIndex,
 }) {
   const sourceRows = playerBoxByGame.get(rec.espnGameId) || [];
   if (!sourceRows.length) {
@@ -347,12 +377,21 @@ function evaluateMappedGame({
     const mapped = [];
     const crosswalkEvidence = [];
     for (const espnAthleteId of espnStarterIds) {
-      const resolved = resolvePlayer(playerCsv, playerByKey.get(`${espnTeamId}|${espnAthleteId}`), espnTeamId, espnAthleteId, failures, {
-        seasonType, gameId: rec.nbaGameId, espnGameId: rec.espnGameId, nbaTeamId,
-      });
+      const starterRow = starters.find((row) => clean(value(playerBoxCsv, row, 'athlete_id')) === espnAthleteId);
+      const espnName = starterRow && 'athlete_display_name' in playerBoxCsv.index
+        ? clean(value(playerBoxCsv, starterRow, 'athlete_display_name')) : '';
+      const resolved = resolvePlayer(
+        playerCsv, playerByKey.get(`${espnTeamId}|${espnAthleteId}`),
+        espnTeamId, espnAthleteId, failures,
+        { seasonType, gameId: rec.nbaGameId, espnGameId: rec.espnGameId, nbaTeamId },
+        espnName, exactNameIndex,
+      );
       if (!resolved) continue;
       mapped.push(resolved.nbaPlayerId);
-      crosswalkEvidence.push({ espnAthleteId, nbaPlayerId: resolved.nbaPlayerId, method: resolved.method, confidence: resolved.confidence });
+      crosswalkEvidence.push({
+        espnAthleteId, espnName, nbaPlayerId: resolved.nbaPlayerId,
+        method: resolved.method, confidence: resolved.confidence,
+      });
     }
     if (mapped.length !== 5 || new Set(mapped).size !== 5) {
       addFailure(failures, 'MAPPED_STARTER_IDENTITY_NOT_FIVE_DISTINCT', {
@@ -504,6 +543,7 @@ for (const seasonType of ['Regular Season', 'Playoffs']) {
     }
     const gameAssignments = evaluateMappedGame({
       seasonType, rec, localGame, playerBoxCsv, playerBoxByGame, playerCsv, playerByKey, failures,
+      exactNameIndex: splitExpectation.exactNameIndex || null,
     });
     if (gameAssignments) {
       mappedGames++;
@@ -552,7 +592,7 @@ const sourceContract = {
   provider: 'ESPN data processed and published by SportsDataverse/hoopR',
   playerBox: 'starter=true only; never inferred from minutes',
   scheduleIdentity: 'nba_schedule_crosswalk: exact match_method=both and match_confidence=1',
-  playerIdentity: `nba_player_crosswalk: unique NBA player id at confidence >= ${MIN_CROSSWALK_CONFIDENCE}, then local NBA roster membership when historical cache exists`,
+  playerIdentity: `nba_player_crosswalk: unique NBA player id at confidence >= ${MIN_CROSSWALK_CONFIDENCE}; current 2025-26 only may fall back to an exact normalized full-name match against the independent official StarterBench=Starters split; historical mode still requires crosswalk/local-roster validation`,
   regularSeasonAcceptance: 'mapped per-player start counts must exactly equal NBA StarterBench=Starters GP for every player',
 };
 
