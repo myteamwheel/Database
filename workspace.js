@@ -24,7 +24,7 @@
   /* ------------------------------------------------------------- mode nav */
   const MODES = [
     ['database', 'Database'], ['player', 'Player'], ['compare', 'Compare'],
-    ['scatter', 'Scatter'], ['similarity', 'Similarity'], ['teamfit', 'Team Fit'],
+    ['scatter', 'Scatter'], ['similarity', 'Player Comps'], ['teamfit', 'Team Fit'],
     ['tulip', 'Role Value'],
   ];
 
@@ -228,7 +228,7 @@
       </tbody></table></div>` : ''}
 
     ${p.nbaTranslation && Object.keys(p.nbaTranslation).length ? translationBlock(p) : ''}
-    <div class="ws-actions"><button class="button" id="wsFindSimilar">Find similar players</button></div>`;
+    <div class="ws-actions"><button class="button" id="wsFindSimilar">Find player comps</button></div>`;
   }
 
   function historyBlock(p) {
@@ -501,62 +501,90 @@
     };
   }
 
-  /* ------------------------------------------------------ SIMILARITY MODE */
-  function simScore(a, b) {
-    const W = window.DATA.analysis.similarityWeights;
-    let acc = 0, wsum = 0; const axes = [];
-    for (const [axis, w] of Object.entries(W)) {
-      const x = a?.[axis], y = b?.[axis];
-      if (!fin(x) || !fin(y)) continue;
-      const diff = x - y;
-      acc += w * diff * diff; wsum += w;
-      axes.push({ axis, diff: Math.abs(diff) });
-    }
-    if (!wsum) return null;
-    const d = Math.sqrt(acc / wsum);
-    axes.sort((p, q) => p.diff - q.diff);
-    return { score: Math.max(0, Math.min(100, 100 * (1 - d / 100))), axes };
+  /* ------------------------------------------------------ PLAYER COMPS MODE */
+  function physicalLine(x) {
+    const bits = [];
+    if (x?.height) bits.push(x.height);
+    if (fin(x?.weight)) bits.push(num(x.weight, 0) + ' lb');
+    if (x?.wingspan) bits.push(x.wingspan + ' wingspan');
+    if (x?.standingReach) bits.push(x.standingReach + ' reach');
+    return bits.join(' · ') || 'Measurements unavailable';
+  }
+
+  function compBlockScore(c, key) {
+    const v = c?.blockScores?.[key];
+    return fin(v) ? num(v, 1) : '—';
   }
 
   function viewSimilarity() {
-    const p = byId(state.simPlayer) || byId(state.player) || players()[0];
+    const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
-    const pool = [];
-    const add = (lg) => (window.DATA.leagues[lg] || []).filter((q) => q.appeared && q.skillProfile
-      && q.playerId !== p.playerId && (q.minutes || 0) >= state.simMinMin)
-      .forEach((q) => pool.push(q));
-    if (state.simLeague === 'same') add(p.league);
-    else if (state.simLeague === 'other') add(p.league === 'NBA' ? 'GLEAGUE' : 'NBA');
-    else { add('NBA'); add('GLEAGUE'); }
+    const lg = p.league === 'NBA' ? 'NBA' : 'GLEAGUE';
+    const set = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
-    const results = pool.map((q) => ({ q, s: simScore(p.skillProfile, q.skillProfile) }))
-      .filter((x) => x.s).sort((a, b) => b.s.score - a.s.score).slice(0, 25);
+    if (!set) {
+      return `<h2>Player Comps</h2>
+        <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+        <div class="ws-card wide"><p>No historical comparison is available for <b>${esc(p.name)}</b>.
+        This usually means the player has no usable 2025-26 professional sample yet.</p></div>
+        <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
+    }
 
-    return `<h2>Similarity search</h2>
-      <div class="ws-controls">
-        ${playerPicker('simSel', p.playerId, 'Player')}
-        <label>Pool<select id="simLeague">
-          <option value="same"${state.simLeague === 'same' ? ' selected' : ''}>Same league</option>
-          <option value="other"${state.simLeague === 'other' ? ' selected' : ''}>Other league</option>
-          <option value="both"${state.simLeague === 'both' ? ' selected' : ''}>Both</option>
-        </select></label>
-        <label>Min total minutes<input id="simMin" type="number" step="50" value="${state.simMinMin}"></label>
+    const targetPhysical = set.targetPhysical || {};
+    const blend = (set.blend || []).map((x) =>
+      `<b>${x.share}% ${esc(x.name)}</b> <span class="tiny">(${esc(x.season)})</span>`).join(' + ');
+
+    const cards = (set.top3 || []).map((q, i) => {
+      const rel = (q.relation || []).length ? ` · ${esc(q.relation.join(', '))}` : '';
+      const similar = (q.mostSimilar || []).map(esc).join(', ') || '—';
+      const diff = (q.biggestDifferences || []).map((x) => esc(x.label)).join(', ') || '—';
+      return `<section class="ws-card wide comp-card" data-comp-rank="${i + 1}">
+        <div class="eyebrow">#${i + 1} HISTORICAL COMP · ${esc(q.season)} ${esc(q.team || '')}</div>
+        <h3><button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>
+          <span class="tiny">${esc(q.position || '')}${rel}</span></h3>
+        <div class="player-grid">
+          <div class="ws-card"><div class="k">Overall match</div><div class="v">${num(q.similarity, 1)}%</div>
+            <p class="tiny">${num(q.coverage, 0)}% feature coverage</p></div>
+          <div class="ws-card"><div class="k">Physical match</div><div class="v">${compBlockScore(q, 'physical')}</div>
+            <p class="tiny">${physicalLine(q)}</p></div>
+          <div class="ws-card"><div class="k">Role / production</div><div class="v">${compBlockScore(q, 'role')}</div></div>
+          <div class="ws-card"><div class="k">Scoring style</div><div class="v">${compBlockScore(q, 'scoring')}</div></div>
+          <div class="ws-card"><div class="k">Defense / activity</div><div class="v">${compBlockScore(q, 'defense')}</div></div>
+        </div>
+        <div class="table-wrap"><table class="compare-table"><thead><tr>
+          <th>MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TS%</th><th>3PA share</th><th>STL/36</th><th>BLK/36</th>
+        </tr></thead><tbody><tr>
+          <td>${num(q.mpg)}</td><td>${num(q.pts36)}</td><td>${num(q.reb36)}</td><td>${num(q.ast36)}</td>
+          <td>${fin(q.ts) ? (q.ts * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${fin(q.threeRate) ? (q.threeRate * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${num(q.stl36)}</td><td>${num(q.blk36)}</td>
+        </tr></tbody></table></div>
+        <p class="tiny"><b>Closest on:</b> ${similar}<br><b>Biggest differences:</b> ${diff}
+        ${q.currentSeasonDetailed ? '<br><b>Extra detail:</b> current-season tracking/style axes were available for both players.' : ''}</p>
+      </section>`;
+    }).join('');
+
+    return `<h2>Player Comps</h2>
+      <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+      <p class="tiny"><b>${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} historical pool.</b>
+      ${esc(meta.priority || '')} Positions are not a hard filter.</p>
+      <div class="ws-card wide">
+        <div class="eyebrow">TARGET PROFILE</div>
+        <h3>${esc(p.name)} <span class="tiny">${esc(p.currentTeam || p.team || '')} · ${esc(p.position || '')}</span></h3>
+        <p>${esc(physicalLine(targetPhysical))}</p>
       </div>
-      <p class="tiny">${esc(window.DATA.analysis.similarityMethod)}</p>
-      <div class="table-wrap"><table class="compare-table"><thead><tr>
-        <th class="left">Player</th><th>League</th><th>Similar</th><th class="left">Most similar on</th><th class="left">Biggest differences</th>
-      </tr></thead><tbody>
-        ${results.map(({ q, s }) => `<tr>
-          <td class="left"><button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>
-            <span class="tiny">${esc(q.team)} · ${esc(q.position || '')} · grade ${gnum(q.grade)}</span></td>
-          <td>${q.league === 'NBA' ? 'NBA' : 'G'}</td>
-          <td><b>${s.score.toFixed(1)}%</b></td>
-          <td class="left tiny">${s.axes.slice(0, 3).map((a) => esc(a.axis)).join(', ')}</td>
-          <td class="left tiny">${s.axes.slice(-3).reverse().map((a) => `${esc(a.axis)} (${a.diff.toFixed(0)})`).join(', ')}</td>
-        </tr>`).join('')}
-      </tbody></table></div>
-      ${state.simLeague !== 'same' ? '<p class="tiny">Cross-league similarity compares within-league percentiles, so it describes similar <em>roles</em>, not equal ability.</p>' : ''}`;
+      <div class="ws-card wide comp-blend">
+        <div class="eyebrow">THREE-PLAYER BLEND</div>
+        <p>${blend}</p>
+        <p><b>Style shorthand:</b> ${esc(set.shorthand || '')}</p>
+      </div>
+      ${cards}
+      <p class="tiny"><b>Method:</b> physical profile is the largest block (46%) and is evaluated before
+      role/production, scoring mix and defensive activity. Wingspan and standing reach are used only
+      where measured; they are never estimated. Historical tracking and shot-zone fields are included
+      only when both sides actually have comparable coverage. ${esc((meta.limitations || []).join(' '))}</p>`;
   }
 
   /* -------------------------------------------------------- TEAM FIT MODE */
@@ -855,7 +883,6 @@
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     on('simSel', 'change', (e) => { state.simPlayer = e.target.value; render(); });
-    on('simLeague', 'change', (e) => { state.simLeague = e.target.value; render(); });
     on('simMin', 'change', (e) => { state.simMinMin = Number(e.target.value) || 0; render(); });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
