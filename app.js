@@ -36,6 +36,7 @@ function rehydrate(d) {
 const PROJ_STATUS = { same: 'Returning', new: 'New team', unsigned: 'No NBA team', 'nba-roster': 'On NBA roster', gleague: 'G League' };
 
 const get = (p, key) => {
+  if (key === 'team') return p.league === 'NBA' ? (p.currentTeam ?? null) : (p.team ?? null);
   if (key === 'labScore') return p.labScore ?? null;
   if (key === 'viewRank') return viewRankOf.get(p.playerId) ?? null;
   if (key.startsWith('stats.')) return p.stats?.[key.slice(6)] ?? null;
@@ -746,7 +747,18 @@ function populateSelectors(){
     $(id).innerHTML=`<option value="">${label}</option>`+vals.map(x=>`<option>${esc(x)}</option>`).join('');
     if(vals.includes(cur))$(id).value=cur;
   };
-  fill('teamFilter','All teams',[...new Set(players.map(p=>p.team).filter(Boolean))].sort());
+  const teamValues = league === 'NBA'
+    ? players.map((p) => p.currentTeam).filter(Boolean)
+    : players.map((p) => p.team).filter(Boolean);
+  fill('teamFilter', league === 'NBA' ? 'All current teams' : 'All teams',[...new Set(teamValues)].sort());
+  if ($('teamMode')) {
+    $('teamMode').options[0].textContent = league === 'NBA'
+      ? 'Current roster — show 2025-26 season totals'
+      : 'Played for team, season totals';
+    $('teamMode').options[1].textContent = league === 'NBA'
+      ? '2025-26 stint with selected team (if applicable)'
+      : 'Stats with this team only';
+  }
   fill('positionFilter','All positions',[...new Set(players.map(p=>p.positionFamily).filter(Boolean))].sort());
   fill('countryFilter','All countries',[...new Set(players.map(p=>p.country).filter(Boolean))].sort());
   const hasSplits=players.some(p=>p.showcaseGP>0);
@@ -781,9 +793,10 @@ function positionMatches(p,fam){
   return f===fam||f.split('-').includes(fam);
 }
 
-/** Team filtering matches any team the player actually appeared for, not just the last one. */
+/** NBA team filtering is current-roster filtering; G League remains season-team filtering. */
 function playedFor(p,team){
   if(!team) return true;
+  if(p.league==='NBA') return p.currentTeam===team;
   if(p.team===team) return true;
   return (p.teams||[]).some(s=>s.team===team);
 }
@@ -818,9 +831,9 @@ const SEASON_ONLY = ['grade','rateGrade','gradeRaw','gradeShrunk','reliabilityWe
 
 function teamScoped(p,team,mode){
   if(!team||mode!=='only') return p;
-  if((p.teamCount||1)<=1) return p;
   const stint=(p.teams||[]).find(s=>s.team===team);
-  if(!stint) return p;
+  // Joining a team this offseason does not create a 2025-26 stint there.
+  if(!stint) return p.league==='NBA' ? {...p,currentRosterFilteredTo:team} : p;
   const q={...p, team:stint.team, teamScopedTo:team, seasonGp:p.gp, seasonGrade:p.grade};
   for(const [dest,src] of Object.entries(STINT_FIELDS)) q[dest]=stint[src];
   for(const k of SEASON_ONLY) q[k]=null;
@@ -853,7 +866,7 @@ function filteredPlayers(){
   let list=currentPlayers()
     .filter(p=>{
       if(p.rosterOnly&&!showRosterOnly) return false;
-      const hay=fold([p.name,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
+      const hay=fold([p.name,p.currentTeam,p.seasonTeam,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
       return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
         &&(!$('bothOnly').checked||p.bothLeagues);
     })
@@ -994,7 +1007,12 @@ function cell(p,key){
     const multi=(p.teamCount||1)>1?`<span class="multi-badge" aria-label="${esc((p.teams||[]).map(s=>`${s.team} ${s.gp}g`).join(' · '))}">${p.teamCount} TM</span>`:'';
     // In the projections view the Team column is the 2026-27 team, so the name cell leaves last
     // season's team out rather than show two different teams on one row.
-    const sub=$('viewPreset').value==='proj'?esc(p.position||'—'):`${esc(p.team||'')} · ${esc(p.position||'—')}`;
+    let sub;
+    if($('viewPreset').value==='proj') sub=esc(p.position||'—');
+    else if(p.league==='NBA'){
+      sub=esc(p.currentTeam||'Unsigned')+' · '+esc(p.position||'—');
+      if(p.seasonTeam&&p.seasonTeam!==p.currentTeam) sub+=' · 2025-26: '+esc(p.seasonTeam);
+    } else sub=esc(p.team||'')+' · '+esc(p.position||'—');
     return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${sub}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${fmt(v,def.type)}</td>`;
@@ -1112,11 +1130,11 @@ function openTeamAllocation(team,{preserveState=false}={}){
     teamAllocDlg.addEventListener('click',e=>{ if(e.target.dataset && e.target.dataset.taClose!==undefined) teamAllocDlg.close(); });
   }
   const all=[].concat(...Object.values(DATA.leagues||{}));
-  const teams=[...new Set(all.filter(p=>p.tulipBeta&&!p.tulipBeta.abstain).map(p=>p.team))].sort();
+  const teams=[...new Set(all.filter(p=>p.league==='NBA'&&p.currentTeam&&p.tulipBeta&&!p.tulipBeta.abstain).map(p=>p.currentTeam))].sort();
   if(!team){
     teamAllocState.team=null;
     teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation</h2>
-      <p class="tiny">Pick a team to see its full reallocation ledger. TULIP Beta is NBA-only.</p>
+      <p class="tiny">Pick a current 2026-27 NBA roster to see its reallocation ledger. TULIP Beta is NBA-only.</p>
       <div class="raw-grid">${teams.map(t=>`<button class="button" data-teamalloc="${esc(t)}">${esc(t)}</button>`).join('')}</div>
       <div class="modal-actions"><button class="button" data-ta-close>Close</button></div>`;
     if(!teamAllocDlg.open) teamAllocDlg.showModal();
@@ -1127,7 +1145,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
     teamAllocState.filter='all';
     teamAllocState.sort='tulip';
   }
-  const baseRoster=all.filter(p=>p.team===team&&p.tulipBeta&&!p.tulipBeta.abstain);
+  const baseRoster=all.filter(p=>p.league==='NBA'&&p.currentTeam===team&&p.tulipBeta&&!p.tulipBeta.abstain);
   const roster=teamAllocationSort(baseRoster,teamAllocState.sort);
   if(!roster.length){
     teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation — ${esc(team)}</h2>
@@ -1455,7 +1473,7 @@ function openPlayer(id){
       minutes. That is a recommendation from this model, not an established fact about how he is being used.</p>
       ${whyTulipBlock(p,c)}
       ${mateRows}
-      <p class="tiny"><button class="button" data-teamalloc="${esc(p.team||'')}">View ${esc(p.team||'team')} TULIP Allocation</button></p>
+      <p class="tiny"><button class="button" data-teamalloc="${esc(p.currentTeam||p.team||'')}">View ${esc(p.currentTeam||p.team||'team')} TULIP Allocation</button></p>
       <p class="tiny"><b>Status: experimental beta.</b> The direction is based on team-relative player
       value; the magnitude is constrained by workload/role evidence and a zero-sum roster allocator.
       Historical causal testing did not establish that the exact MPG deltas maximize wins, so treat
