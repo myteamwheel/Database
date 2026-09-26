@@ -88,8 +88,8 @@ function historyRows(src, league) {
         team: x.TEAM_ABBREVIATION || null, position: b.position || null,
         age: n(x.AGE), gp, minutes,
         physical: {
-          height: c.heightNoShoes ?? b.height ?? null,
-          weight: c.combineWeight ?? b.weight ?? null,
+          height: b.height ?? c.heightNoShoes ?? null,
+          weight: b.weight ?? c.combineWeight ?? null,
           wingspan: c.wingspan ?? null,
           standingReach: c.standingReach ?? null,
         },
@@ -297,8 +297,8 @@ function currentHistoricalTarget(p, leagueHist) {
     league: p.league, season: '2025-26', playerId: pid, nbaPersonId: Number(pid), name: p.name,
     team: p.team, position: p.position, age: p.age, gp: p.gp, minutes: p.minutes,
     physical: {
-      height: c.heightNoShoes ?? p.heightInches ?? b.height ?? null,
-      weight: c.combineWeight ?? p.weight ?? b.weight ?? null,
+      height: p.heightInches ?? b.height ?? c.heightNoShoes ?? null,
+      weight: p.weight ?? b.weight ?? c.combineWeight ?? null,
       wingspan: c.wingspan ?? null, standingReach: c.standingReach ?? null,
     },
     features: {
@@ -415,7 +415,7 @@ data.analysis.playerCompsMeta = {
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
   combineMeasurementsLoaded: combine.size,
   combineNote: combine.size
-    ? 'Official combine measurements are used where available; players who never attended the combine keep height/weight only.'
+    ? 'Listed professional height/weight stay primary; official combine wingspan and standing reach are added where measured. Players who never attended keep those length fields blank.'
     : 'No combine measurement cache was present in this build. Height/weight still drive the physical block; wingspan/reach remain blank rather than invented.',
   limitations: [
     'Historical shot-zone/tracking coverage is not uniform across seasons, so old player-seasons are compared on the common historical feature set rather than fabricated paint/mid-range data.',
