@@ -50,6 +50,24 @@ const addBio = (x) => bio.set(Number(x.PERSON_ID), {
 rowsOf(inputs.playerIndex).forEach(addBio);
 rowsOf(inputs.rosters2627).forEach((x) => { if (!bio.has(Number(x.PERSON_ID))) addBio(x); });
 
+// Current site records fill G League/current-player physical gaps that the NBA player index does not
+// cover. This never backfills an old season with a made-up body; it only supplies known listed bio
+// information for that actual person.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  for (const p of data.leagues?.[lg] || []) {
+    const pid = Number(p.nbaPersonId ?? p.playerId);
+    if (!pid) continue;
+    const old = bio.get(pid) || { playerId: pid, name: p.name || String(pid) };
+    bio.set(pid, {
+      ...old,
+      name: old.name || p.name || String(pid),
+      position: old.position || p.position || null,
+      height: old.height ?? n(p.heightInches) ?? inches(p.height),
+      weight: old.weight ?? n(p.weight),
+    });
+  }
+}
+
 const combine = new Map();
 if (fs.existsSync(COMBINE_PATH)) {
   try {
@@ -140,12 +158,24 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 }
 function deepOverlay(p) {
   const s = p?.skillProfile || {};
+  const st = p?.stats || {};
+  const cu = p?.custom || {};
   return {
     selfCreation: n(s.selfCreation), paintScoring: n(s.paintScoring), rimPressure: n(s.rimPressure),
     threeVolume: n(s.threeVolume), threeAccuracy: n(s.threeAccuracy), shootingEff: n(s.shootingEff),
     playmaking: n(s.playmaking), assistRate: n(s.assistRate), ballSecurity: n(s.ballSecurity),
     offRebounding: n(s.offRebounding), defRebounding: n(s.defRebounding),
     steals: n(s.steals), rimProtection: n(s.rimProtection), usagePctile: n(s.usage),
+    // Direct current-season shot-shape signals. These answer "where/how does he shoot?" much more
+    // literally than a generic efficiency number: paint share, mid-range share, catch-and-shoot
+    // volume and pull-up volume. They are only used when both players actually carry the field.
+    pctPtsPaint: n(st.oscore_pct_pts_paint),
+    pctPtsMidrange: n(st.oscore_pct_pts_2pt_mr),
+    catchShootFga: n(st.trk_catchshoot_catch_shoot_fga),
+    pullUpFga: n(st.trk_pullup_pull_up_fga),
+    paintPts36: n(cu.paintPts36Raw ?? cu.paintPts36),
+    selfCreatedPts36: n(cu.selfCreatedPts36Raw ?? cu.selfCreatedPts36),
+    shotLocationValue: n(cu.shotLocationValue),
   };
 }
 
@@ -203,6 +233,13 @@ const DEEP = {
   ballSecurity: { scale: 20, weight: 0.5, label: 'ball security' },
   steals: { scale: 20, weight: 0.6, label: 'defensive activity' },
   rimProtection: { scale: 20, weight: 0.7, label: 'rim protection' },
+  pctPtsPaint: { scale: 0.12, weight: 0.8, label: 'paint scoring share' },
+  pctPtsMidrange: { scale: 0.10, weight: 0.8, label: 'mid-range scoring share' },
+  catchShootFga: { scale: 2.5, weight: 0.65, label: 'catch-and-shoot volume' },
+  pullUpFga: { scale: 2.5, weight: 0.7, label: 'pull-up volume' },
+  paintPts36: { scale: 4.0, weight: 0.65, label: 'paint scoring per 36' },
+  selfCreatedPts36: { scale: 4.0, weight: 0.7, label: 'self-created scoring per 36' },
+  shotLocationValue: { scale: 18, weight: 0.45, label: 'shot-location profile' },
 };
 
 function blockDistance(target, cand, spec, targetPhysical = false) {
