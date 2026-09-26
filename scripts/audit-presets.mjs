@@ -98,6 +98,12 @@ for (const league of ['NBA', 'GLEAGUE']) {
     if (key.startsWith('tb.')) return betaKeys.has(key.slice(3));
     if (key.startsWith('tc.')) return capKeys.has(key.slice(3));
     if (key.startsWith('tulip.')) return tulipKeys.has(key.slice(6));
+    // 2026-27 projection fields live on p.proj; lastPts reads the season's own PTS.
+    if (key.startsWith('proj.')) {
+      const sub = key.slice(5);
+      return d.leagues[league].some((p) => p.proj && !p.proj.abstain
+        && (sub === 'lastPts' ? Number.isFinite(p.pts) : p.proj[sub] !== null && p.proj[sub] !== undefined));
+    }
     if (key.startsWith('opt.')) return derived.opt.has(key.slice(4));
     if (key.startsWith('rb.')) return derived.rb.has(key.slice(3));
     if (key.startsWith('p36.')) return derived.p36.has(key.slice(4));

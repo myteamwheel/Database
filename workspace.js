@@ -877,6 +877,7 @@
   window.__wsOpenPlayer = (id) => { state.player = id; MODE = 'player'; render(); };
   window.__wsInit = () => { render(); };
   window.__wsMode = () => MODE;
+  window.__wsSetMode = (m) => { if (MODE !== m) { MODE = m; render(); } };
 
   /**
    * Self-initialise. app.js also calls __wsInit, but in the standalone build its init() runs
