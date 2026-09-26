@@ -86,15 +86,6 @@ async function download(url, label) {
   throw new Error(`${label} download failed: ${last?.message || last}`);
 }
 
-async function downloadWithFallback(primaryUrl, fallbackUrl, label) {
-  try {
-    return await download(primaryUrl, label);
-  } catch (error) {
-    if (!/HTTP 404/.test(String(error?.message || error))) throw error;
-    const fallback = await download(fallbackUrl, label + ' (consolidated fallback)');
-    return { ...fallback, fallbackFrom: primaryUrl };
-  }
-}
 
 // RFC-4180-enough parser for the release CSVs: quoted fields, escaped quotes, CRLF/LF.
 function parseCsvBuffer(buf, label) {
@@ -439,16 +430,16 @@ const hasHistoricalCache = fs.existsSync(path.join(historyDir, 'gamelog.json')) 
 console.log(`Exhaustive ESPN -> NBA starter acceptance gate: ${season}`);
 console.log(`mode: ${hasHistoricalCache ? 'hydrated historical cache' : 'current-season schedule crosswalk'}`);
 
+if (endYear < 2026) {
+  throw new Error(`${season}: upstream SportsDataverse nba_crosswalk currently publishes season assets for 2026+ only. The *_in_data_repo.csv files are manifests, not crosswalk rows, so this gate cannot honestly certify older seasons without a restored historical crosswalk cache.`);
+}
+
 const assets = {
   playerBox: await download(releaseUrl(SOURCE_TAG, `player_box_${endYear}.csv`), 'ESPN player box'),
-  scheduleCrosswalk: await downloadWithFallback(
-    releaseUrl(XWALK_TAG, `nba_schedule_crosswalk_${endYear}.csv`),
-    releaseUrl(XWALK_TAG, 'nba_schedule_crosswalk_in_data_repo.csv'), 'NBA schedule crosswalk'),
-  playerCrosswalk: await downloadWithFallback(
-    releaseUrl(XWALK_TAG, `nba_player_crosswalk_${endYear}.csv`),
-    releaseUrl(XWALK_TAG, 'nba_player_crosswalk_in_data_repo.csv'), 'NBA player crosswalk'),
+  scheduleCrosswalk: await download(releaseUrl(XWALK_TAG, `nba_schedule_crosswalk_${endYear}.csv`), 'NBA schedule crosswalk'),
+  playerCrosswalk: await download(releaseUrl(XWALK_TAG, `nba_player_crosswalk_${endYear}.csv`), 'NBA player crosswalk'),
 };
-console.log(`downloaded source assets: player box ${assets.playerBox.bytes} B, schedule xwalk ${assets.scheduleCrosswalk.bytes} B${assets.scheduleCrosswalk.fallbackFrom ? ' (consolidated fallback)' : ''}, player xwalk ${assets.playerCrosswalk.bytes} B${assets.playerCrosswalk.fallbackFrom ? ' (consolidated fallback)' : ''}`);
+console.log(`downloaded source assets: player box ${assets.playerBox.bytes} B, schedule xwalk ${assets.scheduleCrosswalk.bytes} B, player xwalk ${assets.playerCrosswalk.bytes} B`);
 
 const playerBoxCsv = parseCsvBuffer(assets.playerBox.buffer, 'ESPN player box');
 const scheduleCsv = parseCsvBuffer(assets.scheduleCrosswalk.buffer, 'NBA schedule crosswalk');
