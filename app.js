@@ -143,7 +143,7 @@ const BASE_COLS = {
   'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: Current MPG + TULIP. PLAIN: the workload this experimental allocator suggests. Feasible range is 0-40 MPG. Historical workload and Role Evidence reduce confidence and attenuate positive expansion, but they are not a hard ceiling: a strong breakout signal can recommend a workload above anything the player has previously sustained.'},
   'tb.confidence':{label:'Support',type:'text',help:'RECOMMENDATION SUPPORT; NOT PROBABILITY OF CORRECTNESS. HIGH / MEDIUM / LOW describes the strength of the DATA AND EVIDENCE behind the recommendation\u0027s inputs \u2014 sample size (minutes played), the role-evidence tier behind any expansion, and whether the recommended workload sits inside historically observed support. It does NOT mean the MPG recommendation is likely to be win-optimal. Nothing here claims "82% likely to be correct"; causal validation of the magnitude failed, so no such claim is available to make.'},
   'tb.valueGapSd':{label:'Value vs team (SD)',type:'signed2',help:'WHAT: his shrunk BPM minus his team\u0027s minute-weighted average BPM, in league standard-deviation units. PLAIN: how much better or worse he is than the average minute his team currently buys. This is the DIRECTION signal behind TULIP.'},
-  'tb.supportedCeiling':{label:'Supported ceiling',type:'1',help:'WHAT: the highest workload this player has actually sustained or that role evidence supports \u2014 the maximum of his current MPG, career-high MPG, best sustained season and highest non-abstaining role-evidence band, capped at 40. NOT a physiological limit; an evidence bound on how far a recommendation may go.'},
+  'tb.supportedCeiling':{label:'Evidence-supported MPG',type:'1',help:'WHAT: the highest workload this player has already sustained or that Role Evidence directly supports — the maximum of current MPG, career-high MPG, best sustained season and highest non-abstaining role-evidence band, capped at 40. This is NOT a hard TULIP cap. A recommendation may exceed it when the team-relative signal is strong, but that part of the recommendation is extrapolation and therefore carries weaker support/confidence.'},
   'tc.capacityMpg':{label:'Projected Role MPG',type:'1',help:'WHAT: the MPG this player is likely to RECEIVE AND SUSTAIN after an offseason move to another NBA team. PLAIN: if a team signed or traded for him this offseason, what workload would he probably end up playing? THIS IS NOT A CAPACITY METRIC. It does not estimate how many minutes he could effectively handle. It predicts an observed rotation outcome, which is driven by coach preference, depth chart, roster construction, injuries, contract status and team strategy as much as by the player. A high-minute star can project LOWER than he currently plays simply because players at that workload historically regress after changing teams \u2014 that is a statement about rotations, not about the player. FORMULA: TULIP_CAPACITY_V1, a frozen linear model over his previous team\u0027s workload history (season MPG, recent-10, recent-5, trend, start rate, career games/seasons, career-high MPG), attributes (age, height, weight, draft slot) and production profile (GameScore/36, TS%, FGA/AST/REB/PF per 36). No destination-team information is used. SCOPE: validated for OFFSEASON acquisitions only; NOT validated for in-season trades. VALIDATED: on 970 offseason transitions the strongest simple baseline (previous-season MPG) has MAE 5.087 and the model has MAE 4.964 \u2014 an incremental gain of +0.122 MPG, 95% CI [0.035, 0.221]. Among two players with the same previous-season MPG it picks the one who ends up playing more 54.7% of the time versus 51.0% for the baseline, rising to 68.1% when it separates them by 5+ MPG. Real and statistically supported, but INCREMENTAL. The 50% range spans about 8.7 MPG, so use it to compare players, not as an exact forecast. Blank means the model abstained; blank is NOT zero and always sorts last. Model: TULIP_CAPACITY_V1, card-sha256:96cb2f34c6cd06c3.'},
   'tc.headroom':{label:'Proj vs Current',type:'signed1',help:'WHAT: Projected Role MPG minus his current season MPG. NOT "headroom" and NOT spare capacity \u2014 it is the difference between a projected rotation outcome and his current one. PLAIN: how much more (+) or less (-) he would probably play after an offseason move, versus now. FORMULA: Projected Role MPG - current season MPG. Positive does NOT mean he has unused capacity or that a team should play him more; it means comparable players ended up with more minutes after moving. Negative does NOT mean he is being overplayed. Blank when the model abstains.'},
   'tc.teamASeasonMpg':{label:'Current MPG',type:'1',help:'WHAT: his minutes per game this season \u2014 the workload the projection is made FROM, and the strongest simple baseline the model has to beat. PLAIN: what he actually played this year.'},
@@ -1061,12 +1061,12 @@ function tulipConstraintPath(c){
   const minutesPerSd=Number(DATA?.tulipBetaMeta?.config?.minutesPerSd)||6.6;
   const raw=finite(c.rawSignalDelta)?c.rawSignalDelta:(Number(c.valueGapSd)||0)*minutesPerSd;
   const constrained=finite(c.constrainedDelta)?c.constrainedDelta:c.tulip;
-  const constraintNote=raw>0?'role/workload bounds applied':raw<0?'workload floor applied':'constraints reviewed';
+  const constraintNote=raw>0?'role evidence attenuation + 40 MPG feasibility applied':raw<0?'0 MPG floor applied':'constraints reviewed';
   return `<div class="tulip-constraint-path" aria-label="TULIP constraint path">
     <div class="tulip-constraint-step"><span>Raw signal</span><b>${signed(raw)} MPG</b>
       <small>team-relative value</small></div>
     <span class="tulip-constraint-arrow" aria-hidden="true">&rarr;</span>
-    <div class="tulip-constraint-step"><span>Role/workload constrained</span><b>${signed(constrained)} MPG</b>
+    <div class="tulip-constraint-step"><span>Evidence/feasibility adjusted</span><b>${signed(constrained)} MPG</b>
       <small>${constraintNote}</small></div>
     <span class="tulip-constraint-arrow" aria-hidden="true">&rarr;</span>
     <div class="tulip-constraint-step"><span>Roster-balanced final TULIP</span><b>${signed(c.tulip)} MPG</b>
@@ -1078,12 +1078,12 @@ function whyTulipBlock(p,c){
   const signal=valueSignalPlain(c.valueGapSd);
   const team=p.league==='NBA'?(p.currentTeam||p.team):p.team;
   const expansion=(finite(c.rawSignalDelta)?Number(c.rawSignalDelta):Number(c.valueGapSd))>0;
-  const room=Math.max(0,Number(c.supportedCeiling)-Number(c.currentMpg));
+  const supportedGap=Number(c.recommendedMpg)-Number(c.supportedCeiling);
   const workload=expansion
-    ? room<=2.05
-      ? `${num(c.currentMpg)} MPG — already near the historically supported workload of ${num(c.supportedCeiling)} MPG.`
-      : `${num(c.currentMpg)} MPG, with evidence support up to ${num(c.supportedCeiling)} MPG under current Beta rules.`
-    : `${num(c.currentMpg)} MPG. The workload floor limits how many minutes can be returned to the roster.`;
+    ? supportedGap>0.05
+      ? `${num(c.currentMpg)} MPG; direct workload/role evidence extends to ${num(c.supportedCeiling)} MPG, so the recommendation extrapolates ${num(supportedGap)} MPG beyond that evidence.`
+      : `${num(c.currentMpg)} MPG, with the recommendation staying inside the directly supported workload range up to ${num(c.supportedCeiling)} MPG.`
+    : `${num(c.currentMpg)} MPG. The 0 MPG feasibility floor limits how many minutes can be returned to the roster.`;
   const roleLine=expansion
     ? `<p><b>Role Evidence:</b> ${roleEvidencePlain(c.evidenceTier,c.evidenceFactor)} (Tier ${esc(c.evidenceTier||'—')} · factor ${num(c.evidenceFactor,2)}). This factor controls how much proposed positive expansion survives; it is not a probability of correctness.</p>`
     : '';
