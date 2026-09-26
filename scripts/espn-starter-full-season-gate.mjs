@@ -67,16 +67,33 @@ async function download(url, label) {
         headers: { 'User-Agent': 'TulipBasketball-starter-acceptance-gate/1.0' },
       });
       clearTimeout(timer);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const e = new Error(`HTTP ${response.status}`);
+        e.status = response.status;
+        throw e;
+      }
       const buf = Buffer.from(await response.arrayBuffer());
       if (!buf.length) throw new Error('empty response');
       return { label, url, buffer: buf, ...sha256Buffer(buf) };
     } catch (error) {
       last = error;
+      // A missing release asset is permanent, not a transient network error. Let the caller use
+      // the consolidated crosswalk immediately instead of retrying the same known 404 four times.
+      if (error?.status === 404) break;
       if (attempt < 4) await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
   }
   throw new Error(`${label} download failed: ${last?.message || last}`);
+}
+
+async function downloadWithFallback(primaryUrl, fallbackUrl, label) {
+  try {
+    return await download(primaryUrl, label);
+  } catch (error) {
+    if (!/HTTP 404/.test(String(error?.message || error))) throw error;
+    const fallback = await download(fallbackUrl, label + ' (consolidated fallback)');
+    return { ...fallback, fallbackFrom: primaryUrl };
+  }
 }
 
 // RFC-4180-enough parser for the release CSVs: quoted fields, escaped quotes, CRLF/LF.
@@ -424,10 +441,14 @@ console.log(`mode: ${hasHistoricalCache ? 'hydrated historical cache' : 'current
 
 const assets = {
   playerBox: await download(releaseUrl(SOURCE_TAG, `player_box_${endYear}.csv`), 'ESPN player box'),
-  scheduleCrosswalk: await download(releaseUrl(XWALK_TAG, `nba_schedule_crosswalk_${endYear}.csv`), 'NBA schedule crosswalk'),
-  playerCrosswalk: await download(releaseUrl(XWALK_TAG, `nba_player_crosswalk_${endYear}.csv`), 'NBA player crosswalk'),
+  scheduleCrosswalk: await downloadWithFallback(
+    releaseUrl(XWALK_TAG, `nba_schedule_crosswalk_${endYear}.csv`),
+    releaseUrl(XWALK_TAG, 'nba_schedule_crosswalk_in_data_repo.csv'), 'NBA schedule crosswalk'),
+  playerCrosswalk: await downloadWithFallback(
+    releaseUrl(XWALK_TAG, `nba_player_crosswalk_${endYear}.csv`),
+    releaseUrl(XWALK_TAG, 'nba_player_crosswalk_in_data_repo.csv'), 'NBA player crosswalk'),
 };
-console.log(`downloaded source assets: player box ${assets.playerBox.bytes} B, schedule xwalk ${assets.scheduleCrosswalk.bytes} B, player xwalk ${assets.playerCrosswalk.bytes} B`);
+console.log(`downloaded source assets: player box ${assets.playerBox.bytes} B, schedule xwalk ${assets.scheduleCrosswalk.bytes} B${assets.scheduleCrosswalk.fallbackFrom ? ' (consolidated fallback)' : ''}, player xwalk ${assets.playerCrosswalk.bytes} B${assets.playerCrosswalk.fallbackFrom ? ' (consolidated fallback)' : ''}`);
 
 const playerBoxCsv = parseCsvBuffer(assets.playerBox.buffer, 'ESPN player box');
 const scheduleCsv = parseCsvBuffer(assets.scheduleCrosswalk.buffer, 'NBA schedule crosswalk');
