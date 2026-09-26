@@ -33,6 +33,19 @@ import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SEASON = '2025-26';
 const GENERATED_AT = process.env.BUILD_GENERATED_AT || new Date().toISOString();
+
+// Preserve immutable generated products whose raw source cache is intentionally not tracked.
+// A clean CI checkout can therefore rebuild the rest of the database without erasing a frozen
+// product merely because its private/untracked source rows are absent.
+const priorPublishedPath = path.join(ROOT, 'public/data.json');
+let priorPublished = null;
+if (fs.existsSync(priorPublishedPath)) {
+  try { priorPublished = JSON.parse(fs.readFileSync(priorPublishedPath, 'utf8')); }
+  catch { priorPublished = null; }
+}
+const priorCapacityById = new Map((priorPublished?.leagues?.NBA || [])
+  .filter((r) => r?.tulipCapacity)
+  .map((r) => [String(r.nbaPersonId ?? r.playerId), r.tulipCapacity]));
 /** Birthdates, so age is stated against a fixed date instead of inherited from a source. */
 const bdPath = path.join(ROOT, 'scripts/data/birthdates.json');
 const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'utf8')) : {};
@@ -674,18 +687,34 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
 // NBA ONLY. V1 was validated on NBA cross-team offseason transitions; the frozen card contains no
 // validated G League application, so G League rows abstain rather than borrow an unvalidated number.
 const capacityIndex = buildCapacityIndex(SEASON);
-let capScored = 0, capAbstained = 0;
+const priorCapacityCompatible = priorPublished?.season === SEASON
+  && priorPublished?.tulipCapacityMeta?.cardSha256 === capacityIndex.id
+  && priorPublished?.tulipCapacityMeta?.version === capacityIndex.card.version;
+let capScored = 0, capAbstained = 0, capPreserved = 0;
 const capAbstainReasons = {};
 for (const r of nba.records) {
-  const c = capacityForRecord(r, capacityIndex);
+  let c = capacityForRecord(r, capacityIndex);
+  // The current-season per-game cache is intentionally not tracked. On a clean checkout, preserve
+  // the already-published output of the VERIFIED FROZEN model rather than replacing it with an
+  // abstention. This is only legal for the same source season + exact frozen card hash/version.
+  if (c.abstain && c.reason === 'no_game_log_for_source_season' && priorCapacityCompatible) {
+    const prior = priorCapacityById.get(String(r.nbaPersonId ?? r.playerId));
+    if (prior && prior.version === capacityIndex.card.version) {
+      c = { ...prior };
+      capPreserved++;
+    }
+  }
   r.tulipCapacity = c;
   if (c.abstain) { capAbstained++; capAbstainReasons[c.reason] = (capAbstainReasons[c.reason] || 0) + 1; }
   else capScored++;
 }
+if (!capacityIndex.byPersonId.size && priorCapacityCompatible && capPreserved < 100) {
+  throw new Error(`Projected Role MPG source cache is absent and only ${capPreserved} compatible frozen outputs were recoverable; refusing to erase the product.`);
+}
 for (const r of gl.records) {
   r.tulipCapacity = { abstain: true, reason: 'not_validated_for_gleague', version: capacityIndex.card.version };
 }
-console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained} `
+console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained}, preserved ${capPreserved} `
   + `(${JSON.stringify(capAbstainReasons)}) · G League abstains by design`);
 
 /* ------------------------------------------------------------- TULIP BETA */
@@ -953,7 +982,8 @@ const out = {
     evidenceGrade: capacityIndex.card.evidenceGrade,
     benchmarks: capacityIndex.card.frozenBenchmarks,
     limitations: capacityIndex.card.knownLimitations,
-    coverage: { scored: capScored, abstained: capAbstained, reasons: capAbstainReasons },
+    coverage: { scored: capScored, abstained: capAbstained, preservedFromCommittedFrozenOutput: capPreserved, reasons: capAbstainReasons },
+    buildInputMode: capacityIndex.byPersonId.size ? 'recomputed_from_local_game_cache' : (capPreserved ? 'preserved_verified_frozen_output' : 'no_source_rows'),
     note: 'Legacy team-relative TULIP (BPM gap x 2.2) is NOT this product and is no longer presented as TULIP. Neither is this metric TULIP Capacity: the original team-independent sustainable-effective-workload question remains unsolved and its name is reserved.',
   },
   tulipMeta: {
