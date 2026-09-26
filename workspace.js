@@ -1,5 +1,5 @@
 /* Analysis workspace: modes beyond the table. Loaded after app.js and reuses its helpers.
-   Database | Player | Compare | Scatter | Similarity | Team Fit are real tools, not presets. */
+   Database | Player | Compare | Scatter | Player Comps | Team Fit are real tools, not presets. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simLeague: 'same', simMinMin: 300, team: null,
+                  simPlayer: null, team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -885,7 +885,6 @@
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     on('simSel', 'change', (e) => { state.simPlayer = e.target.value; render(); });
-    on('simMin', 'change', (e) => { state.simMinMin = Number(e.target.value) || 0; render(); });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
     on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); });
