@@ -434,10 +434,11 @@ test.describe('analysis workspace', () => {
     const props = await page.evaluate(() => {
       const meta = DATA.analysis.playerCompsMeta;
       const sets = Object.values(DATA.analysis.playerComps.NBA).slice(0, 60);
-      let badCount = 0, badScore = 0, self = 0, badBlend = 0, wingspanSeen = 0;
+      let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badBlend = 0, wingspanSeen = 0;
       for (const set of sets) {
         if ((set.top3 || []).length !== 3) badCount++;
         const targetId = Object.entries(DATA.analysis.playerComps.NBA).find(([, v]) => v === set)?.[0];
+        if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
         for (const comp of set.top3 || []) {
           if (!(comp.similarity >= 0 && comp.similarity <= 100)) badScore++;
           if (String(comp.playerId) === String(targetId)) self++;
@@ -445,12 +446,13 @@ test.describe('analysis workspace', () => {
         }
         if ((set.blend || []).reduce((a, x) => a + x.share, 0) !== 100) badBlend++;
       }
-      return { meta, n: sets.length, badCount, badScore, self, badBlend, wingspanSeen };
+      return { meta, n: sets.length, badCount, badScore, self, duplicatePlayers, badBlend, wingspanSeen };
     });
     expect(props.n).toBeGreaterThan(20);
     expect(props.badCount).toBe(0);
     expect(props.badScore).toBe(0);
     expect(props.self).toBe(0);
+    expect(props.duplicatePlayers).toBe(0);
     expect(props.badBlend).toBe(0);
     expect(props.wingspanSeen).toBeGreaterThan(0);
     expect(props.meta.sameLeagueOnly).toBe(true);
