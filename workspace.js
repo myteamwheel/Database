@@ -535,6 +535,7 @@
     }
 
     const targetPhysical = set.targetPhysical || {};
+    const targetStats = set.targetStats || {};
     const blend = (set.blend || []).map((x) =>
       `<b>${x.share}% ${esc(x.name)}</b> <span class="tiny">(${esc(x.season)})</span>`).join(' + ');
 
@@ -558,13 +559,19 @@
           <div class="ws-card"><div class="k">Defense / activity</div><div class="v">${compBlockScore(q, 'defense')}</div></div>
         </div>
         <div class="table-wrap"><table class="compare-table"><thead><tr>
-          <th>MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TS%</th><th>3PA share</th><th>STL/36</th><th>BLK/36</th>
-        </tr></thead><tbody><tr>
+          <th class="left">Player</th><th>MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TS%</th><th>3PA share</th><th>STL/36</th><th>BLK/36</th>
+        </tr></thead><tbody>
+        <tr><td class="left"><b>${esc(p.name)}</b></td>
+          <td>${num(targetStats.mpg)}</td><td>${num(targetStats.pts36)}</td><td>${num(targetStats.reb36)}</td><td>${num(targetStats.ast36)}</td>
+          <td>${fin(targetStats.ts) ? (targetStats.ts * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${fin(targetStats.threeRate) ? (targetStats.threeRate * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${num(targetStats.stl36)}</td><td>${num(targetStats.blk36)}</td></tr>
+        <tr><td class="left">${esc(q.name)} <span class="tiny">${esc(q.season)}</span></td>
           <td>${num(q.mpg)}</td><td>${num(q.pts36)}</td><td>${num(q.reb36)}</td><td>${num(q.ast36)}</td>
           <td>${fin(q.ts) ? (q.ts * 100).toFixed(1) + '%' : '—'}</td>
           <td>${fin(q.threeRate) ? (q.threeRate * 100).toFixed(1) + '%' : '—'}</td>
-          <td>${num(q.stl36)}</td><td>${num(q.blk36)}</td>
-        </tr></tbody></table></div>
+          <td>${num(q.stl36)}</td><td>${num(q.blk36)}</td></tr>
+        </tbody></table></div>
         <p class="tiny"><b>Closest on:</b> ${similar}<br><b>Biggest differences:</b> ${diff}
         ${q.currentSeasonDetailed ? '<br><b>Extra detail:</b> current-season tracking/style axes were available for both players.' : ''}</p>
       </section>`;
