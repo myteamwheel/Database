@@ -330,8 +330,8 @@ function relation(target, comp) {
   if (fin(t.ast36) && fin(c.ast36) && t.ast36 - c.ast36 > 2.2) mods.push('more playmaking-heavy');
   else if (fin(t.ast36) && fin(c.ast36) && c.ast36 - t.ast36 > 2.2) mods.push('less playmaking-heavy');
   if (fin(t.ftRate) && fin(c.ftRate) && t.ftRate - c.ftRate > 0.12) mods.push('more rim/free-throw pressure');
-  if (fin(t.physical.weight) && fin(comp.physical.weight) && t.physical.weight - comp.physical.weight > 18) mods.push('stronger/heavier framed');
-  else if (fin(t.physical.weight) && fin(comp.physical.weight) && comp.physical.weight - t.physical.weight > 18) mods.push('lighter framed');
+  if (fin(target.physical.weight) && fin(comp.physical.weight) && target.physical.weight - comp.physical.weight > 18) mods.push('stronger/heavier framed');
+  else if (fin(target.physical.weight) && fin(comp.physical.weight) && comp.physical.weight - target.physical.weight > 18) mods.push('lighter framed');
   return mods.slice(0, 2);
 }
 function serializeComp(target, cand, m) {
