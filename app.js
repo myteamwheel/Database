@@ -1076,6 +1076,7 @@ function tulipConstraintPath(c){
 
 function whyTulipBlock(p,c){
   const signal=valueSignalPlain(c.valueGapSd);
+  const team=p.league==='NBA'?(p.currentTeam||p.team):p.team;
   const expansion=(finite(c.rawSignalDelta)?Number(c.rawSignalDelta):Number(c.valueGapSd))>0;
   const room=Math.max(0,Number(c.supportedCeiling)-Number(c.currentMpg));
   const workload=expansion
@@ -1087,14 +1088,14 @@ function whyTulipBlock(p,c){
     ? `<p><b>Role Evidence:</b> ${roleEvidencePlain(c.evidenceTier,c.evidenceFactor)} (Tier ${esc(c.evidenceTier||'—')} · factor ${num(c.evidenceFactor,2)}). This factor controls how much proposed positive expansion survives; it is not a probability of correctness.</p>`
     : '';
   const roster=c.tulip>0
-    ? `${signed(c.tulip)} MPG must be surrendered elsewhere on ${esc(p.team)}.`
+    ? `${signed(c.tulip)} MPG must be surrendered elsewhere on ${esc(team)}.`
     : c.tulip<0
-      ? `${signed(Math.abs(c.tulip))} MPG becomes available to higher-ranked team-mates on ${esc(p.team)}.`
-      : `The roster-balanced result is no displayed change on ${esc(p.team)}.`;
+      ? `${signed(Math.abs(c.tulip))} MPG becomes available to higher-ranked team-mates on ${esc(team)}.`
+      : `The roster-balanced result is no displayed change on ${esc(team)}.`;
   return `<section class="tulip-why tulip-explanation" aria-label="Why this TULIP">
     <h3>Why TULIP recommends ${signed(c.tulip)} MPG</h3>
     <div class="tulip-why-list">
-      <p><b>Team-relative value:</b> ${esc(signal)} — ${signed(c.valueGapSd,2)} SD versus ${esc(p.team)}'s average allocated minute.</p>
+      <p><b>Team-relative value:</b> ${esc(signal)} — ${signed(c.valueGapSd,2)} SD versus ${esc(team)}'s average allocated minute.</p>
       <p><b>Current workload:</b> ${workload}</p>
       ${roleLine}
       <p><b>Roster effect:</b> ${roster}</p>
@@ -1381,8 +1382,8 @@ function openPlayer(id){
     $('playerDialogBody').innerHTML=`<div class="player-hero"><div>
         <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
         <h2>${esc(p.name)}</h2>
-        <p>${esc(p.team||'—')} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
-        <p class="tiny">On a 2025-26 roster but never played a game.</p></div></div>
+        <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
+        <p class="tiny">${p.currentRosterOnly?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>
@@ -1444,6 +1445,7 @@ function openPlayer(id){
     if(c.abstain){
       const why={
         not_supported_for_gleague:'TULIP Beta is NBA-only: the G League publishes no BPM and this build has no standardized-PIE value implementation, so no recommendation is made rather than improvising one.',
+        not_on_current_nba_roster:'This player is not on the current 2026-27 NBA roster snapshot, so no current-team allocation recommendation is made.',
         insufficient_minutes:'Too few minutes played this season to place him in the reallocation pool.',
         below_rotation_threshold:'Below the rotation-minutes threshold, so he is not an allocation candidate.',
         no_value_metric:'No value metric available for this player.',
@@ -1454,7 +1456,8 @@ function openPlayer(id){
         <p class="tiny">${esc(why)} A value of 0.0 would falsely read as \u201calready at the right workload\u201d, so none is shown.</p></div>`;
     }
     // the other side of the ledger: who on this team gives up / receives these minutes
-    const mates=(DATA.leagues[p.league]||[]).filter(x=>x.team===p.team&&x.playerId!==p.playerId
+    const team=p.league==='NBA'?(p.currentTeam||p.team):p.team;
+    const mates=(DATA.leagues[p.league]||[]).filter(x=>(x.league==='NBA'?(x.currentTeam||x.team):x.team)===team&&x.playerId!==p.playerId
       &&x.tulipBeta&&!x.tulipBeta.abstain&&Math.sign(x.tulipBeta.tulip)===-Math.sign(c.tulip)&&x.tulipBeta.tulip!==0)
       .sort((a,b)=>Math.abs(b.tulipBeta.tulip)-Math.abs(a.tulipBeta.tulip)).slice(0,5);
     const dir=c.tulip>0?'sourced from':'returned to';
@@ -1534,7 +1537,7 @@ function openPlayer(id){
 
   $('playerDialogBody').innerHTML=`<div class="player-hero"><div><div class="eyebrow">${esc(p.leagueLabel)}${finite(p.rank)?` · RANK #${p.rank} of ${DATA.counts[p.league]}`:''}</div>
       <h2>${esc(p.name)}</h2>${scopeNote}
-      <p>${esc(p.team)} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')} · ${p.weight?p.weight+' lb':'—'} · ${esc(p.country||'—')}</p>
+      <p>${esc(p.league==='NBA'?(p.currentTeam||'Unsigned'):(p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')} · ${p.weight?p.weight+' lb':'—'} · ${esc(p.country||'—')}${p.league==='NBA'&&p.seasonTeam&&p.seasonTeam!==p.currentTeam?` · 2025-26: ${esc(p.seasonTeam)}`:''}</p>
       <p class="tiny">${p.gp} games · ${num(p.mpg)} mpg · ${p.college?esc(p.college)+' · ':''}${draft}</p>${split}</div></div>
     <div class="player-grid">
       <div class="detail-card"><div class="k">Performance grade</div><div class="v grade ${gradeClass(p.grade)}">${finite(p.grade)?p.grade.toFixed(4):'N/A'}</div></div>
@@ -1546,7 +1549,7 @@ function openPlayer(id){
       <div class="detail-card"><div class="k">Magnitude grade</div><div class="v">${finite(p.magnitudeGrade)?p.magnitudeGrade.toFixed(4):'—'}</div></div>
       <div class="detail-card"><div class="k">Ingredient coverage</div><div class="v">${num(p.gradeCoverage,1)}%<span class="tiny">${Object.entries(p.gradeCoverageDetail||{}).map(([k,v])=>`${k.slice(0,4)} ${v}`).join(' · ')}</span></div></div>
       ${p.cohortRanks?.position?`<div class="detail-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${p.cohortRanks.position.rank} <span class="tiny">of ${p.cohortRanks.position.of}</span></div></div>`:''}
-      ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
+      ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">2025-26 ${esc(p.seasonTeam||p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
       ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
     </div>${projCard(p)}${stints}${tbeta}${tcap}${crossover}
