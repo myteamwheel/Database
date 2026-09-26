@@ -127,6 +127,16 @@ t('15 scored NBA rows belong to the current roster/team scope', () => {
   }
 });
 
+t('16 real current-roster recommendations are not trapped inside +/-8 MPG', () => {
+  const deltas = nba.filter((p) => p.tulipBeta && !p.tulipBeta.abstain && Number.isFinite(p.tulipBeta.tulip))
+    .map((p) => Number(p.tulipBeta.tulip));
+  assert.ok(deltas.length > 200, `only ${deltas.length} scored current-roster deltas`);
+  const min = Math.min(...deltas), max = Math.max(...deltas);
+  console.log(`        real current-roster TULIP range: ${min.toFixed(1)} to +${max.toFixed(1)} MPG`);
+  assert.ok(Math.max(Math.abs(min), Math.abs(max)) > 8,
+    `generated recommendations are still effectively trapped inside +/-8 MPG: ${min} to ${max}`);
+});
+
 // ---- team-ledger regression: a future UI change must not silently break zero-sum conservation ----
 console.log('\nTULIP Beta team-ledger regression');
 const t2 = (n, fn) => { try { fn(); console.log(`  PASS  ${n}`); pass++; } catch (e) { console.log(`  FAIL  ${n} — ${e.message}`); fail++; } };
