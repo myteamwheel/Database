@@ -344,9 +344,10 @@ ungraded.
 
 TULIP Beta remains **experimental decision support, not a validated win-optimal coaching model**.
 The allocator no longer has an arbitrary small-delta ceiling. Its feasible recommendation range is
-0-40 MPG, with the realized change constrained by the player's supported workload, role evidence and
-the team's zero-sum minute ledger. A supported player can therefore move by more than eight MPG in
-either direction when the roster can supply or absorb those minutes.
+0-40 MPG. Historical workload and Role Evidence attenuate unsupported positive expansion and affect
+confidence, but they are not a hard ceiling on a breakout recommendation. The team's zero-sum minute
+ledger still requires every added minute to come from a teammate, so recommendations can move by
+more than eight MPG in either direction when the value signal and roster minute supply support it.
 
 The separate **Projected Role MPG** model is unchanged and retains its frozen model identifier.
 
