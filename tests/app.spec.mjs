@@ -391,7 +391,7 @@ test.describe('analysis workspace', () => {
 
   test('mode navigation exposes every tool and Player Comps has a top-level tab', async ({ page }) => {
     const errors = await open(page);
-    const modes = await page.$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
+    const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
     expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
     expect(await page.$eval('.site-link[data-goto="comps"]', (b) => b.length)).toBe(1);
     await page.click('.site-link[data-goto="comps"]');
