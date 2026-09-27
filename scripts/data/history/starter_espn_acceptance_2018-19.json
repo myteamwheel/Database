@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T00:32:43.407Z",
+  "season": "2018-19",
+  "accepted": false,
+  "mode": "blocked_upstream_crosswalk_unavailable",
+  "acceptanceRule": "Historical certification requires the season-specific ESPN↔NBA schedule/player crosswalk assets. SportsDataverse currently publishes nba_crosswalk season assets for 2026+ only; manifest CSVs are inventories, not crosswalk rows.",
+  "failureCount": null,
+  "expected": {
+    "teamGames": null,
+    "starterEdges": null
+  },
+  "observed": {
+    "teamGames": null,
+    "starterEdges": null
+  },
+  "perPlayerStarts": {
+    "mismatchCount": null
+  },
+  "phases": [],
+  "failures": [],
+  "blockedReason": "upstream historical nba_crosswalk asset unavailable"
+}
