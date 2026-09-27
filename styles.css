@@ -272,6 +272,9 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .comp-page-title{display:flex;align-items:end;justify-content:space-between;gap:18px;flex-wrap:wrap}
 .comp-page-title h2{font-size:25px;margin:0}
 .comp-page-title p{color:var(--muted);margin:0}
+.comp-confidence{display:flex;align-items:baseline;gap:8px;padding:8px 11px;border:1px solid var(--line);background:var(--panel2)}
+.comp-confidence span{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.05em}
+.comp-confidence b{font-size:22px;color:var(--ink)}
 .comp-search-panel{position:relative;display:grid;grid-template-columns:minmax(280px,2fr) minmax(130px,.7fr) minmax(150px,.8fr);
   gap:10px;align-items:end;padding:12px;background:var(--panel2);border:1px solid var(--line)}
 .comp-search-panel label{display:grid;gap:4px;color:var(--muted);font-size:11.5px;font-weight:700}
