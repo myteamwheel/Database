@@ -440,6 +440,52 @@ function serializeComp(target, cand, m) {
   };
 }
 
+function blendQuality(comp) {
+  const b = comp.blockScores || {};
+  const blocks = [b.physical, b.role, b.scoring, b.defense].filter(fin);
+  const overall = fin(comp.similarity) ? Number(comp.similarity) : 0;
+  const physical = fin(b.physical) ? Number(b.physical) : overall;
+  const role = fin(b.role) ? Number(b.role) : overall;
+  const scoring = fin(b.scoring) ? Number(b.scoring) : overall;
+  const defense = fin(b.defense) ? Number(b.defense) : overall;
+
+  // Use the absolute match as the backbone, then reward agreement across the four interpretable
+  // blocks. This stops one spectacular dimension from dominating an otherwise weak comp.
+  const composite = 0.55 * overall + 0.20 * physical + 0.10 * role + 0.10 * scoring + 0.05 * defense;
+  const maxBlock = blocks.length ? Math.max(...blocks) : overall;
+  const minBlock = blocks.length ? Math.min(...blocks) : overall;
+  const harmony = maxBlock > 0 ? minBlock / maxBlock : 0;
+  const coverage = fin(comp.coverage) ? clamp(Number(comp.coverage) / 100, 0, 1) : 0.75;
+  return composite * (0.82 + 0.12 * coverage + 0.06 * harmony);
+}
+
+function blendShares(comps) {
+  if (!comps.length) return [];
+  const q = comps.map(blendQuality);
+  const maxQ = Math.max(...q);
+  // Softmax temperature of 8 points. Meaningful quality gaps produce visibly different blend
+  // shares, while truly near-equal comps remain near one-third each.
+  const raw = q.map((x) => Math.exp((x - maxQ) / 8));
+  const sum = raw.reduce((a, x) => a + x, 0) || 1;
+  const exact = raw.map((x) => 100 * x / sum);
+  const floors = exact.map(Math.floor);
+  let left = 100 - floors.reduce((a, x) => a + x, 0);
+  const order = exact.map((x, i) => ({ i, rem: x - floors[i] }))
+    .sort((a, b) => b.rem - a.rem || a.i - b.i);
+  for (let j = 0; j < left; j++) floors[order[j % order.length].i]++;
+  return comps.map((comp, i) => ({
+    name: comp.name, season: comp.season, playerId: comp.playerId,
+    share: floors[i], quality: r1(q[i]), matchScore: comp.similarity,
+  }));
+}
+
+function blendConfidence(comps, blend) {
+  if (!comps.length || !blend.length) return null;
+  const weighted = comps.reduce((acc, comp, i) => acc + (blend[i].share / 100) * Number(comp.similarity || 0), 0);
+  const coverage = comps.reduce((acc, comp, i) => acc + (blend[i].share / 100) * Number(comp.coverage || 0), 0) / 100;
+  return r1(clamp(weighted * (0.88 + 0.12 * coverage), 0, 100));
+}
+
 const result = { NBA: {}, GLEAGUE: {} };
 for (const lg of ['NBA', 'GLEAGUE']) {
   const pool = histories[lg];
@@ -467,21 +513,17 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const top = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 3);
     const best = top.map((x) => serializeComp(target, x.cand, x.m));
     if (!best.length) continue;
-    // Similarity is independent for each comp. Do NOT force three numbers to add to 100.
-    // Strong/moderate/loose matches are shown; when there is no credible match, keep only the
-    // nearest weak reference so true outliers can look like outliers.
-    let displayComps = best.filter((x) => x.similarity >= 35);
-    if (!displayComps.length && best.length) displayComps = [best[0]];
+    const blend = blendShares(best);
+    const confidence = blendConfidence(best, blend);
     const primary = best[0], rel = primary.relation || [];
     result[lg][String(p.playerId)] = {
       top3: best,
-      displayComps,
-      matchSummary: displayComps.length
-        ? displayComps.map((x) => ({ name: x.name, season: x.season, similarity: x.similarity }))
-        : [],
+      blend,
+      blendConfidence: confidence,
+      matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
       shorthand: rel.length
-        ? `A ${rel.join(', ')} version of ${primary.name} (${primary.season}) at ${primary.similarity}% similarity.`
-        : `Closest overall style/physical reference: ${primary.name} (${primary.season}) at ${primary.similarity}% similarity.`,
+        ? `A ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
+        : `Historical blend led by ${primary.name} (${primary.season}).`,
       targetPhysical: {
         heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
         weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
@@ -549,9 +591,9 @@ data.analysis.playerCompsMeta = {
   gleagueHistory: '2014-15 through 2025-26',
   priority: 'physical profile first, then archetype/role and production, scoring mix, defensive activity; current-season deep style used when common',
   physicalWeight: 0.46,
-  similarityScale: 'absolute independent score: 100*exp(-0.72*distance^1.55); not normalized across displayed comps',
-  strongMatchThreshold: 65,
-  displayMatchThreshold: 35,
+  similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
+  blendMethod: 'three nearest distinct players; quality = 55% absolute match + 20% physical + 10% role + 10% scoring + 5% defense, adjusted for coverage/block harmony; softmax temperature 8; integer shares use largest-remainder rounding and always total 100',
+  blendConfidence: 'blend-share-weighted absolute match score with a small feature-coverage adjustment',
   scoreDistribution,
   positionGate: false,
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
