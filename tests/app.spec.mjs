@@ -428,8 +428,22 @@ test.describe('analysis workspace', () => {
     const errors = await open(page);
     await mode(page, 'similarity');
     await page.waitForTimeout(900);
-    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
     expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('THREE-PLAYER BLEND');
+
+    // The comps surface must support the user's literal "type a player" workflow, not only a
+    // hundreds-row select menu.
+    const typed = await page.evaluate(() => {
+      const ids = new Set(Object.keys(DATA.analysis.playerComps.NBA));
+      const p = DATA.leagues.NBA.find((x, i) => i > 5 && ids.has(String(x.playerId)) && x.appeared);
+      return { name: p.name };
+    });
+    await page.fill('#simSearch', typed.name);
+    await page.dispatchEvent('#simSearch', 'change');
+    await page.waitForTimeout(500);
+    expect(await page.inputValue('#simSearch')).toContain(typed.name);
+    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain(typed.name);
+    expect(await page.$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
 
     const props = await page.evaluate(() => {
       const meta = DATA.analysis.playerCompsMeta;
