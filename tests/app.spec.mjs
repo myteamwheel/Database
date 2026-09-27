@@ -439,7 +439,7 @@ test.describe('analysis workspace', () => {
       return { name: p.name };
     });
     await page.fill('#simSearch', typed.name);
-    await page.dispatchEvent('#simSearch', 'change');
+    await page.press('#simSearch', 'Enter');
     await page.waitForTimeout(500);
     expect(await page.inputValue('#simSearch')).toContain(typed.name);
     expect(await page.$eval('#workspace', (e) => e.textContent)).toContain(typed.name);
