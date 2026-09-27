@@ -428,7 +428,7 @@ test.describe('analysis workspace', () => {
     const errors = await open(page);
     await mode(page, 'similarity');
     await page.waitForTimeout(900);
-    expect(await page.$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
     expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('THREE-PLAYER BLEND');
 
     // The comps surface must support the user's literal "type a player" workflow, not only a
@@ -443,7 +443,7 @@ test.describe('analysis workspace', () => {
     await page.waitForTimeout(500);
     expect(await page.inputValue('#simSearch')).toContain(typed.name);
     expect(await page.$eval('#workspace', (e) => e.textContent)).toContain(typed.name);
-    expect(await page.$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
 
     const props = await page.evaluate(() => {
       const meta = DATA.analysis.playerCompsMeta;
