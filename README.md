@@ -17,7 +17,7 @@ Then open <http://localhost:3600>. `npm run audit` validates the generated data,
 **complete** current-season database plus the compressed historical game-log product. The main
 payload is losslessly columnar-encoded and then gzip-compressed before base64 embedding; historical
 game logs use a separate gzip payload decoded only when a player asks for them. The current build is
-about **7.64 MB** against a 16 MB publishing ceiling, leaving roughly 8.36 MB of headroom without
+about **8.92 MB** against a 16 MB publishing ceiling, leaving roughly 7.08 MB of headroom without
 dropping fields.
 
 ---
@@ -489,7 +489,7 @@ change from a bug.
 ```
 app.js                     UI
 index.html  styles.css
-public/data.json           generated, 13.7 MB
+public/data.json           generated, 41.0 MB
 scripts/build-v3.mjs       merge, metrics, grades
 scripts/audit-v3.mjs       coverage + sanity checks, non-zero exit on failure
 scripts/fetch-official.mjs re-pull stats.nba.com dashboards (local only)
