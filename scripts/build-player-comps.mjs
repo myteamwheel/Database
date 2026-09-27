@@ -523,6 +523,22 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
 }
 
+const pct = (arr, q) => {
+  const x = arr.filter(fin).slice().sort((a, b) => a - b);
+  if (!x.length) return null;
+  const i = (x.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+  return r1(x[lo] + (x[hi] - x[lo]) * (i - lo));
+};
+const scoreDistribution = {};
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const top1 = Object.values(result[lg]).map((set) => set.top3?.[0]?.similarity).filter(fin);
+  const all = Object.values(result[lg]).flatMap((set) => (set.top3 || []).map((x) => x.similarity)).filter(fin);
+  scoreDistribution[lg] = {
+    top1: { min: r1(Math.min(...top1)), p10: pct(top1, .10), median: pct(top1, .50), p90: pct(top1, .90), max: r1(Math.max(...top1)) },
+    allDisplayedCandidates: { min: r1(Math.min(...all)), median: pct(all, .50), max: r1(Math.max(...all)) },
+  };
+}
+
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
@@ -536,6 +552,7 @@ data.analysis.playerCompsMeta = {
   similarityScale: 'absolute independent score: 100*exp(-0.72*distance^1.55); not normalized across displayed comps',
   strongMatchThreshold: 65,
   displayMatchThreshold: 35,
+  scoreDistribution,
   positionGate: false,
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
   combineMeasurementsLoaded: combine.size,
