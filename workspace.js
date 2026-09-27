@@ -64,6 +64,16 @@
         .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(teamOf(p))}</option>`).join('')
     }</select></label>`;
 
+  const compPlayerLabel = (p) => `${p.name} — ${teamOf(p)}`;
+  const compPlayerSearch = (p) => {
+    const opts = players().slice().sort((a, b) => a.name.localeCompare(b.name))
+      .map((x) => `<option value="${esc(compPlayerLabel(x))}">${esc(x.position || '')}</option>`).join('');
+    return `<label>Player<input id="simSearch" type="search" list="simPlayerList"
+      autocomplete="off" spellcheck="false" value="${esc(compPlayerLabel(p))}"
+      placeholder="Type a player name…" aria-label="Search player for historical comparisons">
+      <datalist id="simPlayerList">${opts}</datalist></label>`;
+  };
+
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
   function numericFields() {
     const out = [];
@@ -528,7 +538,7 @@
 
     if (!set) {
       return `<h2>Player Comps</h2>
-        <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+        <div class="ws-controls">${compPlayerSearch(p)}</div>
         <div class="ws-card wide"><p>No historical comparison is available for <b>${esc(p.name)}</b>.
         This usually means the player has no usable 2025-26 professional sample yet.</p></div>
         <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
@@ -578,7 +588,7 @@
     }).join('');
 
     return `<h2>Player Comps</h2>
-      <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+      <div class="ws-controls">${compPlayerSearch(p)}</div>
       <p class="tiny"><b>${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} historical pool.</b>
       ${esc(meta.priority || '')} Positions are not a hard filter.</p>
       <div class="ws-card wide">
@@ -893,7 +903,12 @@
     on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); });
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
-    on('simSel', 'change', (e) => { state.simPlayer = e.target.value; render(); });
+    on('simSearch', 'change', (e) => {
+      const raw = String(e.target.value || '').trim();
+      const exact = players().find((p) => compPlayerLabel(p) === raw)
+        || players().find((p) => p.name.toLowerCase() === raw.toLowerCase());
+      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; render(); }
+    });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
     on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); });
