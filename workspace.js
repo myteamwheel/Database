@@ -903,11 +903,15 @@
     on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); });
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
-    on('simSearch', 'change', (e) => {
-      const raw = String(e.target.value || '').trim();
+    const chooseCompPlayer = (raw) => {
+      raw = String(raw || '').trim();
       const exact = players().find((p) => compPlayerLabel(p) === raw)
         || players().find((p) => p.name.toLowerCase() === raw.toLowerCase());
       if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; render(); }
+    };
+    on('simSearch', 'change', (e) => chooseCompPlayer(e.target.value));
+    on('simSearch', 'keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value); }
     });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
