@@ -429,23 +429,23 @@ test.describe('analysis workspace', () => {
     expect(errors).toEqual([]);
   });
 
-  test('player comps use independent similarity scores, typed search, filters and side-by-side detail', async ({ page }) => {
+  test('player comps use a differentiated 100% three-player blend with confidence and side-by-side detail', async ({ page }) => {
     const errors = await open(page);
     await page.click('.site-link[data-goto="comps"]');
     await page.waitForTimeout(900);
 
-    const heroN = await page.$$eval('#workspace .comp-hero-card', (x) => x.length);
-    expect(heroN).toBeGreaterThanOrEqual(1);
-    expect(heroN).toBeLessThanOrEqual(3);
-    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(heroN);
+    expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBe(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
     const txt = await page.$eval('#workspace', (e) => e.textContent);
-    expect(txt).toContain('Independent similarity percentages');
+    expect(txt).toContain('blend composition');
+    expect(txt).toContain('BLEND CONFIDENCE');
     for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
-      'Usage', 'True shooting', '3PA share', 'FT rate', 'STL / 36', 'BLK / 36', 'DREB%', 'OREB%']) {
+      'Usage', 'AST%', 'AST / TO', 'True shooting', 'eFG%', '3PA share', 'FT rate',
+      'STL / 36', 'BLK / 36', 'DREB%', 'OREB%', 'REB%', 'Net rating']) {
       expect(txt, 'missing side-by-side metric: ' + needle).toContain(needle);
     }
 
-    // Literal typed-search path: no mega-select required.
+    // Literal typed-search path: autocomplete suggestions + team/position filters, no mega-select.
     expect(await page.$('#simSearch')).not.toBeNull();
     expect(await page.$('#simTeam')).not.toBeNull();
     expect(await page.$('#simPosition')).not.toBeNull();
@@ -470,48 +470,56 @@ test.describe('analysis workspace', () => {
         NBA: Object.entries(DATA.analysis.playerComps.NBA),
         GLEAGUE: Object.entries(DATA.analysis.playerComps.GLEAGUE),
       };
-      let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badLeague = 0;
-      let badDisplay = 0, normalizedTriples = 0, lowOnlySets = 0;
-      const allScores = [];
+      let badCount = 0, badScore = 0, badBlend = 0, badConfidence = 0, self = 0, duplicatePlayers = 0, badLeague = 0;
+      let nearThird = 0, totalSets = 0;
+      const patterns = new Set(), topShares = [], allScores = [];
       for (const [league, entries] of Object.entries(groups)) {
         for (const [targetId, set] of entries) {
-          if ((set.top3 || []).length !== 3) badCount++;
-          if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
+          totalSets++;
+          if ((set.top3 || []).length !== 3 || (set.blend || []).length !== 3) badCount++;
+          if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3) duplicatePlayers++;
+          const sum = (set.blend || []).reduce((a, x) => a + x.share, 0);
+          if (sum !== 100 || (set.blend || []).some((x) => !(x.share >= 0 && x.share <= 100))) badBlend++;
+          if (!(set.blendConfidence >= 0 && set.blendConfidence <= 100)) badConfidence++;
+          const shares = (set.blend || []).map((x) => x.share);
+          if (shares.length === 3) {
+            patterns.add(shares.join('/'));
+            topShares.push(Math.max(...shares));
+            if (Math.max(...shares) - Math.min(...shares) <= 4) nearThird++;
+          }
           for (const comp of set.top3 || []) {
             allScores.push(comp.similarity);
             if (!(comp.similarity >= 0 && comp.similarity <= 100)) badScore++;
             if (String(comp.playerId) === String(targetId)) self++;
             if (comp.league !== league) badLeague++;
           }
-          const shown = set.displayComps || [];
-          if (shown.length < 1 || shown.length > 3) badDisplay++;
-          if ((set.top3 || []).every((x) => x.similarity < 35) && shown.length === 1) lowOnlySets++;
-          const sum = shown.reduce((a, x) => a + x.similarity, 0);
-          if (shown.length > 1 && Math.abs(sum - 100) < 0.2) normalizedTriples++;
         }
       }
-      const rounded = new Set(allScores.map((x) => Math.round(x)));
       return {
         meta, nbaN: groups.NBA.length, gleagueN: groups.GLEAGUE.length,
-        badCount, badScore, self, duplicatePlayers, badLeague, badDisplay, normalizedTriples, lowOnlySets,
-        minScore: Math.min(...allScores), maxScore: Math.max(...allScores), distinctRounded: rounded.size
+        badCount, badScore, badBlend, badConfidence, self, duplicatePlayers, badLeague,
+        totalSets, nearThird, distinctPatterns: patterns.size,
+        topShareMax: Math.max(...topShares), topShareMin: Math.min(...topShares),
+        minScore: Math.min(...allScores), maxScore: Math.max(...allScores)
       };
     });
     expect(props.nbaN).toBeGreaterThan(500);
     expect(props.gleagueN).toBeGreaterThan(500);
     expect(props.badCount).toBe(0);
     expect(props.badScore).toBe(0);
+    expect(props.badBlend).toBe(0);
+    expect(props.badConfidence).toBe(0);
     expect(props.self).toBe(0);
     expect(props.duplicatePlayers).toBe(0);
     expect(props.badLeague).toBe(0);
-    expect(props.badDisplay).toBe(0);
-    expect(props.normalizedTriples).toBeLessThan(5);
+    expect(props.distinctPatterns).toBeGreaterThan(20);
+    expect(props.nearThird / props.totalSets).toBeLessThan(0.75);
+    expect(props.topShareMax).toBeGreaterThanOrEqual(40);
     expect(props.maxScore - props.minScore).toBeGreaterThan(25);
-    expect(props.distinctRounded).toBeGreaterThan(20);
     expect(props.meta.sameLeagueOnly).toBe(true);
     expect(props.meta.physicalWeight).toBeCloseTo(0.46, 6);
     expect(props.meta.positionGate).toBe(false);
-    expect(props.meta.similarityScale).toContain('not normalized');
+    expect(props.meta.blendMethod).toContain('softmax temperature 8');
     expect(errors).toEqual([]);
   });
 

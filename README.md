@@ -312,12 +312,19 @@ identically even though they are ranked separately.
 live clickable suggestions plus team and position filters. The page presents the closest historical
 same-league matches as large logo-led cards, followed by full target-vs-comp tables.
 
-Similarity percentages are **independent absolute scores**. They are not shares and are never forced
-to add to 100. The three nearest distinct historical players are retained for auditability, but the
-UI only treats scores at or above 35 as meaningful displayed matches; if nobody reaches that level,
-it shows the single nearest player as a weak reference and explicitly labels the target an outlier.
-This allows genuinely unusual players to have one weak comparison instead of an artificial 33/33/34
-three-player blend.
+The visible comparison is a **three-player blend whose shares always total 100%**. The engine still
+computes an internal absolute match score for each historical candidate, but blend shares are derived
+from a separate evidence weight: 55% overall match quality, 20% physical match, 10% role, 10% scoring
+and 5% defense, adjusted slightly for feature coverage and agreement across blocks. Those three
+quality values are converted with a softmax temperature of 8 and largest-remainder rounding. That
+means genuinely close candidates can still land near one-third each, while a clearly stronger
+historical analogue can produce something like 50/30/20 rather than every player drifting toward
+33/33/34.
+
+A separate **Blend Confidence** score does not have to sum to anything. It measures how convincing
+the three-player explanation is overall using the blend-weighted absolute match quality plus source
+coverage. This preserves the intuitive 100% blend while still allowing unusual players to have a
+low-confidence historical comparison.
 
 The match is deliberately **size-first rather than position-first**. Listed professional height and
 weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
