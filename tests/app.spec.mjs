@@ -434,8 +434,8 @@ test.describe('analysis workspace', () => {
     const props = await page.evaluate(() => {
       const meta = DATA.analysis.playerCompsMeta;
       const groups = {
-        NBA: Object.entries(DATA.analysis.playerComps.NBA).slice(0, 60),
-        GLEAGUE: Object.entries(DATA.analysis.playerComps.GLEAGUE).slice(0, 60),
+        NBA: Object.entries(DATA.analysis.playerComps.NBA),
+        GLEAGUE: Object.entries(DATA.analysis.playerComps.GLEAGUE),
       };
       let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badBlend = 0, badLeague = 0, wingspanSeen = 0;
       for (const [league, entries] of Object.entries(groups)) {
@@ -456,8 +456,8 @@ test.describe('analysis workspace', () => {
         badCount, badScore, self, duplicatePlayers, badBlend, badLeague, wingspanSeen
       };
     });
-    expect(props.nbaN).toBeGreaterThan(20);
-    expect(props.gleagueN).toBeGreaterThan(20);
+    expect(props.nbaN).toBeGreaterThan(500);
+    expect(props.gleagueN).toBeGreaterThan(500);
     expect(props.badCount).toBe(0);
     expect(props.badScore).toBe(0);
     expect(props.self).toBe(0);
