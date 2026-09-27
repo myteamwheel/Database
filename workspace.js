@@ -39,17 +39,29 @@
   function render() {
     renderNav();
     const isComp = MODE === 'similarity';
+    const isDb = MODE === 'database';
+    const lg = league() === 'NBA' ? 'NBA' : 'G League';
     document.querySelectorAll('.site-link[data-goto]').forEach((b) => {
       if (isComp) b.classList.toggle('active', b.dataset.goto === 'comps');
       else if (MODE !== 'database') b.classList.toggle('active', b.dataset.goto === 'stats');
     });
     if (isComp) {
-      const lg = league() === 'NBA' ? 'NBA' : 'G League';
       if ($('pageTitle')) $('pageTitle').textContent = `${lg} Player Comparisons`;
       if ($('crumbs')) $('crumbs').textContent = `${lg} › Historical player comparisons`;
       if ($('seasonEyebrow')) $('seasonEyebrow').textContent = 'Historical similarity engine';
+    } else if (!isDb) {
+      // Returning from Player Comps previously left its title, crumbs and eyebrow behind on every
+      // other analysis tab. Keep the persistent page chrome synchronized with the active tool.
+      const labels = Object.fromEntries(MODES);
+      const title = MODE === 'player' ? 'Player Analysis'
+        : MODE === 'compare' ? 'Player Comparison'
+        : MODE === 'scatter' ? 'Scatter & Correlation'
+        : MODE === 'teamfit' ? 'Team Fit'
+        : MODE === 'tulip' ? 'Role Value' : (labels[MODE] || 'Analysis');
+      if ($('pageTitle')) $('pageTitle').textContent = `${lg} ${title}`;
+      if ($('crumbs')) $('crumbs').textContent = `${lg} › 2025-26 › ${title}`;
+      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = '2025-26 analysis workspace';
     }
-    const isDb = MODE === 'database';
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
@@ -687,11 +699,12 @@
 
     const heroes = shown.map((q, i) => {
       const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
+      const blendLabel = shown.length === 1 ? 'OF THE PLAYER COMP' : 'OF THE PLAYER BLEND';
       return `<article class="comp-hero-card" data-comp-rank="${i + 1}">
         <div class="comp-hero-rank">#${i + 1}</div>
         ${compLogo(q)}
         <div class="comp-hero-score">${b.share}%</div>
-        <div class="comp-hero-strength">OF THE THREE-PLAYER BLEND</div>
+        <div class="comp-hero-strength">${blendLabel}</div>
         <h3>${esc(q.name)}</h3>
         <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
         <p class="tiny">Match quality: <b>${num(q.similarity, 1)}/100</b> · ${esc(compStrength(q.similarity))}</p>
@@ -725,7 +738,7 @@
         <div><div class="eyebrow">HISTORICAL PLAYER COMPARISON</div><h2>Player Comps</h2></div>
         <div class="comp-confidence"><span>BLEND CONFIDENCE</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
-      <p class="tiny">The three large percentages are the <b>blend composition</b> and always total 100%.
+      <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Blend Confidence is separate: it tells you how convincing those historical references are overall.</p>
       ${compPlayerSearch(p)}
       <div class="comp-target-strip">
@@ -737,12 +750,12 @@
       <div class="comp-hero-grid">${heroes}</div>
       <div class="comp-shorthand"><b>Blend read:</b> ${esc(set.shorthand || '')}</div>
       <div class="comp-detail-stack">${details}</div>
-      <p class="tiny comp-method"><b>Blend method:</b> the engine first finds the three nearest distinct historical players using the
-      full size-first comparison model. It then converts those three into a 100% blend using a sharper evidence weight that is
-      55% overall match quality, 20% physical match, 10% role, 10% scoring and 5% defense, with small adjustments for feature
-      coverage and cross-block consistency. A softmax temperature of 8 makes meaningful gaps show up as differentiated shares
-      instead of automatically collapsing toward 33/33/33. Truly near-equal comps can still be near thirds. <b>Blend Confidence</b>
-      remains separate so a unique player can have a valid three-player composition without pretending the historical fit is strong.
+      <p class="tiny comp-method"><b>Blend method:</b> the engine forms a balanced shortlist, then chooses one to three historical
+      players and their non-negative percentages together. It minimizes the error between the target and the weighted blend across
+      role, creation, production, shot diet and defensive activity; all shares sum to 100%. Physical compatibility, missing source
+      fields and an unnecessary extra player are explicit penalties. Team ratings and plus-minus stay visible but do not steer the
+      composition. <b>Blend Confidence</b> combines reconstruction quality, individual match quality and feature coverage, so a
+      unique player can still receive honest reference points without pretending the historical fit is strong.
       ${esc((meta.limitations || []).join(' '))}</p>
     </div>`;
   }
@@ -1077,7 +1090,10 @@
     document.querySelectorAll('[data-preset]').forEach((b) => {
       b.onclick = () => { const [x, y] = b.dataset.preset.split('|'); state.scatterX = x; state.scatterY = y; render(); };
     });
-    document.querySelectorAll('[data-goto]').forEach((b) => {
+    // Only workspace player links use data-goto as a player id. The persistent site navigation also
+    // uses data-goto (stats/proj/comps); binding those here overwrote app.js and made the top-level
+    // Player Comps tab flash the right title before incorrectly opening the Player mode.
+    document.querySelectorAll('#workspace [data-goto]').forEach((b) => {
       b.onclick = () => { state.player = b.dataset.goto; MODE = 'player'; render(); };
     });
   }

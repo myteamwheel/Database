@@ -312,26 +312,27 @@ identically even though they are ranked separately.
 live clickable suggestions plus team and position filters. The page presents the closest historical
 same-league matches as large logo-led cards, followed by full target-vs-comp tables.
 
-The visible comparison is a **three-player blend whose shares always total 100%**. The engine still
-computes an internal absolute match score for each historical candidate, but blend shares are derived
-from a separate evidence weight: 55% overall match quality, 20% physical match, 10% role, 10% scoring
-and 5% defense, adjusted slightly for feature coverage and agreement across blocks. Those three
-quality values are converted with a softmax temperature of 8 and largest-remainder rounding. That
-means genuinely close candidates can still land near one-third each, while a clearly stronger
-historical analogue can produce something like 50/30/20 rather than every player drifting toward
-33/33/34.
+The visible comparison is a **one-to-three-player convex blend whose shares always total 100%**.
+The engine first creates a balanced shortlist of individual historical matches. It then chooses the
+players and percentages jointly by minimizing the error between the current player and the weighted
+historical blend across role, creation, production, shot diet and defensive activity. Percentages are
+non-negative and sum to one before largest-remainder display rounding. A small complexity penalty
+keeps a needless third name out; a third player remains when it materially improves reconstruction.
+This is a genuine mixture estimate rather than three nearest neighbours with percentages assigned
+afterwards.
 
-A separate **Blend Confidence** score does not have to sum to anything. It measures how convincing
-the three-player explanation is overall using the blend-weighted absolute match quality plus source
-coverage. This preserves the intuitive 100% blend while still allowing unusual players to have a
-low-confidence historical comparison.
+A separate **Blend Confidence** score does not have to sum to anything. It is 72% reconstructed-
+profile similarity and 28% blend-weighted individual match quality, adjusted for source coverage.
+This preserves the intuitive 100% blend while still allowing unusual players to have a low-confidence
+historical comparison.
 
-The match is deliberately **size-first rather than position-first**. Listed professional height and
+The match uses **body compatibility rather than a position gate**. Listed professional height and
 weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
 where they were actually measured. No wingspan or length value is estimated for a non-participant.
-The physical block carries 46% of the declared historical match weight, followed by archetype/role
-and production (22%), scoring/shot profile (19%) and defensive/rebounding activity (13%). Positions
-may cross when the body and game genuinely match.
+The balanced individual-match weights are physical 20%, archetype/role and production 35%,
+scoring/shot profile 30% and defensive/rebounding activity 15%. Physical agreement is therefore a
+screen, not a second vote that can overwhelm a different basketball job. Positions may cross when
+the body and game genuinely match.
 
 Historical pools currently cover **NBA 2009-10 through 2025-26** and **G League 2014-15 through
 2025-26**. The common historical comparison set now includes minutes/role, usage, per-36 scoring,

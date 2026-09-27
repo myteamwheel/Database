@@ -398,6 +398,11 @@ test.describe('analysis workspace', () => {
     await page.waitForTimeout(350);
     expect(await page.$eval('#pageTitle', (e) => e.textContent)).toContain('Player Comparisons');
     expect(await page.$eval('.site-link[data-goto="comps"]', (e) => e.classList.contains('active'))).toBe(true);
+    expect(await page.$eval('[data-mode].active', (e) => e.dataset.mode)).toBe('similarity');
+    expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBeGreaterThan(0);
+    await mode(page, 'teamfit');
+    expect(await page.$eval('#pageTitle', (e) => e.textContent)).toBe('NBA Team Fit');
+    expect(await page.$eval('#crumbs', (e) => e.textContent)).toContain('Team Fit');
     expect(errors).toEqual([]);
   });
 
@@ -429,13 +434,14 @@ test.describe('analysis workspace', () => {
     expect(errors).toEqual([]);
   });
 
-  test('player comps use a differentiated 100% three-player blend with confidence and side-by-side detail', async ({ page }) => {
+  test('player comps use an optimized 100% one-to-three-player blend with confidence and side-by-side detail', async ({ page }) => {
     const errors = await open(page);
     await page.click('.site-link[data-goto="comps"]');
     await page.waitForTimeout(900);
 
-    expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBe(3);
-    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBeGreaterThanOrEqual(1);
+    expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBeLessThanOrEqual(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBeGreaterThanOrEqual(1);
     const txt = await page.$eval('#workspace', (e) => e.textContent);
     expect(txt).toContain('blend composition');
     expect(txt).toContain('BLEND CONFIDENCE');
@@ -476,8 +482,8 @@ test.describe('analysis workspace', () => {
       for (const [league, entries] of Object.entries(groups)) {
         for (const [targetId, set] of entries) {
           totalSets++;
-          if ((set.top3 || []).length !== 3 || (set.blend || []).length !== 3) badCount++;
-          if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3) duplicatePlayers++;
+          if ((set.top3 || []).length < 1 || (set.top3 || []).length > 3 || (set.blend || []).length !== (set.top3 || []).length) badCount++;
+          if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
           const sum = (set.blend || []).reduce((a, x) => a + x.share, 0);
           if (sum !== 100 || (set.blend || []).some((x) => !(x.share >= 0 && x.share <= 100))) badBlend++;
           if (!(set.blendConfidence >= 0 && set.blendConfidence <= 100)) badConfidence++;
@@ -517,9 +523,9 @@ test.describe('analysis workspace', () => {
     expect(props.topShareMax).toBeGreaterThanOrEqual(40);
     expect(props.maxScore - props.minScore).toBeGreaterThan(25);
     expect(props.meta.sameLeagueOnly).toBe(true);
-    expect(props.meta.physicalWeight).toBeCloseTo(0.46, 6);
+    expect(props.meta.physicalWeight).toBeCloseTo(0.20, 6);
     expect(props.meta.positionGate).toBe(false);
-    expect(props.meta.blendMethod).toContain('softmax temperature 8');
+    expect(props.meta.blendMethod).toContain('convex reconstruction');
     expect(errors).toEqual([]);
   });
 

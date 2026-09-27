@@ -4,14 +4,14 @@
 // projection history: NBA 2009-10..2025-26 and G League 2014-15..2025-26.
 //
 // Design rules:
-//   1. Physical profile is the first and heaviest block (height, weight, wingspan/reach when known).
+//   1. Physical profile is a compatibility screen, not a second vote for playing style.
 //   2. Position is NOT a hard gate. A guard and wing can compare if their bodies/roles actually match.
 //   3. Production, role, shooting mix and defensive activity then refine the match.
 //   4. Missing measurements are never invented. Block weights renormalise over available evidence,
 //      while missing physical coverage carries an explicit penalty so "unknown size" cannot beat a
 //      genuinely close measured match by accident.
-//   5. Current-season deep style axes are used only when both records have them; historical seasons
-//      are not pretended to contain tracking/shot-zone data that was never acquired.
+//   5. Current-season deep style axes are displayed when both records have them but do not enter the
+//      historical rank: otherwise 2025-26 candidates would be scored on a different feature set.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -191,7 +191,10 @@ function deepOverlay(p) {
 
 const BLOCKS = {
   physical: {
-    weight: 0.46,
+    // Size matters, but the old 46% weight let a near-identical body overwhelm a different job.
+    // Twenty percent keeps obviously incompatible bodies apart while leaving most of the match to
+    // role, creation, shot diet and defensive activity.
+    weight: 0.20,
     axes: {
       height: { scale: 2.5, weight: 1.25, label: 'height' },
       weight: { scale: 18, weight: 1.0, label: 'weight' },
@@ -201,7 +204,7 @@ const BLOCKS = {
   },
   role: {
     // Archetype/role block: creation load, shot volume, playmaking and rebounding shape.
-    weight: 0.22,
+    weight: 0.35,
     axes: {
       mpg: { scale: 5, weight: 0.45, label: 'minutes/role' },
       usg: { scale: 0.055, weight: 1.0, label: 'usage' },
@@ -217,7 +220,7 @@ const BLOCKS = {
     },
   },
   scoring: {
-    weight: 0.19,
+    weight: 0.30,
     axes: {
       pts36: { scale: 5.5, weight: 1.0, label: 'scoring rate' },
       ts: { scale: 0.045, weight: 0.8, label: 'true shooting' },
@@ -226,45 +229,20 @@ const BLOCKS = {
       ftRate: { scale: 0.13, weight: 0.7, label: 'free-throw pressure' },
       fta36: { scale: 2.5, weight: 0.5, label: 'free-throw volume' },
       efgPct: { scale: 0.045, weight: 0.45, label: 'effective field-goal percentage' },
-      fgPct: { scale: 0.045, weight: 0.25, label: 'field-goal percentage' },
       ftPct: { scale: 0.085, weight: 0.15, label: 'free-throw accuracy' },
-      offRtg: { scale: 7, weight: 0.12, label: 'offensive rating context' },
     },
   },
   defense: {
-    weight: 0.13,
+    weight: 0.15,
     axes: {
       stl36: { scale: 0.45, weight: 0.8, label: 'steal activity' },
       blk36: { scale: 0.65, weight: 0.9, label: 'rim protection' },
       drebPct: { scale: 0.055, weight: 0.65, label: 'defensive rebounding' },
       orebPct: { scale: 0.045, weight: 0.35, label: 'offensive rebounding' },
-      pie: { scale: 0.035, weight: 0.45, label: 'box-score impact share' },
-      defRtg: { scale: 7, weight: 0.20, label: 'defensive rating context' },
-      netRtg: { scale: 9, weight: 0.18, label: 'net-rating context' },
-      plusMinus36: { scale: 6, weight: 0.12, label: 'plus-minus per 36 context' },
       pf36: { scale: 1.4, weight: 0.12, label: 'foul activity' },
     },
   },
 };
-const DEEP = {
-  selfCreation: { scale: 22, weight: 1.0, label: 'self-created offense' },
-  paintScoring: { scale: 22, weight: 0.9, label: 'paint scoring' },
-  rimPressure: { scale: 20, weight: 0.8, label: 'rim pressure' },
-  threeVolume: { scale: 20, weight: 0.9, label: 'three-point volume' },
-  threeAccuracy: { scale: 20, weight: 0.6, label: 'three-point accuracy' },
-  playmaking: { scale: 20, weight: 0.8, label: 'playmaking' },
-  ballSecurity: { scale: 20, weight: 0.5, label: 'ball security' },
-  steals: { scale: 20, weight: 0.6, label: 'defensive activity' },
-  rimProtection: { scale: 20, weight: 0.7, label: 'rim protection' },
-  pctPtsPaint: { scale: 0.12, weight: 0.8, label: 'paint scoring share' },
-  pctPtsMidrange: { scale: 0.10, weight: 0.8, label: 'mid-range scoring share' },
-  catchShootFga: { scale: 2.5, weight: 0.65, label: 'catch-and-shoot volume' },
-  pullUpFga: { scale: 2.5, weight: 0.7, label: 'pull-up volume' },
-  paintPts36: { scale: 4.0, weight: 0.65, label: 'paint scoring per 36' },
-  selfCreatedPts36: { scale: 4.0, weight: 0.7, label: 'self-created scoring per 36' },
-  shotLocationValue: { scale: 18, weight: 0.45, label: 'shot-location profile' },
-};
-
 function blockDistance(target, cand, spec, targetPhysical = false) {
   let acc = 0, w = 0, avail = 0, possible = 0;
   const detail = [];
@@ -288,18 +266,6 @@ function blockDistance(target, cand, spec, targetPhysical = false) {
   return { distance, coverage, detail };
 }
 
-function deepDistance(a, b) {
-  let acc = 0, w = 0; const detail = [];
-  for (const [key, s] of Object.entries(DEEP)) {
-    const x = a?.[key], y = b?.[key];
-    if (!fin(x) || !fin(y)) continue;
-    const z = Math.abs(Number(x) - Number(y)) / s.scale;
-    acc += s.weight * Math.min(z, 4) ** 2; w += s.weight;
-    detail.push({ key, label: s.label, gap: Math.abs(Number(x) - Number(y)), z });
-  }
-  return w ? { distance: Math.sqrt(acc / w), detail } : { distance: null, detail: [] };
-}
-
 function similarityFromDistance(distance) {
   if (!fin(distance)) return null;
   // Absolute similarity calibration, not rank normalization:
@@ -308,7 +274,7 @@ function similarityFromDistance(distance) {
   return clamp(100 * Math.exp(-0.72 * Math.pow(Math.max(0, distance), 1.55)), 0, 100);
 }
 
-function compare(target, cand, targetDeep, candDeep) {
+function compare(target, cand) {
   const parts = [];
   let total = 0, totalW = 0;
   for (const [name, spec] of Object.entries(BLOCKS)) {
@@ -319,12 +285,6 @@ function compare(target, cand, targetDeep, candDeep) {
     total += spec.weight * d.distance * d.distance;
     totalW += spec.weight;
     parts.push({ name, weight: spec.weight, ...d });
-  }
-  const deep = deepDistance(targetDeep, candDeep);
-  if (fin(deep.distance)) {
-    const w = 0.07; // bonus refinement only; historical candidates are not punished for unavailable tracking.
-    total += w * deep.distance * deep.distance; totalW += w;
-    parts.push({ name: 'currentStyle', weight: w, distance: deep.distance, coverage: 1, detail: deep.detail });
   }
   if (!totalW) return null;
   let distance = Math.sqrt(total / totalW);
@@ -440,50 +400,133 @@ function serializeComp(target, cand, m) {
   };
 }
 
-function blendQuality(comp) {
-  const b = comp.blockScores || {};
-  const blocks = [b.physical, b.role, b.scoring, b.defense].filter(fin);
-  const overall = fin(comp.similarity) ? Number(comp.similarity) : 0;
-  const physical = fin(b.physical) ? Number(b.physical) : overall;
-  const role = fin(b.role) ? Number(b.role) : overall;
-  const scoring = fin(b.scoring) ? Number(b.scoring) : overall;
-  const defense = fin(b.defense) ? Number(b.defense) : overall;
+// A blend should reconstruct the target's basketball profile, not merely distribute 100 points
+// among the three nearest neighbours. These high-coverage, player-controlled axes are used for
+// the convex blend. Team-context outputs (ratings, plus-minus and PIE) remain visible in the
+// side-by-side table but cannot steer the composition.
+const BLEND_EXCLUDED = new Set(['offRtg', 'defRtg', 'netRtg', 'plusMinus36', 'pie', 'pace', 'poss']);
+const BLEND_AXES = Object.entries(BLOCKS)
+  .filter(([block]) => block !== 'physical')
+  .flatMap(([block, spec]) => {
+    const axisTotal = Object.entries(spec.axes)
+      .filter(([key]) => !BLEND_EXCLUDED.has(key))
+      .reduce((sum, [, axis]) => sum + axis.weight, 0);
+    return Object.entries(spec.axes)
+      .filter(([key]) => !BLEND_EXCLUDED.has(key))
+      .map(([key, axis]) => ({
+        key, block, scale: axis.scale,
+        // Coordinates are multiplied by sqrt(weight), so squared Euclidean error preserves the
+        // declared block and within-block weights.
+        weight: spec.weight * axis.weight / axisTotal,
+      }));
+  });
 
-  // Use the absolute match as the backbone, then reward agreement across the four interpretable
-  // blocks. This stops one spectacular dimension from dominating an otherwise weak comp.
-  const composite = 0.55 * overall + 0.20 * physical + 0.10 * role + 0.10 * scoring + 0.05 * defense;
-  const maxBlock = blocks.length ? Math.max(...blocks) : overall;
-  const minBlock = blocks.length ? Math.min(...blocks) : overall;
-  const harmony = maxBlock > 0 ? minBlock / maxBlock : 0;
-  const coverage = fin(comp.coverage) ? clamp(Number(comp.coverage) / 100, 0, 1) : 0.75;
-  return composite * (0.82 + 0.12 * coverage + 0.06 * harmony);
+function blendAxes(target, items) {
+  return BLEND_AXES.filter((axis) => {
+    if (!fin(target.features[axis.key])) return false;
+    const covered = items.filter((x) => fin(x.cand.features[axis.key])).length;
+    return covered / Math.max(1, items.length) >= 0.80;
+  });
 }
 
-function blendShares(comps) {
-  if (!comps.length) return [];
-  const q = comps.map(blendQuality);
-  const maxQ = Math.max(...q);
-  // Softmax temperature of 8 points. Meaningful quality gaps produce visibly different blend
-  // shares, while truly near-equal comps remain near one-third each.
-  const raw = q.map((x) => Math.exp((x - maxQ) / 8));
-  const sum = raw.reduce((a, x) => a + x, 0) || 1;
-  const exact = raw.map((x) => 100 * x / sum);
+function blendVector(rec, axes, target) {
+  return axes.map((axis) => {
+    // Missing historical values are neutral on that one axis and are charged through the explicit
+    // coverage penalty below. This avoids inventing a value or letting a sparse row win by making
+    // the difficult axes disappear from the objective.
+    const raw = fin(rec.features[axis.key]) ? Number(rec.features[axis.key]) : Number(target.features[axis.key]);
+    return raw / axis.scale * Math.sqrt(axis.weight);
+  });
+}
+
+function integerShares(weights) {
+  const exact = weights.map((x) => 100 * x);
   const floors = exact.map(Math.floor);
   let left = 100 - floors.reduce((a, x) => a + x, 0);
   const order = exact.map((x, i) => ({ i, rem: x - floors[i] }))
     .sort((a, b) => b.rem - a.rem || a.i - b.i);
   for (let j = 0; j < left; j++) floors[order[j % order.length].i]++;
-  return comps.map((comp, i) => ({
-    name: comp.name, season: comp.season, playerId: comp.playerId,
-    share: floors[i], quality: r1(q[i]), matchScore: comp.similarity,
-  }));
+  return floors;
 }
 
-function blendConfidence(comps, blend) {
-  if (!comps.length || !blend.length) return null;
-  const weighted = comps.reduce((acc, comp, i) => acc + (blend[i].share / 100) * Number(comp.similarity || 0), 0);
-  const coverage = comps.reduce((acc, comp, i) => acc + (blend[i].share / 100) * Number(comp.coverage || 0), 0) / 100;
-  return r1(clamp(weighted * (0.88 + 0.12 * coverage), 0, 100));
+function optimizeBlend(target, shortlist) {
+  const axes = blendAxes(target, shortlist);
+  const tv = blendVector(target, axes, target);
+  const vectors = shortlist.map((x) => blendVector(x.cand, axes, target));
+  const axisWeight = axes.reduce((sum, axis) => sum + axis.weight, 0) || 1;
+  const coverage = shortlist.map((x) => {
+    const seen = axes.reduce((sum, axis) => sum + (fin(x.cand.features[axis.key]) ? axis.weight : 0), 0);
+    return seen / axisWeight;
+  });
+  let best = null;
+
+  const consider = (indices, weights) => {
+    const styleError = tv.reduce((sum, t, k) => {
+      const predicted = indices.reduce((v, idx, j) => v + weights[j] * vectors[idx][k], 0);
+      return sum + (t - predicted) ** 2;
+    }, 0) / axisWeight;
+    const physicalPenalty = indices.reduce((sum, idx, j) => {
+      const physical = Number(shortlist[idx].m.blockScores?.physical ?? shortlist[idx].m.score ?? 0) / 100;
+      return sum + weights[j] * (1 - physical) ** 2;
+    }, 0);
+    const missingPenalty = indices.reduce((sum, idx, j) => sum + weights[j] * (1 - coverage[idx]), 0);
+    const individualPenalty = indices.reduce((sum, idx, j) => {
+      const match = Number(shortlist[idx].m.score || 0) / 100;
+      return sum + weights[j] * (1 - match) ** 2;
+    }, 0);
+    // A very small complexity cost makes a two-player explanation beat a three-player one when the
+    // third player adds no material reconstruction value. It does not force sparse blends.
+    const objective = styleError + 0.10 * physicalPenalty + 0.08 * missingPenalty
+      + 0.04 * individualPenalty + 0.003 * (indices.length - 1);
+    if (!best || objective < best.objective) {
+      best = { indices, weights, objective, styleError, coverage: indices.reduce((s, idx, j) => s + weights[j] * coverage[idx], 0) };
+    }
+  };
+
+  for (let i = 0; i < shortlist.length; i++) consider([i], [1]);
+  for (let i = 0; i < shortlist.length; i++) for (let j = i + 1; j < shortlist.length; j++) {
+    const d = vectors[i].map((x, k) => x - vectors[j][k]);
+    const base = tv.map((x, k) => x - vectors[j][k]);
+    const den = d.reduce((s, x) => s + x * x, 0);
+    const w = den ? clamp(d.reduce((s, x, k) => s + x * base[k], 0) / den, 0, 1) : 0.5;
+    if (w >= 0.06 && w <= 0.94) consider([i, j], [w, 1 - w]);
+  }
+  for (let i = 0; i < shortlist.length; i++) for (let j = i + 1; j < shortlist.length; j++) {
+    for (let k = j + 1; k < shortlist.length; k++) {
+      const u = vectors[i].map((x, z) => x - vectors[k][z]);
+      const v = vectors[j].map((x, z) => x - vectors[k][z]);
+      const y = tv.map((x, z) => x - vectors[k][z]);
+      const uu = u.reduce((s, x) => s + x * x, 0), vv = v.reduce((s, x) => s + x * x, 0);
+      const uv = u.reduce((s, x, z) => s + x * v[z], 0);
+      const uy = u.reduce((s, x, z) => s + x * y[z], 0), vy = v.reduce((s, x, z) => s + x * y[z], 0);
+      const det = uu * vv - uv * uv;
+      if (Math.abs(det) < 1e-10) continue;
+      const a = (uy * vv - vy * uv) / det;
+      const b = (vy * uu - uy * uv) / det;
+      const c = 1 - a - b;
+      if (a < 0.06 || b < 0.06 || c < 0.06) continue;
+      consider([i, j, k], [a, b, c]);
+    }
+  }
+
+  const pairs = best.indices.map((idx, i) => ({ item: shortlist[idx], weight: best.weights[i] }))
+    .sort((a, b) => b.weight - a.weight);
+  const shares = integerShares(pairs.map((x) => x.weight));
+  const weightedMatch = pairs.reduce((sum, x) => sum + x.weight * Number(x.item.m.score || 0), 0);
+  const reconstructionScore = similarityFromDistance(Math.sqrt(best.styleError));
+  const confidence = r1(clamp((0.72 * reconstructionScore + 0.28 * weightedMatch)
+    * (0.88 + 0.12 * best.coverage), 0, 100));
+  return {
+    selected: pairs.map((x) => x.item),
+    blend: pairs.map((x, i) => ({
+      name: x.item.cand.name, season: x.item.cand.season, playerId: x.item.cand.playerId,
+      share: shares[i], quality: r1(x.item.m.score), matchScore: r1(x.item.m.score),
+    })),
+    confidence,
+    reconstructionScore: r1(reconstructionScore),
+    objective: r2(best.objective),
+    axesUsed: axes.length,
+  };
 }
 
 const result = { NBA: {}, GLEAGUE: {} };
@@ -500,8 +543,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const bestByPlayer = new Map();
     for (const cand of pool) {
       if (cand.playerId === target.playerId || cand.minutes < minMinutes) continue;
-      const candCurrent = cand.season === '2025-26' ? currentByLeaguePid[lg].get(cand.playerId) : null;
-      const m = compare(target, cand, targetDeep, deepOverlay(candCurrent));
+      const m = compare(target, cand);
       if (!m) continue;
       // Prefer known body matches when target body is known. This is a soft penalty, not exclusion.
       let score = m.score;
@@ -510,16 +552,23 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       const prior = bestByPlayer.get(cand.playerId);
       if (!prior || item.m.score > prior.m.score) bestByPlayer.set(cand.playerId, item);
     }
-    const top = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 3);
-    const best = top.map((x) => serializeComp(target, x.cand, x.m));
-    if (!best.length) continue;
-    const blend = blendShares(best);
-    const confidence = blendConfidence(best, blend);
+    // The nearest-neighbour score forms a defensible shortlist. The final one-to-three players and
+    // their percentages are then chosen together by convex reconstruction of the target profile.
+    // This is the important distinction between a real player blend and three ranked comps whose
+    // percentages were assigned after the fact.
+    const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
+    if (!shortlist.length) continue;
+    const optimized = optimizeBlend(target, shortlist);
+    const best = optimized.selected.map((x) => serializeComp(target, x.cand, x.m));
+    const blend = optimized.blend;
+    const confidence = optimized.confidence;
     const primary = best[0], rel = primary.relation || [];
     result[lg][String(p.playerId)] = {
       top3: best,
       blend,
       blendConfidence: confidence,
+      blendReconstructionScore: optimized.reconstructionScore,
+      blendAxesUsed: optimized.axesUsed,
       matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
       shorthand: rel.length
         ? `A ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
@@ -549,19 +598,21 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 }
 
 // Product contract: every player who actually appeared in the current source season must receive
-// exactly three DISTINCT same-league historical player comps. Fail the build rather than silently
-// shipping a partial comparison card for an edge-case player.
+// one to three DISTINCT same-league historical player comps. Fail the build rather than silently
+// shipping a broken comparison card for an edge-case player.
 for (const lg of ['NBA', 'GLEAGUE']) {
   const expectedIds = (data.leagues?.[lg] || [])
     .filter((p) => p.appeared && Number(p.minutes) > 0)
     .map((p) => String(p.playerId));
   const missing = expectedIds.filter((id) => !result[lg][id]);
-  const short = Object.entries(result[lg]).filter(([, set]) =>
-    (set.top3 || []).length !== 3 || new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3);
+  const short = Object.entries(result[lg]).filter(([, set]) => {
+    const count = (set.top3 || []).length;
+    return count < 1 || count > 3 || new Set((set.top3 || []).map((x) => String(x.playerId))).size !== count;
+  });
   const wrongLeague = Object.entries(result[lg]).filter(([, set]) =>
     (set.top3 || []).some((x) => x.league !== lg));
   const badBlend = Object.entries(result[lg]).filter(([, set]) =>
-    (set.blend || []).length !== 3
+    (set.blend || []).length < 1 || (set.blend || []).length > 3
     || set.blend.reduce((a, x) => a + Number(x.share || 0), 0) !== 100
     || !fin(set.blendConfidence));
   if (missing.length || short.length || wrongLeague.length || badBlend.length) {
@@ -587,6 +638,11 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     return s.length === 3 && Math.max(...s) - Math.min(...s) <= 4;
   }).length;
   const patterns = new Set(sets.map((set) => (set.blend || []).map((x) => x.share).join('/')));
+  const componentCounts = sets.reduce((acc, set) => {
+    const count = (set.blend || []).length;
+    acc[count] = (acc[count] || 0) + 1;
+    return acc;
+  }, {});
   scoreDistribution[lg] = {
     top1: { min: r1(Math.min(...top1)), p10: pct(top1, .10), median: pct(top1, .50), p90: pct(top1, .90), max: r1(Math.max(...top1)) },
     allCandidates: { min: r1(Math.min(...all)), median: pct(all, .50), max: r1(Math.max(...all)) },
@@ -597,6 +653,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     nearThirdCount: nearThird,
     total: sets.length,
     distinctSharePatterns: patterns.size,
+    componentCounts,
   };
   console.log(`player comps ${lg} blend distribution: ${JSON.stringify(blendDistribution[lg])}`);
 }
@@ -604,16 +661,16 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
-  version: '1.0.0',
+  version: '2.0.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
-  priority: 'physical profile first, then archetype/role and production, scoring mix, defensive activity; current-season deep style used when common',
-  physicalWeight: 0.46,
+  priority: 'body compatibility plus role, creation and shot-diet reconstruction; team-context outputs are descriptive and do not drive the blend',
+  physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
-  blendMethod: 'three nearest distinct players; quality = 55% absolute match + 20% physical + 10% role + 10% scoring + 5% defense, adjusted for coverage/block harmony; softmax temperature 8; integer shares use largest-remainder rounding and always total 100',
-  blendConfidence: 'blend-share-weighted absolute match score with a small feature-coverage adjustment',
+  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest balanced candidates by non-negative convex reconstruction of role, production, shot-diet and defensive-activity axes; weights sum to 100; physical compatibility, missingness and unnecessary complexity are explicit penalties',
+  blendConfidence: '72% reconstructed-profile similarity plus 28% blend-weighted individual match quality, adjusted for feature coverage',
   scoreDistribution,
   blendDistribution,
   positionGate: false,

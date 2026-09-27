@@ -1,0 +1,65 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const data = JSON.parse(fs.readFileSync(new URL('../public/data.json', import.meta.url), 'utf8'));
+const meta = data.analysis.playerCompsMeta;
+
+assert.equal(meta.version, '2.0.0');
+assert.equal(meta.physicalWeight, 0.20);
+assert.match(meta.blendMethod, /one to three distinct players/i);
+assert.match(meta.blendMethod, /non-negative convex reconstruction/i);
+assert.doesNotMatch(meta.blendMethod, /softmax/i);
+
+let checked = 0;
+let sparse = 0;
+let physicalDominanceTraps = 0;
+const patterns = new Set();
+
+for (const league of ['NBA', 'GLEAGUE']) {
+  const sets = data.analysis.playerComps[league];
+  const expected = data.leagues[league].filter((p) => p.appeared && Number(p.minutes) > 0);
+  assert.equal(Object.keys(sets).length, expected.length, `${league}: every appeared player needs a comp`);
+
+  for (const p of expected) {
+    const set = sets[String(p.playerId)];
+    assert.ok(set, `${league}: missing ${p.name}`);
+    assert.ok(set.top3.length >= 1 && set.top3.length <= 3, `${p.name}: component count`);
+    assert.equal(set.blend.length, set.top3.length, `${p.name}: cards and weights disagree`);
+    assert.equal(new Set(set.top3.map((x) => String(x.playerId))).size, set.top3.length, `${p.name}: duplicate player`);
+    assert.equal(set.blend.reduce((sum, x) => sum + x.share, 0), 100, `${p.name}: shares`);
+    assert.ok(set.blend.every((x) => x.share > 0), `${p.name}: zero-share card`);
+    assert.ok(set.blendConfidence >= 0 && set.blendConfidence <= 100, `${p.name}: confidence`);
+    assert.ok(set.blendReconstructionScore >= 0 && set.blendReconstructionScore <= 100, `${p.name}: reconstruction`);
+    assert.ok(set.blendAxesUsed >= 14, `${p.name}: too little common evidence`);
+    assert.deepEqual(set.top3.map((x) => String(x.playerId)), set.blend.map((x) => String(x.playerId)), `${p.name}: order mismatch`);
+    assert.ok(set.top3.every((x) => x.league === league), `${p.name}: cross-league comp`);
+    assert.ok(set.top3.every((x) => String(x.playerId) !== String(p.playerId)), `${p.name}: self comp`);
+
+    for (let i = 0; i < set.top3.length; i++) {
+      const comp = set.top3[i], share = set.blend[i].share;
+      const b = comp.blockScores || {};
+      if (set.blend.length === 1 && b.physical > 90 && b.role < 60 && b.scoring < 60
+        && set.blendConfidence > 35) physicalDominanceTraps++;
+    }
+    patterns.add(set.blend.map((x) => x.share).join('/'));
+    if (set.blend.length < 3) sparse++;
+    checked++;
+  }
+}
+
+assert.equal(physicalDominanceTraps, 0, 'a body-only single comp must not receive confident-match treatment');
+assert.ok(sparse > 0, 'complexity penalty should allow one- or two-player explanations');
+assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differentiated');
+
+// Regression examples supplied with the audit request: the old model promoted these size-led
+// nearest neighbours despite a weaker basketball-role explanation.
+const nba = data.leagues.NBA;
+const setFor = (name) => {
+  const p = nba.find((x) => x.name === name);
+  assert.ok(p, `missing regression player ${name}`);
+  return data.analysis.playerComps.NBA[String(p.playerId)];
+};
+assert.notEqual(setFor('Reed Sheppard').blend[0].name, 'Patrick Beverley');
+assert.ok(!setFor('Ja Morant').blend.some((x) => x.name === 'Dennis Schröder'));
+
+console.log(`player comps passed: ${checked} players, ${sparse} sparse blends, ${patterns.size} share patterns`);
