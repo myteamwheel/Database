@@ -82,6 +82,8 @@
   const compPlayerSearch = (p) => {
     const teams = [...new Set(players().map(teamOf).filter(Boolean))].sort();
     const positions = [...new Set(players().map((x) => x.position).filter(Boolean))].sort();
+    if (state.simTeam && !teams.includes(state.simTeam)) state.simTeam = '';
+    if (state.simPosition && !positions.includes(state.simPosition)) state.simPosition = '';
     return `<section class="comp-search-panel" aria-label="Player comparison search">
       <label class="comp-search-main">Search player
         <input id="simSearch" type="search" autocomplete="off" spellcheck="false"
