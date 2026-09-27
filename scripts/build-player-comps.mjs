@@ -377,7 +377,7 @@ function relation(target, comp) {
 function serializeComp(target, cand, m) {
   const cur = currentByLeaguePid[target.league]?.get(cand.playerId);
   return {
-    playerId: cand.playerId, name: cand.name, season: cand.season, team: cand.team, position: cand.position,
+    playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season, team: cand.team, position: cand.position,
     age: r1(cand.age), similarity: r1(m.score), coverage: r1(m.coverage * 100),
     physicalCoverage: r1(m.physicalCoverage * 100),
     heightInches: r1(cand.physical.height), height: fmtSize(cand.physical.height),
