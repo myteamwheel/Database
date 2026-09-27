@@ -187,6 +187,19 @@ test.describe('search, sort, filters', () => {
     expect(asc[0]).toBeLessThanOrEqual(asc[1]);
   });
 
+  test('switching presets resolves the sort before rendering rows and labels', async ({ page }) => {
+    await open(page);
+    await page.selectOption('#viewPreset', 'proj');
+    await page.selectOption('#viewPreset', 'scoring');
+    await expect(page.locator('#sortField')).toHaveValue('grade');
+    await expect(page.locator('#sortLabel')).toContainText('Grade');
+    const values = await page.evaluate(() => {
+      const index = [...document.querySelectorAll('#tableHead th')].findIndex((x) => x.dataset.sort === 'grade');
+      return [...document.querySelectorAll('#tableBody tr')].map((x) => Number(x.children[index].textContent));
+    });
+    for (let i = 1; i < values.length; i++) expect(values[i]).toBeLessThanOrEqual(values[i - 1]);
+  });
+
   test('filters narrow, and a hybrid G-F satisfies a G filter', async ({ page }) => {
     await open(page);
     const all = await count(page);

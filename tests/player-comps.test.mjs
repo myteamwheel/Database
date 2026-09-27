@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const data = JSON.parse(fs.readFileSync(new URL('../public/data.json', import.meta.url), 'utf8'));
 const meta = data.analysis.playerCompsMeta;
+const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 
 assert.equal(meta.version, '2.0.0');
 assert.equal(meta.physicalWeight, 0.20);
@@ -18,6 +19,9 @@ const patterns = new Set();
 for (const league of ['NBA', 'GLEAGUE']) {
   const sets = data.analysis.playerComps[league];
   const expected = data.leagues[league].filter((p) => p.appeared && Number(p.minutes) > 0);
+  const adv = inputs[league === 'NBA' ? 'nba' : 'gleague']['2025-26'].adv;
+  const pidIndex = adv.headers.indexOf('PLAYER_ID'), tsIndex = adv.headers.indexOf('TS_PCT');
+  const sourceTs = new Map(adv.rows.map((row) => [String(row[pidIndex]), row[tsIndex]]));
   assert.equal(Object.keys(sets).length, expected.length, `${league}: every appeared player needs a comp`);
 
   for (const p of expected) {
@@ -34,6 +38,14 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.deepEqual(set.top3.map((x) => String(x.playerId)), set.blend.map((x) => String(x.playerId)), `${p.name}: order mismatch`);
     assert.ok(set.top3.every((x) => x.league === league), `${p.name}: cross-league comp`);
     assert.ok(set.top3.every((x) => String(x.playerId) !== String(p.playerId)), `${p.name}: self comp`);
+    const ts = sourceTs.get(String(p.nbaPersonId ?? p.playerId));
+    if (typeof ts === 'number') assert.ok(Math.abs(set.targetStats.ts - ts) <= 0.000501,
+      `${p.name}: comparison percentage lost its displayed decimal precision`);
+    for (const comp of set.top3.filter((x) => x.season !== '2025-26')) {
+      assert.equal(comp.currentSeasonDetailed, false, `${comp.name}: historical season flagged as current`);
+      assert.ok(Object.values(comp.style || {}).every((x) => x === null),
+        `${comp.name} ${comp.season}: current tracking leaked into historical season`);
+    }
 
     for (let i = 0; i < set.top3.length; i++) {
       const comp = set.top3[i], share = set.blend[i].share;

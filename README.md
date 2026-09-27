@@ -440,6 +440,21 @@ filled with guessed identities. Existing canonical/local starter evidence remain
 established; uncovered rows remain unknown. This historical layer is **descriptive product data**,
 not TULIP Forecast training data.
 
+The legacy `npm run tulip:backtest` needs raw history that is intentionally absent from a fresh
+checkout. It now fails explicitly when required seasons or train/holdout samples are missing,
+instead of printing `NaN` and exiting successfully. Hydrate its immutable inputs before running it:
+
+```sh
+git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+  scripts/data/history/2018-19 scripts/data/history/2021-22 \
+  scripts/data/history/2022-23 scripts/data/history/2023-24 \
+  scripts/data/history/2024-25 | tar -x
+npm run tulip:backtest
+```
+
+Run this in a clean checkout; it restores those ignored cache directories. This legacy opportunity
+backtest is distinct from validation of the current TULIP Beta team allocator.
+
 ## Roster-only players
 
 The database previously held everyone who recorded an appearance. It now also carries players who

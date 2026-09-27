@@ -963,7 +963,10 @@ function goTo(dest){
 
 function render(){
   updatePageHead();
-  const cols=visibleColumns(), list=filteredPlayers();
+  const cols=visibleColumns();
+  // Resolve a preset's fallback sort before sorting rows or deriving displayed ranks.
+  syncSortControls(cols);
+  const list=filteredPlayers();
   let limit=Number($('rowLimit').value)||50;
   viewRankOf=new Map(list.map((p,i)=>[p.playerId,i+1]));
   // A wide view times the row count gives the real cost. All Raw Stats at 1,075 columns x 582
@@ -983,7 +986,6 @@ function render(){
   $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   hideStatTip(true);   // a re-render replaces the header the panel was anchored to
-  syncSortControls(cols);
   $('tableHead').innerHTML=cols.map(key=>{
     const d=colDef(key);
     const hasTip = !!d.help;
@@ -1708,7 +1710,9 @@ async function exportCsv(){
     lines.push(row.join(','));
   }
   const csv=lines.join('\n');
-  const base=`${league.toLowerCase()}_2025-26_rankings`;
+  const base=$('viewPreset').value==='proj'
+    ? `${league.toLowerCase()}_2026-27_projections`
+    : `${league.toLowerCase()}_2025-26_rankings`;
 
   const downloads=await capability('downloads');
   if(downloads){

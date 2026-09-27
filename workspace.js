@@ -741,6 +741,10 @@
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Blend Confidence is separate: it tells you how convincing those historical references are overall.</p>
       ${compPlayerSearch(p)}
+      <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
+      · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
+      ${league() === 'GLEAGUE' ? 'The main database combines Regular Season and Showcase Cup; this comparison may use a different season scope.' : ''}</p>
+      ${fin(set.targetMinutes) && set.targetMinutes < 300 ? '<p class="comp-outlier-note">Small sample: fewer than 300 minutes. Treat the blend as provisional; a few games can substantially change these rates.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
           <p>${esc(teamOf(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>

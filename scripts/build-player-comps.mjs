@@ -26,6 +26,7 @@ const n = (v) => fin(v) ? Number(v) : null;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const r1 = (v) => fin(v) ? Math.round(Number(v) * 10) / 10 : null;
 const r2 = (v) => fin(v) ? Math.round(Number(v) * 100) / 100 : null;
+const r3 = (v) => fin(v) ? Math.round(Number(v) * 1000) / 1000 : null;
 const rowsOf = (t) => (t?.rows || []).map((row) => Object.fromEntries((t.headers || []).map((h, i) => [h, row[i]])));
 const inches = (h) => {
   if (fin(h)) return Number(h);
@@ -102,7 +103,7 @@ function historyRows(src, league) {
       const ts = fin(a.TS_PCT) ? Number(a.TS_PCT)
         : fin(pts) && fin(fga) && fin(fta) && (fga + 0.44 * fta) > 0 ? pts / (2 * (fga + 0.44 * fta)) : null;
       out.push({
-        league, season, playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || String(pid),
+        league, season, seasonType: 'Regular Season', playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || String(pid),
         team: x.TEAM_ABBREVIATION || null, teamId: n(x.TEAM_ID), position: b.position || null,
         age: n(x.AGE), gp, minutes,
         physical: {
@@ -323,7 +324,8 @@ function currentHistoricalTarget(p, leagueHist) {
   const b = bio.get(Number(pid)) || {};
   const c = combine.get(Number(pid)) || {};
   return {
-    league: p.league, season: '2025-26', playerId: pid, nbaPersonId: Number(pid), name: p.name,
+    league: p.league, season: '2025-26', seasonType: p.league === 'GLEAGUE' ? 'Regular Season + Showcase Cup' : 'Regular Season',
+    playerId: pid, nbaPersonId: Number(pid), name: p.name,
     team: p.team, position: p.position, age: p.age, gp: p.gp, minutes: p.minutes,
     physical: {
       height: p.heightInches ?? b.height ?? c.heightNoShoes ?? null,
@@ -370,7 +372,8 @@ function relation(target, comp) {
   return mods.slice(0, 2);
 }
 function serializeComp(target, cand, m) {
-  const cur = currentByLeaguePid[target.league]?.get(cand.playerId);
+  // Current tracking cannot describe a historical season just because that player is still active.
+  const cur = cand.season === '2025-26' ? currentByLeaguePid[cand.league]?.get(cand.playerId) : null;
   return {
     playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
     team: cand.team, teamId: cand.teamId ?? null, position: cand.position,
@@ -379,18 +382,18 @@ function serializeComp(target, cand, m) {
     heightInches: r1(cand.physical.height), height: fmtSize(cand.physical.height),
     weight: r1(cand.physical.weight), wingspanInches: r1(cand.physical.wingspan),
     wingspan: fmtSize(cand.physical.wingspan), standingReach: fmtSize(cand.physical.standingReach),
-    mpg: r1(cand.features.mpg), usg: r2(cand.features.usg),
+    mpg: r1(cand.features.mpg), usg: r3(cand.features.usg),
     pts36: r1(cand.features.pts36), fga36: r1(cand.features.fga36), threeA36: r1(cand.features.threeA36),
     fta36: r1(cand.features.fta36), reb36: r1(cand.features.reb36), ast36: r1(cand.features.ast36),
     tov36: r1(cand.features.tov36), pf36: r1(cand.features.pf36), plusMinus36: r1(cand.features.plusMinus36),
     oreb36: r1(cand.features.oreb36), dreb36: r1(cand.features.dreb36),
-    fgPct: r2(cand.features.fgPct), efgPct: r2(cand.features.efgPct), fg3Pct: r2(cand.features.fg3Pct),
-    ftPct: r2(cand.features.ftPct), ts: r2(cand.features.ts), threeRate: r2(cand.features.threeRate),
-    ftRate: r2(cand.features.ftRate), astPct: r2(cand.features.astPct),
+    fgPct: r3(cand.features.fgPct), efgPct: r3(cand.features.efgPct), fg3Pct: r3(cand.features.fg3Pct),
+    ftPct: r3(cand.features.ftPct), ts: r3(cand.features.ts), threeRate: r3(cand.features.threeRate),
+    ftRate: r3(cand.features.ftRate), astPct: r3(cand.features.astPct),
     astTo: r2(cand.features.astTo), astRatio: r2(cand.features.astRatio),
-    orebPct: r2(cand.features.orebPct), drebPct: r2(cand.features.drebPct), rebPct: r2(cand.features.rebPct),
+    orebPct: r3(cand.features.orebPct), drebPct: r3(cand.features.drebPct), rebPct: r3(cand.features.rebPct),
     offRtg: r1(cand.features.offRtg), defRtg: r1(cand.features.defRtg), netRtg: r1(cand.features.netRtg),
-    tmTovPct: r2(cand.features.tmTovPct), pie: r2(cand.features.pie), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
+    tmTovPct: r3(cand.features.tmTovPct), pie: r3(cand.features.pie), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
     style: deepOverlay(cur),
     blockScores: m.blockScores,
     mostSimilar: m.best.map((x) => x.label),
@@ -569,6 +572,10 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       blendConfidence: confidence,
       blendReconstructionScore: optimized.reconstructionScore,
       blendAxesUsed: optimized.axesUsed,
+      targetSeason: target.season,
+      targetSeasonType: target.seasonType,
+      targetGames: target.gp,
+      targetMinutes: r1(target.minutes),
       matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
       shorthand: rel.length
         ? `A ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
@@ -579,18 +586,18 @@ for (const lg of ['NBA', 'GLEAGUE']) {
         wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
       },
       targetStats: {
-        mpg: r1(target.features.mpg), usg: r2(target.features.usg),
+        mpg: r1(target.features.mpg), usg: r3(target.features.usg),
         pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
         fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
         tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: r1(target.features.plusMinus36),
         oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
-        fgPct: r2(target.features.fgPct), efgPct: r2(target.features.efgPct), fg3Pct: r2(target.features.fg3Pct),
-        ftPct: r2(target.features.ftPct), ts: r2(target.features.ts), threeRate: r2(target.features.threeRate),
-        ftRate: r2(target.features.ftRate), astPct: r2(target.features.astPct),
+        fgPct: r3(target.features.fgPct), efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
+        ftPct: r3(target.features.ftPct), ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
+        ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
         astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
-        orebPct: r2(target.features.orebPct), drebPct: r2(target.features.drebPct), rebPct: r2(target.features.rebPct),
+        orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
         offRtg: r1(target.features.offRtg), defRtg: r1(target.features.defRtg), netRtg: r1(target.features.netRtg),
-        tmTovPct: r2(target.features.tmTovPct), pie: r2(target.features.pie), stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+        tmTovPct: r3(target.features.tmTovPct), pie: r3(target.features.pie), stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
       },
       targetStyle: targetDeep,
     };
@@ -680,6 +687,9 @@ data.analysis.playerCompsMeta = {
     ? 'Listed professional height/weight stay primary; official combine wingspan and standing reach are added where measured. Players who never attended keep those length fields blank.'
     : 'No combine measurement cache was present in this build. Height/weight still drive the physical block; wingspan/reach remain blank rather than invented.',
   limitations: [
+    'Blend Confidence is a heuristic fit score, not a calibrated probability or a prediction of career potential. Small current-season samples can give unstable comparisons.',
+    'G League historical inputs use Regular Season totals; the main database combines Regular Season and Showcase Cup. The target scope is identified above each blend.',
+    'Historical physical profiles use available listed measurements, which are not necessarily measurements from the displayed season.',
     'Historical shot-zone/tracking coverage is not uniform across seasons, so old player-seasons are compared on the common historical feature set rather than fabricated paint/mid-range data.',
     'G League historical body coverage is thinner for players who never appeared in the NBA player index.',
     'A player can match across listed positions; position labels are descriptive, not a hard filter.',

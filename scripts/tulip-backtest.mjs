@@ -23,9 +23,14 @@ const ALPHA = 0.5;
 const FE = ['baselineMpg', 'openerMin', 'startedOpener', 'promotedToStart', 'preGsPer36', 'preStartRate', 'preForm5'];
 
 const rows = [];
+const missingSeasons = [];
 for (const s of SEASONS) {
   const f = path.join(HIST, s, 'gamelog.json');
   if (fs.existsSync(f)) rows.push(...JSON.parse(fs.readFileSync(f, 'utf8')));
+  else missingSeasons.push(s);
+}
+if (missingSeasons.length) {
+  throw new Error(`Backtest requires the immutable historical cache. Missing seasons: ${missingSeasons.join(', ')}. Hydrate the cache as documented in README.md; no validation was performed.`);
 }
 attachStarterFlags(rows, HIST);
 const nameOf = new Map();
@@ -65,6 +70,9 @@ function fit(train) {
 const seasons = [...new Set(data.map((d) => d.season))].sort();
 const last = seasons[seasons.length - 1];
 const tr = data.filter((d) => d.season !== last), te = data.filter((d) => d.season === last);
+if (seasons.length < 2 || tr.length <= FE.length + 1 || !te.length) {
+  throw new Error(`Backtest has insufficient evidence: ${tr.length} training rows, ${te.length} holdout rows across ${seasons.length} seasons. No validation was performed.`);
+}
 const f = fit(tr);
 const resid = tr.map((d) => d.y - f(d)).sort((a, b) => a - b);
 const q = (p) => resid[Math.min(resid.length - 1, Math.max(0, Math.floor(p * resid.length)))];
@@ -86,7 +94,7 @@ console.log('\n=== WHICH SUMMARY STATISTIC IS THE BEST SINGLE CAPACITY NUMBER? =
   for (const [n, g] of [['mean (expected)', (d) => d.capacity], ['median', (d) => d.median], ['current MPG (null)', (d) => d.baselineMpg]]) {
     console.log(`  ${n.padEnd(20)} MAE ${mae(g).toFixed(3)}  bias ${bias(g) >= 0 ? '+' : ''}${bias(g).toFixed(3)}`);
   }
-  console.log('  -> the expected value is used: lowest MAE, near-zero bias, no cutoff required.');
+  console.log('  Compare these measured errors directly; this legacy opportunity model is separate from the current TULIP Beta allocator.');
 }
 
 console.log('\n=== THE DECISIVE TEST: does TULIP DISCRIMINATE at equal current workload? ===');

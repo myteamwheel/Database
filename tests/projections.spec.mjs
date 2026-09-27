@@ -16,6 +16,19 @@ async function open(page) {
 }
 
 test.describe('2026-27 projections', () => {
+  test('CSV export names the correct season for projections and stats', async ({ page }) => {
+    await open(page);
+    await page.click('.site-link[data-goto="proj"]');
+    const pending = page.waitForEvent('download');
+    await page.click('#exportBtn');
+    const download = await pending;
+    expect(download.suggestedFilename()).toBe('nba_2026-27_projections.csv');
+    await page.click('.site-link[data-goto="stats"]');
+    const statsPending = page.waitForEvent('download');
+    await page.click('#exportBtn');
+    expect((await statsPending).suggestedFilename()).toBe('nba_2025-26_rankings.csv');
+  });
+
   test('the top navigation opens the projections view, sorted by projected points', async ({ page }) => {
     const errors = await open(page);
     await page.click('.site-link[data-goto="proj"]');
