@@ -393,7 +393,7 @@ test.describe('analysis workspace', () => {
     const errors = await open(page);
     const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
     expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
-    expect(await page.$eval('.site-link[data-goto="comps"]', (b) => b.length)).toBe(1);
+    expect(await page.$$eval('.site-link[data-goto="comps"]', (b) => b.length)).toBe(1);
     await page.click('.site-link[data-goto="comps"]');
     await page.waitForTimeout(350);
     expect(await page.$eval('#pageTitle', (e) => e.textContent)).toContain('Player Comparisons');
