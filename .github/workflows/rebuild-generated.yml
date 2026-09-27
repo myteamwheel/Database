@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: rebuild-generated-${{ github.ref }}
@@ -95,3 +96,7 @@ jobs:
           git fetch origin "${GITHUB_REF_NAME}"
           git rebase "origin/${GITHUB_REF_NAME}"
           git push origin HEAD:${GITHUB_REF_NAME}
+
+          # Pushes made with GITHUB_TOKEN deliberately do not trigger ordinary push workflows.
+          # Dispatch Pages explicitly so the site publishes this exact audited artifact commit.
+          GH_TOKEN='${{ github.token }}' gh workflow run deploy-pages.yml --ref "${GITHUB_REF_NAME}"
