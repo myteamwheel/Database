@@ -33,9 +33,41 @@ import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SEASON = '2025-26';
 const GENERATED_AT = process.env.BUILD_GENERATED_AT || new Date().toISOString();
+
+// Preserve immutable generated products whose raw source cache is intentionally not tracked.
+// A clean CI checkout can therefore rebuild the rest of the database without erasing a frozen
+// product merely because its private/untracked source rows are absent.
+const priorPublishedPath = path.join(ROOT, 'public/data.json');
+let priorPublished = null;
+if (fs.existsSync(priorPublishedPath)) {
+  try { priorPublished = JSON.parse(fs.readFileSync(priorPublishedPath, 'utf8')); }
+  catch { priorPublished = null; }
+}
+const priorCapacityById = new Map((priorPublished?.leagues?.NBA || [])
+  .filter((r) => r?.tulipCapacity)
+  .map((r) => [String(r.nbaPersonId ?? r.playerId), r.tulipCapacity]));
 /** Birthdates, so age is stated against a fixed date instead of inherited from a source. */
 const bdPath = path.join(ROOT, 'scripts/data/birthdates.json');
 const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'utf8')) : {};
+
+// Current 2026-27 NBA roster identity comes from the same committed NBA.com player-index snapshot
+// used by the projection system. Keep it separate from 2025-26 season-team history.
+const projectionInputsPath = path.join(ROOT, 'scripts/data/projection/inputs.json');
+const projectionInputs = fs.existsSync(projectionInputsPath)
+  ? JSON.parse(fs.readFileSync(projectionInputsPath, 'utf8')) : null;
+const compactRows = (t) => (t?.rows || []).map((row) =>
+  Object.fromEntries((t.headers || []).map((h, i) => [h, row[i]])));
+const currentNbaRosterRows = compactRows(projectionInputs?.rosters2627);
+const currentNbaRoster = new Map(currentNbaRosterRows
+  .filter((r) => r.PERSON_ID && r.TEAM_ABBREVIATION && Number(r.ROSTER_STATUS) === 1)
+  .map((r) => [Number(r.PERSON_ID), r.TEAM_ABBREVIATION]));
+const currentNbaRosterBio = new Map(currentNbaRosterRows
+  .filter((r) => r.PERSON_ID && Number(r.ROSTER_STATUS) === 1).map((r) => [Number(r.PERSON_ID), r]));
+const currentRosterAsOf = projectionInputs?.fetchedAt ? String(projectionInputs.fetchedAt).slice(0, 10) : null;
+const heightInchesFromRoster = (h) => {
+  const m = String(h || '').match(/^(\d+)-(\d+(?:\.\d+)?)$/);
+  return m ? Number(m[1]) * 12 + Number(m[2]) : null;
+};
 
 /** Compact ten-season descriptive history, generated from the local historical cache. */
 const historySummaryPath = path.join(ROOT, 'scripts/data/history/player_history_product.json');
@@ -503,6 +535,47 @@ if (historySummary) {
   }
 }
 
+// Overlay CURRENT NBA roster membership without overwriting the 2025-26 team that owns the
+// performance line. This fixes the UI/team-allocation ambiguity after offseason movement.
+for (const r of nba.records) {
+  r.seasonTeam = r.team || null;
+  r.currentTeam = currentNbaRoster.get(Number(r.nbaPersonId ?? r.playerId)) || null;
+  r.currentRoster = !!r.currentTeam;
+  r.currentTeamStatus = r.currentTeam ? (r.currentTeam === r.seasonTeam ? 'same' : 'new') : 'unsigned';
+}
+for (const r of gl.records) {
+  r.currentNbaTeam = currentNbaRoster.get(Number(r.nbaPersonId ?? r.playerId)) || null;
+}
+
+// Add NBA.com-published 2026-27 roster players who have no 2025-26 NBA row (notably incoming
+// rookies). They remain ungraded/roster-only because zero 2025-26 NBA minutes are not performance.
+const existingNba = new Set(nba.records.map((r) => Number(r.nbaPersonId ?? r.playerId)));
+for (const [pid, team] of currentNbaRoster) {
+  if (existingNba.has(pid)) continue;
+  const e = currentNbaRosterBio.get(pid) || {};
+  const heightInches = heightInchesFromRoster(e.HEIGHT);
+  nba.records.push({
+    league: 'NBA', leagueLabel: 'NBA', season: SEASON,
+    playerId: String(pid), nbaPersonId: pid, brefId: null,
+    name: [e.PLAYER_FIRST_NAME, e.PLAYER_LAST_NAME].filter(Boolean).join(' ').trim() || String(pid),
+    team: null, seasonTeam: null, currentTeam: team, currentRoster: true, currentTeamStatus: 'new',
+    teamCount: 0, teams: [],
+    position: e.POSITION || null, positionSource: e.POSITION ? 'current-roster-listed' : null,
+    positionFamily: positionFamily(e.POSITION), height: e.HEIGHT || null, heightInches,
+    weight: num(e.WEIGHT), college: null, country: e.COUNTRY || null, jersey: null,
+    birthdate: birthdates[String(pid)]?.birthdate || null,
+    ageOpeningNight: ageAt(birthdates[String(pid)]?.birthdate, OPENING_NIGHT),
+    ageFeb1: ageAt(birthdates[String(pid)]?.birthdate, FEB_FIRST),
+    age: null, seasonAge: null,
+    gp: 0, minutes: 0, mpg: null, regularGP: 0, showcaseGP: 0,
+    appeared: false, rosterOnly: true, currentRosterOnly: true,
+    grade: null, rateGrade: null, magnitudeGrade: null, gradeRaw: null, gradeShrunk: null,
+    reliabilityWeight: 0, rank: null, viewRank: null, gradeCoverage: null,
+    components: {}, rateComponents: {}, componentsBelowMinimum: [], custom: {}, stats: {},
+    skillProfile: null, archetypes: [], sourceIds: { nbaStats: pid, basketballReference: null },
+  });
+}
+
 // Crossover by official NBA person id — an exact identity join, not a name or id-suffix guess.
 /* ------------------------------------------------------- analysis engines */
 
@@ -523,8 +596,10 @@ for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   const played = side.records.filter((r) => r.appeared && r.skillProfile);
   const byTeam = {};
   for (const r of played) {
-    // A player counts toward every team he actually appeared for.
-    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    // NBA uses the current 2026-27 roster; G League remains 2025-26 until new rosters publish.
+    const teams = league === 'NBA'
+      ? [r.currentTeam].filter(Boolean)
+      : ((r.teams || []).length ? r.teams.map((t) => t.team) : [r.team]);
     for (const t of new Set(teams.filter(Boolean))) {
       (byTeam[t] = byTeam[t] || []).push({ player: r, profile: r.skillProfile });
     }
@@ -543,7 +618,8 @@ for (const [league, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   }
   // Each player's fit with his own team, for the profile page.
   for (const r of played) {
-    const tp = teamProfiles[league][r.team];
+    const ownTeam = league === 'NBA' ? r.currentTeam : r.team;
+    const tp = ownTeam ? teamProfiles[league][ownTeam] : null;
     if (tp) r.ownTeamFit = teamFit(r.skillProfile, tp.needs);
   }
 }
@@ -557,7 +633,9 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   const opts = { weights: SIMILARITY_WEIGHTS, config: TULIP_CONFIG };
   const rosters = {};
   for (const r of played) {
-    const teams = (r.teams || []).length ? r.teams.map((t) => t.team) : [r.team];
+    const teams = lgKey === 'NBA'
+      ? [r.currentTeam || r.team]
+      : ((r.teams || []).length ? r.teams.map((t) => t.team) : [r.team]);
     for (const t of new Set(teams.filter(Boolean))) (rosters[t] = rosters[t] || []).push(r);
   }
   // League median rotation impact: the reference the league-referenced delta uses, so a player is
@@ -572,10 +650,11 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
   for (const r of played) {
     // Default scenario: a meaningful but realistic expansion of the current role.
     const target = Math.min(34, Math.max(r.mpg + 6, 20));
-    const card = tulipCard(r, pool, rosters[r.team] || played, target, opts);
+    const roleTeam = lgKey === 'NBA' ? (r.currentTeam || r.team) : r.team;
+    const card = tulipCard(r, pool, rosters[roleTeam] || played, target, opts);
     // Recompute the rotation with the league reference attached (tulipCard cannot know it).
     if (!card.abstain && card.projection && !card.projection.abstain) {
-      card.rotation = rotationDelta(r, rosters[r.team] || played, target, card.projection,
+      card.rotation = rotationDelta(r, rosters[roleTeam] || played, target, card.projection,
         leagueMedianRotationImpact);
     }
     const fr = frontier(r, pool, opts);
@@ -608,18 +687,34 @@ for (const [lgKey, side] of [['NBA', nba], ['GLEAGUE', gl]]) {
 // NBA ONLY. V1 was validated on NBA cross-team offseason transitions; the frozen card contains no
 // validated G League application, so G League rows abstain rather than borrow an unvalidated number.
 const capacityIndex = buildCapacityIndex(SEASON);
-let capScored = 0, capAbstained = 0;
+const priorCapacityCompatible = priorPublished?.season === SEASON
+  && priorPublished?.tulipCapacityMeta?.cardSha256 === capacityIndex.id
+  && priorPublished?.tulipCapacityMeta?.version === capacityIndex.card.version;
+let capScored = 0, capAbstained = 0, capPreserved = 0;
 const capAbstainReasons = {};
 for (const r of nba.records) {
-  const c = capacityForRecord(r, capacityIndex);
+  let c = capacityForRecord(r, capacityIndex);
+  // The current-season per-game cache is intentionally not tracked. On a clean checkout, preserve
+  // the already-published output of the VERIFIED FROZEN model rather than replacing it with an
+  // abstention. This is only legal for the same source season + exact frozen card hash/version.
+  if (c.abstain && c.reason === 'no_game_log_for_source_season' && priorCapacityCompatible) {
+    const prior = priorCapacityById.get(String(r.nbaPersonId ?? r.playerId));
+    if (prior && prior.version === capacityIndex.card.version) {
+      c = { ...prior };
+      capPreserved++;
+    }
+  }
   r.tulipCapacity = c;
   if (c.abstain) { capAbstained++; capAbstainReasons[c.reason] = (capAbstainReasons[c.reason] || 0) + 1; }
   else capScored++;
 }
+if (!capacityIndex.byPersonId.size && priorCapacityCompatible && capPreserved < 100) {
+  throw new Error(`Projected Role MPG source cache is absent and only ${capPreserved} compatible frozen outputs were recoverable; refusing to erase the product.`);
+}
 for (const r of gl.records) {
   r.tulipCapacity = { abstain: true, reason: 'not_validated_for_gleague', version: capacityIndex.card.version };
 }
-console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained} `
+console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScored}, abstained ${capAbstained}, preserved ${capPreserved} `
   + `(${JSON.stringify(capAbstainReasons)}) · G League abstains by design`);
 
 /* ------------------------------------------------------------- TULIP BETA */
@@ -632,12 +727,15 @@ console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, 
 // of this repository, so G League abstains rather than improvising a second value scale.
 {
   const finB = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
-  const played = nba.records.filter((r) => r.appeared && finB(r.bpm) && finB(r.mpg));
+  const played = nba.records.filter((r) => r.appeared && r.currentRoster && r.currentTeam
+    && finB(r.bpm) && finB(r.mpg));
   const pool = played.filter((r) => (r.minutes || 0) >= BETA_CONFIG.minMinutes && r.mpg >= BETA_CONFIG.minMpg);
   const totM = pool.reduce((a, r) => a + Number(r.minutes), 0);
   const leagueBpm = pool.reduce((a, r) => a + Number(r.bpm) * Number(r.minutes), 0) / Math.max(1, totM);
   const byTeam = {};
-  for (const r of nba.records) (byTeam[r.team] = byTeam[r.team] || []).push(r);
+  for (const r of nba.records.filter((x) => x.currentRoster && x.currentTeam)) {
+    (byTeam[r.currentTeam] = byTeam[r.currentTeam] || []).push(r);
+  }
   // League SD of the team-relative gap, computed once so every team is on one scale.
   const gaps = [];
   for (const t of Object.keys(byTeam)) {
@@ -661,7 +759,8 @@ console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, 
       if (v) { r.tulipBeta = v; betaScored++; }
       else {
         r.tulipBeta = { abstain: true, status: 'BETA',
-          reason: !r.appeared ? 'no_appearance'
+          reason: !r.currentRoster || !r.currentTeam ? 'not_on_current_nba_roster'
+            : !r.appeared ? 'no_appearance'
             : !finB(r.bpm) ? 'no_value_metric'
             : (r.minutes || 0) < BETA_CONFIG.minMinutes ? 'insufficient_minutes'
             : r.mpg < BETA_CONFIG.minMpg ? 'below_rotation_threshold' : 'team_roster_too_small' };
@@ -672,7 +771,9 @@ console.log(`TULIP Capacity ${capacityIndex.card.version}: scored ${capScored}, 
   for (const r of gl.records) r.tulipBeta = { abstain: true, status: 'BETA', reason: 'not_supported_for_gleague' };
   const worst = ledger.reduce((a, x) => Math.max(a, Math.abs(x.sum)), 0);
   console.log(`TULIP Beta: scored ${betaScored}, abstained ${betaAbstain} · teams ${ledger.length} · worst ledger imbalance ${worst.toFixed(2)} MPG (rounding only) · G League abstains by design`);
-  nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length, worstLedgerImbalance: worst };
+  nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length,
+    rosterScope: 'current 2026-27 NBA.com published rosters', rostersAsOf: currentRosterAsOf,
+    worstLedgerImbalance: worst };
 }
 
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
@@ -846,6 +947,11 @@ const out = {
       caveat: 'Translation factors are measured from players who appeared in BOTH leagues in 2025-26 only, with at least five games on each side. That is enough to describe what happened to this cohort and NOT enough to project an NBA career. Estimates are exploratory; no NBA-success probability is offered because there are no historical outcome labels here to validate one.',
     },
   },
+  currentRosterMeta: {
+    season: '2026-27', source: 'stats.nba.com playerindex', asOf: currentRosterAsOf,
+    nbaPlayers: currentNbaRoster.size,
+    note: 'Current roster identity is separate from 2025-26 performance-team history. NBA team filtering uses currentTeam; historical stint views keep seasonTeam.'
+  },
   tulipBetaMeta: {
     status: 'EXPERIMENTAL BETA',
     whatItIs: 'Zero-sum estimate of how many MPG a team could reallocate toward or away from each player, from team-relative player value, current workload, role evidence and the actual team-mates consuming those minutes.',
@@ -876,7 +982,8 @@ const out = {
     evidenceGrade: capacityIndex.card.evidenceGrade,
     benchmarks: capacityIndex.card.frozenBenchmarks,
     limitations: capacityIndex.card.knownLimitations,
-    coverage: { scored: capScored, abstained: capAbstained, reasons: capAbstainReasons },
+    coverage: { scored: capScored, abstained: capAbstained, preservedFromCommittedFrozenOutput: capPreserved, reasons: capAbstainReasons },
+    buildInputMode: capacityIndex.byPersonId.size ? 'recomputed_from_local_game_cache' : (capPreserved ? 'preserved_verified_frozen_output' : 'no_source_rows'),
     note: 'Legacy team-relative TULIP (BPM gap x 2.2) is NOT this product and is no longer presented as TULIP. Neither is this metric TULIP Capacity: the original team-independent sustainable-effective-workload question remains unsolved and its name is reserved.',
   },
   tulipMeta: {

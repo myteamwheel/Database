@@ -220,44 +220,52 @@ test.describe('search, sort, filters', () => {
 });
 
 test.describe('team scoping', () => {
-  test('scope is applied before filters, and season-only fields are blanked', async ({ page }) => {
+  test('current NBA roster filter is distinct from 2025-26 stint scope', async ({ page }) => {
     await open(page);
-    await setVal(page, '#teamFilter', 'CLE');
+    const target = await page.evaluate(() => {
+      const teams = new Set([...document.querySelectorAll('#teamFilter option')].map((o) => o.value));
+      const moved = DATA.leagues.NBA.find((p) => p.appeared && p.currentTeam && p.seasonTeam
+        && p.currentTeam !== p.seasonTeam && teams.has(p.currentTeam) && teams.has(p.seasonTeam));
+      return moved ? { id: String(moved.playerId), name: moved.name, current: moved.currentTeam, old: moved.seasonTeam } : null;
+    });
+    expect(target).not.toBeNull();
+
+    await setVal(page, '#teamFilter', target.current);
+    await page.waitForTimeout(250);
+    let names = await page.$$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
+    expect(names).toContain(target.name);
+
+    await setVal(page, '#teamFilter', target.old);
+    await page.waitForTimeout(250);
+    names = await page.$$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
+    expect(names).not.toContain(target.name);
+  });
+
+  test('team-only mode still uses a real historical stint when the current team matches one', async ({ page }) => {
+    await open(page);
+    const target = await page.evaluate(() => {
+      const p = DATA.leagues.NBA.find((x) => x.appeared && x.currentTeam
+        && (x.teams || []).some((s) => s.team === x.currentTeam) && x.teamCount > 1);
+      if (!p) return null;
+      const s = p.teams.find((x) => x.team === p.currentTeam);
+      return { name: p.name, team: p.currentTeam, gp: s.gp };
+    });
+    expect(target).not.toBeNull();
+    await setVal(page, '#teamFilter', target.team);
     await setVal(page, '#teamMode', 'only');
     await page.waitForTimeout(300);
 
-    const row = await page.evaluate(() => {
+    const row = await page.evaluate((name) => {
       const hdrs = [...document.querySelectorAll('#tableHead th')].map((t) => t.dataset.sort);
-      const tr = [...document.querySelectorAll('#tableBody tr')].find((r) => r.textContent.includes('Harden'));
+      const tr = [...document.querySelectorAll('#tableBody tr')].find((r) => r.textContent.includes(name));
       if (!tr) return null;
       const cells = [...tr.querySelectorAll('td')].map((t) => t.textContent.trim());
       return { gp: cells[hdrs.indexOf('gp')], grade: cells[hdrs.indexOf('grade')], ts: cells[hdrs.indexOf('ts')] };
-    });
+    }, target.name);
     expect(row).not.toBeNull();
-    expect(row.gp).toBe('26');          // stint, not the 70-game season
-    expect(row.grade).toBe('—');        // no stint-level grade exists
-    expect(row.ts).toBe('—');           // no stint-level TS% exists
-
-    // A 26-game stint must not survive a 30-game minimum.
-    await setVal(page, '#minGp', '30');
-    await page.waitForTimeout(300);
-    const names = await page.$$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
-    expect(names).not.toContain('James Harden');
-    await setVal(page, '#minGp', '0');
-  });
-
-  test('detail and compare stay scoped', async ({ page }) => {
-    await open(page);
-    await setVal(page, '#teamFilter', 'CLE');
-    await setVal(page, '#teamMode', 'only');
-    await page.waitForTimeout(300);
-    await page.evaluate(() => {
-      const tr = [...document.querySelectorAll('#tableBody tr')].find((r) => r.textContent.includes('Harden'));
-      tr.querySelector('.player-link').click();
-    });
-    await page.waitForTimeout(350);
-    expect(await page.$eval('#playerDialogBody', (e) => e.textContent)).toContain('CLE stint only');
-    await page.evaluate(() => document.getElementById('playerDialog').close());
+    expect(Number(row.gp.replace(/,/g, ''))).toBe(target.gp);
+    expect(row.grade).toBe('—');
+    expect(row.ts).toBe('—');
   });
 });
 
@@ -416,42 +424,40 @@ test.describe('analysis workspace', () => {
     expect(errors).toEqual([]);
   });
 
-  test('similarity is bounded, self-consistent and explained', async ({ page }) => {
+  test('player comps return three historical same-league matches with a size-first blend', async ({ page }) => {
     const errors = await open(page);
     await mode(page, 'similarity');
     await page.waitForTimeout(900);
-    const rows = await page.$$eval('#workspace tbody tr', (r) => r.length);
-    expect(rows).toBeGreaterThan(10);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('THREE-PLAYER BLEND');
 
-    // Mathematical properties: bounds, symmetry, self-similarity = 100.
     const props = await page.evaluate(() => {
-      const W = DATA.analysis.similarityWeights;
-      const sim = (a, b) => {
-        let acc = 0, w = 0;
-        for (const [ax, wt] of Object.entries(W)) {
-          const x = a?.[ax], y = b?.[ax];
-          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-          acc += wt * (x - y) ** 2; w += wt;
+      const meta = DATA.analysis.playerCompsMeta;
+      const sets = Object.values(DATA.analysis.playerComps.NBA).slice(0, 60);
+      let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badBlend = 0, wingspanSeen = 0;
+      for (const set of sets) {
+        if ((set.top3 || []).length !== 3) badCount++;
+        const targetId = Object.entries(DATA.analysis.playerComps.NBA).find(([, v]) => v === set)?.[0];
+        if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
+        for (const comp of set.top3 || []) {
+          if (!(comp.similarity >= 0 && comp.similarity <= 100)) badScore++;
+          if (String(comp.playerId) === String(targetId)) self++;
+          if (comp.wingspan) wingspanSeen++;
         }
-        return w ? 100 * (1 - Math.sqrt(acc / w) / 100) : null;
-      };
-      const ps = DATA.leagues.NBA.filter((p) => p.appeared && p.skillProfile).slice(0, 40);
-      let minS = 101, maxS = -1, maxAsym = 0, selfMin = 101;
-      for (const a of ps) {
-        selfMin = Math.min(selfMin, sim(a.skillProfile, a.skillProfile));
-        for (const b of ps) {
-          const s = sim(a.skillProfile, b.skillProfile);
-          if (s === null) continue;
-          minS = Math.min(minS, s); maxS = Math.max(maxS, s);
-          maxAsym = Math.max(maxAsym, Math.abs(s - sim(b.skillProfile, a.skillProfile)));
-        }
+        if ((set.blend || []).reduce((a, x) => a + x.share, 0) !== 100) badBlend++;
       }
-      return { minS, maxS, maxAsym, selfMin };
+      return { meta, n: sets.length, badCount, badScore, self, duplicatePlayers, badBlend, wingspanSeen };
     });
-    expect(props.minS).toBeGreaterThanOrEqual(0);
-    expect(props.maxS).toBeLessThanOrEqual(100);
-    expect(props.maxAsym).toBeLessThan(1e-9);        // symmetric
-    expect(props.selfMin).toBeCloseTo(100, 6);       // self-similarity is exactly 100
+    expect(props.n).toBeGreaterThan(20);
+    expect(props.badCount).toBe(0);
+    expect(props.badScore).toBe(0);
+    expect(props.self).toBe(0);
+    expect(props.duplicatePlayers).toBe(0);
+    expect(props.badBlend).toBe(0);
+    expect(props.wingspanSeen).toBeGreaterThan(0);
+    expect(props.meta.sameLeagueOnly).toBe(true);
+    expect(props.meta.physicalWeight).toBeCloseTo(0.46, 6);
+    expect(props.meta.positionGate).toBe(false);
     expect(errors).toEqual([]);
   });
 

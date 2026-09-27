@@ -306,6 +306,51 @@ identically even though they are ranked separately.
 
 ---
 
+## Player Comps
+
+The analysis workspace includes a dedicated **Player Comps** mode. For every current player with a
+usable professional sample it returns the three closest historical player-seasons from the same
+league, plus a three-player blend and plain-language shorthand.
+
+The match is deliberately **size-first rather than position-first**. Listed professional height and
+weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
+where they were actually measured. No wingspan or length value is estimated for a non-participant.
+The physical block carries 46% of the declared historical match weight, followed by role/production
+(22%), scoring style (19%) and defensive/rebounding activity (13%). Positions may cross when the
+body and game genuinely match.
+
+Historical pools currently cover **NBA 2009-10 through 2025-26** and **G League 2014-15 through
+2025-26**. Older seasons do not have the same tracking/shot-zone inventory as 2025-26, so the engine
+uses the common historical feature set (usage, per-36 production, shooting mix, efficiency,
+free-throw pressure, playmaking, rebounding, steals and blocks) and only adds deeper current-season
+style axes when both sides actually have them. It does not invent historical mid-range, paint,
+tracking or length data that was never acquired.
+
+## Current NBA roster identity
+
+NBA team identity is now split into two explicit concepts:
+
+- **currentTeam** — the current 2026-27 NBA.com player-index roster snapshot. The main NBA Team
+  column, team filter, Team Fit and TULIP team allocation use this field.
+- **seasonTeam / teams** — the team or stints that produced the 2025-26 statistics. These remain
+  intact for historical/stint views.
+
+That distinction prevents an offseason acquisition from appearing under his old club while also
+preventing his 2025-26 statistics from being falsely relabelled as production for the new club.
+Incoming roster players with no 2025-26 NBA performance row are carried as roster-only and remain
+ungraded.
+
+## TULIP Beta allocation range
+
+TULIP Beta remains **experimental decision support, not a validated win-optimal coaching model**.
+The allocator no longer has an arbitrary small-delta ceiling. Its feasible recommendation range is
+0-40 MPG. Historical workload and Role Evidence attenuate unsupported positive expansion and affect
+confidence, but they are not a hard ceiling on a breakout recommendation. The team's zero-sum minute
+ledger still requires every added minute to come from a teammate, so recommendations can move by
+more than eight MPG in either direction when the value signal and roster minute supply support it.
+
+The separate **Projected Role MPG** model is unchanged and retains its frozen model identifier.
+
 ## Interface
 
 Separate NBA and G League panels; every visible column sortable; search across name, team,
@@ -346,7 +391,8 @@ player-season history is attached to current player records, and a **145,430-row
 log product** is shipped as `public/history-games.json.gz` and loaded on demand in the Player
 workspace. These rows remain deliberately separate from the 2025-26 season-aggregate table and from
 TULIP Evidence. Still not covered in the product layer: arbitrary cross-player opponent/date-range
-querying, on/off, shot-zone and possession/lineup data.
+querying, historical injury/inactive and transaction timelines, historical on/off, shot-zone and
+possession/lineup data. Those fields stay absent rather than being inferred.
 
 For the post-handoff state, validation results and known limits, see `docs/TAKEOVER_AUDIT_2026-08-17.md`.
 
@@ -360,9 +406,18 @@ Player workspace shows prior NBA regular-season and playoff phases separately, w
 scoring/rebounding/playmaking, true shooting, and starter information where the canonical starter artifact has actually established it.
 
 Starter history is provenance-aware: an unknown starter status stays unknown and is never rendered
-as a bench appearance. At takeover, canonical per-game starter coverage is complete for 2023-24
-regular season and playoffs and absent elsewhere until the source-specific acceptance gates pass.
-This historical layer is **descriptive product data**, not TULIP Forecast training data.
+as a bench appearance. The current 2025-26 ESPN→NBA gate is exhaustively accepted: all 1,230
+regular-season games and 85 played playoff games reconcile at five starters per team, with zero
+regular-season per-player start mismatches. Two conditional playoff schedule slots that never
+materialized are excluded only after both the published ESPN player-box release and ESPN's live
+summary endpoint show no game (hard 404).
+
+For 2015-16 through 2024-25, the current SportsDataverse release no longer publishes the required
+season-specific ESPN↔NBA schedule/player crosswalk assets. Those historical cross-source gates are
+therefore recorded as **blocked by upstream crosswalk availability**, not falsely accepted and not
+filled with guessed identities. Existing canonical/local starter evidence remains usable where
+established; uncovered rows remain unknown. This historical layer is **descriptive product data**,
+not TULIP Forecast training data.
 
 ## Roster-only players
 

@@ -12,18 +12,20 @@
 // FOUR THINGS SHAPE THE NUMBER, in order:
 //   1. team-relative value    who deserves minutes versus the team-mates actually consuming them
 //   2. workload state         a +1 SD player at 12 MPG and at 34 MPG must not get the same delta
-//   3. role evidence          expansion is attenuated where history does not support that workload
+//   3. role evidence          expansion is attenuated where history does not support that workload,
+//                            but historical workload is not a hard cap on a breakout recommendation
 //   4. zero-sum allocation    every minute granted is sourced from a team-mate; the ledger conserves
 
 export const BETA_CONFIG = {
   shrinkMinutes: 400,      // BPM shrinkage toward league mean for small samples
   minMinutes: 200,         // below this a player is not an allocation candidate
-  minMpg: 4,
-  minutesPerSd: 6.6,       // HEURISTIC desired movement per SD of team-relative value. Retained
-                           // rather than inventing a second arbitrary coefficient; it is only the
-                           // STARTING desire, which the constraints below then compress.
-  floorMpg: 6,             // a rotation player is not driven below this by reallocation
-  ceilingHardCap: 38.0,    // no recommendation exceeds observed sustainable workload
+  minMpg: 0.5,
+  minutesPerSd: 10.0,      // HEURISTIC starting movement per SD of team-relative value.
+                           // There is deliberately NO arbitrary +/-8 MPG delta clamp. The actual
+                           // bounds come from workload evidence, a 0-40 MPG feasible range, and the
+                           // roster's zero-sum minute supply.
+  floorMpg: 0,             // a player may be recommended out of the rotation when the signal is strong
+  ceilingHardCap: 40.0,    // feasible NBA workload ceiling; not an +/- delta cap
 };
 
 const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
@@ -71,7 +73,7 @@ function evidenceFactor(p, targetMpg) {
 function confidenceOf(p, finalDelta, ceiling) {
   const mins = Number(p.minutes) || 0;
   const tier = p.tulip && p.tulip.card && p.tulip.card.evidenceTier && p.tulip.card.evidenceTier.tier;
-  const inSupport = Math.abs(finalDelta) <= 3 || (Number(p.mpg) + finalDelta) <= ceiling;
+  const inSupport = (Number(p.mpg) + finalDelta) <= ceiling + 0.05;
   if (mins >= 800 && (tier === 'A' || tier === 'B') && inSupport) return 'HIGH';
   if (mins >= 300 && (tier === 'A' || tier === 'B' || inSupport)) return 'MEDIUM';
   return 'LOW';
@@ -105,13 +107,18 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     const wh = workloadHistory(p);
     const ceiling = Math.min(BETA_CONFIG.ceilingHardCap,
       Math.max(Number(p.mpg), wh.careerHigh, wh.sustained, supportedFrontierMpg(p)));
-    const headUp = Math.max(0, ceiling - Number(p.mpg));
+    const headUp = Math.max(0, BETA_CONFIG.ceilingHardCap - Number(p.mpg));
     const headDown = Math.max(0, Number(p.mpg) - BETA_CONFIG.floorMpg);
 
     let evF = 1;
     if (desired > 0) {
       evF = evidenceFactor(p, Number(p.mpg) + desired);
-      desired = Math.min(desired * evF, headUp);       // evidence attenuates, ceiling caps
+      // Historical/role evidence is a SUPPORT signal, not a hard prohibition on growth. The old
+      // implementation capped positive movement at the highest workload already observed/supported,
+      // which made genuine breakouts mechanically unable to move much beyond ~8 MPG. Keep the
+      // evidence attenuation, but let a strong signal expand anywhere inside the feasible 0-40 MPG
+      // range. Confidence drops when the final recommendation exceeds the supported workload.
+      desired = Math.min(desired * evF, headUp);
     } else {
       desired = Math.max(desired, -headDown);          // cannot take minutes he does not have
     }

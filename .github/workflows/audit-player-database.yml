@@ -37,13 +37,10 @@ jobs:
           node scripts/audit-history.mjs
           node scripts/verify-history-hashes.mjs
 
-      # The current-season raw game-log cache intentionally stays out of Git. Rebuild only the
-      # explanation trace over the canonical committed model outputs, with assertions that every
-      # pre-existing output is unchanged, then regenerate the browser artifact from that result.
-      - name: Rebuild explanation trace over canonical model outputs
-        run: |
-          node scripts/enrich-tulip-beta-trace.mjs
-          node scripts/build-artifact.mjs
+      # Build the actual source branch before auditing it. PR checks must not depend on a separate
+      # generated-artifact workflow winning a race and committing public/data.json first.
+      - name: Build database, models, projections, comps and browser artifact from source
+        run: npm run build
 
       - name: Audit rebuilt player data
         run: node scripts/audit-v3.mjs

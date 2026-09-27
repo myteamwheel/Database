@@ -128,7 +128,9 @@ export function prepare(inputs) {
     }
   }
   const glSeasons = leagueSeasons(inputs.gleague);
-  const rosters2627 = new Map(rowsOf(inputs.rosters2627).map((r) => [r.PERSON_ID, r.TEAM_ABBREVIATION]));
+  const rosters2627 = new Map(rowsOf(inputs.rosters2627)
+    .filter((r) => Number(r.ROSTER_STATUS) === 1 && r.TEAM_ABBREVIATION)
+    .map((r) => [r.PERSON_ID, r.TEAM_ABBREVIATION]));
   return {
     bio, rosters2627,
     nba: { key: 'nba', seasons: nbaSeasons, opening: nbaOpening, teamGames: teamGamesFn(nbaSeasons, nbaOpening) },

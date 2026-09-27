@@ -2,7 +2,7 @@ name: Rebuild committed browser artifacts
 
 on:
   push:
-    branches: [main]
+    branches: [main, v3-official-data]
     paths:
       - 'scripts/**'
       - '!scripts/data/history/player_history_product.json'
@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: rebuild-generated-main
+  group: rebuild-generated-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -57,10 +57,9 @@ jobs:
           node scripts/audit-history.mjs
           node scripts/verify-history-hashes.mjs
 
-      - name: Rebuild explanation trace over canonical model outputs
+      - name: Rebuild database, models, projections, comps, and browser artifact
         run: |
-          node scripts/enrich-tulip-beta-trace.mjs
-          node scripts/build-artifact.mjs
+          npm run build
           node scripts/audit-v3.mjs
           node scripts/audit-presets.mjs
           node scripts/tulip-verify.mjs
@@ -84,4 +83,4 @@ jobs:
             exit 0
           fi
           git commit -m "Rebuild browser artifacts for ${GITHUB_SHA::7}"
-          git push origin HEAD:main
+          git push origin HEAD:${GITHUB_REF_NAME}

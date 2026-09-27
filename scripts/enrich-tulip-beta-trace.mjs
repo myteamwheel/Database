@@ -26,8 +26,10 @@ const traceKeys = ['rawSignalDelta', 'constrainedDelta', 'rosterBalanceFactor'];
 const same = (a, b) => Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b);
 const byTeam = new Map();
 for (const p of nba) {
-  if (!byTeam.has(p.team)) byTeam.set(p.team, []);
-  byTeam.get(p.team).push(p);
+  const team = p.currentTeam || null;
+  if (!team || !p.currentRoster) continue;
+  if (!byTeam.has(team)) byTeam.set(team, []);
+  byTeam.get(team).push(p);
 }
 
 let enriched = 0;

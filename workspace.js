@@ -1,5 +1,5 @@
 /* Analysis workspace: modes beyond the table. Loaded after app.js and reuses its helpers.
-   Database | Player | Compare | Scatter | Similarity | Team Fit are real tools, not presets. */
+   Database | Player | Compare | Scatter | Player Comps | Team Fit are real tools, not presets. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simLeague: 'same', simMinMin: 300, team: null,
+                  simPlayer: null, team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -24,7 +24,7 @@
   /* ------------------------------------------------------------- mode nav */
   const MODES = [
     ['database', 'Database'], ['player', 'Player'], ['compare', 'Compare'],
-    ['scatter', 'Scatter'], ['similarity', 'Similarity'], ['teamfit', 'Team Fit'],
+    ['scatter', 'Scatter'], ['similarity', 'Player Comps'], ['teamfit', 'Team Fit'],
     ['tulip', 'Role Value'],
   ];
 
@@ -51,6 +51,8 @@
   }
 
   /* ------------------------------------------------- shared UI fragments */
+  const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || p.team || 'Unsigned') : (p?.team || '—');
+
   const bar = (label, v, extra = '') =>
     `<div class="pbar"><span class="pbar-l">${esc(label)}</span>
       <span class="pbar-t"><i style="width:${fin(v) ? Math.max(1, Math.min(100, v)) : 0}%"></i></span>
@@ -59,7 +61,7 @@
   const playerPicker = (id, selected, label) =>
     `<label>${esc(label)}<select id="${id}">${
       players().slice().sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(p.team)}</option>`).join('')
+        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(teamOf(p))}</option>`).join('')
     }</select></label>`;
 
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
@@ -161,7 +163,7 @@
     <div class="ws-head">
       <div>${playerPicker('wsPlayerSel', p.playerId, 'Player')}</div>
       <div class="ws-title"><h2>${esc(p.name)}</h2>
-        <p class="tiny">${esc(p.leagueLabel)} · ${esc(p.team)} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')} · ${p.gp} games · ${num(p.mpg)} mpg</p></div>
+        <p class="tiny">${esc(p.leagueLabel)} · ${esc(teamOf(p))} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')} · ${p.gp} games · ${num(p.mpg)} mpg</p></div>
     </div>
 
     <div class="ws-grid">
@@ -174,7 +176,7 @@
       <div class="ws-card"><div class="k">Reliability</div><div class="v">${num(p.reliabilityWeight)}</div>
         <p class="tiny">coverage ${num(p.gradeCoverage)}%</p></div>
       ${cr.position ? `<div class="ws-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${cr.position.rank}</div><p class="tiny">of ${cr.position.of}</p></div>` : ''}
-      ${cr.team ? `<div class="ws-card"><div class="k">On ${esc(p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
+      ${cr.team ? `<div class="ws-card"><div class="k">2025-26 ${esc(p.seasonTeam || p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
     </div>
 
     <div class="ws-cols">
@@ -195,7 +197,7 @@
     <h3>Archetypes <span class="tiny">rule-based, with the axes that drove each score</span></h3>
     <div class="arche-row">${arche || '<p class="tiny">Not enough profile data.</p>'}</div>
 
-    ${p.ownTeamFit ? `<h3>Fit with ${esc(p.team)}</h3>
+    ${p.ownTeamFit ? `<h3>Fit with ${esc(teamOf(p))}</h3>
       <div class="ws-card wide"><div class="v">${p.ownTeamFit.score}/100</div>
         <p class="tiny">${[...p.ownTeamFit.strengths, ...p.ownTeamFit.weaknesses].map(esc).join('<br>')}</p>
         <p class="tiny">Fit is not quality — it measures how well this profile answers what the roster lacks.</p></div>` : ''}
@@ -228,7 +230,7 @@
       </tbody></table></div>` : ''}
 
     ${p.nbaTranslation && Object.keys(p.nbaTranslation).length ? translationBlock(p) : ''}
-    <div class="ws-actions"><button class="button" id="wsFindSimilar">Find similar players</button></div>`;
+    <div class="ws-actions"><button class="button" id="wsFindSimilar">Find player comps</button></div>`;
   }
 
   function historyBlock(p) {
@@ -383,7 +385,7 @@
     return `<h2>Compare</h2>
       ${cross ? '<p class="tiny"><b>Cross-league comparison.</b> Each league is graded against its own population, so grades are not on a shared scale.</p>' : ''}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>
-        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(p.team)} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
+        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamOf(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
         <tbody>${metrics.filter((k) => ps.some((p) => fin(valueOf(p, k)))).map((k) => {
           const b = best(k);
           return `<tr><td class="left">${esc(window.__wsLabel(k))}</td>${ps.map((p) => {
@@ -501,62 +503,99 @@
     };
   }
 
-  /* ------------------------------------------------------ SIMILARITY MODE */
-  function simScore(a, b) {
-    const W = window.DATA.analysis.similarityWeights;
-    let acc = 0, wsum = 0; const axes = [];
-    for (const [axis, w] of Object.entries(W)) {
-      const x = a?.[axis], y = b?.[axis];
-      if (!fin(x) || !fin(y)) continue;
-      const diff = x - y;
-      acc += w * diff * diff; wsum += w;
-      axes.push({ axis, diff: Math.abs(diff) });
-    }
-    if (!wsum) return null;
-    const d = Math.sqrt(acc / wsum);
-    axes.sort((p, q) => p.diff - q.diff);
-    return { score: Math.max(0, Math.min(100, 100 * (1 - d / 100))), axes };
+  /* ------------------------------------------------------ PLAYER COMPS MODE */
+  function physicalLine(x) {
+    const bits = [];
+    if (x?.height) bits.push(x.height);
+    if (fin(x?.weight)) bits.push(num(x.weight, 0) + ' lb');
+    if (x?.wingspan) bits.push(x.wingspan + ' wingspan');
+    if (x?.standingReach) bits.push(x.standingReach + ' reach');
+    return bits.join(' · ') || 'Measurements unavailable';
+  }
+
+  function compBlockScore(c, key) {
+    const v = c?.blockScores?.[key];
+    return fin(v) ? num(v, 1) : '—';
   }
 
   function viewSimilarity() {
-    const p = byId(state.simPlayer) || byId(state.player) || players()[0];
+    const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
-    const pool = [];
-    const add = (lg) => (window.DATA.leagues[lg] || []).filter((q) => q.appeared && q.skillProfile
-      && q.playerId !== p.playerId && (q.minutes || 0) >= state.simMinMin)
-      .forEach((q) => pool.push(q));
-    if (state.simLeague === 'same') add(p.league);
-    else if (state.simLeague === 'other') add(p.league === 'NBA' ? 'GLEAGUE' : 'NBA');
-    else { add('NBA'); add('GLEAGUE'); }
+    const lg = p.league === 'NBA' ? 'NBA' : 'GLEAGUE';
+    const set = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
-    const results = pool.map((q) => ({ q, s: simScore(p.skillProfile, q.skillProfile) }))
-      .filter((x) => x.s).sort((a, b) => b.s.score - a.s.score).slice(0, 25);
+    if (!set) {
+      return `<h2>Player Comps</h2>
+        <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+        <div class="ws-card wide"><p>No historical comparison is available for <b>${esc(p.name)}</b>.
+        This usually means the player has no usable 2025-26 professional sample yet.</p></div>
+        <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
+    }
 
-    return `<h2>Similarity search</h2>
-      <div class="ws-controls">
-        ${playerPicker('simSel', p.playerId, 'Player')}
-        <label>Pool<select id="simLeague">
-          <option value="same"${state.simLeague === 'same' ? ' selected' : ''}>Same league</option>
-          <option value="other"${state.simLeague === 'other' ? ' selected' : ''}>Other league</option>
-          <option value="both"${state.simLeague === 'both' ? ' selected' : ''}>Both</option>
-        </select></label>
-        <label>Min total minutes<input id="simMin" type="number" step="50" value="${state.simMinMin}"></label>
+    const targetPhysical = set.targetPhysical || {};
+    const targetStats = set.targetStats || {};
+    const blend = (set.blend || []).map((x) =>
+      `<b>${x.share}% ${esc(x.name)}</b> <span class="tiny">(${esc(x.season)})</span>`).join(' + ');
+
+    const cards = (set.top3 || []).map((q, i) => {
+      const rel = (q.relation || []).length ? ` · ${esc(q.relation.join(', '))}` : '';
+      const similar = (q.mostSimilar || []).map(esc).join(', ') || '—';
+      const diff = (q.biggestDifferences || []).map((x) => esc(x.label)).join(', ') || '—';
+      return `<section class="ws-card wide comp-card" data-comp-rank="${i + 1}">
+        <div class="eyebrow">#${i + 1} HISTORICAL COMP · ${esc(q.season)} ${esc(q.team || '')}</div>
+        <h3>${byId(q.playerId)
+          ? `<button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>`
+          : `<span class="historical-comp-name">${esc(q.name)}</span>`}
+          <span class="tiny">${esc(q.position || '')}${rel}</span></h3>
+        <div class="player-grid">
+          <div class="ws-card"><div class="k">Overall match</div><div class="v">${num(q.similarity, 1)}%</div>
+            <p class="tiny">${num(q.coverage, 0)}% feature coverage</p></div>
+          <div class="ws-card"><div class="k">Physical match</div><div class="v">${compBlockScore(q, 'physical')}</div>
+            <p class="tiny">${physicalLine(q)}</p></div>
+          <div class="ws-card"><div class="k">Role / production</div><div class="v">${compBlockScore(q, 'role')}</div></div>
+          <div class="ws-card"><div class="k">Scoring style</div><div class="v">${compBlockScore(q, 'scoring')}</div></div>
+          <div class="ws-card"><div class="k">Defense / activity</div><div class="v">${compBlockScore(q, 'defense')}</div></div>
+        </div>
+        <div class="table-wrap"><table class="compare-table"><thead><tr>
+          <th class="left">Player</th><th>MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TS%</th><th>3PA share</th><th>STL/36</th><th>BLK/36</th>
+        </tr></thead><tbody>
+        <tr><td class="left"><b>${esc(p.name)}</b></td>
+          <td>${num(targetStats.mpg)}</td><td>${num(targetStats.pts36)}</td><td>${num(targetStats.reb36)}</td><td>${num(targetStats.ast36)}</td>
+          <td>${fin(targetStats.ts) ? (targetStats.ts * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${fin(targetStats.threeRate) ? (targetStats.threeRate * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${num(targetStats.stl36)}</td><td>${num(targetStats.blk36)}</td></tr>
+        <tr><td class="left">${esc(q.name)} <span class="tiny">${esc(q.season)}</span></td>
+          <td>${num(q.mpg)}</td><td>${num(q.pts36)}</td><td>${num(q.reb36)}</td><td>${num(q.ast36)}</td>
+          <td>${fin(q.ts) ? (q.ts * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${fin(q.threeRate) ? (q.threeRate * 100).toFixed(1) + '%' : '—'}</td>
+          <td>${num(q.stl36)}</td><td>${num(q.blk36)}</td></tr>
+        </tbody></table></div>
+        <p class="tiny"><b>Closest on:</b> ${similar}<br><b>Biggest differences:</b> ${diff}
+        ${q.currentSeasonDetailed ? '<br><b>Extra detail:</b> current-season tracking/style axes were available for both players.' : ''}</p>
+      </section>`;
+    }).join('');
+
+    return `<h2>Player Comps</h2>
+      <div class="ws-controls">${playerPicker('simSel', p.playerId, 'Player')}</div>
+      <p class="tiny"><b>${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} historical pool.</b>
+      ${esc(meta.priority || '')} Positions are not a hard filter.</p>
+      <div class="ws-card wide">
+        <div class="eyebrow">TARGET PROFILE</div>
+        <h3>${esc(p.name)} <span class="tiny">${esc(p.currentTeam || p.team || '')} · ${esc(p.position || '')}</span></h3>
+        <p>${esc(physicalLine(targetPhysical))}</p>
       </div>
-      <p class="tiny">${esc(window.DATA.analysis.similarityMethod)}</p>
-      <div class="table-wrap"><table class="compare-table"><thead><tr>
-        <th class="left">Player</th><th>League</th><th>Similar</th><th class="left">Most similar on</th><th class="left">Biggest differences</th>
-      </tr></thead><tbody>
-        ${results.map(({ q, s }) => `<tr>
-          <td class="left"><button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>
-            <span class="tiny">${esc(q.team)} · ${esc(q.position || '')} · grade ${gnum(q.grade)}</span></td>
-          <td>${q.league === 'NBA' ? 'NBA' : 'G'}</td>
-          <td><b>${s.score.toFixed(1)}%</b></td>
-          <td class="left tiny">${s.axes.slice(0, 3).map((a) => esc(a.axis)).join(', ')}</td>
-          <td class="left tiny">${s.axes.slice(-3).reverse().map((a) => `${esc(a.axis)} (${a.diff.toFixed(0)})`).join(', ')}</td>
-        </tr>`).join('')}
-      </tbody></table></div>
-      ${state.simLeague !== 'same' ? '<p class="tiny">Cross-league similarity compares within-league percentiles, so it describes similar <em>roles</em>, not equal ability.</p>' : ''}`;
+      <div class="ws-card wide comp-blend">
+        <div class="eyebrow">THREE-PLAYER BLEND</div>
+        <p>${blend}</p>
+        <p><b>Style shorthand:</b> ${esc(set.shorthand || '')}</p>
+      </div>
+      ${cards}
+      <p class="tiny"><b>Method:</b> physical profile is the largest block (46%) and is evaluated before
+      role/production, scoring mix and defensive activity. Wingspan and standing reach are used only
+      where measured; they are never estimated. Historical tracking and shot-zone fields are included
+      only when both sides actually have comparable coverage. ${esc((meta.limitations || []).join(' '))}</p>`;
   }
 
   /* -------------------------------------------------------- TEAM FIT MODE */
@@ -660,7 +699,7 @@
           A league-referenced role-expansion value — not context-free player quality.</p>
           <div class="v big">${num(rot?.leagueReferencedDelta, 2)}</div></section>
         <section class="read-block"><div class="eyebrow">TEAM DECISION READ</div>
-          <p class="tiny">Whether reallocating minutes from realistic players on <b>${esc(p.team)}</b>
+          <p class="tiny">Whether reallocating minutes from realistic players on <b>${esc(teamOf(p))}</b>
           appears beneficial. Dominated by who currently holds those minutes.</p>
           <div class="v big">${num(rot?.neutralRotationDelta, 2)}</div></section>
       </div>
@@ -724,7 +763,7 @@
         ${cands.filter((x) => !x.tulip.card.abstain && x.tulip.card.rotation && !x.tulip.card.rotation.abstain)
           .slice(0, 25).map((x) => `<tr>
           <td class="left"><button class="player-link" data-tulip="${esc(x.playerId)}">${esc(x.name)}</button>
-            <span class="tiny">${esc(x.team)}</span></td>
+            <span class="tiny">${esc(teamOf(x))}</span></td>
           <td>${num(x.mpg)}</td><td>${num(x.tulip.card.targetMpg)}</td>
           <td><b>${num(x.tulip.card.rotation.leagueReferencedDelta, 2)}</b></td>
           <td>${num(x.tulip.card.rotation.neutralRotationDelta, 2)}</td>
@@ -855,8 +894,6 @@
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     on('simSel', 'change', (e) => { state.simPlayer = e.target.value; render(); });
-    on('simLeague', 'change', (e) => { state.simLeague = e.target.value; render(); });
-    on('simMin', 'change', (e) => { state.simMinMin = Number(e.target.value) || 0; render(); });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
     on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); });
