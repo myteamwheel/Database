@@ -583,7 +583,7 @@
     const id = q?.teamId;
     const team = q?.team || '—';
     const ns = q?.league === 'NBA' ? 'nba' : 'nbagleague';
-    const liveHost = !['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    const liveHost = location.protocol === 'https:';
     const src = id && liveHost ? `https://cdn.nba.com/logos/${ns}/${id}/primary/L/logo.svg` : '';
     return `<div class="comp-team-logo"><span>${esc(team)}</span>${src
       ? `<img src="${esc(src)}" alt="${esc(team)} logo" loading="lazy" onerror="this.style.display='none'">`
