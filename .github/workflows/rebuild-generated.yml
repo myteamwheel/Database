@@ -83,4 +83,10 @@ jobs:
             exit 0
           fi
           git commit -m "Rebuild browser artifacts for ${GITHUB_SHA::7}"
+          # Another maintenance workflow (for example starter acceptance evidence) can legitimately
+          # advance the deployment branch while this longer rebuild is running. Rebase our generated
+          # artifact commit onto that new tip instead of failing a non-fast-forward push or forcing
+          # away someone else's evidence commit.
+          git fetch origin "${GITHUB_REF_NAME}"
+          git rebase "origin/${GITHUB_REF_NAME}"
           git push origin HEAD:${GITHUB_REF_NAME}
