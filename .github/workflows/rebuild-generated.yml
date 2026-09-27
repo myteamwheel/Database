@@ -87,6 +87,11 @@ jobs:
           # advance the deployment branch while this longer rebuild is running. Rebase our generated
           # artifact commit onto that new tip instead of failing a non-fast-forward push or forcing
           # away someone else's evidence commit.
+          # Only the staged/committed artifact set is meant to persist. The history hydration/build
+          # can leave other tracked cache files modified locally; discard those ephemeral worktree
+          # changes before rebasing the artifact commit.
+          git reset --hard HEAD
+          git clean -fd
           git fetch origin "${GITHUB_REF_NAME}"
           git rebase "origin/${GITHUB_REF_NAME}"
           git push origin HEAD:${GITHUB_REF_NAME}
