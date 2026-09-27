@@ -5,6 +5,8 @@
 # generated artifacts are committed, and rebuild-generated.yml is what regenerates them. This
 # workflow only publishes what is already in the tree, so a deploy can never silently ship data
 # that differs from what was audited.
+# Generated-artifact commits are pushed by GITHUB_TOKEN, which does not fire ordinary push
+# workflows; rebuild-generated.yml therefore dispatches this workflow explicitly after such pushes.
 name: Deploy to GitHub Pages
 
 # The github-pages environment restricts deployments to the repository's DEFAULT branch by
