@@ -1,5 +1,24 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+
+// Independently specified synthetic profiles exercise the production solver without rebuilding data.
+const source=fs.readFileSync(new URL('../scripts/build-player-comps.mjs',import.meta.url),'utf8');
+const solverSource=source.slice(source.indexOf('function optimizeBlend('),source.indexOf('\nconst result = { NBA:'));
+const context=vm.createContext({
+  fin:v=>v!=null&&Number.isFinite(v), clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),
+  r1:v=>v,r2:v=>v,similarityFromDistance:v=>100/(1+v),integerShares:w=>w.map(v=>v*100),
+  blendAxes:t=>t.vector.map((_,i)=>({key:String(i),weight:1})),blendVector:r=>r.vector,
+});
+vm.runInContext(solverSource+';this.solve=optimizeBlend;',context);
+const candidate=(vector,id,physical=100)=>({cand:{vector,features:Object.fromEntries(vector.map((v,i)=>[String(i),v])),playerId:id,name:id},m:{score:100,blockScores:{physical}}});
+const shares=r=>Object.fromEntries(r.blend.map(x=>[x.playerId,x.share]));
+const penalized=shares(context.solve({vector:[0.5]},[candidate([0],'a',0),candidate([1],'b')]));
+assert.ok(Math.abs(penalized.a-45)<1e-8,'linear physical penalty must affect optimized weight');
+const edge=shares(context.solve({vector:[0.4]},[candidate([0],'a'),candidate([10],'b')]));
+assert.ok(Math.abs(edge.b-6)<1e-8,'pair solution must include the 6% boundary');
+const triple=shares(context.solve({vector:[0.4,4]},[candidate([0,0],'a'),candidate([10,0],'b'),candidate([0,10],'c')]));
+assert.ok(Math.abs(triple.b-6)<1e-8&&Math.abs(triple.c-40)<1e-8,'triple edge must be optimized, not discarded');
 
 const data = JSON.parse(fs.readFileSync(new URL('../public/data.json', import.meta.url), 'utf8'));
 const meta = data.analysis.playerCompsMeta;

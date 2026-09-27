@@ -457,7 +457,7 @@ test.describe('analysis workspace', () => {
     expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBeGreaterThanOrEqual(1);
     const txt = await page.$eval('#workspace', (e) => e.textContent);
     expect(txt).toContain('blend composition');
-    expect(txt).toContain('BLEND CONFIDENCE');
+    expect(txt).toContain('STATISTICAL BLEND FIT');
     for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
       'Usage', 'AST%', 'AST / TO', 'True shooting', 'eFG%', '3PA share', 'FT rate',
       'STL / 36', 'BLK / 36', 'DREB%', 'OREB%', 'REB%', 'Net rating']) {

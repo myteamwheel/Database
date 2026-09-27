@@ -59,7 +59,8 @@
         : MODE === 'teamfit' ? 'Team Fit'
         : MODE === 'tulip' ? 'Role Value' : (labels[MODE] || 'Analysis');
       if ($('pageTitle')) $('pageTitle').textContent = `${lg} ${title}`;
-      if ($('crumbs')) $('crumbs').textContent = `${lg} › 2025-26 › ${title}`;
+      const period = MODE === 'compare' && $('viewPreset')?.value === 'proj' ? '2026-27 projections' : '2025-26';
+      if ($('crumbs')) $('crumbs').textContent = `${lg} › ${period} › ${title}`;
       if ($('seasonEyebrow')) $('seasonEyebrow').textContent = '2025-26 analysis workspace';
     }
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
@@ -446,7 +447,13 @@
       const lower = ['tov', 'defRtg'].includes(k);
       return lower ? Math.min(...vals) : Math.max(...vals);
     };
-    return `<h2>Compare</h2>
+    const projectionMode = $('viewPreset')?.value === 'proj';
+    if (projectionMode) {
+      const keys = ['gp','mpg','pts','reb','ast','stl','blk','tov','fg3m','fgPct','fg3Pct','ftPct','ts'];
+      return `<h2>Compare — 2026–27 projections</h2><p class="tiny">Forecasts, not observed results. Ranges and assumptions are available in each player's projection card.</p>
+        <div class="table-wrap"><table class="compare-table"><thead><tr><th>Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${keys.map(k=>`<tr><th>${esc(window.__wsLabel('proj.'+k))}</th>${ps.map(p=>`<td>${p.proj?.abstain?'—':window.__wsFmt(p.proj?.[k], 'proj.'+k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    }
+    return `<h2>Compare — 2025–26 actuals</h2>
       ${cross ? '<p class="tiny"><b>Cross-league comparison.</b> Each league is graded against its own population, so grades are not on a shared scale.</p>' : ''}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>
         ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamOf(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
@@ -459,7 +466,7 @@
           }).join('')}</tr>`;
         }).join('')}</tbody></table></div>
       <h3>Skill profile</h3>
-      ${Object.keys(ps[0].skillProfile || {}).map((axis) => `<div class="cmp-axis"><span class="pbar-l">${esc(axis)}</span>
+      ${Object.keys(ps[0].skillProfile || {}).map((axis) => `<div class="cmp-axis"><span class="pbar-l">${esc(axis.replace(/([a-z])([A-Z])/g, '$1 $2'))}</span>
         ${ps.map((p) => `<span class="pbar-t" title="${esc(p.name)}"><i style="width:${p.skillProfile?.[axis] ?? 0}%"></i></span>`).join('')}</div>`).join('')}
       <p class="tiny">Bars are within-league percentiles, in the order the players appear above.</p>
       ${historyCompareBlock(ps)}`;
@@ -485,17 +492,18 @@
       <div id="scStats" class="tiny"></div>
       <canvas id="scCanvas" width="1100" height="560" style="width:100%;max-width:1100px"></canvas>
       <div id="scHover" class="tiny"></div>
-      <div id="scOutliers"></div>`;
+      <div id="scOutliers"></div><details><summary>Accessible chart data</summary><div id="scData" class="table-wrap"></div></details>`;
   }
 
   function drawScatter() {
     const cv = $('scCanvas'); if (!cv) return;
     const ctx = cv.getContext('2d');
     const list = window.__wsFiltered().filter((p) => p.appeared);
-    const pts = list.map((p) => ({ p, x: Number(valueOf(p, state.scatterX)), y: Number(valueOf(p, state.scatterY)),
-      s: state.scatterSize ? Number(valueOf(p, state.scatterSize)) : null }))
-      .filter((q) => fin(q.x) && fin(q.y));
+    const pts = list.filter((p) => fin(valueOf(p, state.scatterX)) && fin(valueOf(p, state.scatterY)))
+      .map((p) => ({ p, x: Number(valueOf(p, state.scatterX)), y: Number(valueOf(p, state.scatterY)),
+        s: state.scatterSize && fin(valueOf(p, state.scatterSize)) ? Number(valueOf(p, state.scatterSize)) : null }));
     ctx.clearRect(0, 0, cv.width, cv.height);
+    $('scData').innerHTML = `<table><thead><tr><th>Player</th><th>${esc(window.__wsLabel(state.scatterX))}</th><th>${esc(window.__wsLabel(state.scatterY))}</th></tr></thead><tbody>${pts.map(q=>`<tr><td>${esc(q.p.name)}</td><td>${window.__wsFmt(q.x,state.scatterX)}</td><td>${window.__wsFmt(q.y,state.scatterY)}</td></tr>`).join('')}</tbody></table>`;
     if (pts.length < 2) { $('scStats').textContent = 'Not enough data for these axes.'; return; }
 
     const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
@@ -542,7 +550,9 @@
     ctx.moveTo(PX(xmin), PY(a + b * xmin)); ctx.lineTo(PX(xmax), PY(a + b * xmax)); ctx.stroke();
 
     $('scStats').innerHTML = `<b>r = ${r.toFixed(3)}</b> · n = ${pts.length} · trend y = ${b.toFixed(3)}x + ${a.toFixed(2)}
-      · colour: ${groups.slice(0, 8).map((g) => `<span style="color:${hue(g)}">■</span> ${esc(g)}`).join(' ')}`;
+      · ${list.length - pts.length} missing-coordinate rows excluded
+      · Database filters apply (${list.length} eligible players; change filters in Database)
+      · colour: ${groups.map((g) => `<span style="color:${hue(g)}">■</span> ${esc(g)}`).join(' ')}`;
 
     // Outliers: largest residuals against the trend.
     const resid = pts.map((q) => ({ q, e: Math.abs(q.y - (a + b * q.x)) })).sort((u, v) => v.e - u.e).slice(0, 8);
@@ -736,10 +746,10 @@
     return `<div class="comp-page">
       <div class="comp-page-title">
         <div><div class="eyebrow">HISTORICAL PLAYER COMPARISON</div><h2>Player Comps</h2></div>
-        <div class="comp-confidence"><span>BLEND CONFIDENCE</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
+        <div class="comp-confidence"><span>STATISTICAL BLEND FIT</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
-      Blend Confidence is separate: it tells you how convincing those historical references are overall.</p>
+      Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
       ${compPlayerSearch(p)}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
@@ -758,7 +768,7 @@
       players and their non-negative percentages together. It minimizes the error between the target and the weighted blend across
       role, creation, production, shot diet and defensive activity; all shares sum to 100%. Physical compatibility, missing source
       fields and an unnecessary extra player are explicit penalties. Team ratings and plus-minus stay visible but do not steer the
-      composition. <b>Blend Confidence</b> combines reconstruction quality, individual match quality and feature coverage, so a
+      composition. <b>Statistical blend fit</b> combines reconstruction quality, individual match quality and feature coverage, so a
       unique player can still receive honest reference points without pretending the historical fit is strong.
       ${esc((meta.limitations || []).join(' '))}</p>
     </div>`;
@@ -783,13 +793,13 @@
           ${needs.slice().reverse().map(([, v]) => bar(v.label, v.strength)).join('')}</section>
       </div>
       <h3>Best fits</h3>
-      <p class="tiny">Fit is <b>not</b> quality. A lower-graded player can fit better because he supplies what this roster lacks.</p>
+      <p class="tiny">Fit is <b>not</b> quality or an acquisition recommendation. This includes current roster players; needs use previous-season minutes from players with measured profiles, excluding unmeasured players. A lower-graded player can fit better because he supplies what this roster lacks.</p>
       <div class="table-wrap"><table class="compare-table"><thead><tr>
         <th class="left">Player</th><th>Grade</th><th>Fit</th><th class="left">Why</th></tr></thead><tbody>
         ${t.topFits.slice(0, 30).map((f) => `<tr>
           <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button></td>
           <td>${gnum(f.grade)}</td><td><b>${f.score}/100</b></td>
-          <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>')}</td></tr>`).join('')}
+          <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>') || 'No pronounced roster need crosses the explanation threshold; score reflects the weighted profile across all measured needs.'}</td></tr>`).join('')}
       </tbody></table></div>`;
   }
 
@@ -811,18 +821,21 @@
     state.tulipPlayer = p.playerId;
     const t = p.tulip;
     const target = state.tulipTarget ?? t.defaultTarget;
-    // Frontier band matching the chosen target, so the card and the chart agree.
-    const band = t.frontier.reduce((best, f) =>
-      (Math.abs(f.mpg - target) < Math.abs((best?.mpg ?? 1e9) - target) ? f : best), null);
     const card = t.card;
-    const rot = card.rotation;
+    const isDefault = Math.abs(target - card.targetMpg) < 0.001;
+    const scenarios = [...t.frontier.filter((f) => Math.abs(f.mpg - card.targetMpg) >= 0.001),
+      { ...card.projection, mpg: card.targetMpg, abstain: card.abstain,
+        abstainReason: card.reason || card.abstainReason || card.projection?.abstainReason }].sort((a,b) => a.mpg-b.mpg);
+    const band = scenarios.find((f) => Math.abs(f.mpg - target) < 0.001);
+    // Rotation decisions were computed only for the exact default scenario.
+    const rot = isDefault ? card.rotation : null;
     const rsr = t.roleScaleResponse || {};
 
     const scenario = `
       <div class="ws-controls">
         ${playerPicker('tuPlayer', p.playerId, 'Candidate')}
         <label>Target role
-          <select id="tuTarget">${t.frontier.map((f) =>
+          <select id="tuTarget">${scenarios.map((f) =>
             `<option value="${f.mpg}"${f.mpg === target ? ' selected' : ''}>${f.mpg} MPG${f.abstain ? ' — no evidence' : ''}</option>`).join('')}</select>
         </label>
         <div class="ws-card"><div class="k">Current role</div><div class="v">${num(p.mpg)}<span class="tiny"> mpg · ${p.gp} g</span></div></div>
@@ -850,8 +863,8 @@
           <p class="tiny">${proj && proj.interval ? `80% interval ${num(proj.interval[0], 2)} to ${num(proj.interval[1], 2)}` : ''}</p></div>
         <div class="ws-card"><div class="k">Role Value support</div><div class="v">${proj ? proj.support : '—'}<span class="tiny">/100</span></div>
           <p class="tiny">${proj ? `${proj.comparables} comparables · effective n ${num(proj.effectiveN, 1)} · mean similarity ${num(proj.meanSimilarity, 1)}` : ''}</p></div>
-        <div class="ws-card"><div class="k">Evidence tier</div><div class="v">${esc(card.evidenceTier?.tier || '—')}</div>
-          <p class="tiny">${esc(card.evidenceTier?.label || '')}</p></div>
+        <div class="ws-card"><div class="k">Evidence tier</div><div class="v">${isDefault ? esc(card.evidenceTier?.tier || '—') : '—'}</div>
+          <p class="tiny">${isDefault ? esc(card.evidenceTier?.label || '') : 'Target-specific evidence tier not computed.'}</p></div>
         <div class="ws-card"><div class="k">Role-Scale Response</div>
           <div class="v">${esc(rsr.response || '—')}</div>
           <p class="tiny">${fin(rsr.slopePer10Min) ? `${rsr.slopePer10Min > 0 ? '+' : ''}${rsr.slopePer10Min} per 10 mpg` : 'not enough supported bands'}</p></div>
@@ -890,7 +903,7 @@
       <p class="tiny">${esc(rot.magnitudeCaveat)}</p>
       <p class="tiny">${esc(rot.leagueNote)}</p>
       <p class="tiny">Minutes reallocated: ${num(rot.minutesReallocated)} from ${rot.displaced.map((x) => `${esc(x.name)} (-${x.minutesTaken})`).join(', ')}</p>
-      ` : `<p class="tiny">No rotation delta: ${esc(rot?.reason || 'not computed')}</p>`}
+      ` : `<p class="tiny">No rotation delta: ${esc(rot?.reason || 'not computed for this target. Rotation decisions are available only at the default target; no default-scenario decision is reused here.')}</p>`}
 
       ${frontierBlock(t, target)}
 

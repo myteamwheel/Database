@@ -18,6 +18,7 @@ on:
     paths:
       - 'index.html'
       - 'history-lab.html'
+      - 'history-lab.js'
       - 'app.js'
       - 'workspace.js'
       - 'styles.css'
@@ -44,6 +45,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Gate the exact published payload and UI
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm run audit
+          npm run audit:presets
+          npm run test:projections
+          npm run test:comps
+          npm run test:tulipbeta
+          npm run test:tulipcapacity
+          npm run verify:artifact
+          npm run build:standalone
+          git diff --exit-code -- public/standalone.html
+          npm run test:browser
 
       - name: Verify the payload the site actually loads
         run: |

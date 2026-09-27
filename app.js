@@ -422,7 +422,7 @@ const PRESETS = {
 };
 
 /** Views that open on their own headline column rather than on grade. */
-const PRESET_SORT = { tulipbeta:'tb.tulip', proj:'proj.pts' };
+const PRESET_SORT = { tulipbeta:'tb.tulip', proj:'proj.pts', per36:'p36.pts', per36nba:'p36n.pts' };
 const PRESET_LABELS = {overall:'Overall',proj:'2026-27 Projections',workload:'Projected Role MPG',capacity:'Projected Role MPG (detail)',tulipbeta:'TULIP Beta',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
@@ -697,7 +697,8 @@ function openStatGuide(){
 function colDef(key){
   const base = BASE_COLS[key] || {label:humanize(key), type:''};
   if (base.help) return base;
-  const help = COLUMN_HELP[key] || docHelp(key);
+  const rawHelp = COLUMN_HELP[key] || docHelp(key);
+  const help = typeof rawHelp === 'string' ? rawHelp.replace(/\\u([0-9a-f]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))) : rawHelp;
   return help ? {...base, help} : base;
 }
 
@@ -769,7 +770,7 @@ function populateSelectors(){
   const hasProj=players.some(p=>p.proj&&p.proj.abstain!==true);
   const current=$('viewPreset').value;
   $('viewPreset').innerHTML=Object.entries(PRESET_LABELS).filter(([k])=>
-    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(k!=='capacity'||hasCapacity)&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
+    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(!['capacity','workload'].includes(k)||hasCapacity)&&(!['nbaready','per36nba'].includes(k)||league==='GLEAGUE')&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
   ).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
   // Keep the chosen view across a league switch when the other league offers it too.
   if([...$('viewPreset').options].some(o=>o.value===current)) $('viewPreset').value=current;
@@ -838,6 +839,14 @@ function teamScoped(p,team,mode){
   q.custom={}; q.components={}; q.rateComponents={};
   // Raw source fields are season-scoped with no stint equivalent.
   q.stats={};
+  // Nested objects are season scoped too; never retain them on a stint line.
+  q.per36={};
+  for(const k of ['pts','reb','ast','stl','blk']) {
+    q.per36[k]=finite(q[k])&&q.mpg>0?Number(q[k])*36/q.mpg:null;
+  }
+  q.per36.fg3Pct=q.fg3Pct;
+  q.per36Nba=null; q.tulip=null; q.tulipBeta=null; q.tulipCapacity=null;
+  q.optimal=null; q.proj=null; q.magnitudeGrade=null; q.magnitudeRaw=null;
   return q;
 }
 
@@ -895,7 +904,7 @@ function filteredPlayers(){
  */
 function syncSortControls(cols){
   const sel=$('sortField'); if(!sel) return;
-  const sortable=cols.filter(k=>k!=='select');
+  const sortable=cols.filter(k=>k!=='select'&&k!=='viewRank');
   const sig=sortable.join('|');
   if(sel.dataset.sig!==sig){
     sel.dataset.sig=sig;
@@ -971,7 +980,7 @@ function render(){
   viewRankOf=new Map(list.map((p,i)=>[p.playerId,i+1]));
   // A wide view times the row count gives the real cost. All Raw Stats at 1,075 columns x 582
   // rows is 625,000 cells and took 6.1s to lay out, so very wide views cap their rows and say so.
-  const CELL_BUDGET=120000;
+  const CELL_BUDGET=30000;
   let capped=0;
   if(cols.length*Math.min(limit,list.length)>CELL_BUDGET){
     const maxRows=Math.max(10,Math.floor(CELL_BUDGET/cols.length));
@@ -992,6 +1001,7 @@ function render(){
     // tabindex + role make the header a real control: it can be reached by keyboard, which is
     // also what makes the focus-triggered explainer panel reachable without a mouse. aria-sort
     // announces the current ordering to screen readers.
+    if(key==='viewRank') return '<th scope="col" aria-label="Display row number; not sortable">#</th>';
     const aria = sortKey===key ? (sortDir<0?'descending':'ascending') : 'none';
     return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
@@ -1187,7 +1197,8 @@ function openTeamAllocation(team,{preserveState=false}={}){
     favored by its team-relative performance and role evidence. Positive values gain minutes;
     negative values surrender minutes. The roster ledger is conserved. TULIP Beta is experimental and
     its exact MPG recommendations have not been validated as win-maximizing. Net reallocation is
-    0.0 apart from per-player rounding to one decimal.</p>
+    0.0 apart from per-player rounding to one decimal. <b>This is a workload redistribution heuristic, not a playable 240-minute rotation.</b>
+    The sum combines historical individual workloads and does not enforce simultaneous availability, positions, or lineup constraints.</p>
     <div class="crossover">
       <div class="eyebrow">MINUTES GAINED &nbsp;(${signed(gTot)})</div>
       <div class="raw-grid">${gained.length?gained.map(li).join(''):'<div class="raw-row"><span>none</span><b>0.0</b></div>'}</div>
@@ -1818,7 +1829,7 @@ window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
 
 async function init(){
   try{
-    const r=await fetch('./public/data.json',{cache:'no-store'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
+    const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
     DATA=rehydrate(DATA);
     // `let DATA` at script scope is NOT a window property, so workspace.js could not see it.
     window.DATA=DATA;

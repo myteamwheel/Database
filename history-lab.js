@@ -177,6 +177,8 @@
     const f = filters();
     FILTERED = ALL.filter((e) => rowMatches(e, f));
     AGG = aggregate(FILTERED, f);
+    const eligible = new Set(AGG.map((p) => p.playerId));
+    FILTERED = FILTERED.filter((e) => eligible.has(e.playerId));
     PAGE = 0;
     renderSummary();
     renderPlayers();
@@ -200,7 +202,7 @@
   function renderPlayers() {
     const body = $('hPlayerTable').querySelector('tbody');
     if (!AGG.length) { body.innerHTML = '<tr><td colspan="12" class="history-empty">No players match this slice.</td></tr>'; return; }
-    body.innerHTML = AGG.slice(0, 250).map((a) => {
+    body.innerHTML = AGG.map((a) => {
       const meta = META.get(String(a.playerId));
       const sub = `${[...a.teams].sort().join('/')} · ${[...a.seasons].sort().join(', ')}${meta?.leagues?.size ? ` · current: ${[...meta.leagues].join('/')}` : ''}`;
       return `<tr><td><span class="history-player">${esc(a.name)}</span><span class="history-sub">${esc(sub)}</span></td>
@@ -233,7 +235,7 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
   }
   function exportPlayers() {
-    const rows = [['Player','Player ID','Games','Known starts','Known starter appearances','Start %','MPG','PTS','REB','AST','STL','BLK','TOV','PlusMinus','Teams','Seasons','First date','Last date']];
+    const rows = [['Player','Player ID','Games','Known starts','Known starter appearances','Start fraction (0–1)','MPG','PTS','REB','AST','STL','BLK','TOV','PlusMinus','Teams','Seasons','First date','Last date']];
     for (const a of AGG) rows.push([a.name,a.playerId,a.games,a.starts,a.knownStarts,a.startPct === null ? '' : a.startPct,a.minutesPg,a.ptsPg,a.rebPg,a.astPg,a.stlPg,a.blkPg,a.tovPg,a.plusMinusPg,[...a.teams].sort().join('|'),[...a.seasons].sort().join('|'),a.first,a.last]);
     download('history-player-slice.csv', rows);
   }

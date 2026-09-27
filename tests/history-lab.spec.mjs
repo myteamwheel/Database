@@ -42,6 +42,16 @@ async function openLab(page) {
 }
 
 test.describe('History Lab', () => {
+  test('player results are complete and minimum games scopes summary and raw rows', async ({page}) => {
+    await openLab(page);
+    const expected=await page.evaluate(()=>window.__historyLab.playerResults);
+    await expect(page.locator('#hPlayerTable tbody tr')).toHaveCount(expected);
+    await page.fill('#hMinGames','1000');
+    await page.selectOption('#hSort','games');
+    await expect(page.locator('#hPlayerTable')).toContainText('No players match');
+    await expect(page.locator('#hPage')).toHaveText('0 matching player-games');
+    expect(await page.evaluate(()=>window.__historyLab.filteredRows)).toBe(0);
+  });
   test('loads the full historical product from compact identity metadata without the 35 MB current database', async ({ page }) => {
     const requested = [];
     page.on('request', (r) => requested.push(new URL(r.url()).pathname));

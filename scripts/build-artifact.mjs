@@ -71,7 +71,7 @@ const standaloneLoader = `const payload=document.getElementById('db-gz').textCon
 
 const app = escapeNonAscii(
   R('app.js').replace(
-    "const r=await fetch('./public/data.json',{cache:'no-store'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();",
+    "const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();",
     standaloneLoader
   ),
   'js'

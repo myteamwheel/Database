@@ -462,6 +462,12 @@ function optimizeBlend(target, shortlist) {
     return seen / axisWeight;
   });
   let best = null;
+  // Linear costs must participate in weight optimization, not just selection afterwards.
+  const costs = shortlist.map((x, i) => {
+    const physical = Number(x.m.blockScores?.physical ?? x.m.score ?? 0) / 100;
+    const match = Number(x.m.score || 0) / 100;
+    return 0.10 * (1 - physical) ** 2 + 0.08 * (1 - coverage[i]) + 0.04 * (1 - match) ** 2;
+  });
 
   const consider = (indices, weights) => {
     const styleError = tv.reduce((sum, t, k) => {
@@ -491,8 +497,9 @@ function optimizeBlend(target, shortlist) {
     const d = vectors[i].map((x, k) => x - vectors[j][k]);
     const base = tv.map((x, k) => x - vectors[j][k]);
     const den = d.reduce((s, x) => s + x * x, 0);
-    const w = den ? clamp(d.reduce((s, x, k) => s + x * base[k], 0) / den, 0, 1) : 0.5;
-    if (w >= 0.06 && w <= 0.94) consider([i, j], [w, 1 - w]);
+    const w = den > 1e-12 ? clamp((d.reduce((s, x, k) => s + x * base[k], 0)
+      - axisWeight * (costs[i] - costs[j]) / 2) / den, 0.06, 0.94) : (costs[i] < costs[j] ? 0.94 : 0.06);
+    consider([i, j], [w, 1 - w]);
   }
   for (let i = 0; i < shortlist.length; i++) for (let j = i + 1; j < shortlist.length; j++) {
     for (let k = j + 1; k < shortlist.length; k++) {
@@ -501,7 +508,17 @@ function optimizeBlend(target, shortlist) {
       const y = tv.map((x, z) => x - vectors[k][z]);
       const uu = u.reduce((s, x) => s + x * x, 0), vv = v.reduce((s, x) => s + x * x, 0);
       const uv = u.reduce((s, x, z) => s + x * v[z], 0);
-      const uy = u.reduce((s, x, z) => s + x * y[z], 0), vy = v.reduce((s, x, z) => s + x * y[z], 0);
+      const uy = u.reduce((s, x, z) => s + x * y[z], 0) - axisWeight * (costs[i] - costs[k]) / 2;
+      const vy = v.reduce((s, x, z) => s + x * y[z], 0) - axisWeight * (costs[j] - costs[k]) / 2;
+      // All three constrained edges, including vertices. This also handles singular interiors.
+      for (const [fixed, left, right] of [[i,j,k],[j,i,k],[k,i,j]]) {
+        const d = vectors[left].map((x,z) => x-vectors[right][z]);
+        const base = tv.map((x,z) => x-0.06*vectors[fixed][z]-0.94*vectors[right][z]);
+        const den = d.reduce((s,x) => s+x*x,0);
+        const w = den > 1e-12 ? clamp((d.reduce((s,x,z)=>s+x*base[z],0)
+          - axisWeight*(costs[left]-costs[right])/2)/den,0.06,0.88) : (costs[left]<costs[right]?0.88:0.06);
+        consider([fixed,left,right],[0.06,w,0.94-w]);
+      }
       const det = uu * vv - uv * uv;
       if (Math.abs(det) < 1e-10) continue;
       const a = (uy * vv - vy * uv) / det;
