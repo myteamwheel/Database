@@ -211,6 +211,8 @@ const BLOCKS = {
       tov36: { scale: 1.2, weight: 0.45, label: 'turnover load' },
       astPct: { scale: 0.075, weight: 0.45, label: 'assist rate' },
       astTo: { scale: 1.1, weight: 0.25, label: 'assist-to-turnover profile' },
+      astRatio: { scale: 6, weight: 0.18, label: 'assist ratio' },
+      tmTovPct: { scale: 0.045, weight: 0.18, label: 'team-turnover share context' },
       rebPct: { scale: 0.055, weight: 0.30, label: 'total rebounding rate' },
     },
   },
@@ -226,6 +228,7 @@ const BLOCKS = {
       efgPct: { scale: 0.045, weight: 0.45, label: 'effective field-goal percentage' },
       fgPct: { scale: 0.045, weight: 0.25, label: 'field-goal percentage' },
       ftPct: { scale: 0.085, weight: 0.15, label: 'free-throw accuracy' },
+      offRtg: { scale: 7, weight: 0.12, label: 'offensive rating context' },
     },
   },
   defense: {
