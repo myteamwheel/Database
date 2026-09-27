@@ -103,7 +103,7 @@ function historyRows(src, league) {
         : fin(pts) && fin(fga) && fin(fta) && (fga + 0.44 * fta) > 0 ? pts / (2 * (fga + 0.44 * fta)) : null;
       out.push({
         league, season, playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || String(pid),
-        team: x.TEAM_ABBREVIATION || null, position: b.position || null,
+        team: x.TEAM_ABBREVIATION || null, teamId: n(x.TEAM_ID), position: b.position || null,
         age: n(x.AGE), gp, minutes,
         physical: {
           height: b.height ?? c.heightNoShoes ?? null,
@@ -123,17 +123,27 @@ function historyRows(src, league) {
           stl36: per36(n(x.STL), minutes),
           blk36: per36(n(x.BLK), minutes),
           tov36: per36(n(x.TOV), minutes),
+          pf36: per36(n(x.PF), minutes),
+          plusMinus36: per36(n(x.PLUS_MINUS), minutes),
           oreb36: per36(n(x.OREB), minutes),
           dreb36: per36(n(x.DREB), minutes),
           threeRate: fin(fga) && fga > 0 && fin(fg3a) ? fg3a / fga : null,
           ftRate: fin(fga) && fga > 0 && fin(fta) ? fta / fga : null,
           fg3Pct: fin(fg3a) && fg3a >= 15 && fin(fg3m) ? fg3m / fg3a : null,
           fgPct: fin(fga) && fga > 0 && fin(fgm) ? fgm / fga : null,
+          efgPct: fin(fga) && fga > 0 && fin(fgm) && fin(fg3m) ? (fgm + 0.5 * fg3m) / fga : null,
           ftPct: fin(fta) && fta >= 10 && fin(ftm) ? ftm / fta : null,
           ts,
           astPct: n(a.AST_PCT),
+          astTo: n(a.AST_TO),
+          astRatio: n(a.AST_RATIO),
           orebPct: n(a.OREB_PCT),
           drebPct: n(a.DREB_PCT),
+          rebPct: n(a.REB_PCT),
+          offRtg: n(a.OFF_RATING),
+          defRtg: n(a.DEF_RATING),
+          netRtg: n(a.NET_RATING),
+          tmTovPct: n(a.TM_TOV_PCT),
           pie: n(a.PIE),
           pace: n(a.PACE),
           poss,
@@ -199,6 +209,11 @@ const BLOCKS = {
       ast36: { scale: 2.3, weight: 0.9, label: 'playmaking volume' },
       reb36: { scale: 3.2, weight: 0.65, label: 'rebounding role' },
       tov36: { scale: 1.2, weight: 0.45, label: 'turnover load' },
+      astPct: { scale: 0.075, weight: 0.45, label: 'assist rate' },
+      astTo: { scale: 1.1, weight: 0.25, label: 'assist-to-turnover profile' },
+      astRatio: { scale: 6, weight: 0.18, label: 'assist ratio' },
+      tmTovPct: { scale: 0.045, weight: 0.18, label: 'team-turnover share context' },
+      rebPct: { scale: 0.055, weight: 0.30, label: 'total rebounding rate' },
     },
   },
   scoring: {
@@ -210,6 +225,10 @@ const BLOCKS = {
       fg3Pct: { scale: 0.055, weight: 0.45, label: 'three-point accuracy' },
       ftRate: { scale: 0.13, weight: 0.7, label: 'free-throw pressure' },
       fta36: { scale: 2.5, weight: 0.5, label: 'free-throw volume' },
+      efgPct: { scale: 0.045, weight: 0.45, label: 'effective field-goal percentage' },
+      fgPct: { scale: 0.045, weight: 0.25, label: 'field-goal percentage' },
+      ftPct: { scale: 0.085, weight: 0.15, label: 'free-throw accuracy' },
+      offRtg: { scale: 7, weight: 0.12, label: 'offensive rating context' },
     },
   },
   defense: {
@@ -220,6 +239,10 @@ const BLOCKS = {
       drebPct: { scale: 0.055, weight: 0.65, label: 'defensive rebounding' },
       orebPct: { scale: 0.045, weight: 0.35, label: 'offensive rebounding' },
       pie: { scale: 0.035, weight: 0.45, label: 'box-score impact share' },
+      defRtg: { scale: 7, weight: 0.20, label: 'defensive rating context' },
+      netRtg: { scale: 9, weight: 0.18, label: 'net-rating context' },
+      plusMinus36: { scale: 6, weight: 0.12, label: 'plus-minus per 36 context' },
+      pf36: { scale: 1.4, weight: 0.12, label: 'foul activity' },
     },
   },
 };
@@ -277,6 +300,14 @@ function deepDistance(a, b) {
   return w ? { distance: Math.sqrt(acc / w), detail } : { distance: null, detail: [] };
 }
 
+function similarityFromDistance(distance) {
+  if (!fin(distance)) return null;
+  // Absolute similarity calibration, not rank normalization:
+  // ~90 = extremely close, ~65 = strong, ~50 = moderate, ~35 = loose, <35 = weak reference.
+  // The steeper curve prevents the top three nearest neighbors from all looking artificially equal.
+  return clamp(100 * Math.exp(-0.72 * Math.pow(Math.max(0, distance), 1.55)), 0, 100);
+}
+
 function compare(target, cand, targetDeep, candDeep) {
   const parts = [];
   let total = 0, totalW = 0;
@@ -311,13 +342,13 @@ function compare(target, cand, targetDeep, candDeep) {
 
   const physical = parts.find((x) => x.name === 'physical');
   const coverage = totalW > 0 ? parts.reduce((a, x) => a + x.weight * (x.coverage ?? 1), 0) / totalW : 0;
-  const score = clamp(100 * Math.exp(-0.32 * distance), 0, 100);
+  const score = similarityFromDistance(distance);
   const details = parts.flatMap((x) => x.detail.map((d) => ({ ...d, block: x.name })));
   details.sort((a, b) => a.z - b.z);
   return {
     score, distance, coverage,
     physicalCoverage: physical?.coverage ?? 0,
-    blockScores: Object.fromEntries(parts.map((x) => [x.name, r1(100 * Math.exp(-0.32 * x.distance))])),
+    blockScores: Object.fromEntries(parts.map((x) => [x.name, r1(similarityFromDistance(x.distance))])),
     best: details.slice(0, 4),
     worst: [...details].sort((a, b) => b.z - a.z).slice(0, 4),
   };
@@ -344,11 +375,15 @@ function currentHistoricalTarget(p, leagueHist) {
       pts36: per36(p.pts, p.mpg), fga36: per36(p.fga, p.mpg), threeA36: per36(p.fg3a, p.mpg),
       fta36: per36(p.fta, p.mpg), reb36: per36(p.reb, p.mpg), ast36: per36(p.ast, p.mpg),
       stl36: per36(p.stl, p.mpg), blk36: per36(p.blk, p.mpg), tov36: per36(p.tov, p.mpg),
+      pf36: per36(p.pf, p.mpg), plusMinus36: per36(p.plusMinus, p.mpg),
       oreb36: per36(p.oreb, p.mpg), dreb36: per36(p.dreb, p.mpg),
       threeRate: fin(p.fg3a) && fin(p.fga) && p.fga > 0 ? p.fg3a / p.fga : null,
       ftRate: fin(p.fta) && fin(p.fga) && p.fga > 0 ? p.fta / p.fga : null,
       fg3Pct: p.fg3Pct, fgPct: p.fgPct, ftPct: p.ftPct, ts: p.ts,
-      astPct: p.astPct, orebPct: p.orebPct, drebPct: p.drebPct, pie: p.pie, pace: p.pace,
+      astPct: p.astPct, astTo: p.astTo, astRatio: p.astRatio,
+      orebPct: p.orebPct, drebPct: p.drebPct, rebPct: p.rebPct,
+      offRtg: p.offRtg, defRtg: p.defRtg, netRtg: p.netRtg, tmTovPct: p.tmTovPct,
+      pie: p.pie, pace: p.pace,
     },
   };
 }
@@ -377,15 +412,26 @@ function relation(target, comp) {
 function serializeComp(target, cand, m) {
   const cur = currentByLeaguePid[target.league]?.get(cand.playerId);
   return {
-    playerId: cand.playerId, name: cand.name, season: cand.season, team: cand.team, position: cand.position,
+    playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
+    team: cand.team, teamId: cand.teamId ?? null, position: cand.position,
     age: r1(cand.age), similarity: r1(m.score), coverage: r1(m.coverage * 100),
     physicalCoverage: r1(m.physicalCoverage * 100),
     heightInches: r1(cand.physical.height), height: fmtSize(cand.physical.height),
     weight: r1(cand.physical.weight), wingspanInches: r1(cand.physical.wingspan),
     wingspan: fmtSize(cand.physical.wingspan), standingReach: fmtSize(cand.physical.standingReach),
-    mpg: r1(cand.features.mpg), pts36: r1(cand.features.pts36), reb36: r1(cand.features.reb36),
-    ast36: r1(cand.features.ast36), ts: r2(cand.features.ts), threeRate: r2(cand.features.threeRate),
-    ftRate: r2(cand.features.ftRate), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
+    mpg: r1(cand.features.mpg), usg: r2(cand.features.usg),
+    pts36: r1(cand.features.pts36), fga36: r1(cand.features.fga36), threeA36: r1(cand.features.threeA36),
+    fta36: r1(cand.features.fta36), reb36: r1(cand.features.reb36), ast36: r1(cand.features.ast36),
+    tov36: r1(cand.features.tov36), pf36: r1(cand.features.pf36), plusMinus36: r1(cand.features.plusMinus36),
+    oreb36: r1(cand.features.oreb36), dreb36: r1(cand.features.dreb36),
+    fgPct: r2(cand.features.fgPct), efgPct: r2(cand.features.efgPct), fg3Pct: r2(cand.features.fg3Pct),
+    ftPct: r2(cand.features.ftPct), ts: r2(cand.features.ts), threeRate: r2(cand.features.threeRate),
+    ftRate: r2(cand.features.ftRate), astPct: r2(cand.features.astPct),
+    astTo: r2(cand.features.astTo), astRatio: r2(cand.features.astRatio),
+    orebPct: r2(cand.features.orebPct), drebPct: r2(cand.features.drebPct), rebPct: r2(cand.features.rebPct),
+    offRtg: r1(cand.features.offRtg), defRtg: r1(cand.features.defRtg), netRtg: r1(cand.features.netRtg),
+    tmTovPct: r2(cand.features.tmTovPct), pie: r2(cand.features.pie), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
+    style: deepOverlay(cur),
     blockScores: m.blockScores,
     mostSimilar: m.best.map((x) => x.label),
     biggestDifferences: m.worst.map((x) => ({ label: x.label, normalizedGap: r1(x.z) })),
@@ -421,30 +467,76 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const top = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 3);
     const best = top.map((x) => serializeComp(target, x.cand, x.m));
     if (!best.length) continue;
-    const total = best.reduce((a, x) => a + Math.max(1, x.similarity), 0);
-    const blend = best.map((x) => ({ name: x.name, season: x.season, share: Math.round(100 * Math.max(1, x.similarity) / total) }));
-    // Make integer shares add to 100.
-    if (blend.length) blend[0].share += 100 - blend.reduce((a, x) => a + x.share, 0);
+    // Similarity is independent for each comp. Do NOT force three numbers to add to 100.
+    // Strong/moderate/loose matches are shown; when there is no credible match, keep only the
+    // nearest weak reference so true outliers can look like outliers.
+    let displayComps = best.filter((x) => x.similarity >= 35);
+    if (!displayComps.length && best.length) displayComps = [best[0]];
     const primary = best[0], rel = primary.relation || [];
     result[lg][String(p.playerId)] = {
       top3: best,
-      blend,
+      displayComps,
+      matchSummary: displayComps.length
+        ? displayComps.map((x) => ({ name: x.name, season: x.season, similarity: x.similarity }))
+        : [],
       shorthand: rel.length
-        ? `A ${rel.join(', ')} version of ${primary.name} (${primary.season}), with the rest of the blend pulled toward ${best.slice(1).map((x) => x.name).join(' and ') || 'the same comp'}.`
-        : `Closest overall style/physical match: ${primary.name} (${primary.season}); the three-player blend adds ${best.slice(1).map((x) => x.name).join(' and ') || 'no additional comp'}.`,
+        ? `A ${rel.join(', ')} version of ${primary.name} (${primary.season}) at ${primary.similarity}% similarity.`
+        : `Closest overall style/physical reference: ${primary.name} (${primary.season}) at ${primary.similarity}% similarity.`,
       targetPhysical: {
         heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
         weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
         wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
       },
       targetStats: {
-        mpg: r1(target.features.mpg), pts36: r1(target.features.pts36),
-        reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
-        ts: r2(target.features.ts), threeRate: r2(target.features.threeRate),
-        stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+        mpg: r1(target.features.mpg), usg: r2(target.features.usg),
+        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
+        fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
+        tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: r1(target.features.plusMinus36),
+        oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
+        fgPct: r2(target.features.fgPct), efgPct: r2(target.features.efgPct), fg3Pct: r2(target.features.fg3Pct),
+        ftPct: r2(target.features.ftPct), ts: r2(target.features.ts), threeRate: r2(target.features.threeRate),
+        ftRate: r2(target.features.ftRate), astPct: r2(target.features.astPct),
+        astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
+        orebPct: r2(target.features.orebPct), drebPct: r2(target.features.drebPct), rebPct: r2(target.features.rebPct),
+        offRtg: r1(target.features.offRtg), defRtg: r1(target.features.defRtg), netRtg: r1(target.features.netRtg),
+        tmTovPct: r2(target.features.tmTovPct), pie: r2(target.features.pie), stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
       },
+      targetStyle: targetDeep,
     };
   }
+}
+
+// Product contract: every player who actually appeared in the current source season must receive
+// exactly three DISTINCT same-league historical player comps. Fail the build rather than silently
+// shipping a partial comparison card for an edge-case player.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const expectedIds = (data.leagues?.[lg] || [])
+    .filter((p) => p.appeared && Number(p.minutes) > 0)
+    .map((p) => String(p.playerId));
+  const missing = expectedIds.filter((id) => !result[lg][id]);
+  const short = Object.entries(result[lg]).filter(([, set]) =>
+    (set.top3 || []).length !== 3 || new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3);
+  const wrongLeague = Object.entries(result[lg]).filter(([, set]) =>
+    (set.top3 || []).some((x) => x.league !== lg));
+  if (missing.length || short.length || wrongLeague.length) {
+    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}`);
+  }
+}
+
+const pct = (arr, q) => {
+  const x = arr.filter(fin).slice().sort((a, b) => a - b);
+  if (!x.length) return null;
+  const i = (x.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+  return r1(x[lo] + (x[hi] - x[lo]) * (i - lo));
+};
+const scoreDistribution = {};
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const top1 = Object.values(result[lg]).map((set) => set.top3?.[0]?.similarity).filter(fin);
+  const all = Object.values(result[lg]).flatMap((set) => (set.top3 || []).map((x) => x.similarity)).filter(fin);
+  scoreDistribution[lg] = {
+    top1: { min: r1(Math.min(...top1)), p10: pct(top1, .10), median: pct(top1, .50), p90: pct(top1, .90), max: r1(Math.max(...top1)) },
+    allDisplayedCandidates: { min: r1(Math.min(...all)), median: pct(all, .50), max: r1(Math.max(...all)) },
+  };
 }
 
 data.analysis = data.analysis || {};
@@ -457,6 +549,10 @@ data.analysis.playerCompsMeta = {
   gleagueHistory: '2014-15 through 2025-26',
   priority: 'physical profile first, then archetype/role and production, scoring mix, defensive activity; current-season deep style used when common',
   physicalWeight: 0.46,
+  similarityScale: 'absolute independent score: 100*exp(-0.72*distance^1.55); not normalized across displayed comps',
+  strongMatchThreshold: 65,
+  displayMatchThreshold: 35,
+  scoreDistribution,
   positionGate: false,
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
   combineMeasurementsLoaded: combine.size,

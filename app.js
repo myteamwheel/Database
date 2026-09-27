@@ -944,6 +944,11 @@ function updatePageHead(){
 
 /** Top navigation: player stats, or the 2026-27 projections view of the same table. */
 function goTo(dest){
+  if(dest==='comps'){
+    if(window.__wsSetMode) window.__wsSetMode('similarity');
+    window.scrollTo({top:0});
+    return;
+  }
   if(window.__wsSetMode) window.__wsSetMode('database');
   const sel=$('viewPreset');
   if(dest==='proj'){
@@ -1056,7 +1061,7 @@ function valueSignalPlain(v){
 }
 
 function tulipConstraintPath(c){
-  const minutesPerSd=Number(DATA?.tulipBetaMeta?.config?.minutesPerSd)||6.6;
+  const minutesPerSd=Number(DATA?.tulipBetaMeta?.config?.minutesPerSd)||10.0;
   const raw=finite(c.rawSignalDelta)?c.rawSignalDelta:(Number(c.valueGapSd)||0)*minutesPerSd;
   const constrained=finite(c.constrainedDelta)?c.constrainedDelta:c.tulip;
   const constraintNote=raw>0?'role evidence attenuation + 40 MPG feasibility applied':raw<0?'0 MPG floor applied':'constraints reviewed';

@@ -389,10 +389,15 @@ test.describe('dialogs, league switching, layout', () => {
 test.describe('analysis workspace', () => {
   const mode = (page, m) => page.click(`[data-mode="${m}"]`);
 
-  test('mode navigation exposes every tool', async ({ page }) => {
+  test('mode navigation exposes every tool and Player Comps has a top-level tab', async ({ page }) => {
     const errors = await open(page);
     const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
     expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
+    expect(await page.$$eval('.site-link[data-goto="comps"]', (b) => b.length)).toBe(1);
+    await page.click('.site-link[data-goto="comps"]');
+    await page.waitForTimeout(350);
+    expect(await page.$eval('#pageTitle', (e) => e.textContent)).toContain('Player Comparisons');
+    expect(await page.$eval('.site-link[data-goto="comps"]', (e) => e.classList.contains('active'))).toBe(true);
     expect(errors).toEqual([]);
   });
 
@@ -424,42 +429,92 @@ test.describe('analysis workspace', () => {
     expect(errors).toEqual([]);
   });
 
-  test('player comps return three historical same-league matches with a size-first blend', async ({ page }) => {
+  test('player comps use independent similarity scores, typed search, filters and side-by-side detail', async ({ page }) => {
     const errors = await open(page);
-    await mode(page, 'similarity');
+    await page.click('.site-link[data-goto="comps"]');
     await page.waitForTimeout(900);
-    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
-    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('THREE-PLAYER BLEND');
+
+    const heroN = await page.$$eval('#workspace .comp-hero-card', (x) => x.length);
+    expect(heroN).toBeGreaterThanOrEqual(1);
+    expect(heroN).toBeLessThanOrEqual(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(heroN);
+    const txt = await page.$eval('#workspace', (e) => e.textContent);
+    expect(txt).toContain('Independent similarity percentages');
+    for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
+      'Usage', 'True shooting', '3PA share', 'FT rate', 'STL / 36', 'BLK / 36', 'DREB%', 'OREB%']) {
+      expect(txt, 'missing side-by-side metric: ' + needle).toContain(needle);
+    }
+
+    // Literal typed-search path: no mega-select required.
+    expect(await page.$('#simSearch')).not.toBeNull();
+    expect(await page.$('#simTeam')).not.toBeNull();
+    expect(await page.$('#simPosition')).not.toBeNull();
+    expect(await page.$('#simSel')).toBeNull();
+    const typed = await page.evaluate(() => {
+      const ids = new Set(Object.keys(DATA.analysis.playerComps.NBA));
+      const p = DATA.leagues.NBA.find((x, i) => i > 5 && ids.has(String(x.playerId)) && x.appeared);
+      return { name: p.name, team: p.currentTeam || p.team, position: p.position };
+    });
+    await page.fill('#simSearch', typed.name.slice(0, Math.max(3, typed.name.length - 2)));
+    await page.waitForTimeout(150);
+    expect(await page.$$eval('#simSuggestions [data-sim-pick]', (x) => x.length)).toBeGreaterThan(0);
+    await page.fill('#simSearch', typed.name);
+    await page.press('#simSearch', 'Enter');
+    await page.waitForTimeout(500);
+    expect(await page.inputValue('#simSearch')).toContain(typed.name);
+    expect(await page.$eval('#workspace', (e) => e.textContent)).toContain(typed.name);
 
     const props = await page.evaluate(() => {
       const meta = DATA.analysis.playerCompsMeta;
-      const sets = Object.values(DATA.analysis.playerComps.NBA).slice(0, 60);
-      let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badBlend = 0, wingspanSeen = 0;
-      for (const set of sets) {
-        if ((set.top3 || []).length !== 3) badCount++;
-        const targetId = Object.entries(DATA.analysis.playerComps.NBA).find(([, v]) => v === set)?.[0];
-        if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
-        for (const comp of set.top3 || []) {
-          if (!(comp.similarity >= 0 && comp.similarity <= 100)) badScore++;
-          if (String(comp.playerId) === String(targetId)) self++;
-          if (comp.wingspan) wingspanSeen++;
+      const groups = {
+        NBA: Object.entries(DATA.analysis.playerComps.NBA),
+        GLEAGUE: Object.entries(DATA.analysis.playerComps.GLEAGUE),
+      };
+      let badCount = 0, badScore = 0, self = 0, duplicatePlayers = 0, badLeague = 0;
+      let badDisplay = 0, normalizedTriples = 0, lowOnlySets = 0;
+      const allScores = [];
+      for (const [league, entries] of Object.entries(groups)) {
+        for (const [targetId, set] of entries) {
+          if ((set.top3 || []).length !== 3) badCount++;
+          if (new Set((set.top3 || []).map((x) => String(x.playerId))).size !== (set.top3 || []).length) duplicatePlayers++;
+          for (const comp of set.top3 || []) {
+            allScores.push(comp.similarity);
+            if (!(comp.similarity >= 0 && comp.similarity <= 100)) badScore++;
+            if (String(comp.playerId) === String(targetId)) self++;
+            if (comp.league !== league) badLeague++;
+          }
+          const shown = set.displayComps || [];
+          if (shown.length < 1 || shown.length > 3) badDisplay++;
+          if ((set.top3 || []).every((x) => x.similarity < 35) && shown.length === 1) lowOnlySets++;
+          const sum = shown.reduce((a, x) => a + x.similarity, 0);
+          if (shown.length > 1 && Math.abs(sum - 100) < 0.2) normalizedTriples++;
         }
-        if ((set.blend || []).reduce((a, x) => a + x.share, 0) !== 100) badBlend++;
       }
-      return { meta, n: sets.length, badCount, badScore, self, duplicatePlayers, badBlend, wingspanSeen };
+      const rounded = new Set(allScores.map((x) => Math.round(x)));
+      return {
+        meta, nbaN: groups.NBA.length, gleagueN: groups.GLEAGUE.length,
+        badCount, badScore, self, duplicatePlayers, badLeague, badDisplay, normalizedTriples, lowOnlySets,
+        minScore: Math.min(...allScores), maxScore: Math.max(...allScores), distinctRounded: rounded.size
+      };
     });
-    expect(props.n).toBeGreaterThan(20);
+    expect(props.nbaN).toBeGreaterThan(500);
+    expect(props.gleagueN).toBeGreaterThan(500);
     expect(props.badCount).toBe(0);
     expect(props.badScore).toBe(0);
     expect(props.self).toBe(0);
     expect(props.duplicatePlayers).toBe(0);
-    expect(props.badBlend).toBe(0);
-    expect(props.wingspanSeen).toBeGreaterThan(0);
+    expect(props.badLeague).toBe(0);
+    expect(props.badDisplay).toBe(0);
+    expect(props.normalizedTriples).toBeLessThan(5);
+    expect(props.maxScore - props.minScore).toBeGreaterThan(25);
+    expect(props.distinctRounded).toBeGreaterThan(20);
     expect(props.meta.sameLeagueOnly).toBe(true);
     expect(props.meta.physicalWeight).toBeCloseTo(0.46, 6);
     expect(props.meta.positionGate).toBe(false);
+    expect(props.meta.similarityScale).toContain('not normalized');
     expect(errors).toEqual([]);
   });
+
 
   test('team fit is bounded, explained, and separate from quality', async ({ page }) => {
     const errors = await open(page);
