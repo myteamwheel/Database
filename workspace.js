@@ -680,36 +680,42 @@
     }
 
     const targetPhysical = set.targetPhysical || {};
-    const shown = set.displayComps || set.top3 || [];
-    const allNearest = set.top3 || [];
-    const top = allNearest[0];
-    const noStrong = top && top.similarity < 35;
+    const shown = set.top3 || [];
+    const blend = set.blend || [];
+    const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
+    const confidence = set.blendConfidence;
 
-    const heroes = shown.map((q, i) => `<article class="comp-hero-card" data-comp-rank="${i + 1}">
-      <div class="comp-hero-rank">#${i + 1}</div>
-      ${compLogo(q)}
-      <div class="comp-hero-score">${num(q.similarity, 1)}%</div>
-      <div class="comp-hero-strength">${esc(compStrength(q.similarity))}</div>
-      <h3>${esc(q.name)}</h3>
-      <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
-      <div class="comp-block-pills">
-        <span>Physical <b>${compBlockScore(q, 'physical')}%</b></span>
-        <span>Role <b>${compBlockScore(q, 'role')}%</b></span>
-        <span>Scoring <b>${compBlockScore(q, 'scoring')}%</b></span>
-        <span>Defense <b>${compBlockScore(q, 'defense')}%</b></span>
-      </div>
-    </article>`).join('');
+    const heroes = shown.map((q, i) => {
+      const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
+      return `<article class="comp-hero-card" data-comp-rank="${i + 1}">
+        <div class="comp-hero-rank">#${i + 1}</div>
+        ${compLogo(q)}
+        <div class="comp-hero-score">${b.share}%</div>
+        <div class="comp-hero-strength">OF THE THREE-PLAYER BLEND</div>
+        <h3>${esc(q.name)}</h3>
+        <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
+        <p class="tiny">Match quality: <b>${num(q.similarity, 1)}/100</b> · ${esc(compStrength(q.similarity))}</p>
+        <div class="comp-block-pills">
+          <span>Physical <b>${compBlockScore(q, 'physical')}%</b></span>
+          <span>Role <b>${compBlockScore(q, 'role')}%</b></span>
+          <span>Scoring <b>${compBlockScore(q, 'scoring')}%</b></span>
+          <span>Defense <b>${compBlockScore(q, 'defense')}%</b></span>
+        </div>
+      </article>`;
+    }).join('');
 
     const details = shown.map((q, i) => {
+      const b = shareById.get(String(q.playerId)) || { share: 0 };
       const similar = (q.mostSimilar || []).map(esc).join(', ') || '—';
       const diff = (q.biggestDifferences || []).map((x) => esc(x.label)).join(', ') || '—';
       return `<section class="comp-detail-card comp-card" data-comp-rank="${i + 1}">
         <div class="comp-detail-head">
           <div><div class="eyebrow">#${i + 1} SIDE-BY-SIDE · ${esc(q.season)}</div>
           <h3>${esc(p.name)} vs. ${esc(q.name)}</h3></div>
-          <div class="comp-detail-score">${num(q.similarity, 1)}%</div>
+          <div><div class="comp-detail-score">${b.share}%</div><div class="tiny">blend share</div></div>
         </div>
-        <p class="tiny"><b>Strongest similarities:</b> ${similar}<br><b>Biggest differences:</b> ${diff}</p>
+        <p class="tiny"><b>Match quality:</b> ${num(q.similarity, 1)}/100 · <b>Strongest similarities:</b> ${similar}<br>
+        <b>Biggest differences:</b> ${diff}</p>
         ${compCompareTable(p, set, q)}
       </section>`;
     }).join('');
@@ -717,8 +723,10 @@
     return `<div class="comp-page">
       <div class="comp-page-title">
         <div><div class="eyebrow">HISTORICAL PLAYER COMPARISON</div><h2>Player Comps</h2></div>
-        <p>Independent similarity percentages. They do <b>not</b> add to 100.</p>
+        <div class="comp-confidence"><span>BLEND CONFIDENCE</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
+      <p class="tiny">The three large percentages are the <b>blend composition</b> and always total 100%.
+      Blend Confidence is separate: it tells you how convincing those historical references are overall.</p>
       ${compPlayerSearch(p)}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
@@ -726,15 +734,16 @@
         <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
-      ${noStrong ? `<div class="comp-outlier-note"><b>No strong historical match.</b>
-        The nearest reference is only ${num(top.similarity, 1)}% similar, so ${esc(p.name)} should be treated as an outlier rather than forced into a three-player blend.</div>` : ''}
       <div class="comp-hero-grid">${heroes}</div>
-      <div class="comp-shorthand"><b>Closest style read:</b> ${esc(set.shorthand || '')}</div>
+      <div class="comp-shorthand"><b>Blend read:</b> ${esc(set.shorthand || '')}</div>
       <div class="comp-detail-stack">${details}</div>
-      <p class="tiny comp-method"><b>Method:</b> body/length is the largest block (46%), followed by archetype/role and production (22%),
-      scoring and shot profile (19%), and defense/rebounding activity (13%). The displayed percentages are absolute scores from the
-      full distance model, not shares of a forced 100% blend. Older seasons use the common historical stat set; current-season
-      tracking and shot-location data are added only when both players actually have those fields. ${esc((meta.limitations || []).join(' '))}</p>
+      <p class="tiny comp-method"><b>Blend method:</b> the engine first finds the three nearest distinct historical players using the
+      full size-first comparison model. It then converts those three into a 100% blend using a sharper evidence weight that is
+      55% overall match quality, 20% physical match, 10% role, 10% scoring and 5% defense, with small adjustments for feature
+      coverage and cross-block consistency. A softmax temperature of 8 makes meaningful gaps show up as differentiated shares
+      instead of automatically collapsing toward 33/33/33. Truly near-equal comps can still be near thirds. <b>Blend Confidence</b>
+      remains separate so a unique player can have a valid three-player composition without pretending the historical fit is strong.
+      ${esc((meta.limitations || []).join(' '))}</p>
     </div>`;
   }
 
