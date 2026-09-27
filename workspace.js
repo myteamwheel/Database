@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, team: null,
+                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -38,6 +38,17 @@
 
   function render() {
     renderNav();
+    const isComp = MODE === 'similarity';
+    document.querySelectorAll('.site-link[data-goto]').forEach((b) => {
+      if (isComp) b.classList.toggle('active', b.dataset.goto === 'comps');
+      else if (MODE !== 'database') b.classList.toggle('active', b.dataset.goto === 'stats');
+    });
+    if (isComp) {
+      const lg = league() === 'NBA' ? 'NBA' : 'G League';
+      if ($('pageTitle')) $('pageTitle').textContent = `${lg} Player Comparisons`;
+      if ($('crumbs')) $('crumbs').textContent = `${lg} › Historical player comparisons`;
+      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = 'Historical similarity engine';
+    }
     const isDb = MODE === 'database';
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
@@ -65,14 +76,43 @@
     }</select></label>`;
 
   const compPlayerLabel = (p) => `${p.name} — ${teamOf(p)}`;
+  const compPool = () => players().filter((p) =>
+    (!state.simTeam || teamOf(p) === state.simTeam)
+    && (!state.simPosition || p.position === state.simPosition || p.positionFamily === state.simPosition));
   const compPlayerSearch = (p) => {
-    const opts = players().slice().sort((a, b) => a.name.localeCompare(b.name))
-      .map((x) => `<option value="${esc(compPlayerLabel(x))}">${esc(x.position || '')}</option>`).join('');
-    return `<label>Player<input id="simSearch" type="search" list="simPlayerList"
-      autocomplete="off" spellcheck="false" value="${esc(compPlayerLabel(p))}"
-      placeholder="Type a player name…" aria-label="Search player for historical comparisons">
-      <datalist id="simPlayerList">${opts}</datalist></label>`;
+    const teams = [...new Set(players().map(teamOf).filter(Boolean))].sort();
+    const positions = [...new Set(players().map((x) => x.position).filter(Boolean))].sort();
+    return `<section class="comp-search-panel" aria-label="Player comparison search">
+      <label class="comp-search-main">Search player
+        <input id="simSearch" type="search" autocomplete="off" spellcheck="false"
+          value="${esc(p?.name || '')}" placeholder="Start typing a player name…"
+          aria-label="Search player for historical comparisons" aria-controls="simSuggestions" />
+      </label>
+      <label>Team<select id="simTeam"><option value="">All teams</option>
+        ${teams.map((t) => `<option value="${esc(t)}"${t === state.simTeam ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+      </select></label>
+      <label>Position<select id="simPosition"><option value="">All positions</option>
+        ${positions.map((pos) => `<option value="${esc(pos)}"${pos === state.simPosition ? ' selected' : ''}>${esc(pos)}</option>`).join('')}
+      </select></label>
+      <div id="simSuggestions" class="comp-suggestions" role="listbox" hidden></div>
+    </section>`;
   };
+
+  function updateCompSuggestions(raw = '') {
+    const box = $('simSuggestions');
+    if (!box) return;
+    const q = fold(raw).trim();
+    let list = compPool();
+    if (q) list = list.filter((p) => fold(`${p.name} ${teamOf(p)} ${p.position || ''}`).includes(q));
+    list = list.sort((a, b) => {
+      const ap = q && fold(a.name).startsWith(q) ? 0 : 1;
+      const bp = q && fold(b.name).startsWith(q) ? 0 : 1;
+      return ap - bp || a.name.localeCompare(b.name);
+    }).slice(0, 8);
+    box.hidden = !list.length;
+    box.innerHTML = list.map((p) => `<button type="button" role="option" data-sim-pick="${esc(p.playerId)}">
+      <b>${esc(p.name)}</b><span>${esc(teamOf(p))} · ${esc(p.position || '—')}</span></button>`).join('');
+  }
 
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
   function numericFields() {
@@ -528,6 +568,89 @@
     return fin(v) ? num(v, 1) : '—';
   }
 
+  function compStrength(score) {
+    if (!fin(score)) return 'Unknown';
+    if (score >= 80) return 'Very strong match';
+    if (score >= 65) return 'Strong match';
+    if (score >= 50) return 'Moderate match';
+    if (score >= 35) return 'Loose match';
+    return 'Weak nearest reference';
+  }
+
+  function compLogo(q) {
+    const id = q?.teamId;
+    const team = q?.team || '—';
+    const ns = q?.league === 'NBA' ? 'nba' : 'nbagleague';
+    const src = id ? `https://cdn.nba.com/logos/${ns}/${id}/primary/L/logo.svg` : '';
+    return `<div class="comp-team-logo"><span>${esc(team)}</span>${src
+      ? `<img src="${esc(src)}" alt="${esc(team)} logo" loading="lazy" onerror="this.style.display='none'">`
+      : ''}</div>`;
+  }
+
+  function cval(v, type = '1') {
+    if (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) return '—';
+    const x = Number(v);
+    if (type === 'pct') return (x * 100).toFixed(1) + '%';
+    if (type === '0') return x.toFixed(0);
+    return x.toFixed(1);
+  }
+
+  function compCompareTable(p, set, q) {
+    const t = set.targetStats || {}, tp = set.targetPhysical || {}, ts = set.targetStyle || {};
+    const qs = q.style || {};
+    const rows = [
+      ['PHYSICAL', null, null, 'section'],
+      ['Height', tp.height || '—', q.height || '—', 'text'],
+      ['Weight', fin(tp.weight) ? cval(tp.weight, '0') + ' lb' : '—', fin(q.weight) ? cval(q.weight, '0') + ' lb' : '—', 'text'],
+      ['Wingspan', tp.wingspan || '—', q.wingspan || '—', 'text'],
+      ['Standing reach', tp.standingReach || '—', q.standingReach || '—', 'text'],
+      ['ROLE / PRODUCTION', null, null, 'section'],
+      ['MPG', t.mpg, q.mpg],
+      ['Usage', t.usg, q.usg, 'pct'],
+      ['PTS / 36', t.pts36, q.pts36],
+      ['FGA / 36', t.fga36, q.fga36],
+      ['REB / 36', t.reb36, q.reb36],
+      ['AST / 36', t.ast36, q.ast36],
+      ['TOV / 36', t.tov36, q.tov36],
+      ['SCORING / SHOT PROFILE', null, null, 'section'],
+      ['True shooting', t.ts, q.ts, 'pct'],
+      ['eFG%', t.efgPct, q.efgPct, 'pct'],
+      ['3P%', t.fg3Pct, q.fg3Pct, 'pct'],
+      ['3PA share', t.threeRate, q.threeRate, 'pct'],
+      ['FTA / 36', t.fta36, q.fta36],
+      ['FT rate', t.ftRate, q.ftRate, 'pct'],
+      ['DEFENSE / REBOUNDING', null, null, 'section'],
+      ['STL / 36', t.stl36, q.stl36],
+      ['BLK / 36', t.blk36, q.blk36],
+      ['DREB%', t.drebPct, q.drebPct, 'pct'],
+      ['OREB%', t.orebPct, q.orebPct, 'pct'],
+      ['PIE', t.pie, q.pie, 'pct'],
+    ];
+
+    const deep = [
+      ['Paint scoring share', ts.pctPtsPaint, qs.pctPtsPaint, 'pct'],
+      ['Mid-range scoring share', ts.pctPtsMidrange, qs.pctPtsMidrange, 'pct'],
+      ['Catch-and-shoot FGA', ts.catchShootFga, qs.catchShootFga],
+      ['Pull-up FGA', ts.pullUpFga, qs.pullUpFga],
+      ['Paint PTS / 36', ts.paintPts36, qs.paintPts36],
+      ['Self-created PTS / 36', ts.selfCreatedPts36, qs.selfCreatedPts36],
+      ['Rim pressure profile', ts.rimPressure, qs.rimPressure],
+      ['Self-creation profile', ts.selfCreation, qs.selfCreation],
+      ['3-point volume profile', ts.threeVolume, qs.threeVolume],
+      ['3-point accuracy profile', ts.threeAccuracy, qs.threeAccuracy],
+      ['Playmaking profile', ts.playmaking, qs.playmaking],
+      ['Rim protection profile', ts.rimProtection, qs.rimProtection],
+    ].filter(([, a, b]) => fin(a) && fin(b));
+    if (deep.length) rows.push(['DEEP STYLE (COMMON COVERAGE)', null, null, 'section'], ...deep);
+
+    return `<div class="comp-side-table-wrap"><table class="comp-side-table">
+      <thead><tr><th class="left">Comparison axis</th><th>${esc(p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
+      <tbody>${rows.map(([label, a, b, type]) => type === 'section'
+        ? `<tr class="comp-section-row"><th colspan="3">${esc(label)}</th></tr>`
+        : `<tr><th class="left">${esc(label)}</th><td>${type === 'text' ? esc(a) : cval(a, type)}</td><td>${type === 'text' ? esc(b) : cval(b, type)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
   function viewSimilarity() {
     const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
@@ -538,74 +661,69 @@
 
     if (!set) {
       return `<h2>Player Comps</h2>
-        <div class="ws-controls">${compPlayerSearch(p)}</div>
+        ${compPlayerSearch(p)}
         <div class="ws-card wide"><p>No historical comparison is available for <b>${esc(p.name)}</b>.
         This usually means the player has no usable 2025-26 professional sample yet.</p></div>
         <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
     }
 
     const targetPhysical = set.targetPhysical || {};
-    const targetStats = set.targetStats || {};
-    const blend = (set.blend || []).map((x) =>
-      `<b>${x.share}% ${esc(x.name)}</b> <span class="tiny">(${esc(x.season)})</span>`).join(' + ');
+    const shown = set.displayComps || set.top3 || [];
+    const allNearest = set.top3 || [];
+    const top = allNearest[0];
+    const noStrong = top && top.similarity < 35;
 
-    const cards = (set.top3 || []).map((q, i) => {
-      const rel = (q.relation || []).length ? ` · ${esc(q.relation.join(', '))}` : '';
+    const heroes = shown.map((q, i) => `<article class="comp-hero-card" data-comp-rank="${i + 1}">
+      <div class="comp-hero-rank">#${i + 1}</div>
+      ${compLogo(q)}
+      <div class="comp-hero-score">${num(q.similarity, 1)}%</div>
+      <div class="comp-hero-strength">${esc(compStrength(q.similarity))}</div>
+      <h3>${esc(q.name)}</h3>
+      <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
+      <div class="comp-block-pills">
+        <span>Physical <b>${compBlockScore(q, 'physical')}%</b></span>
+        <span>Role <b>${compBlockScore(q, 'role')}%</b></span>
+        <span>Scoring <b>${compBlockScore(q, 'scoring')}%</b></span>
+        <span>Defense <b>${compBlockScore(q, 'defense')}%</b></span>
+      </div>
+    </article>`).join('');
+
+    const details = shown.map((q, i) => {
       const similar = (q.mostSimilar || []).map(esc).join(', ') || '—';
       const diff = (q.biggestDifferences || []).map((x) => esc(x.label)).join(', ') || '—';
-      return `<section class="ws-card wide comp-card" data-comp-rank="${i + 1}">
-        <div class="eyebrow">#${i + 1} HISTORICAL COMP · ${esc(q.season)} ${esc(q.team || '')}</div>
-        <h3>${byId(q.playerId)
-          ? `<button class="player-link" data-goto="${esc(q.playerId)}">${esc(q.name)}</button>`
-          : `<span class="historical-comp-name">${esc(q.name)}</span>`}
-          <span class="tiny">${esc(q.position || '')}${rel}</span></h3>
-        <div class="player-grid">
-          <div class="ws-card"><div class="k">Overall match</div><div class="v">${num(q.similarity, 1)}%</div>
-            <p class="tiny">${num(q.coverage, 0)}% feature coverage</p></div>
-          <div class="ws-card"><div class="k">Physical match</div><div class="v">${compBlockScore(q, 'physical')}</div>
-            <p class="tiny">${physicalLine(q)}</p></div>
-          <div class="ws-card"><div class="k">Role / production</div><div class="v">${compBlockScore(q, 'role')}</div></div>
-          <div class="ws-card"><div class="k">Scoring style</div><div class="v">${compBlockScore(q, 'scoring')}</div></div>
-          <div class="ws-card"><div class="k">Defense / activity</div><div class="v">${compBlockScore(q, 'defense')}</div></div>
+      return `<section class="comp-detail-card comp-card" data-comp-rank="${i + 1}">
+        <div class="comp-detail-head">
+          <div><div class="eyebrow">#${i + 1} SIDE-BY-SIDE · ${esc(q.season)}</div>
+          <h3>${esc(p.name)} vs. ${esc(q.name)}</h3></div>
+          <div class="comp-detail-score">${num(q.similarity, 1)}%</div>
         </div>
-        <div class="table-wrap"><table class="compare-table"><thead><tr>
-          <th class="left">Player</th><th>MIN</th><th>PTS/36</th><th>REB/36</th><th>AST/36</th><th>TS%</th><th>3PA share</th><th>STL/36</th><th>BLK/36</th>
-        </tr></thead><tbody>
-        <tr><td class="left"><b>${esc(p.name)}</b></td>
-          <td>${num(targetStats.mpg)}</td><td>${num(targetStats.pts36)}</td><td>${num(targetStats.reb36)}</td><td>${num(targetStats.ast36)}</td>
-          <td>${fin(targetStats.ts) ? (targetStats.ts * 100).toFixed(1) + '%' : '—'}</td>
-          <td>${fin(targetStats.threeRate) ? (targetStats.threeRate * 100).toFixed(1) + '%' : '—'}</td>
-          <td>${num(targetStats.stl36)}</td><td>${num(targetStats.blk36)}</td></tr>
-        <tr><td class="left">${esc(q.name)} <span class="tiny">${esc(q.season)}</span></td>
-          <td>${num(q.mpg)}</td><td>${num(q.pts36)}</td><td>${num(q.reb36)}</td><td>${num(q.ast36)}</td>
-          <td>${fin(q.ts) ? (q.ts * 100).toFixed(1) + '%' : '—'}</td>
-          <td>${fin(q.threeRate) ? (q.threeRate * 100).toFixed(1) + '%' : '—'}</td>
-          <td>${num(q.stl36)}</td><td>${num(q.blk36)}</td></tr>
-        </tbody></table></div>
-        <p class="tiny"><b>Closest on:</b> ${similar}<br><b>Biggest differences:</b> ${diff}
-        ${q.currentSeasonDetailed ? '<br><b>Extra detail:</b> current-season tracking/style axes were available for both players.' : ''}</p>
+        <p class="tiny"><b>Strongest similarities:</b> ${similar}<br><b>Biggest differences:</b> ${diff}</p>
+        ${compCompareTable(p, set, q)}
       </section>`;
     }).join('');
 
-    return `<h2>Player Comps</h2>
-      <div class="ws-controls">${compPlayerSearch(p)}</div>
-      <p class="tiny"><b>${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} historical pool.</b>
-      ${esc(meta.priority || '')} Positions are not a hard filter.</p>
-      <div class="ws-card wide">
-        <div class="eyebrow">TARGET PROFILE</div>
-        <h3>${esc(p.name)} <span class="tiny">${esc(p.currentTeam || p.team || '')} · ${esc(p.position || '')}</span></h3>
-        <p>${esc(physicalLine(targetPhysical))}</p>
+    return `<div class="comp-page">
+      <div class="comp-page-title">
+        <div><div class="eyebrow">HISTORICAL PLAYER COMPARISON</div><h2>Player Comps</h2></div>
+        <p>Independent similarity percentages. They do <b>not</b> add to 100.</p>
       </div>
-      <div class="ws-card wide comp-blend">
-        <div class="eyebrow">THREE-PLAYER BLEND</div>
-        <p>${blend}</p>
-        <p><b>Style shorthand:</b> ${esc(set.shorthand || '')}</p>
+      ${compPlayerSearch(p)}
+      <div class="comp-target-strip">
+        <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
+          <p>${esc(teamOf(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
+        <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
+          <span>${esc(meta.priority || '')}</span></div>
       </div>
-      ${cards}
-      <p class="tiny"><b>Method:</b> physical profile is the largest block (46%) and is evaluated before
-      role/production, scoring mix and defensive activity. Wingspan and standing reach are used only
-      where measured; they are never estimated. Historical tracking and shot-zone fields are included
-      only when both sides actually have comparable coverage. ${esc((meta.limitations || []).join(' '))}</p>`;
+      ${noStrong ? `<div class="comp-outlier-note"><b>No strong historical match.</b>
+        The nearest reference is only ${num(top.similarity, 1)}% similar, so ${esc(p.name)} should be treated as an outlier rather than forced into a three-player blend.</div>` : ''}
+      <div class="comp-hero-grid">${heroes}</div>
+      <div class="comp-shorthand"><b>Closest style read:</b> ${esc(set.shorthand || '')}</div>
+      <div class="comp-detail-stack">${details}</div>
+      <p class="tiny comp-method"><b>Method:</b> body/length is the largest block (46%), followed by archetype/role and production (22%),
+      scoring and shot profile (19%), and defense/rebounding activity (13%). The displayed percentages are absolute scores from the
+      full distance model, not shares of a forced 100% blend. Older seasons use the common historical stat set; current-season
+      tracking and shot-location data are added only when both players actually have those fields. ${esc((meta.limitations || []).join(' '))}</p>
+    </div>`;
   }
 
   /* -------------------------------------------------------- TEAM FIT MODE */
@@ -905,13 +1023,26 @@
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     const chooseCompPlayer = (raw) => {
       raw = String(raw || '').trim();
-      const exact = players().find((p) => compPlayerLabel(p) === raw)
-        || players().find((p) => p.name.toLowerCase() === raw.toLowerCase());
-      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; render(); }
+      const exact = compPool().find((p) => p.name.toLowerCase() === raw.toLowerCase())
+        || compPool().find((p) => compPlayerLabel(p) === raw)
+        || compPool().find((p) => fold(p.name).startsWith(fold(raw)));
+      if (exact) {
+        state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render();
+      }
     };
-    on('simSearch', 'change', (e) => chooseCompPlayer(e.target.value));
+    on('simSearch', 'focus', (e) => updateCompSuggestions(e.target.value));
+    on('simSearch', 'input', (e) => { state.simQuery = e.target.value; updateCompSuggestions(e.target.value); });
     on('simSearch', 'keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value); }
+      if (e.key === 'Escape' && $('simSuggestions')) $('simSuggestions').hidden = true;
+    });
+    on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); });
+    on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); });
+    on('simSuggestions', 'click', (e) => {
+      const b = e.target.closest('[data-sim-pick]');
+      if (!b) return;
+      const exact = byId(b.dataset.simPick);
+      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); }
     });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
@@ -933,7 +1064,7 @@
   window.__wsOpenPlayer = (id) => { state.player = id; MODE = 'player'; render(); };
   window.__wsInit = () => { render(); };
   window.__wsMode = () => MODE;
-  window.__wsSetMode = (m) => { if (MODE !== m) { MODE = m; render(); } };
+  window.__wsSetMode = (m) => { MODE = m; render(); };
 
   /**
    * Self-initialise. app.js also calls __wsInit, but in the standalone build its init() runs
