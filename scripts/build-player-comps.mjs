@@ -560,8 +560,12 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     (set.top3 || []).length !== 3 || new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3);
   const wrongLeague = Object.entries(result[lg]).filter(([, set]) =>
     (set.top3 || []).some((x) => x.league !== lg));
-  if (missing.length || short.length || wrongLeague.length) {
-    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}`);
+  const badBlend = Object.entries(result[lg]).filter(([, set]) =>
+    (set.blend || []).length !== 3
+    || set.blend.reduce((a, x) => a + Number(x.share || 0), 0) !== 100
+    || !fin(set.blendConfidence));
+  if (missing.length || short.length || wrongLeague.length || badBlend.length) {
+    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}, badBlend=${badBlend.length}`);
   }
 }
 
@@ -571,14 +575,30 @@ const pct = (arr, q) => {
   const i = (x.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
   return r1(x[lo] + (x[hi] - x[lo]) * (i - lo));
 };
-const scoreDistribution = {};
+const scoreDistribution = {}, blendDistribution = {};
 for (const lg of ['NBA', 'GLEAGUE']) {
-  const top1 = Object.values(result[lg]).map((set) => set.top3?.[0]?.similarity).filter(fin);
-  const all = Object.values(result[lg]).flatMap((set) => (set.top3 || []).map((x) => x.similarity)).filter(fin);
+  const sets = Object.values(result[lg]);
+  const top1 = sets.map((set) => set.top3?.[0]?.similarity).filter(fin);
+  const all = sets.flatMap((set) => (set.top3 || []).map((x) => x.similarity)).filter(fin);
+  const leadShares = sets.map((set) => Math.max(...(set.blend || []).map((x) => Number(x.share || 0)))).filter(fin);
+  const confidences = sets.map((set) => set.blendConfidence).filter(fin);
+  const nearThird = sets.filter((set) => {
+    const s = (set.blend || []).map((x) => Number(x.share || 0));
+    return s.length === 3 && Math.max(...s) - Math.min(...s) <= 4;
+  }).length;
+  const patterns = new Set(sets.map((set) => (set.blend || []).map((x) => x.share).join('/')));
   scoreDistribution[lg] = {
     top1: { min: r1(Math.min(...top1)), p10: pct(top1, .10), median: pct(top1, .50), p90: pct(top1, .90), max: r1(Math.max(...top1)) },
-    allDisplayedCandidates: { min: r1(Math.min(...all)), median: pct(all, .50), max: r1(Math.max(...all)) },
+    allCandidates: { min: r1(Math.min(...all)), median: pct(all, .50), max: r1(Math.max(...all)) },
   };
+  blendDistribution[lg] = {
+    leadShare: { min: r1(Math.min(...leadShares)), p10: pct(leadShares, .10), median: pct(leadShares, .50), p90: pct(leadShares, .90), max: r1(Math.max(...leadShares)) },
+    confidence: { p10: pct(confidences, .10), median: pct(confidences, .50), p90: pct(confidences, .90) },
+    nearThirdCount: nearThird,
+    total: sets.length,
+    distinctSharePatterns: patterns.size,
+  };
+  console.log(`player comps ${lg} blend distribution: ${JSON.stringify(blendDistribution[lg])}`);
 }
 
 data.analysis = data.analysis || {};
@@ -595,6 +615,7 @@ data.analysis.playerCompsMeta = {
   blendMethod: 'three nearest distinct players; quality = 55% absolute match + 20% physical + 10% role + 10% scoring + 5% defense, adjusted for coverage/block harmony; softmax temperature 8; integer shares use largest-remainder rounding and always total 100',
   blendConfidence: 'blend-share-weighted absolute match score with a small feature-coverage adjustment',
   scoreDistribution,
+  blendDistribution,
   positionGate: false,
   minimumHistoricalMinutes: { NBA: 300, GLEAGUE: 200 },
   combineMeasurementsLoaded: combine.size,
