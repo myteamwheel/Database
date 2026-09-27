@@ -447,6 +447,23 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
 }
 
+// Product contract: every player who actually appeared in the current source season must receive
+// exactly three DISTINCT same-league historical player comps. Fail the build rather than silently
+// shipping a partial comparison card for an edge-case player.
+for (const lg of ['NBA', 'GLEAGUE']) {
+  const expectedIds = (data.leagues?.[lg] || [])
+    .filter((p) => p.appeared && Number(p.minutes) > 0)
+    .map((p) => String(p.playerId));
+  const missing = expectedIds.filter((id) => !result[lg][id]);
+  const short = Object.entries(result[lg]).filter(([, set]) =>
+    (set.top3 || []).length !== 3 || new Set((set.top3 || []).map((x) => String(x.playerId))).size !== 3);
+  const wrongLeague = Object.entries(result[lg]).filter(([, set]) =>
+    (set.top3 || []).some((x) => x.league !== lg));
+  if (missing.length || short.length || wrongLeague.length) {
+    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}`);
+  }
+}
+
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
