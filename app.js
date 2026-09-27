@@ -944,6 +944,11 @@ function updatePageHead(){
 
 /** Top navigation: player stats, or the 2026-27 projections view of the same table. */
 function goTo(dest){
+  if(dest==='comps'){
+    if(window.__wsSetMode) window.__wsSetMode('similarity');
+    window.scrollTo({top:0});
+    return;
+  }
   if(window.__wsSetMode) window.__wsSetMode('database');
   const sel=$('viewPreset');
   if(dest==='proj'){
