@@ -60,9 +60,11 @@ jobs:
           npm run test:comps
           npm run test:tulipbeta
           npm run test:tulipcapacity
-          npm run verify:artifact
           npm run build:standalone
-          git diff --exit-code -- public/standalone.html
+          # Gzip output can vary between zlib versions on macOS and Ubuntu even when its decoded
+          # payload is identical. Verify the rebuilt artifact semantically instead of comparing
+          # compressed HTML bytes across operating systems.
+          npm run verify:artifact
           npm run test:browser
 
       - name: Verify the payload the site actually loads
