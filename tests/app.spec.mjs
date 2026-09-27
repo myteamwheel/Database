@@ -232,12 +232,12 @@ test.describe('team scoping', () => {
 
     await setVal(page, '#teamFilter', target.current);
     await page.waitForTimeout(250);
-    let names = await page.$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
+    let names = await page.$$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
     expect(names).toContain(target.name);
 
     await setVal(page, '#teamFilter', target.old);
     await page.waitForTimeout(250);
-    names = await page.$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
+    names = await page.$$eval('#tableBody .player-link', (e) => e.map((x) => x.textContent));
     expect(names).not.toContain(target.name);
   });
 
@@ -428,7 +428,7 @@ test.describe('analysis workspace', () => {
     const errors = await open(page);
     await mode(page, 'similarity');
     await page.waitForTimeout(900);
-    expect(await page.$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
+    expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBe(3);
     expect(await page.$eval('#workspace', (e) => e.textContent)).toContain('THREE-PLAYER BLEND');
 
     const props = await page.evaluate(() => {
