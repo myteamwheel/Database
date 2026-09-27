@@ -308,23 +308,36 @@ identically even though they are ranked separately.
 
 ## Player Comps
 
-The analysis workspace includes a dedicated **Player Comps** mode. For every current player with a
-usable professional sample it returns the three closest historical player-seasons from the same
-league, plus a three-player blend and plain-language shorthand.
+**Player Comps is a top-level site section**, not merely a table preset. Search is name-first with
+live clickable suggestions plus team and position filters. The page presents the closest historical
+same-league matches as large logo-led cards, followed by full target-vs-comp tables.
+
+Similarity percentages are **independent absolute scores**. They are not shares and are never forced
+to add to 100. The three nearest distinct historical players are retained for auditability, but the
+UI only treats scores at or above 35 as meaningful displayed matches; if nobody reaches that level,
+it shows the single nearest player as a weak reference and explicitly labels the target an outlier.
+This allows genuinely unusual players to have one weak comparison instead of an artificial 33/33/34
+three-player blend.
 
 The match is deliberately **size-first rather than position-first**. Listed professional height and
 weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
 where they were actually measured. No wingspan or length value is estimated for a non-participant.
-The physical block carries 46% of the declared historical match weight, followed by role/production
-(22%), scoring style (19%) and defensive/rebounding activity (13%). Positions may cross when the
-body and game genuinely match.
+The physical block carries 46% of the declared historical match weight, followed by archetype/role
+and production (22%), scoring/shot profile (19%) and defensive/rebounding activity (13%). Positions
+may cross when the body and game genuinely match.
 
 Historical pools currently cover **NBA 2009-10 through 2025-26** and **G League 2014-15 through
-2025-26**. Older seasons do not have the same tracking/shot-zone inventory as 2025-26, so the engine
-uses the common historical feature set (usage, per-36 production, shooting mix, efficiency,
-free-throw pressure, playmaking, rebounding, steals and blocks) and only adds deeper current-season
-style axes when both sides actually have them. It does not invent historical mid-range, paint,
-tracking or length data that was never acquired.
+2025-26**. The common historical comparison set now includes minutes/role, usage, per-36 scoring,
+shots, assists, turnovers, rebounds, fouls and plus-minus; TS%, eFG%, FG%, 3P%, FT%, three-point
+share and free-throw pressure; AST%, AST/TO, assist ratio, rebounding rates, PIE and available
+offensive/defensive/net-rating context. For current-season pairs, deeper common tracking/style fields
+can additionally compare paint and mid-range scoring share, pull-up and catch-and-shoot volume, rim
+pressure, self-created scoring, three-point style, playmaking and rim protection.
+
+Every detailed comp card shows the target and historical player **side by side**, including height,
+weight, wingspan, standing reach and the production/style axes that support the match. Older seasons
+do not have the same tracking/shot-zone inventory as 2025-26, so deep rows appear only when both
+players actually have comparable source data; missing historical fields are never invented.
 
 ## Current NBA roster identity
 
