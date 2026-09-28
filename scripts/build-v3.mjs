@@ -809,7 +809,7 @@ const metricDefinitions = {
   selfCreatedPts36: 'Points per 36 minutes from unassisted twos, unassisted threes and free throws. Free throws are included whole, so the figure overstates self-creation for players who draw many off-ball, technical or intentional-foul attempts. Reliability-adjusted.',
   situationalPts36: 'Fast-break plus points-off-turnovers plus second-chance points per 36. These are overlapping situational categories in NBA.com\'s definitions, not a partition of scoring — a transition bucket after a steal can count in two of them — so treat this as a situational-involvement index rather than a literal point total. Reliability-adjusted.',
   possessionSwing36: 'Net possessions won per 36: steals + offensive rebounds + 0.6x blocks, minus turnovers and 0.4x own shots blocked. Spans both ends of the floor, so it is not used in the Defense grade component. Reliability-adjusted.',
-  defensiveSwing36: 'The defence-only half of possession swing: steals + 0.6x blocks + 0.2x defensive rebounds per 36. This is what feeds the Defense component, so no offensive rebound or own turnover enters a defensive rating. Reliability-adjusted.',
+  defensiveSwing36: 'The defence-only half of possession swing: steals + 0.6x blocks + 0.2x defensive rebounds per 36. It is a descriptive defensive event metric and does not feed the Defense grade component, which uses steals, blocks, defensive rating and defensive win shares. Reliability-adjusted.',
   whistleDiff36: 'Fouls drawn minus fouls committed per 36 minutes. Reliability-adjusted.',
   disruptionPerFoul: 'Steals plus blocks per personal foul. Rewards defenders who create events without fouling. Reliability-adjusted.',
   creationLoad36: 'Assists plus unassisted field goals made per 36 — scoring possessions finished through a player\'s own creation, for himself or a team-mate. Reliability-adjusted.',
@@ -850,6 +850,7 @@ function provenance() {
       try {
         const j = JSON.parse(buf);
         rows = Array.isArray(j) ? j.length
+          : Array.isArray(j.rows) ? j.rows.length
           : j.resultSets ? (Array.isArray(j.resultSets) ? j.resultSets[0]?.rowSet?.length : null)
           : (j.leagues ? null : Object.keys(j).length);
       } catch { /* not a payload we can count */ }

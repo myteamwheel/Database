@@ -245,8 +245,9 @@ concepts it draws on, including PIE's declared box-score dependencies — ships 
 A missing statistic used to change the formula from player to player without saying so. Each
 component now declares a minimum ingredient count; a component below it is **dropped and its
 weight redistributed**, never quietly averaged over a shorter list. Every player carries
-`gradeCoverage`, per-component detail (`defense 4/4`) and `componentsBelowMinimum`. Current build:
-median coverage 99.8%, and **zero players fall below any component minimum**.
+`gradeCoverage`, per-component detail (`defense 4/4`) and `componentsBelowMinimum`. Coverage is
+checked on every build; a rare low-coverage record is visibly flagged and safely reweighted rather
+than silently receiving a different formula.
 
 ## Testing
 

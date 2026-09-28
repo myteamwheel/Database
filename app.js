@@ -660,6 +660,14 @@ function visibleColumns(){
  */
 const COLUMN_HELP = {"name": "WHAT: player name. PLAIN: who this is. Click it to open the full player card.", "team": "WHAT: team abbreviation. PLAIN: for NBA rows this is the current 2026-27 roster team; for G League it remains the 2025-26 team until new rosters are published. Historical 2025-26 team/stint identity is preserved separately and is never overwritten.", "position": "WHAT: listed position. PLAIN: where he plays. FORMULA: taken from the official roster listing, not inferred from play style.", "positionFamily": "WHAT: grouped position (guard / wing / big). PLAIN: broad role bucket. FORMULA: collapsed from the listed position.", "positionSource": "WHAT: where the position label came from. PLAIN: which source we trust for this row. FORMULA: provenance string, not a statistic.", "gp": "WHAT: games played. PLAIN: how many games he appeared in. FORMULA: count of games with any playing time.", "regularGP": "WHAT: regular-season games played. PLAIN: games excluding the G League Showcase Cup. FORMULA: count of Regular Season games only.", "showcaseGP": "WHAT: Showcase Cup games played (G League). PLAIN: games in the Tip-Off tournament. FORMULA: count of Showcase games only. The G League season splits into Showcase and Regular Season; neither alone is a full season.", "mpg": "WHAT: minutes per game. PLAIN: how much he plays. FORMULA: total minutes / games played.", "minutes": "WHAT: total minutes. PLAIN: season workload. FORMULA: sum of minutes across all games.", "pts": "WHAT: points per game. PLAIN: scoring. FORMULA: total points / games played.", "reb": "WHAT: rebounds per game. FORMULA: (offensive + defensive rebounds) / games played.", "oreb": "WHAT: offensive rebounds per game. FORMULA: total offensive rebounds / games played.", "dreb": "WHAT: defensive rebounds per game. FORMULA: total defensive rebounds / games played.", "ast": "WHAT: assists per game. FORMULA: total assists / games played.", "stl": "WHAT: steals per game. FORMULA: total steals / games played.", "blk": "WHAT: blocks per game. FORMULA: total blocks / games played.", "tov": "WHAT: turnovers per game. PLAIN: lower is better. FORMULA: total turnovers / games played.", "plusMinus": "WHAT: plus/minus per game. PLAIN: team point differential while he is on the floor. FORMULA: (team points - opponent points) while on court, per game. A TEAM result, not an individual one.", "fg": "WHAT: field goals made per game. FORMULA: total made field goals / games played.", "fga": "WHAT: field goals attempted per game. FORMULA: total attempts / games played.", "fgPct": "WHAT: field goal percentage. PLAIN: shots made out of shots taken. FORMULA: FGM / FGA. Treats a three the same as a layup, which is why eFG% and TS% exist.", "fg2a": "WHAT: two-point attempts per game. FORMULA: (FGA - 3PA) / games played.", "fg2Pct": "WHAT: two-point percentage. FORMULA: 2PM / 2PA.", "fg3": "WHAT: threes made per game. FORMULA: total made threes / games played.", "fg3a": "WHAT: three-point attempts per game. FORMULA: total 3PA / games played.", "fg3Pct": "WHAT: three-point percentage. FORMULA: 3PM / 3PA.", "fg3Ar": "WHAT: three-point attempt rate. PLAIN: what share of his shots are threes. FORMULA: 3PA / FGA.", "ft": "WHAT: free throws made per game. FORMULA: total FTM / games played.", "fta": "WHAT: free throws attempted per game. FORMULA: total FTA / games played.", "ftPct": "WHAT: free throw percentage. FORMULA: FTM / FTA.", "ftr": "WHAT: free throw rate. PLAIN: how often he gets to the line relative to shooting. FORMULA: FTA / FGA.", "efg": "WHAT: effective field goal percentage. PLAIN: shooting percentage that credits a three as worth more. FORMULA: (FGM + 0.5 x 3PM) / FGA.", "ts": "WHAT: true shooting percentage. PLAIN: the best single measure of scoring efficiency \\u2014 counts twos, threes and free throws together. FORMULA: PTS / (2 x (FGA + 0.44 x FTA)).", "usg": "WHAT: usage rate. PLAIN: share of team possessions he finishes while on the floor. FORMULA: estimated possessions used (shots, turnovers, trips to the line) as a percent of team possessions used while on court.", "astPct": "WHAT: assist rate. PLAIN: share of team-mate baskets he assists while on court. FORMULA: AST / (estimated team-mate field goals made while on court).", "astRatio": "WHAT: assist ratio. PLAIN: how much of what he does ends in an assist. FORMULA: AST per 100 possessions he uses.", "astTo": "WHAT: assist-to-turnover ratio. PLAIN: passes that help versus passes that cost. FORMULA: AST / TOV.", "astPer100": "WHAT: assists per 100 possessions. PLAIN: pace-neutral playmaking volume. FORMULA: AST x 100 / possessions.", "toRatio": "WHAT: turnover ratio. PLAIN: turnovers per 100 possessions used. FORMULA: TOV x 100 / possessions used. NOTE: this is NOT the same statistic as team TOV%.", "tovPer100": "WHAT: turnovers per 100 possessions. FORMULA: TOV x 100 / possessions.", "stlPer100": "WHAT: steals per 100 possessions. PLAIN: pace-neutral steal volume. FORMULA: STL x 100 / possessions.", "blkPer100": "WHAT: blocks per 100 possessions. FORMULA: BLK x 100 / possessions.", "orebPct": "WHAT: offensive rebound rate. FORMULA: share of available offensive rebounds he collects while on court.", "drebPct": "WHAT: defensive rebound rate. FORMULA: share of available defensive rebounds he collects while on court.", "rebPct": "WHAT: total rebound rate. FORMULA: share of all available rebounds he collects while on court.", "pace": "WHAT: pace. PLAIN: possessions per 48 minutes for his team while he plays. FORMULA: estimated team possessions per 48. A TEAM context number, not a skill.", "poss": "WHAT: possessions. PLAIN: how many possessions he was on the floor for. FORMULA: estimated possessions played.", "pie": "WHAT: Player Impact Estimate. PLAIN: his share of everything that happened in his games. FORMULA: his box-score contributions as a percent of both teams\\u2019 combined contributions.", "per": "WHAT: Player Efficiency Rating (Basketball-Reference). PLAIN: per-minute box-score productivity, league-average 15. NOTE: a snapshot from Basketball-Reference, not re-fetched with the rest of the database.", "ws": "WHAT: win shares. PLAIN: estimated wins credited to him. FORMULA: offensive + defensive win shares (Basketball-Reference).", "ws48": "WHAT: win shares per 48 minutes. PLAIN: rate version of win shares. FORMULA: WS / minutes x 48.", "defWs": "WHAT: defensive win shares. FORMULA: Basketball-Reference defensive win share estimate.", "bpm": "WHAT: box plus/minus. PLAIN: estimated points per 100 possessions above league average. FORMULA: Basketball-Reference regression on box-score stats.", "vorp": "WHAT: value over replacement player. FORMULA: (BPM - (-2.0)) x share of minutes played x team games / 82 (Basketball-Reference).", "grade": "WHAT: overall per-game grade, 0.0000-9.9999. PLAIN: single-number rating of season performance. FORMULA: six weighted percentile components (scoring .30, playmaking .18, rebounding .14, defense .16, efficiency .12, impact .10), shrunk toward the league mean in proportion to minutes played, then mapped onto the 0-9.9999 scale.", "gradeRaw": "WHAT: grade before shrinkage. PLAIN: what his own line alone says, with no regression to the mean. FORMULA: the weighted component score prior to the minutes-based shrinkage step.", "gradeShrunk": "WHAT: grade after shrinkage, before scaling. FORMULA: (minutes x own score + K x league prior) / (minutes + K), with K = 0.8 x median minutes.", "labScore": "WHAT: your custom Formula Lab score. PLAIN: whatever combination of metrics you built in the Lab. FORMULA: defined by your own metric weights, not by this app.", "height": "WHAT: listed height.", "weight": "WHAT: listed weight in pounds.", "jersey": "WHAT: jersey number.", "college": "WHAT: college or last team before turning pro.", "country": "WHAT: country of origin.", "birthdate": "WHAT: date of birth. Used to compute the exact age columns.", "teamCount": "WHAT: number of teams he played for this season. PLAIN: 2+ means he was traded or moved between teams.", "draftYear": "WHAT: year he was drafted.", "draftRound": "WHAT: draft round.", "draftNumber": "WHAT: overall draft pick number.", "draftStatus": "WHAT: drafted or undrafted, with the pick if drafted.", "brefScope": "WHAT: which Basketball-Reference rows this player\\u2019s snapshot covers. PLAIN: provenance for the BR-sourced columns (PER, win shares, BPM, VORP).", "components.scoring": "WHAT: scoring component of the grade (30% weight). FORMULA: weighted percentile of points, true shooting and shot creation within the league.", "components.playmaking": "WHAT: playmaking component (18% weight). FORMULA: weighted percentile of assists, assist rate and ball security.", "components.rebounding": "WHAT: rebounding component (14% weight). FORMULA: weighted percentile of offensive and defensive rebound rates.", "components.defense": "WHAT: defense component (16% weight). FORMULA: weighted percentile of steals, blocks, defensive rating and defensive rebounding.", "components.efficiency": "WHAT: efficiency component (12% weight). FORMULA: weighted percentile of true shooting and turnover economy.", "components.impact": "WHAT: impact component (10% weight). FORMULA: weighted percentile of on-court results such as PIE and net rating.", "custom.twoWayIndex": "WHAT: two-way index. PLAIN: a single number for being good at both ends. FORMULA: equal blend of offensive percentiles (offensive rating, true shooting, scoring) and defensive percentiles (defensive rating, defensive win shares per 36, steals+blocks, defensive rebound rate), averaged 50/50. PIE is deliberately excluded because it already contains defensive rebounds, steals and blocks, which made defence count on both sides.", "custom.efficiencyOverExpectedRaw": "WHAT: efficiency over expected, BEFORE shrinkage. PLAIN: the unregressed version, noisier on small samples. FORMULA: same as the adjusted column without the minutes-weighted shrinkage step.", "custom.impactOverExpectedRaw": "WHAT: impact over expected, BEFORE shrinkage. FORMULA: unregressed version of the adjusted column.", "custom.paintPts36Raw": "WHAT: paint points per 36, BEFORE shrinkage. FORMULA: unregressed version of the adjusted column.", "custom.selfCreatedPts36Raw": "WHAT: self-created points per 36, BEFORE shrinkage. FORMULA: unregressed version of the adjusted column.", "custom.situationalPts36Raw": "WHAT: situational points per 36, BEFORE shrinkage. FORMULA: unregressed version of the adjusted column."};
 
+// Keep the published glossary synchronized with the real grade ingredients rather than the older
+// prose that predated the current model.
+Object.assign(COLUMN_HELP, {
+  'components.scoring': 'WHAT: scoring component of the grade (30% weight). FORMULA: weighted percentile of points, free-throw attempts, three-point attempts and usage within the league.',
+  'components.defense': 'WHAT: defense component (16% weight). FORMULA: weighted percentile of steals, blocks, defensive rating and defensive win shares.',
+  'components.efficiency': 'WHAT: efficiency component (12% weight). FORMULA: weighted percentile of true shooting, effective field-goal percentage, turnovers and turnover percentage.',
+});
+
 
 /** Split a help string into its WHAT / PLAIN / FORMULA sections for structured display. */
 function parseHelp(text){
@@ -805,21 +813,26 @@ function openStatGuide(){
     if (d && d.help) seen.set(k, d);
   }
   const items = [...seen.entries()].sort((a,b)=>String(a[1].label).localeCompare(String(b[1].label)));
-  const render = (filter) => items
-    .filter(([k,d]) => !filter || (d.label+' '+k+' '+d.help).toLowerCase().includes(filter))
-    .map(([k,d]) => {
+  // Search still exposes every documented metric; a compact starting set prevents the dialog
+  // from dumping hundreds of definitions before a reader has asked for one.
+  const featured = new Set(['grade','rateGrade','reliabilityWeight','pts','ts','usg','astPct','drebPct','defRtg','components.scoring','components.defense','proj.pts','tb.tulip','tulip.leagueDelta']);
+  const render = (filter) => {
+    const matched = items.filter(([k,d]) => !filter || (d.label+' '+k+' '+d.help).toLowerCase().includes(filter));
+    const visible = filter ? matched : matched.filter(([k]) => featured.has(k)).slice(0, 14);
+    return visible.map(([k,d]) => {
       const h = parseHelp(d.help);
       const sec = (lab, v, cls) => v ? `<div class="sg-sec"><span class="sg-k">${lab}</span>${cls?`<span class="${cls}">${esc(v)}</span>`:esc(v)}</div>` : '';
-      return `<div class="stat-guide-item"><h4>${esc(d.label||k)}<span class="sg-key">${esc(k)}</span></h4>`
+      return `<details class="stat-guide-item"><summary><span>${esc(d.label||k)}<span class="sg-key">${esc(k)}</span></span></summary><div class="sg-body">`
         + sec('What it is', h.what) + sec('In plain words', h.plain)
-        + sec('How it is calculated', h.formula, 'sg-formula') + sec('Note', h.note) + '</div>';
+        + sec('How it is calculated', h.formula, 'sg-formula') + sec('Note', h.note) + '</div></details>';
     }).join('') || '<p>No stat matches that search.</p>';
+  };
 
   if (!statGuideDlg) {
     statGuideDlg = document.createElement('dialog');
     statGuideDlg.className = 'modal wide';
-    statGuideDlg.innerHTML = `<h2>Stat guide</h2>
-      <p class="sg-count"></p>
+    statGuideDlg.innerHTML = `<div class="modal-sticky-head"><div><h2>Stat guide</h2>
+      <p class="sg-count"></p></div><button class="modal-x" type="button" data-sg="close" aria-label="Close stat guide">×</button></div>
       <input class="stat-guide-search" data-sg="search" type="search" aria-label="Search stats" placeholder="Search stats, e.g. TULIP, true shooting, readiness\u2026" />
       <div class="stat-guide-list" data-sg="list"></div>
       <div class="modal-actions"><button class="button" data-sg="close">Close</button></div>`;
@@ -827,10 +840,10 @@ function openStatGuide(){
     statGuideDlg.querySelector('[data-sg="search"]').addEventListener('input', (e) => {
       statGuideDlg.querySelector('[data-sg="list"]').innerHTML = render(e.target.value.trim().toLowerCase());
     });
-    statGuideDlg.querySelector('[data-sg="close"]').onclick = () => statGuideDlg.close();
+    statGuideDlg.querySelectorAll('[data-sg="close"]').forEach((b) => { b.onclick = () => statGuideDlg.close(); });
   }
   statGuideDlg.querySelector('.sg-count').textContent =
-    `Every column in the database: what it is, what it shows in plain words, and how it is calculated. ${items.length} stats documented.`;
+    `Start with the essentials below or search all ${items.length} documented stats.`;
   statGuideDlg.querySelector('[data-sg="search"]').value = '';
   statGuideDlg.querySelector('[data-sg="list"]').innerHTML = render('');
   statGuideDlg.showModal();
@@ -1062,23 +1075,8 @@ function syncSortControls(cols){
   const ord=$('sortOrder'); if(ord) ord.value=String(sortDir);
 }
 
-function renderSummary(list){
-  const all=currentPlayers();
-  const filtered=list.length!==all.length;
-  const best=[...list].sort((a,b)=>b.grade-a.grade)[0];
-  const cards=[
-    [filtered?'Players (filtered)':'Players',`${list.length.toLocaleString()}${filtered?` of ${all.length.toLocaleString()}`:''}`],
-    [filtered?'Top of selection':'Top player',best?.name||'—'],
-    ['Median MPG',num(median(list.map(x=>x.mpg)),1)],
-    ['Median GP',num(median(list.map(x=>x.gp)),0)],
-    ['Played both leagues',list.filter(x=>x.bothLeagues).length.toLocaleString()],
-    ['Fields available',String(new Set(all.flatMap(x=>Object.keys(x.stats||{}))).size)]
-  ];
-  $('summaryGrid').innerHTML=cards.map(([l,v])=>`<div class="summary-card"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div></div>`).join('');
-}
-
 function renderRules(){
-  $('activeRules').innerHTML=rules.map((r,i)=>`<div class="rule-chip">${esc(colDef(r.key).label)} ${esc(r.op)} ${esc(r.value)}${isFraction(r.key)?'%':''} <button data-rule-remove="${i}">×</button></div>`).join('');
+  $('activeRules').innerHTML=rules.map((r,i)=>`<div class="rule-chip">${esc(colDef(r.key).label)} ${esc(r.op)} ${esc(r.value)}${isFraction(r.key)?'%':''} <button type="button" data-rule-remove="${i}" aria-label="Remove ${esc(colDef(r.key).label)} filter">×</button></div>`).join('');
   document.querySelectorAll('[data-rule-remove]').forEach(b=>b.onclick=()=>{rules.splice(Number(b.dataset.ruleRemove),1);render();writeUrlState('push');});
 }
 
@@ -1090,6 +1088,10 @@ function updatePageHead(){
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',(b.dataset.goto==='proj')===isProj));
   $('projNote').hidden=!isProj;
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
+  const scope=$('projScope');
+  if(scope) scope.textContent=league==='NBA'
+    ? 'uses his 2026-27 team’s roster and pace'
+    : 'uses the player’s G League assignment and G League pace context, not an NBA-affiliate forecast';
   $('seasonEyebrow').textContent=league==='NBA'?'Regular season':'Regular season and Showcase Cup combined';
 }
 
@@ -1156,12 +1158,12 @@ function render(){
   document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
   document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
   document.querySelectorAll('[data-compare]').forEach(c=>c.onchange=()=>{if(c.checked){if(compared.size>=5){c.checked=false;return}compared.add(c.dataset.compare)}else compared.delete(c.dataset.compare);updateCompare();});
-  renderRules(); renderSummary(list); updateCompare();
+  renderRules(); updateCompare();
 }
 
 function cell(p,key){
   const def=colDef(key),v=get(p,key);
-  if(key==='select')return `<td><input class="compare-check" type="checkbox" data-compare="${esc(p.playerId)}" ${compared.has(p.playerId)?'checked':''}></td>`;
+  if(key==='select')return `<td><input class="compare-check" type="checkbox" data-compare="${esc(p.playerId)}" aria-label="Compare ${esc(p.name)}" ${compared.has(p.playerId)?'checked':''}></td>`;
   if(key==='name'){
     const multi=(p.teamCount||1)>1?`<span class="multi-badge" aria-label="${esc((p.teams||[]).map(s=>`${s.team} ${s.gp}g`).join(' · '))}">${p.teamCount} TM</span>`:'';
     // In the projections view the Team column is the 2026-27 team, so the name cell leaves last
@@ -1271,6 +1273,7 @@ function whyTulipBlock(p,c){
 // a team-mate. This view exists so the conservation is visible rather than implied.
 let teamAllocDlg = null;
 const teamAllocState={team:null,filter:'all',sort:'tulip'};
+const teamAllocationHeader=(title)=>`<div class="modal-sticky-head"><h2>${title}</h2><button class="modal-x" type="button" data-ta-close aria-label="Close TULIP team allocation">×</button></div>`;
 function teamAllocationSort(roster,key){
   const support={HIGH:3,MEDIUM:2,LOW:1};
   const val=(p)=>key==='current'?p.tulipBeta.currentMpg
@@ -1293,7 +1296,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
   const teams=[...new Set(all.filter(p=>p.league==='NBA'&&p.currentTeam&&p.tulipBeta&&!p.tulipBeta.abstain).map(p=>p.currentTeam))].sort();
   if(!team){
     teamAllocState.team=null;
-    teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation</h2>
+    teamAllocDlg.innerHTML=`${teamAllocationHeader('TULIP Team Allocation')}
       <p class="tiny">Pick a current 2026-27 NBA roster to see its reallocation ledger. TULIP Beta is NBA-only.</p>
       <div class="raw-grid">${teams.map(t=>`<button class="button" data-teamalloc="${esc(t)}">${esc(t)}</button>`).join('')}</div>
       <div class="modal-actions"><button class="button" data-ta-close>Close</button></div>`;
@@ -1308,7 +1311,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
   const baseRoster=all.filter(p=>p.league==='NBA'&&p.currentTeam===team&&p.tulipBeta&&!p.tulipBeta.abstain);
   const roster=teamAllocationSort(baseRoster,teamAllocState.sort);
   if(!roster.length){
-    teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation — ${esc(team)}</h2>
+    teamAllocDlg.innerHTML=`${teamAllocationHeader(`TULIP Team Allocation — ${esc(team)}`)}
       <p class="tiny">No eligible players with a TULIP Beta recommendation for this team.</p>
       <div class="modal-actions"><button class="button" data-ta-close>Close</button></div>`;
     if(!teamAllocDlg.open) teamAllocDlg.showModal();
@@ -1330,7 +1333,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
       ? `<span class="role-evidence-label">${esc(roleEvidencePlain(c.evidenceTier,c.evidenceFactor))}</span><span class="tiny">Tier ${esc(c.evidenceTier)} · factor ${num(c.evidenceFactor,2)}</span>`:'—';};
   const filterButton=(value,label)=>`<button class="button secondary small" type="button" data-ta-filter="${value}"
     aria-pressed="${teamAllocState.filter===value}">${label}</button>`;
-  teamAllocDlg.innerHTML=`<h2>TULIP Team Allocation — ${esc(team)}</h2>
+  teamAllocDlg.innerHTML=`${teamAllocationHeader(`TULIP Team Allocation — ${esc(team)}`)}
     <div class="player-grid">
       <div class="detail-card"><div class="k">Current eligible MPG</div><div class="v">${num(curTot)}</div></div>
       <div class="detail-card"><div class="k">Recommended eligible MPG</div><div class="v">${num(recTot)}</div></div>
@@ -1713,7 +1716,7 @@ function openPlayer(id){
       ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
     </div>${projCard(p)}${stints}${tbeta}${tcap}${crossover}
-    <h3>All retained source fields</h3>${raw}`;
+    <details class="ws-disclosure"><summary>All retained source fields</summary><div class="ws-disclosure-body">${raw}</div></details>`;
   $('playerDialog').showModal();
 }
 
@@ -1755,7 +1758,7 @@ function openFieldCatalog(){
   $('catalogDialogBody').innerHTML=`<div class="eyebrow">DATA DICTIONARY</div>
     <h2>Field catalog — ${esc(league==='NBA'?'NBA':'G League')}</h2>
     <p>Every raw field with its source, unit, basis and season scope. The same concept appears as an official value, a Basketball-Reference value, a total, a per-game, a per-36 and a per-100; this is how to tell them apart.</p>
-    <input id="catalogSearch" type="search" placeholder="Search fields…" />
+    <label class="sr-only" for="catalogSearch">Search fields</label><input id="catalogSearch" type="search" placeholder="Search fields…" />
     <div id="catalogRows"></div>`;
   render('');
   $('catalogSearch').addEventListener('input',e=>render(e.target.value));

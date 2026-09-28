@@ -12,6 +12,8 @@
   let FILTERED = [];
   let AGG = [];
   let PAGE = 0;
+  let PLAYER_PAGE = 0;
+  const PLAYER_PAGE_SIZE = 50;
   let IX = {};
   let IDENTITY_SOURCE = 'unknown';
 
@@ -180,6 +182,7 @@
     const eligible = new Set(AGG.map((p) => p.playerId));
     FILTERED = FILTERED.filter((e) => eligible.has(e.playerId));
     PAGE = 0;
+    PLAYER_PAGE = 0;
     renderSummary();
     renderPlayers();
     renderGames();
@@ -201,14 +204,26 @@
 
   function renderPlayers() {
     const body = $('hPlayerTable').querySelector('tbody');
-    if (!AGG.length) { body.innerHTML = '<tr><td colspan="12" class="history-empty">No players match this slice.</td></tr>'; return; }
-    body.innerHTML = AGG.map((a) => {
+    if (!AGG.length) {
+      body.innerHTML = '<tr><td colspan="12" class="history-empty">No players match this slice.</td></tr>';
+      $('hPlayerPage').textContent = '0 matching players';
+      $('hPlayerPrev').disabled = true;
+      $('hPlayerNext').disabled = true;
+      return;
+    }
+    const pages = Math.max(1, Math.ceil(AGG.length / PLAYER_PAGE_SIZE));
+    PLAYER_PAGE = Math.min(PLAYER_PAGE, pages - 1);
+    const chunk = AGG.slice(PLAYER_PAGE * PLAYER_PAGE_SIZE, (PLAYER_PAGE + 1) * PLAYER_PAGE_SIZE);
+    body.innerHTML = chunk.map((a) => {
       const meta = META.get(String(a.playerId));
       const sub = `${[...a.teams].sort().join('/')} · ${[...a.seasons].sort().join(', ')}${meta?.leagues?.size ? ` · current: ${[...meta.leagues].join('/')}` : ''}`;
       return `<tr><td><span class="history-player">${esc(a.name)}</span><span class="history-sub">${esc(sub)}</span></td>
         <td>${a.games}</td><td>${a.knownStarts ? `${a.starts}/${a.knownStarts}` : '—'}</td><td>${a.startPct === null ? '—' : `${(a.startPct * 100).toFixed(1)}%`}</td>
         <td>${num(a.minutesPg)}</td><td><b>${num(a.ptsPg)}</b></td><td>${num(a.rebPg)}</td><td>${num(a.astPg)}</td><td>${num(a.stlPg)}</td><td>${num(a.blkPg)}</td><td>${num(a.tovPg)}</td><td>${num(a.plusMinusPg)}</td></tr>`;
     }).join('');
+    $('hPlayerPage').textContent = `Players ${PLAYER_PAGE * PLAYER_PAGE_SIZE + 1}–${Math.min((PLAYER_PAGE + 1) * PLAYER_PAGE_SIZE, AGG.length)} of ${AGG.length.toLocaleString()}`;
+    $('hPlayerPrev').disabled = PLAYER_PAGE <= 0;
+    $('hPlayerNext').disabled = PLAYER_PAGE >= pages - 1;
   }
 
   function renderGames() {
@@ -259,6 +274,8 @@
     $('hExportGames').onclick = exportGames;
     $('hPrev').onclick = () => { if (PAGE > 0) { PAGE--; renderGames(); } };
     $('hNext').onclick = () => { PAGE++; renderGames(); };
+    $('hPlayerPrev').onclick = () => { if (PLAYER_PAGE > 0) { PLAYER_PAGE--; renderPlayers(); } };
+    $('hPlayerNext').onclick = () => { PLAYER_PAGE++; renderPlayers(); };
   }
 
   window.__historyLab = {

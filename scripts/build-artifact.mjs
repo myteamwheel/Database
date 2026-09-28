@@ -84,13 +84,14 @@ const body = escapeNonAscii(
   R('index.html')
     .replace(/^[\s\S]*?<body>/, '')
     .replace(/<\/body>[\s\S]*$/, '')
-    .replace('<link rel="stylesheet" href="styles.css" />', '')
-    .replace('<script src="app.js"></script>', '')
-    .replace('<script src="workspace.js"></script>', ''),
+    .replace(/<link rel="stylesheet" href="styles\.css(?:\?[^\"]*)?"\s*\/?>/, '')
+    .replace(/<script src="app\.js(?:\?[^\"]*)?"><\/script>/, '')
+    .replace(/<script src="workspace\.js(?:\?[^\"]*)?"><\/script>/, ''),
   'html'
 );
 
-const html = `<title>Two-League Grade Book</title>
+const html = `<title>Pro Basketball Database — 2025-26 Player Stats</title>
+<base href="../">
 <style>
 ${css}
 </style>

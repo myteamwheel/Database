@@ -103,7 +103,7 @@ function historyRows(src, league) {
       const ts = fin(a.TS_PCT) ? Number(a.TS_PCT)
         : fin(pts) && fin(fga) && fin(fta) && (fga + 0.44 * fta) > 0 ? pts / (2 * (fga + 0.44 * fta)) : null;
       out.push({
-        league, season, seasonType: 'Regular Season', playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || String(pid),
+        league, season, seasonType: 'Regular Season', playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || null,
         team: x.TEAM_ABBREVIATION || null, teamId: n(x.TEAM_ID), position: b.position || null,
         age: n(x.AGE), gp, minutes,
         physical: {
@@ -516,7 +516,7 @@ function playerStyleRead(target, selected, blend) {
       if (size && length) return 'size and length';
       if (length) return 'length';
       if (build) return 'build';
-      return 'physical profile';
+      return 'listed size';
     }
     if (block === 'role') {
       const creation = has(axes, 'playmaking volume') || has(axes, 'assist rate')
@@ -529,7 +529,7 @@ function playerStyleRead(target, selected, blend) {
       if (workload) return 'offensive workload';
       if (glass) return 'rebounding role';
       if (has(axes, 'turnover load')) return 'ball-handling workload';
-      return 'role profile';
+      return 'offensive role';
     }
     if (block === 'scoring') {
       const spacing = has(axes, 'three-point shot share') || has(axes, 'three-point accuracy');
@@ -545,7 +545,7 @@ function playerStyleRead(target, selected, blend) {
       if (efficient && scoring) return 'efficient scoring';
       if (efficient) return 'shooting efficiency';
       if (scoring) return 'scoring output';
-      return 'scoring profile';
+      return 'shooting profile';
     }
     const steals = has(axes, 'steal activity');
     const rim = has(axes, 'rim protection');
@@ -559,7 +559,7 @@ function playerStyleRead(target, selected, blend) {
     if (rim) return 'rim-protection activity';
     if (defensiveGlass) return 'defensive rebounding';
     if (offensiveGlass) return 'offensive rebounding';
-    return 'defensive activity';
+    return 'rebounding and disruption';
   };
   const contributions = new Map(blend.map((item) => [String(item.playerId), {
     playerId: item.playerId, name: item.name, season: item.season, share: item.share,
@@ -588,16 +588,19 @@ function playerStyleRead(target, selected, blend) {
     component.supporting.push({ block: strongest.block, phrase: traitPhrase(strongest.block, axes) });
   }
   const positionParts = String(target.position || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
-  const position = positionParts.includes('C') && positionParts.includes('F') ? 'frontcourt player'
-    : positionParts.includes('C') ? 'center'
-    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) && positionParts.includes('F') ? 'guard-wing'
-    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) ? 'guard'
-    : positionParts.includes('F') ? 'forward/wing' : 'player';
+  const hasCenter = positionParts.some((x) => x.includes('C'));
+  const hasForward = positionParts.some((x) => x.includes('F'));
+  const hasGuard = positionParts.some((x) => x.includes('G'));
+  const position = hasCenter && hasForward ? 'frontcourt player'
+    : hasCenter ? 'center'
+    : hasGuard && hasForward ? 'guard-wing'
+    : hasGuard ? 'guard'
+    : hasForward ? 'forward/wing' : 'player';
   const traitJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]} plus ${items[1]}`
+    : items.length === 2 ? `${items[0]} with ${items[1]}`
     : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
   const componentJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]}, alongside ${items[1]}`
+    : items.length === 2 ? `${items[0]} with ${items[1]}`
     : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
   const components = [...contributions.values()].map((item) => {
     const traits = item.direct.length ? item.direct : item.supporting;
@@ -796,7 +799,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     // each candidate player's single best-matching historical season before ranking the final three.
     const bestByPlayer = new Map();
     for (const cand of pool) {
-      if (cand.playerId === target.playerId || cand.minutes < minMinutes) continue;
+      // A source row with no resolved person name is not an interpretable historical reference.
+      // Excluding it is more honest than displaying its raw numeric identifier as a player comp.
+      if (cand.playerId === target.playerId || cand.minutes < minMinutes || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
       const m = compare(target, cand);
       if (!m) continue;
       // Prefer known body matches when target body is known. This is a soft penalty, not exclusion.

@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', team: null,
+                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -87,6 +87,7 @@
     `<div class="pbar"><span class="pbar-l">${esc(label)}</span>
       <span class="pbar-t"><i style="width:${fin(v) ? Math.max(1, Math.min(100, v)) : 0}%"></i></span>
       <b>${fin(v) ? Number(v).toFixed(0) : '—'}</b>${extra}</div>`;
+  const disclosure = (label, body) => `<details class="ws-disclosure"><summary>${label}</summary><div class="ws-disclosure-body">${body}</div></details>`;
 
   const playerPicker = (id, selected, label) =>
     `<label>${esc(label)}<select id="${id}">${
@@ -107,7 +108,8 @@
       <label class="comp-search-main">Search player
         <input id="simSearch" type="search" autocomplete="off" spellcheck="false"
           value="${esc(p?.name || '')}" placeholder="Start typing a player name…"
-          aria-label="Search player for historical comparisons" aria-controls="simSuggestions" />
+          aria-label="Search player for historical comparisons" aria-controls="simSuggestions"
+          aria-expanded="${state.simSuggestionsOpen ? 'true' : 'false'}" aria-autocomplete="list" role="combobox" />
       </label>
       <label>Team<select id="simTeam"><option value="">All teams</option>
         ${teams.map((t) => `<option value="${esc(t)}"${t === state.simTeam ? ' selected' : ''}>${esc(t)}</option>`).join('')}
@@ -119,20 +121,44 @@
     </section>`;
   };
 
-  function updateCompSuggestions(raw = '') {
-    const box = $('simSuggestions');
-    if (!box) return;
+  function compSuggestionMatches(raw = '') {
     const q = fold(raw).trim();
     let list = compPool();
     if (q) list = list.filter((p) => fold(`${p.name} ${teamOf(p)} ${p.position || ''}`).includes(q));
-    list = list.sort((a, b) => {
+    return list.sort((a, b) => {
       const ap = q && fold(a.name).startsWith(q) ? 0 : 1;
       const bp = q && fold(b.name).startsWith(q) ? 0 : 1;
       return ap - bp || a.name.localeCompare(b.name);
     });
+  }
+
+  function hideCompSuggestions() {
+    const box = $('simSuggestions'), input = $('simSearch');
+    state.simSuggestionsOpen = false;
+    state.simActiveIndex = -1;
+    if (box) box.hidden = true;
+    if (input) {
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function updateCompSuggestions(raw = '') {
+    const box = $('simSuggestions');
+    if (!box) return;
+    const q = fold(raw).trim();
+    const list = compSuggestionMatches(raw);
+    state.simSuggestionsOpen = true;
+    state.simActiveIndex = list.length ? Math.max(-1, Math.min(state.simActiveIndex, list.length - 1)) : -1;
     box.hidden = false;
+    const input = $('simSearch');
+    if (input) {
+      input.setAttribute('aria-expanded', 'true');
+      if (state.simActiveIndex >= 0) input.setAttribute('aria-activedescendant', `simOption-${list[state.simActiveIndex].playerId}`);
+      else input.removeAttribute('aria-activedescendant');
+    }
     box.innerHTML = list.length ? `<div class="comp-suggestion-count" aria-live="polite">${list.length.toLocaleString()} ${q ? 'matching' : 'available'} players · scroll to browse${q ? '' : ' or type to narrow'}</div>`
-      + list.map((p) => `<button type="button" role="option" aria-selected="${String(p.playerId) === String(state.simPlayer)}" data-sim-pick="${esc(p.playerId)}">
+      + list.map((p, i) => `<button id="simOption-${esc(p.playerId)}" class="${i === state.simActiveIndex ? 'is-active' : ''}" type="button" role="option" aria-selected="${i === state.simActiveIndex}" data-sim-pick="${esc(p.playerId)}">
       <b>${esc(p.name)}</b><span>${esc(teamOf(p))} · ${esc(p.position || '—')}</span></button>`).join('')
       : `<div class="comp-suggestion-count" role="status">No matching players. Try a different name, team, or position.</div>`;
   }
@@ -252,7 +278,7 @@
       ${cr.team ? `<div class="ws-card"><div class="k">2025-26 ${esc(p.seasonTeam || p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
     </div>
 
-    <div class="ws-cols">
+    ${disclosure('Grade components and full skill profile', `<div class="ws-cols">
       <section><h3>Grade components</h3>
         ${Object.entries(p.components || {}).map(([k, v]) =>
           bar(k, v, ` <span class="tiny">${esc(p.gradeCoverageDetail?.[k] || '')}</span>`)).join('')}
@@ -260,7 +286,7 @@
       <section><h3>Skill profile <span class="tiny">percentile within ${esc(p.leagueLabel)}</span></h3>
         ${Object.entries(sp).map(([k, v]) => bar(k, v)).join('')}
       </section>
-    </div>
+    </div>`)}
 
     <div class="ws-cols">
       <section><h3>Strengths</h3>${strengths.slice(0, 5).map(([k, v]) => bar(k, v)).join('') || '<p class="tiny">—</p>'}</section>
@@ -275,32 +301,30 @@
         <p class="tiny">${[...p.ownTeamFit.strengths, ...p.ownTeamFit.weaknesses].map(esc).join('<br>')}</p>
         <p class="tiny">Fit is not quality — it measures how well this profile answers what the roster lacks.</p></div>` : ''}
 
-    <h3>Situational splits</h3>
-    <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Split</th>
+    ${disclosure('Situational splits', `<div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Split</th>
       <th>G</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>TS%</th><th>USG%</th><th>PIE</th><th>NetRtg</th></tr></thead><tbody>
       ${splits.filter((s) => fin(sv(s, 'gp'))).map((s) => `<tr><td class="left">${esc(s)}</td>
         <td>${num(sv(s, 'gp'), 0)}</td><td>${num(sv(s, 'mpg'))}</td><td>${num(sv(s, 'pts'))}</td>
         <td>${num(sv(s, 'reb'))}</td><td>${num(sv(s, 'ast'))}</td><td>${pctS(sv(s, 'ts'))}</td>
         <td>${pctS(sv(s, 'usg_pct'))}</td><td>${pctS(sv(s, 'pie'))}</td><td>${num(sv(s, 'net_rating'))}</td></tr>`).join('')}
-    </tbody></table></div>
+    </tbody></table></div>`)}
 
-    ${months.length ? `<h3>Month by month <span class="tiny">season-relative; month 1 is the opening month</span></h3>
-      ${sparkline(months.map((m) => sv(`month${m}`, 'pts')), months.map((m) => 'M' + m))}
+    ${months.length ? disclosure('Month by month · season-relative', `${sparkline(months.map((m) => sv(`month${m}`, 'pts')), months.map((m) => 'M' + m))}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Month</th>
         <th>G</th><th>PTS</th><th>TS%</th><th>USG%</th><th>PIE</th></tr></thead><tbody>
         ${months.map((m) => `<tr><td class="left">M${m}</td><td>${num(sv(`month${m}`, 'gp'), 0)}</td>
           <td>${num(sv(`month${m}`, 'pts'))}</td><td>${pctS(sv(`month${m}`, 'ts'))}</td>
           <td>${pctS(sv(`month${m}`, 'usg_pct'))}</td><td>${pctS(sv(`month${m}`, 'pie'))}</td></tr>`).join('')}
-      </tbody></table></div>` : ''}
+      </tbody></table></div>`) : ''}
 
     ${historyBlock(p)}
     ${historyGameLogShell(p)}
 
-    ${(p.teams || []).length > 1 ? `<h3>Team history</h3><div class="table-wrap"><table class="compare-table">
+    ${(p.teams || []).length > 1 ? disclosure('2025–26 team history', `<div class="table-wrap"><table class="compare-table">
       <thead><tr><th class="left">Team</th><th>G</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>FG%</th><th>+/-</th></tr></thead>
       <tbody>${p.teams.map((s) => `<tr><td class="left">${esc(s.team)}</td><td>${s.gp}</td><td>${num(s.mpg)}</td>
         <td>${num(s.pts)}</td><td>${num(s.reb)}</td><td>${num(s.ast)}</td><td>${pctS(s.fgPct)}</td><td>${num(s.plusMinus)}</td></tr>`).join('')}
-      </tbody></table></div>` : ''}
+      </tbody></table></div>`) : ''}
 
     ${p.nbaTranslation && Object.keys(p.nbaTranslation).length ? translationBlock(p) : ''}
     <div class="ws-actions"><button class="button" id="wsFindSimilar">Find player comps</button></div>`;
@@ -319,7 +343,7 @@
     const teamText = (r) => (r.teams || []).join('/') || '—';
     const phase = (r) => r.seasonType === 'Playoffs' ? 'PO' : 'RS';
     const peakText = (row, key, suffix = '') => row && fin(row[key]) ? `${num(row[key])}${suffix} · ${esc(row.season)}` : '—';
-    return `<h3>Historical NBA record <span class="tiny">2015-16 through 2024-25 · descriptive historical record, not a forecast</span></h3>
+    return `<details class="ws-disclosure"><summary>Historical NBA record <span class="tiny">2015-16 through 2024-25 · descriptive, not a forecast</span></summary><div class="ws-disclosure-body">
       ${summary ? `<div class="ws-grid">
         <div class="ws-card"><div class="k">Historical seasons</div><div class="v">${summary.seasons}</div><p class="tiny">${summary.games} RS games · ${summary.teams} team${summary.teams === 1 ? '' : 's'}</p></div>
         <div class="ws-card"><div class="k">Peak scoring</div><div class="v">${peakText(summary.peakPts, 'pts')}</div><p class="tiny">regular-season PPG</p></div>
@@ -332,7 +356,7 @@
       </tr></thead><tbody>${tableRows.map((r) => `<tr><td class="left">${esc(r.season)}</td><td>${phase(r)}</td><td>${esc(teamText(r))}</td>
         <td>${num(r.gp,0)}</td><td>${num(r.mpg)}</td><td>${num(r.pts)}</td><td>${num(r.reb)}</td><td>${num(r.ast)}</td><td>${r.ts == null ? '—' : pctS(r.ts)}</td>
         <td>${starter(r)}</td><td>${r.startShareOfAppearances == null ? '—' : pctS(r.startShareOfAppearances)}</td><td>${r.starterCoverage == null ? '—' : pctS(r.starterCoverage)}</td></tr>`).join('')}</tbody></table></div>
-      <p class="tiny">Latest seasons are shown first in the table; the trajectory runs chronologically. RS and PO are separate source phases. Starter columns remain unknown where the canonical starter artifact has not established them; coverage shows the share of appearances with known starter status, and unknown is never treated as bench.</p>`;
+      <p class="tiny">Latest seasons are shown first in the table; the trajectory runs chronologically. RS and PO are separate source phases. Starter columns remain unknown where the canonical starter artifact has not established them; coverage shows the share of appearances with known starter status, and unknown is never treated as bench.</p></div></details>`;
   }
 
   function historyCompareBlock(ps) {
@@ -361,11 +385,11 @@
 
   function historyGameLogShell(p) {
     if (!decodedHistory(p).length) return '';
-    return `<h3>Historical game log <span class="tiny">loaded on demand</span></h3>
+    return `<details class="ws-disclosure"><summary>Historical game log <span class="tiny">loaded on demand</span></summary><div class="ws-disclosure-body">
       <div id="historyGameLog" class="ws-card wide">
         <p class="tiny">Game-level NBA history is kept in a separate compressed artifact so the main database does not pay the network/memory cost until you ask for it. Starter status remains unknown outside accepted source phases.</p>
         <button class="button secondary" id="wsLoadHistoryGames" data-history-player="${esc(p.playerId)}">Load game log</button>
-      </div>`;
+      </div></div></details>`;
   }
 
   function renderHistoryGames(p, product, seasonFilter = 'all', limit = 50) {
@@ -445,7 +469,9 @@
   function viewCompare() {
     const sel = window.__wsCompared();
     const ps = sel.map(byId).filter(Boolean);
-    if (ps.length < 2) return `<p class="loading">Tick 2–5 players in the Database table, then return here.</p>`;
+    if (ps.length < 2) return `<section class="empty-state"><div class="eyebrow">PLAYER COMPARISON</div>
+      <h2>Choose two to five players</h2><p>Start in Player Stats, tick the comparison box beside each player, then return here. Your selected players stay checked while you browse.</p>
+      <div class="ws-actions"><button class="button" type="button" id="wsChooseCompare">Choose players in Player Stats</button></div></section>`;
     const metrics = ['grade', 'rateGrade', 'magnitudeGrade', 'gp', 'mpg', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov',
       'ts', 'efg', 'usg', 'astPct', 'orebPct', 'drebPct', 'offRtg', 'defRtg', 'netRtg', 'pie'];
     const cross = new Set(ps.map((p) => p.league)).size > 1;
@@ -504,7 +530,8 @@
           <button type="button" class="button secondary small" id="scClearFilters">Clear all filters</button></div>
       </section>
       <div id="scStats" class="tiny"></div>
-      <canvas id="scCanvas" width="1100" height="560" style="width:100%;max-width:1100px"></canvas>
+      <canvas id="scCanvas" width="1100" height="560" style="width:100%;max-width:1100px" role="img" tabindex="0" aria-describedby="scChartHint"></canvas>
+      <p id="scChartHint" class="tiny">Point the cursor at a dot to identify it, select a dot to open that player, or use the accessible data table below.</p>
       <details id="scLegend"><summary>Full colour legend</summary><div id="scLegendItems" class="scatter-legend"></div></details>
       <div id="scHover" class="tiny"></div>
       <div id="scOutliers"></div><details><summary>Accessible chart data</summary><div id="scData" class="table-wrap"></div></details>`;
@@ -517,6 +544,7 @@
     const pts = list.filter((p) => fin(valueOf(p, state.scatterX)) && fin(valueOf(p, state.scatterY)))
       .map((p) => ({ p, x: Number(valueOf(p, state.scatterX)), y: Number(valueOf(p, state.scatterY)),
         s: state.scatterSize && fin(valueOf(p, state.scatterSize)) ? Number(valueOf(p, state.scatterSize)) : null }));
+    cv.setAttribute('aria-label', `Scatter plot of ${window.__wsLabel(state.scatterY)} versus ${window.__wsLabel(state.scatterX)} for ${pts.length} players. Open Accessible chart data for a keyboard-readable table.`);
     ctx.clearRect(0, 0, cv.width, cv.height);
     const activeFilters = window.__siteFilterSummary?.() || [];
     $('scFilterChips').innerHTML = activeFilters.length
@@ -730,12 +758,16 @@
     const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
     const confidence = set.blendConfidence;
     const profileRead = set.profileRead || {};
-    const blueprintComponents = Array.isArray(profileRead.components) && profileRead.components.length
+    const blueprintComponents = (Array.isArray(profileRead.components) && profileRead.components.length
       ? profileRead.components
-      : blend.map((item) => ({ ...item, phrase: 'historical blend reference' }));
+      : blend.map((item) => ({ ...item, phrase: 'historical blend reference' })))
+      .slice().sort((a, b) => (Number(a.narrativeOrder) || 0) - (Number(b.narrativeOrder) || 0));
+    const blueprintRole = (item) => (item.evidence || []).map((key) => ({
+      physical: 'FRAME', role: 'ROLE', scoring: 'SCORING', defense: 'DEFENSE',
+    }[key] || 'STYLE')).join(' + ') || 'STYLE REFERENCE';
     const blueprintPlayers = blueprintComponents.map((item, i) => `
       <article class="comp-blueprint-player" data-comp-rank="${i + 1}">
-        <div class="comp-blueprint-player-top"><span>REFERENCE ${i + 1}</span><b>${cval(item.share, '—')}%</b></div>
+        <div class="comp-blueprint-player-top"><span>${esc(blueprintRole(item))}</span><b>${cval(item.share, '—')}%</b></div>
         <h4>${esc(item.name || 'Historical reference')}</h4>
         <p>${esc(item.phrase || 'Historical blend reference')}</p>
       </article>`).join('');
@@ -772,13 +804,15 @@
         </div>
         <p class="tiny"><b>Match quality:</b> ${num(q.similarity, 1)}/100 · <b>Strongest similarities:</b> ${similar}<br>
         <b>Biggest differences:</b> ${diff}</p>
-        ${compCompareTable(p, set, q)}
+        <details class="comp-side-table-disclosure"><summary>View complete side-by-side data</summary>
+          ${compCompareTable(p, set, q)}
+        </details>
       </section>`;
     }).join('');
 
     return `<div class="comp-page">
       <div class="comp-page-title">
-        <div><div class="eyebrow">HISTORICAL PLAYER COMPARISON</div><h2>Player Comps</h2></div>
+        <div><div class="eyebrow">HISTORICAL PLAYER-SEASON BLEND</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
         <div class="comp-confidence"><span>STATISTICAL BLEND FIT</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
@@ -834,26 +868,27 @@
     const rosterBasis = league() === 'NBA'
       ? 'NBA needs use 2025–26 profiles assigned to the current 2026–27 roster.'
       : 'G League needs use 2025–26 team assignments and profiles.';
+    const fitRow = (f) => `<tr>
+      <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button>${isTeamMember(f) ? `<span class="team-fit-member">${league() === 'NBA' ? 'Already on roster' : '2025–26 team member'}</span>` : ''}</td>
+      <td>${gnum(f.grade)}</td><td><b>${f.score}/100</b></td>
+      <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>') || '—'}</td></tr>`;
+    const fitTable = (list) => `<div class="table-wrap"><table class="compare-table"><thead><tr>
+      <th class="left">Player</th><th>Grade</th><th>Fit</th><th class="left">Why</th></tr></thead><tbody>${list.map(fitRow).join('')}</tbody></table></div>`;
+    const topFits = (t.topFits || []).slice(0, 10);
+    const remainingFits = (t.topFits || []).slice(10, 30);
     return `<h2>Team fit — ${esc(t.team)}</h2>
       <div class="ws-controls"><label>Team<select id="tfTeam">
         ${names.map((n) => `<option value="${esc(n)}"${n === t.team ? ' selected' : ''}>${esc(n)}</option>`).join('')}
       </select></label><span class="tiny">${t.rosterSize} measured player profiles used in the team-need baseline</span></div>
       <p class="tiny">${rosterBasis} Players without a measured profile are omitted from the baseline.</p>
-      <div class="ws-cols">
-        <section><h3>Roster needs <span class="tiny">100 = biggest gap</span></h3>
-          ${needs.map(([, v]) => bar(v.label, v.need)).join('')}</section>
-        <section><h3>Roster strengths <span class="tiny">minutes-weighted percentile</span></h3>
-          ${needs.slice().reverse().map(([, v]) => bar(v.label, v.strength)).join('')}</section>
-      </div>
-      <h3>Best fits</h3>
-      <p class="tiny">Fit is <b>not</b> player quality or an acquisition recommendation. The ranking includes current/prior-team members as well as other players with measured profiles; marked team members are not automatically acquisition targets. A lower-graded player can fit better because his measured profile supplies what this team’s baseline lacks.</p>
-      <div class="table-wrap"><table class="compare-table"><thead><tr>
-        <th class="left">Player</th><th>Grade</th><th>Fit</th><th class="left">Why</th></tr></thead><tbody>
-        ${t.topFits.slice(0, 30).map((f) => `<tr>
-          <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button>${isTeamMember(f) ? `<span class="team-fit-member">${league() === 'NBA' ? 'Current roster' : '2025–26 team'}</span>` : ''}</td>
-          <td>${gnum(f.grade)}</td><td><b>${f.score}/100</b></td>
-          <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>') || 'No pronounced roster need crosses the explanation threshold; score reflects the weighted profile across all measured needs.'}</td></tr>`).join('')}
-      </tbody></table></div>`;
+      <section><h3>Roster needs <span class="tiny">100 = biggest gap</span></h3>
+        ${needs.map(([, v]) => bar(v.label, v.need)).join('')}</section>
+      <details class="ws-disclosure"><summary>Roster strengths <span class="tiny">minutes-weighted percentile</span></summary><div class="ws-disclosure-body">
+        ${needs.slice().reverse().map(([, v]) => bar(v.label, v.strength)).join('')}</div></details>
+      <h3>All-player fit results</h3>
+      <p class="tiny">Fit is <b>not</b> player quality or an acquisition recommendation. This is an all-player ranking: current or prior team members are retained and clearly tagged. A dash in “Why” means no individual strength crossed the display threshold; the score still uses every measured need.</p>
+      ${fitTable(topFits)}
+      ${remainingFits.length ? `<details class="ws-disclosure"><summary>Show ${remainingFits.length} more fit results</summary><div class="ws-disclosure-body">${fitTable(remainingFits)}</div></details>` : ''}`;
   }
 
   /* ------------------------------------------------------- ROLE VALUE MODE */
@@ -935,7 +970,7 @@
           appears beneficial. Dominated by who currently holds those minutes.</p>
           <div class="v big">${num(rot?.neutralRotationDelta, 2)}</div></section>
       </div>
-      <h3>Rotation Delta <span class="tiny">decomposed, not one number</span></h3>
+      <details class="ws-disclosure"><summary>Rotation Delta details <span class="tiny">decomposed, not one number</span></summary><div class="ws-disclosure-body">
       <div class="ws-grid">
         <div class="ws-card"><div class="k">Candidate projection</div><div class="v">${num(rot.decomposition.candidateProjection, 2)}</div></div>
         <div class="ws-card"><div class="k">Displaced (weakest)</div><div class="v">${num(rot.decomposition.displacedProjection, 2)}</div></div>
@@ -955,7 +990,7 @@
       </div>
       <p class="tiny">${esc(rot.magnitudeCaveat)}</p>
       <p class="tiny">${esc(rot.leagueNote)}</p>
-      <p class="tiny">Minutes reallocated: ${num(rot.minutesReallocated)} from ${rot.displaced.map((x) => `${esc(x.name)} (-${x.minutesTaken})`).join(', ')}</p>
+      <p class="tiny">Minutes reallocated: ${num(rot.minutesReallocated)} from ${rot.displaced.map((x) => `${esc(x.name)} (-${x.minutesTaken})`).join(', ')}</p></div></details>
       ` : `<p class="tiny">No rotation delta: ${esc(rot?.reason || 'not computed for this target. Rotation decisions are available only at the default target; no default-scenario decision is reused here.')}</p>`}
 
       ${frontierBlock(t, target)}
@@ -970,16 +1005,16 @@
       ${(() => {
         const src = (!card.abstain && card.projection && Math.abs(card.targetMpg - target) < 0.01)
           ? card.projection : null;
-        return src && src.topComparables ? `<h3>Closest comparables at ${target} MPG</h3>
+        return src && src.topComparables ? `<details class="ws-disclosure"><summary>Closest comparables at ${target} MPG</summary><div class="ws-disclosure-body">
       <div class="table-wrap"><table class="compare-table"><thead><tr>
         <th class="left">Player</th><th>Similarity</th><th>MPG</th><th>On-court diff</th></tr></thead><tbody>
         ${src.topComparables.map((c) => `<tr><td class="left">${esc(c.name)} <span class="tiny">${esc(c.team)}</span></td>
           <td>${num(c.similarity, 1)}</td><td>${num(c.mpg)}</td><td>${num(c.netRtg, 1)}</td></tr>`).join('')}
-      </tbody></table></div>`
-          : '<p class="tiny">Named comparables are shown for the default scenario; other role bands report their comparable COUNT and mean similarity above.</p>';
+      </tbody></table></div></div></details>`
+          : '<p class="tiny">Named comparables are available only for the default scenario; other role bands report their comparable count and mean similarity above.</p>';
       })()}
 
-      ${(() => { const b = window.DATA?.tulipMeta?.validationSnapshot?.balance?.starterContext || {};
+      <details class="ws-disclosure"><summary>Method limits and residual bias</summary><div class="ws-disclosure-body">${(() => { const b = window.DATA?.tulipMeta?.validationSnapshot?.balance?.starterContext || {};
         const pooled = fin(b.pooledSmd) ? Number(b.pooledSmd).toFixed(3) : 'n/a';
         const worst = fin(b.worstBandSmd) ? Number(b.worstBandSmd).toFixed(3) : 'n/a';
         return `<p class="tiny"><b>Known residual bias.</b> Comparables at a large target role started a much
@@ -987,9 +1022,9 @@
         SMD is ${pooled}, while the worst target band is ${esc(b.worstBand || '—')} at ${worst}.
         That gap is structural: a pool of bench players who play starter minutes barely exists.
         Direction is known; causal magnitude is not identified.</p>`; })()}
-      ${comparablesNote()}
+      ${comparablesNote()}</div></details>
 
-      <h3>Best supported expansions, this league</h3>
+      <details class="ws-disclosure"><summary>Best supported expansions in this league</summary><div class="ws-disclosure-body">
       <div class="table-wrap"><table class="compare-table"><thead><tr>
         <th class="left">Player</th><th>MPG</th><th>Target</th><th>League delta</th><th>Neutral delta</th><th>Support</th><th>Verdict</th></tr></thead><tbody>
         ${cands.filter((x) => !x.tulip.card.abstain && x.tulip.card.rotation && !x.tulip.card.rotation.abstain)
@@ -1001,7 +1036,7 @@
           <td>${num(x.tulip.card.rotation.neutralRotationDelta, 2)}</td>
           <td>${x.tulip.card.projection.support}</td>
           <td class="tiny">${esc(x.tulip.card.rotation.verdict)}</td></tr>`).join('')}
-      </tbody></table></div>`;
+      </tbody></table></div></div></details>`;
   }
 
   function comparablesNote() {
@@ -1020,15 +1055,19 @@
     return `<h3>Role Value Frontier</h3>
       <p class="tiny">Blue band = 80% interval. Bar height = support. Hollow markers = the model
       has <b>no evidence</b> at that role, which is different from expecting decline.</p>
-      <canvas id="tuCanvas" width="1000" height="380" style="width:100%;max-width:1000px"
-        data-target="${target}"></canvas>
-      <div id="tuLegend" class="tiny"></div>`;
+      <canvas id="tuCanvas" width="1000" height="380" style="width:100%;max-width:1000px" role="img" tabindex="0"
+        data-target="${target}" aria-describedby="tuLegend"></canvas>
+      <div id="tuLegend" class="tiny"></div>
+      <details><summary>Accessible frontier data</summary><div id="tuData" class="table-wrap"></div></details>`;
   }
 
   function drawFrontier() {
     const cv = $('tuCanvas'); if (!cv) return;
     const p = byId(state.tulipPlayer); if (!p || !p.tulip) return;
     const pts = p.tulip.frontier;
+    cv.setAttribute('aria-label', `Role Value Frontier for ${p.name}: target role in minutes per game versus projected on-court impact. Open Accessible frontier data for the underlying values.`);
+    const dataTarget = $('tuData');
+    if (dataTarget) dataTarget.innerHTML = `<table class="compare-table"><thead><tr><th>Target MPG</th><th>Projected impact</th><th>80% interval</th><th>Support</th><th>Evidence</th></tr></thead><tbody>${pts.map((f) => `<tr><td>${num(f.mpg)}</td><td>${f.abstain ? '—' : num(f.projectedImpact, 2)}</td><td>${f.abstain ? '—' : (f.interval ? `${num(f.interval[0], 2)} to ${num(f.interval[1], 2)}` : '—')}</td><td>${f.support ?? '—'}</td><td>${f.abstain ? 'Insufficient evidence' : 'Supported'}</td></tr>`).join('')}</tbody></table>`;
     const ctx = cv.getContext('2d');
     const W = cv.width, H = cv.height, pad = 56;
     ctx.clearRect(0, 0, W, H);
@@ -1123,6 +1162,7 @@
   function wire() {
     const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
     on('scEditFilters', 'click', () => changeMode('database'));
+    on('wsChooseCompare', 'click', () => changeMode('database'));
     on('scClearFilters', 'click', () => window.__siteClearAllFilters?.());
     document.querySelectorAll('[data-filter-clear]').forEach((b) => {
       b.onclick = () => window.__siteClearFilter?.(b.dataset.filterClear);
@@ -1130,28 +1170,48 @@
     on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; changeMode('similarity'); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
-    const chooseCompPlayer = (raw) => {
+    const selectCompPlayer = (candidate) => {
+      if (!candidate) return;
+      state.simPlayer = candidate.playerId;
+      state.player = candidate.playerId;
+      state.simQuery = '';
+      hideCompSuggestions();
+      render();
+      window.__siteUrlChanged?.('push');
+    };
+    const chooseCompPlayer = (raw, useActive = false) => {
       raw = String(raw || '').trim();
       const exact = compPool().find((p) => p.name.toLowerCase() === raw.toLowerCase())
-        || compPool().find((p) => compPlayerLabel(p) === raw)
-        || compPool().find((p) => fold(p.name).startsWith(fold(raw)));
-      if (exact) {
-        state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); window.__siteUrlChanged?.('push');
-      }
+        || compPool().find((p) => compPlayerLabel(p).toLowerCase() === raw.toLowerCase());
+      const candidates = compSuggestionMatches(raw);
+      const active = useActive && state.simActiveIndex >= 0 ? candidates[state.simActiveIndex] : null;
+      selectCompPlayer(exact || active);
     };
-    on('simSearch', 'focus', (e) => updateCompSuggestions(e.target.value));
-    on('simSearch', 'input', (e) => { state.simQuery = e.target.value; updateCompSuggestions(e.target.value); });
+    on('simSearch', 'focus', (e) => { state.simActiveIndex = -1; updateCompSuggestions(e.target.value); });
+    on('simSearch', 'input', (e) => { state.simQuery = e.target.value; state.simActiveIndex = -1; updateCompSuggestions(e.target.value); });
     on('simSearch', 'keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value); }
-      if (e.key === 'Escape' && $('simSuggestions')) $('simSuggestions').hidden = true;
+      const candidates = compSuggestionMatches(e.target.value);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!state.simSuggestionsOpen) updateCompSuggestions(e.target.value);
+        const delta = e.key === 'ArrowDown' ? 1 : -1;
+        state.simActiveIndex = candidates.length
+          ? (state.simActiveIndex + delta + candidates.length) % candidates.length : -1;
+        updateCompSuggestions(e.target.value);
+      }
+      if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value, true); }
+      if (e.key === 'Escape') hideCompSuggestions();
     });
+    on('simSearch', 'blur', () => window.setTimeout(() => {
+      const box = $('simSuggestions');
+      if (!box?.contains(document.activeElement)) hideCompSuggestions();
+    }, 120));
     on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
       const b = e.target.closest('[data-sim-pick]');
       if (!b) return;
-      const exact = byId(b.dataset.simPick);
-      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); window.__siteUrlChanged?.('push'); }
+      selectCompPlayer(byId(b.dataset.simPick));
     });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); window.__siteUrlChanged?.('push'); });

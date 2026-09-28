@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Cross-player historical NBA game-log explorer for current 2025-26 database players" />
   <title>History Lab: NBA Game Logs, Pro Basketball Database</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260927-final-audit" />
   <style>
     .history-shell{max-width:1680px;margin:0 auto;padding:16px 20px 28px}.history-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:18px}.history-head h1{margin:.15rem 0 .3rem}.history-back{white-space:nowrap;text-decoration:none}.history-controls{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:8px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:0;background:var(--panel2);margin-bottom:10px}.history-controls label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted)}.history-controls input,.history-controls select{min-width:0}.history-summary{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:14px 0}.history-card{border:1px solid var(--line);border-radius:0;background:var(--panel);padding:6px 9px}.history-card .k{font-size:11px;color:var(--muted)}.history-card .v{font-size:18px;font-weight:700;color:var(--ink);margin-top:2px}.history-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.history-note{max-width:1100px}.history-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}.history-section{border:1px solid var(--line);border-radius:0;background:var(--panel);padding:12px}.history-section h2{margin:.1rem 0 .4rem}.history-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.history-table th,.history-table td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-size:12.5px}.history-table th:first-child,.history-table td:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}.history-table th{font-size:12px;font-weight:700;color:var(--ink);background:var(--head);border-bottom:1px solid var(--line-strong);cursor:pointer}.history-table tbody tr:nth-child(even) td{background:var(--stripe)}.history-table tbody tr:hover td{background:var(--row-hover)}.history-player{font-weight:700}.history-sub{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}.history-empty{padding:24px;color:var(--muted)}.history-status{min-height:18px}.history-start-known{font-size:11px;color:var(--muted)}.history-pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}.history-pagination button{min-width:72px}.history-raw-name{max-width:220px;overflow:hidden;text-overflow:ellipsis}.history-danger{color:var(--warn)}.history-good{color:var(--pos)}@media(max-width:1100px){.history-controls{grid-template-columns:repeat(3,minmax(130px,1fr))}.history-summary{grid-template-columns:repeat(3,minmax(120px,1fr))}}@media(max-width:650px){.history-shell{padding:12px}.history-head{display:block}.history-back{display:inline-block;margin-top:10px}.history-controls{grid-template-columns:1fr 1fr}.history-summary{grid-template-columns:1fr 1fr}.history-table th,.history-table td{padding:7px 8px;font-size:12px}}
     .history-table th{cursor:default}
+    .history-controls{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.history-advanced{margin:0 0 10px}.history-advanced>summary{padding:7px 0}
   </style>
 </head>
 <body>
   <header class="site-header">
     <div class="site-bar">
       <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span>Pro Basketball Database</a>
-      <nav class="site-nav" aria-label="Sections">
+      <nav class="site-nav" aria-label="Primary sections">
         <a class="site-link" href="index.html">Player Stats</a>
         <a class="site-link" href="index.html#projections">2026-27 Projections</a>
         <a class="site-link active" href="history-lab.html">History Lab</a>
@@ -32,10 +33,15 @@
       <a class="btn history-back" href="index.html">Back to player stats</a>
     </div>
 
-    <section class="history-controls" aria-label="Historical filters">
+    <section class="history-controls" aria-label="Core historical filters">
       <label>Player search<input id="hPlayer" type="search" placeholder="Name…" /></label>
       <label>Season<select id="hSeason"><option value="">All seasons</option></select></label>
       <label>Phase<select id="hPhase"><option value="">Regular + playoffs</option><option>Regular Season</option><option>Playoffs</option></select></label>
+    </section>
+
+    <details class="history-advanced">
+      <summary>More filters and sorting</summary>
+      <section class="history-controls" aria-label="Advanced historical filters">
       <label>Team<select id="hTeam"><option value="">All teams</option></select></label>
       <label>Opponent<select id="hOpponent"><option value="">All opponents</option></select></label>
       <label>Starter status<select id="hStarted"><option value="">Any / unknown</option><option value="true">Known starter</option><option value="false">Known bench</option><option value="unknown">Unknown only</option></select></label>
@@ -45,7 +51,8 @@
       <label>Minimum games/player<input id="hMinGames" type="number" min="1" step="1" value="1" /></label>
       <label>Sort players by<select id="hSort"><option value="pts">PTS / game</option><option value="minutes">Minutes / game</option><option value="reb">REB / game</option><option value="ast">AST / game</option><option value="stl">STL / game</option><option value="blk">BLK / game</option><option value="plusMinus">+/- / game</option><option value="games">Games</option><option value="starts">Known starts</option></select></label>
       <label>Raw game rows<select id="hRawLimit"><option value="50">50</option><option value="100" selected>100</option><option value="250">250</option><option value="500">500</option></select></label>
-    </section>
+      </section>
+    </details>
 
     <div class="history-actions">
       <button id="hReset" class="button secondary">Reset filters</button>
@@ -64,6 +71,7 @@
           <thead><tr><th>Player</th><th>G</th><th>Known GS</th><th>Start%</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>+/-</th></tr></thead>
           <tbody></tbody>
         </table></div>
+        <div class="history-pagination"><button id="hPlayerPrev" class="button secondary small">Previous</button><span id="hPlayerPage" class="tiny"></span><button id="hPlayerNext" class="button secondary small">Next</button></div>
       </section>
 
       <section class="history-section">
@@ -77,6 +85,6 @@
       </section>
     </div>
   </main>
-  <script src="history-lab.js"></script>
+  <script src="history-lab.js?v=20260927-final-audit"></script>
 </body>
 </html>

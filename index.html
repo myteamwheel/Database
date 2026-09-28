@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="2025-26 NBA and NBA G League player stats, rankings and 2026-27 projections" />
   <title>Pro Basketball Database: 2025-26 Player Stats and 2026-27 Projections</title>
-  <link rel="stylesheet" href="styles.css" />
+  <!-- Versioned URLs make a Pages deploy immediately pick up the matching UI assets. -->
+  <link rel="stylesheet" href="styles.css?v=20260927-final-audit" />
 </head>
 <body>
   <header class="site-header">
     <div class="site-bar">
       <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span>Pro Basketball Database</a>
-      <nav class="site-nav" aria-label="Sections">
+      <nav class="site-nav" aria-label="Primary sections">
         <button class="site-link active" data-goto="stats" type="button">Player Stats</button>
         <button class="site-link" data-goto="proj" type="button">2026-27 Projections</button>
         <button class="site-link" data-goto="comps" type="button">Player Comps</button>
@@ -35,14 +36,12 @@
       </section>
     </div>
 
-    <nav class="mode-nav" id="modeNav" aria-label="Analysis mode"></nav>
-
-    <section class="db-only summary-grid" id="summaryGrid" hidden></section>
+    <nav class="mode-nav" id="modeNav" aria-label="Analysis tools"></nav>
 
     <section class="db-only proj-note" id="projNote" hidden>
       <p><b>Projected per-game stats for the 2026-27 regular season.</b> Each line blends a player's last
-      three seasons, adjusts for age, development, minutes and games, and uses his 2026-27 team's roster
-      and pace. Rosters as of <span id="projRosterDate">September 2026</span>.
+      three seasons, adjusts for age, development, minutes and games, and <span id="projScope">uses his 2026-27 team's roster
+      and pace</span>. Rosters as of <span id="projRosterDate">September 2026</span>.
       <button class="text-button" id="projMethodBtn" type="button">How the projections work</button></p>
     </section>
 
@@ -183,7 +182,7 @@
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js"></script>
-  <script src="workspace.js"></script>
+  <script src="app.js?v=20260927-final-audit"></script>
+  <script src="workspace.js?v=20260927-final-audit"></script>
 </body>
 </html>

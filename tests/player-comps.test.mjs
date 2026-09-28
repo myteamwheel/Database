@@ -49,6 +49,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.ok(set.top3.length >= 1 && set.top3.length <= 3, `${p.name}: component count`);
     assert.equal(set.blend.length, set.top3.length, `${p.name}: cards and weights disagree`);
     assert.equal(new Set(set.top3.map((x) => String(x.playerId))).size, set.top3.length, `${p.name}: duplicate player`);
+    assert.ok(set.top3.every((x) => /[A-Za-z]/.test(String(x.name || ''))), `${p.name}: unresolved numeric comp name`);
     assert.equal(set.blend.reduce((sum, x) => sum + x.share, 0), 100, `${p.name}: shares`);
     assert.ok(set.blend.every((x) => x.share > 0), `${p.name}: zero-share card`);
     assert.ok(set.profileRead?.text?.includes(p.name), `${p.name}: missing individualized profile description`);

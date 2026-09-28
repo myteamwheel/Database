@@ -64,7 +64,7 @@ export const INGREDIENTS = {
     { id: 'ts',       w: 0.45, key: 'ts',                   concepts: { shootingEfficiency: 1 } },
     { id: 'efg',      w: 0.15, key: 'efg',                  concepts: { shootingEfficiency: 1 } },
     { id: 'turnovers', w: 0.25, pg: 'tovPG', p36: 'tov36', invert: true, concepts: { ballSecurity: 1 } },
-    { id: 'toRatio',  w: 0.15, key: 'tovPct', invert: true, concepts: { ballSecurity: 1 } },
+    { id: 'tovPct',   w: 0.15, key: 'tovPct', invert: true, concepts: { ballSecurity: 1 } },
   ],
   impact: [
     // PIE is itself composed of box-score primitives; that dependency is declared rather than

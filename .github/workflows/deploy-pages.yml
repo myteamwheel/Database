@@ -102,7 +102,8 @@ jobs:
           # deploy is broken in a way a 200 on the root URL will not reveal.
           missing=0
           for page in _site/*.html; do
-            for ref in $(grep -oE '(src|href)="[^":]+\.(js|css)"' "$page" | sed -E 's/.*="([^"]+)"/\1/'); do
+            for ref in $(grep -oE '(src|href)="[^"]+\.(js|css)(\?[^\"]*)?"' "$page" | sed -E 's/.*="([^"]+)"/\1/'); do
+              ref="${ref%%\?*}"
               if [ ! -f "_site/$ref" ]; then echo "MISSING asset $ref referenced by $(basename "$page")"; missing=1; fi
             done
           done
