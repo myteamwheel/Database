@@ -54,6 +54,15 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.ok(set.profileRead?.text?.includes(p.name), `${p.name}: missing individualized profile description`);
     assert.ok(set.profileRead.text.trim().split(/\s+/).length <= 60, `${p.name}: profile read is too long`);
     assert.doesNotMatch(set.profileRead.text, /\b(?:19|20)\d{2}-\d{2}\b/, `${p.name}: profile prose should not repeat comp seasons`);
+    assert.doesNotMatch(set.profileRead.text, /\bin the fitted blend\b/i, `${p.name}: profile should read like a player description`);
+    assert.ok(Array.isArray(set.profileRead.components), `${p.name}: missing blueprint components`);
+    assert.equal(set.profileRead.components.length, set.blend.length, `${p.name}: blueprint components and blend disagree`);
+    assert.deepEqual(set.profileRead.components.map((x) => String(x.playerId)), set.blend.map((x) => String(x.playerId)),
+      `${p.name}: blueprint references must preserve blend order`);
+    assert.ok(set.profileRead.components.every((x) => typeof x.phrase === 'string' && x.phrase.trim()),
+      `${p.name}: blueprint reference is missing a readable trait`);
+    assert.ok(set.profileRead.components.every((x) => !/\b(?:box-score|shot profile|listed frame)\b/i.test(x.phrase)),
+      `${p.name}: blueprint uses a raw statistical label instead of a basketball trait`);
     assert.ok(set.profileRead?.caveat, `${p.name}: missing analogy limitation`);
     assert.equal(set.profileRead.blend, set.blend.map((x) => `${x.name} ${x.share}%`).join(', '), `${p.name}: prose blend disagrees with optimized weights`);
     assert.ok(Object.values(set.profileRead.references || {}).every((ref) =>

@@ -502,41 +502,127 @@ function playerStyleRead(target, selected, blend) {
         season: alternate.comp.season, fit: r1(alternate.score), blendShare: alternate.share,
         axes: alsoAxes } } : {}) };
   }
-  const frame = references.physical;
   const mix = blend.map((x) => `${x.name} ${x.share}%`).join(', ');
-  const blockLabels = {
-    physical: 'listed frame', role: 'playmaking',
-    scoring: 'shot profile', defense: 'box-score defense',
+  // These descriptions deliberately translate the matched statistics into basketball language.
+  // They are not independent scouting grades: the exact matching axes remain available in the
+  // data and the side-by-side table below the read.
+  const has = (axes, label) => axes.includes(label);
+  const traitPhrase = (block, axes = []) => {
+    if (block === 'physical') {
+      const size = has(axes, 'height'), build = has(axes, 'weight');
+      const length = has(axes, 'wingspan') || has(axes, 'standing reach');
+      if (size && build && length) return 'size, build, and length';
+      if (size && build) return 'size and build';
+      if (size && length) return 'size and length';
+      if (length) return 'length';
+      if (build) return 'build';
+      return 'physical profile';
+    }
+    if (block === 'role') {
+      const creation = has(axes, 'playmaking volume') || has(axes, 'assist rate')
+        || has(axes, 'assist-to-turnover profile') || has(axes, 'assist ratio');
+      const workload = has(axes, 'usage') || has(axes, 'shot volume') || has(axes, 'minutes/role');
+      const glass = has(axes, 'rebounding role') || has(axes, 'total rebounding rate');
+      if (creation && workload) return 'on-ball creation and playmaking';
+      if (creation) return 'connective playmaking';
+      if (workload && glass) return 'offensive role and rebounding involvement';
+      if (workload) return 'offensive workload';
+      if (glass) return 'rebounding role';
+      if (has(axes, 'turnover load')) return 'ball-handling workload';
+      return 'role profile';
+    }
+    if (block === 'scoring') {
+      const spacing = has(axes, 'three-point shot share') || has(axes, 'three-point accuracy');
+      const efficient = has(axes, 'true shooting') || has(axes, 'effective field-goal percentage');
+      const pressure = has(axes, 'free-throw pressure') || has(axes, 'free-throw volume');
+      const scoring = has(axes, 'scoring rate');
+      if (spacing && efficient) return 'efficient floor spacing';
+      if (spacing && scoring) return 'perimeter-oriented scoring';
+      if (spacing) return 'three-point shooting';
+      if (pressure && scoring) return 'rim and line pressure';
+      if (pressure && efficient) return 'efficient line pressure';
+      if (pressure) return 'free-throw pressure';
+      if (efficient && scoring) return 'efficient scoring';
+      if (efficient) return 'shooting efficiency';
+      if (scoring) return 'scoring output';
+      return 'scoring profile';
+    }
+    const steals = has(axes, 'steal activity');
+    const rim = has(axes, 'rim protection');
+    const defensiveGlass = has(axes, 'defensive rebounding');
+    const offensiveGlass = has(axes, 'offensive rebounding');
+    if (steals && rim) return 'event-creating defense';
+    if (rim && defensiveGlass) return 'interior activity and defensive rebounding';
+    if (defensiveGlass && offensiveGlass) return 'work on the glass';
+    if (steals && defensiveGlass) return 'ball pressure and defensive rebounding';
+    if (steals) return 'ball-pressure activity';
+    if (rim) return 'rim-protection activity';
+    if (defensiveGlass) return 'defensive rebounding';
+    if (offensiveGlass) return 'offensive rebounding';
+    return 'defensive activity';
   };
   const contributions = new Map(blend.map((item) => [String(item.playerId), {
-    name: item.name, primary: [], secondary: [],
+    playerId: item.playerId, name: item.name, season: item.season, share: item.share,
+    direct: [], supporting: [],
   }]));
   for (const [block, ref] of Object.entries(references)) {
-    contributions.get(String(ref.playerId))?.primary.push(blockLabels[block]);
+    contributions.get(String(ref.playerId))?.direct.push({ block, phrase: traitPhrase(block, ref.axes || []) });
     if (ref.also) {
-      const detail = (ref.also.axes || []).slice(0, 2);
-      contributions.get(String(ref.also.playerId))?.secondary.push(...(detail.length ? detail : [blockLabels[block]]));
+      contributions.get(String(ref.also.playerId))?.supporting.push({
+        block, phrase: traitPhrase(block, ref.also.axes || []),
+      });
     }
   }
+  const selectedById = new Map(selected.map((item) => [String(item.cand.playerId), item]));
+  for (const component of contributions.values()) {
+    if (component.direct.length || component.supporting.length) continue;
+    const item = selectedById.get(String(component.playerId));
+    if (!item) continue;
+    const strongest = Object.keys(BLOCKS)
+      .map((block) => ({ block, score: Number(item.m.blockScores?.[block]) }))
+      .filter((x) => Number.isFinite(x.score))
+      .sort((a, b) => b.score - a.score)[0];
+    if (!strongest) continue;
+    const details = item.m.blockDetails?.[strongest.block] || [];
+    const axes = details.map((x) => x.label).slice(0, 2);
+    component.supporting.push({ block: strongest.block, phrase: traitPhrase(strongest.block, axes) });
+  }
   const positionParts = String(target.position || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
-  const position = positionParts.includes('C') && positionParts.includes('F') ? 'frontcourt'
+  const position = positionParts.includes('C') && positionParts.includes('F') ? 'frontcourt player'
     : positionParts.includes('C') ? 'center'
-    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) && positionParts.includes('F') ? 'guard/wing'
+    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) && positionParts.includes('F') ? 'guard-wing'
     : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) ? 'guard'
-    : positionParts.includes('F') ? 'forward/wing' : '';
-  const naturalJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]} and ${items[1]}`
+    : positionParts.includes('F') ? 'forward/wing' : 'player';
+  const traitJoin = (items) => items.length < 2 ? items[0] || ''
+    : items.length === 2 ? `${items[0]} plus ${items[1]}`
     : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
-  const contributionsText = [...contributions.values()].map((item) => {
-    if (item.primary.length) return `${item.name}'s ${naturalJoin(item.primary)}`;
-    if (item.secondary.length) return `${item.name}'s secondary resemblance in ${item.secondary[0]}`;
-    return `${item.name}'s broader statistical resemblance`;
+  const componentJoin = (items) => items.length < 2 ? items[0] || ''
+    : items.length === 2 ? `${items[0]}, alongside ${items[1]}`
+    : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
+  const components = [...contributions.values()].map((item) => {
+    const traits = item.direct.length ? item.direct : item.supporting;
+    const phrase = traitJoin([...new Set(traits.map((x) => x.phrase))]);
+    const firstBlock = traits.map((x) => ['physical', 'role', 'scoring', 'defense'].indexOf(x.block))
+      .filter((x) => x >= 0).sort((a, b) => a - b)[0] ?? 9;
+    return {
+      playerId: item.playerId, name: item.name, season: item.season, share: item.share,
+      phrase: phrase || 'statistical profile', narrativeOrder: firstBlock,
+      evidence: traits.map((x) => x.block),
+      supporting: !item.direct.length,
+    };
   });
-  const text = contributionsText.length
-    ? `In the fitted blend, ${target.name}'s ${position ? `${position} ` : ''}profile combines ${naturalJoin(contributionsText)}.`
+  const contributionsText = [...components]
+    .sort((a, b) => a.narrativeOrder - b.narrativeOrder || b.share - a.share)
+    .map((item) => ({ ...item, text: `${item.name}'s ${item.phrase}` }));
+  const primaryText = contributionsText.filter((item) => !item.supporting).map((item) => item.text);
+  const supportingText = contributionsText.filter((item) => item.supporting);
+  const text = primaryText.length
+    ? `${target.name} is a ${position} who combines ${componentJoin(primaryText)}.${supportingText.map((item) => ` ${item.name} also adds ${item.phrase}.`).join('')}`
+    : supportingText.length
+      ? `${target.name} is a ${position}. ${supportingText.map((item) => `${item.name} adds ${item.phrase}.`).join(' ')}`
     : `The blend offers a few statistical reference points for ${target.name}, but the available measurements do not support a clear trait-by-trait description.`;
-  return { text, references, blend: mix,
-    caveat: 'Statistical parallels only; the source data do not measure athleticism, strength, speed, or movement.' };
+  return { text, references, components, position, blend: mix,
+    caveat: 'These labels summarize matched statistics, not scouting grades. The data do not measure athleticism, strength, speed, or movement.' };
 }
 
 // A blend should reconstruct the target's listed physical profile and playing style, not merely

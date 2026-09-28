@@ -730,11 +730,15 @@
     const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
     const confidence = set.blendConfidence;
     const profileRead = set.profileRead || {};
-    const traitNames = { physical: 'Listed frame', role: 'Role & playmaking', scoring: 'Scoring & shot profile', defense: 'Defensive activity' };
-    const traitReferences = Object.entries(profileRead.references || {}).map(([key, ref]) => `
-      <div class="comp-trait-reference"><span class="eyebrow">${esc(traitNames[key] || key)}</span>
-        <b>${esc(ref.name)}</b>
-        <span class="tiny">${esc((ref.axes || []).join(' · ') || 'closest available reference')}</span></div>`).join('');
+    const blueprintComponents = Array.isArray(profileRead.components) && profileRead.components.length
+      ? profileRead.components
+      : blend.map((item) => ({ ...item, phrase: 'historical blend reference' }));
+    const blueprintPlayers = blueprintComponents.map((item, i) => `
+      <article class="comp-blueprint-player" data-comp-rank="${i + 1}">
+        <div class="comp-blueprint-player-top"><span>REFERENCE ${i + 1}</span><b>${cval(item.share, '—')}%</b></div>
+        <h4>${esc(item.name || 'Historical reference')}</h4>
+        <p>${esc(item.phrase || 'Historical blend reference')}</p>
+      </article>`).join('');
 
     const heroes = shown.map((q, i) => {
       const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
@@ -793,10 +797,12 @@
         <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
-      <section class="comp-style-read" aria-labelledby="comp-style-heading">
-        <div><div class="eyebrow">PLAYER STYLE SUMMARY</div><h3 id="comp-style-heading">How to picture ${esc(p.name)}</h3></div>
-        <p class="comp-style-copy">${esc(profileRead.text || set.shorthand || 'A player-specific style read is not available for this record.')}</p>
-        ${traitReferences ? `<div class="comp-trait-grid">${traitReferences}</div>` : ''}
+      <section class="comp-style-read comp-blueprint" aria-labelledby="comp-style-heading">
+        <div class="comp-blueprint-intro"><div class="comp-blueprint-target">
+          <div class="eyebrow">PLAYER STYLE BLUEPRINT</div><h3 id="comp-style-heading">${esc(p.name)}</h3>
+          <span class="comp-blueprint-position">${esc(profileRead.position || 'Player profile')}</span></div>
+          <p class="comp-style-copy">${esc(profileRead.text || set.shorthand || 'A player-specific style read is not available for this record.')}</p></div>
+        ${blueprintPlayers ? `<div class="comp-blueprint-players" aria-label="Historical player references">${blueprintPlayers}</div>` : ''}
         <p class="tiny comp-style-note">${esc(profileRead.caveat || 'These are statistical parallels, not claims of identical skill.')}</p>
       </section>
       <div class="comp-hero-grid">${heroes}</div>
