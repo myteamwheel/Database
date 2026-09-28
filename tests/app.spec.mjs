@@ -458,6 +458,18 @@ test.describe('analysis workspace', () => {
     const txt = await page.$eval('#workspace', (e) => e.textContent);
     expect(txt).toContain('blend composition');
     expect(txt).toContain('STATISTICAL BLEND FIT');
+    expect(txt).toContain('How to picture');
+    expect(txt).toContain('closest fits within the selected blend');
+    expect(await page.$$eval('#workspace .comp-trait-reference', (x) => x.length)).toBeGreaterThan(0);
+    const composition = await page.evaluate(() => {
+      const order = ['.comp-target-strip', '.comp-style-read', '.comp-hero-grid']
+        .map((s) => [...document.querySelectorAll('#workspace ' + s)].at(-1).getBoundingClientRect().top);
+      return { order, size: parseFloat(getComputedStyle(document.querySelector('.comp-style-copy')).fontSize), oldRead: !!document.querySelector('.comp-shorthand') };
+    });
+    expect(composition.order[0]).toBeLessThan(composition.order[1]);
+    expect(composition.order[1]).toBeLessThan(composition.order[2]);
+    expect(composition.size).toBeGreaterThanOrEqual(18);
+    expect(composition.oldRead).toBe(false);
     for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
       'Usage', 'AST%', 'AST / TO', 'True shooting', 'eFG%', '3PA share', 'FT rate',
       'STL / 36', 'BLK / 36', 'DREB%', 'OREB%', 'REB%', 'Net rating']) {
@@ -469,6 +481,16 @@ test.describe('analysis workspace', () => {
     expect(await page.$('#simTeam')).not.toBeNull();
     expect(await page.$('#simPosition')).not.toBeNull();
     expect(await page.$('#simSel')).toBeNull();
+    await page.focus('#simSearch');
+    await page.fill('#simSearch', '');
+    const menu = page.locator('#simSuggestions');
+    expect(await menu.locator('[data-sim-pick]').count()).toBeGreaterThan(500);
+    const scroll = await menu.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+      return { top: el.scrollTop, height: el.clientHeight, content: el.scrollHeight };
+    });
+    expect(scroll.content).toBeGreaterThan(scroll.height);
+    expect(scroll.top).toBeGreaterThan(0);
     const typed = await page.evaluate(() => {
       const ids = new Set(Object.keys(DATA.analysis.playerComps.NBA));
       const p = DATA.leagues.NBA.find((x, i) => i > 5 && ids.has(String(x.playerId)) && x.appeared);

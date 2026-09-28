@@ -8,6 +8,148 @@ let compared = new Set();
 let labConfig = [];
 let labCohort = 'league';
 let viewRankOf = new Map();
+let restoringUrlState = false;
+
+const URL_FILTER_FIELDS = {
+  q: 'searchInput', team: 'teamFilter', pos: 'positionFilter', country: 'countryFilter',
+  gp: 'minGp', mpg: 'minMpg', min: 'minMin', grade: 'minGrade', reliability: 'minReliability',
+  teamMode: 'teamMode', view: 'viewPreset', sort: 'sortField', dir: 'sortOrder', rows: 'rowLimit',
+};
+const URL_ALLOWED_MODES = new Set(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
+
+function writeUrlState(kind = 'replace') {
+  if (restoringUrlState || !DATA || location.protocol === 'file:') return;
+  const params = new URLSearchParams();
+  if (league !== 'NBA') params.set('league', league);
+  const mode = window.__wsMode?.() || 'database';
+  if (mode !== 'database') params.set('mode', mode);
+  for (const [key, id] of Object.entries(URL_FILTER_FIELDS)) {
+    const el = $(id);
+    if (!el) continue;
+    const value = el.type === 'checkbox' ? (el.checked ? '1' : '') : String(el.value || '');
+    const defaults = { teamMode: 'season', view: 'overall', sort: 'grade', dir: '-1', rows: '50', gp: '0', mpg: '0', min: '0', grade: '0', reliability: '0' };
+    if (value && value !== (defaults[key] ?? '')) params.set(key, value);
+  }
+  if ($('bothOnly')?.checked) params.set('both', '1');
+  if ($('includeRosterOnly')?.checked) params.set('roster', '1');
+  if (rules.length) params.set('rules', JSON.stringify(rules));
+  const ids = [...compared];
+  if (ids.length) params.set('compare', ids.join(','));
+  const custom = labConfig.map((x) => [x.key, x.w]);
+  if (custom.length) params.set('score', JSON.stringify({ fields: custom, cohort: labCohort,
+    allowMixedScope: !!$('allowMixedScope')?.checked }));
+  const ws = window.__wsUrlState?.() || {};
+  for (const [key, value] of Object.entries(ws)) {
+    if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+  }
+  const search = params.toString();
+  const href = `${location.pathname}${search ? `?${search}` : ''}${location.hash}`;
+  if (href === `${location.pathname}${location.search}${location.hash}`) return;
+  history[kind === 'push' ? 'pushState' : 'replaceState']({ databaseState: true }, '', href);
+}
+
+function restoreUrlState() {
+  if (!DATA) return;
+  restoringUrlState = true;
+  try {
+    const params = new URLSearchParams(location.search);
+    const requestedLeague = params.get('league');
+    if (requestedLeague === 'NBA' || requestedLeague === 'GLEAGUE') league = requestedLeague;
+    document.querySelectorAll('.league-tab').forEach((b) => b.classList.toggle('active', b.dataset.league === league));
+    populateSelectors(); fillMetricSelects();
+    for (const [id, value] of Object.entries({ searchInput: '', teamFilter: '', positionFilter: '', countryFilter: '',
+      minGp: '0', minMpg: '0', minMin: '0', minGrade: '0', minReliability: '0', teamMode: 'season',
+      viewPreset: 'overall', rowLimit: '50', sortOrder: '-1' })) if ($(id)) $(id).value = value;
+    sortKey = 'grade'; sortDir = -1;
+    for (const [key, id] of Object.entries(URL_FILTER_FIELDS)) {
+      if (!params.has(key)) continue;
+      const el = $(id), value = params.get(key);
+      const valid = el && (el.tagName === 'SELECT'
+        ? [...el.options].some((o) => o.value === value)
+        : ['number', 'search'].includes(el.type));
+      if (valid) {
+        el.value = value;
+      }
+    }
+    if (location.hash === '#projections' && !params.has('view') && [...$('viewPreset').options].some((o) => o.value === 'proj')) {
+      $('viewPreset').value = 'proj'; sortKey = 'proj.pts';
+    }
+    $('bothOnly').checked = params.get('both') === '1';
+    if ($('includeRosterOnly')) $('includeRosterOnly').checked = params.get('roster') === '1';
+    rules = [];
+    try {
+      const parsed = JSON.parse(params.get('rules') || '[]');
+      if (Array.isArray(parsed)) rules = parsed.filter((x) => x && typeof x.key === 'string'
+        && metricRegistryKeys().includes(x.key) && ['>=', '<=', '>', '<'].includes(x.op)
+        && Number.isFinite(Number(x.value))).slice(0, 12).map((x) => ({ key: x.key, op: x.op, value: Number(x.value) }));
+    } catch { /* malformed shared rule state is ignored */ }
+    compared = new Set((params.get('compare') || '').split(',').filter(Boolean)
+      .filter((id) => currentPlayers().some((p) => String(p.playerId) === id)).slice(0, 5));
+    labConfig = [];
+    labCohort = 'league';
+    for (let i = 1; i <= 4; i++) {
+      $(`labMetric${i}`).value = '';
+      $(`labWeight${i}`).value = '0';
+    }
+    $('allowMixedScope').checked = false;
+    try {
+      const score = JSON.parse(params.get('score') || 'null');
+      if (Array.isArray(score?.fields)) labConfig = score.fields.filter((x) => Array.isArray(x)
+        && metricRegistryKeys().includes(x[0]) && Number.isFinite(Number(x[1])) && Number(x[1]) !== 0).slice(0, 4)
+        .map(([key, weight]) => ({ key, weight: Number(weight) }));
+      if (['league', 'filtered'].includes(score?.cohort)) labCohort = score.cohort;
+      for (let i = 1; i <= 4; i++) {
+        const item = labConfig[i - 1];
+        if (item) { $(`labMetric${i}`).value = item.key; $(`labWeight${i}`).value = String(item.weight); }
+      }
+      $('labCohort').value = labCohort;
+      $('allowMixedScope').checked = score?.allowMixedScope === true;
+    } catch { /* malformed custom-score state is ignored */ }
+    applyLab();
+    const nextSort = metricRegistryKeys().includes(params.get('sort')) ? params.get('sort') : sortKey;
+    sortKey = nextSort;
+    sortDir = params.get('dir') === '1' ? 1 : -1;
+    window.__wsRestoreUrlState?.({
+      mode: URL_ALLOWED_MODES.has(params.get('mode')) ? params.get('mode') : (location.hash === '#projections' ? 'database' : 'database'),
+      player: params.get('player'), sim: params.get('sim'), simTeam: params.get('simTeam'),
+      simPosition: params.get('simPosition'), teamfit: params.get('teamfit'), rolePlayer: params.get('rolePlayer'),
+      target: params.get('target'), x: params.get('x'), y: params.get('y'), size: params.get('size'), color: params.get('color'),
+    });
+  } finally {
+    restoringUrlState = false;
+  }
+}
+
+window.__siteUrlChanged = writeUrlState;
+window.__siteFilterSummary = () => {
+  const rows = [];
+  const labels = { q: ['Search', $('searchInput')?.value], team: ['Team', $('teamFilter')?.value],
+    pos: ['Position', $('positionFilter')?.value], country: ['Country', $('countryFilter')?.value],
+    gp: ['Min games', Number($('minGp')?.value) > 0 ? $('minGp').value : ''],
+    mpg: ['Min MPG', Number($('minMpg')?.value) > 0 ? $('minMpg').value : ''],
+    min: ['Min total minutes', Number($('minMin')?.value) > 0 ? $('minMin').value : ''],
+    grade: ['Min grade', Number($('minGrade')?.value) > 0 ? $('minGrade').value : ''],
+    reliability: ['Min reliability', Number($('minReliability')?.value) > 0 ? $('minReliability').value : ''] };
+  for (const [key, [label, value]] of Object.entries(labels)) if (value) rows.push({ key, label, value });
+  if ($('teamMode')?.value === 'only') rows.push({ key: 'teamMode', label: 'Team stats', value: 'Selected team only' });
+  if ($('bothOnly')?.checked) rows.push({ key: 'both', label: 'League overlap', value: 'NBA and G League' });
+  if ($('includeRosterOnly')?.checked) rows.push({ key: 'roster', label: 'Roster-only players', value: 'Included' });
+  for (const [i, rule] of rules.entries()) rows.push({ key: `rule:${i}`, label: colDef(rule.key).label, value: `${rule.op} ${rule.value}` });
+  return rows;
+};
+window.__siteClearFilter = (key) => {
+  const ids = { q: 'searchInput', team: 'teamFilter', pos: 'positionFilter', country: 'countryFilter',
+    gp: 'minGp', mpg: 'minMpg', min: 'minMin', grade: 'minGrade', reliability: 'minReliability' };
+  if (key.startsWith('rule:')) rules.splice(Number(key.slice(5)), 1);
+  else if (key === 'both') $('bothOnly').checked = false;
+  else if (key === 'roster') $('includeRosterOnly').checked = false;
+  else if (key === 'teamMode') $('teamMode').value = 'season';
+  else if (ids[key]) $(ids[key]).value = ['q', 'team', 'pos', 'country'].includes(key) ? '' : '0';
+  render(); window.__wsRefresh?.(); writeUrlState('push');
+};
+window.__siteClearAllFilters = () => {
+  reset(); writeUrlState('push'); window.__wsRefresh?.();
+};
 
 /** Reverse the columnar encoding used by the standalone build. */
 function rehydrate(d) {
@@ -937,7 +1079,7 @@ function renderSummary(list){
 
 function renderRules(){
   $('activeRules').innerHTML=rules.map((r,i)=>`<div class="rule-chip">${esc(colDef(r.key).label)} ${esc(r.op)} ${esc(r.value)}${isFraction(r.key)?'%':''} <button data-rule-remove="${i}">×</button></div>`).join('');
-  document.querySelectorAll('[data-rule-remove]').forEach(b=>b.onclick=()=>{rules.splice(Number(b.dataset.ruleRemove),1);render();});
+  document.querySelectorAll('[data-rule-remove]').forEach(b=>b.onclick=()=>{rules.splice(Number(b.dataset.ruleRemove),1);render();writeUrlState('push');});
 }
 
 /** Title, breadcrumb and section highlight follow the league and the view. */
@@ -954,11 +1096,12 @@ function updatePageHead(){
 /** Top navigation: player stats, or the 2026-27 projections view of the same table. */
 function goTo(dest){
   if(dest==='comps'){
-    if(window.__wsSetMode) window.__wsSetMode('similarity');
+    if(window.__wsSetMode) window.__wsSetMode('similarity', false);
+    writeUrlState('push');
     window.scrollTo({top:0});
     return;
   }
-  if(window.__wsSetMode) window.__wsSetMode('database');
+  if(window.__wsSetMode) window.__wsSetMode('database', false);
   const sel=$('viewPreset');
   if(dest==='proj'){
     if(![...sel.options].some(o=>o.value==='proj')) return;
@@ -967,6 +1110,7 @@ function goTo(dest){
     sel.value='overall'; sortKey='grade'; sortDir=-1;
   }
   render();
+  writeUrlState('push');
   window.scrollTo({top:0});
 }
 
@@ -1007,7 +1151,7 @@ function render(){
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
   document.querySelectorAll('#tableHead [data-sort]').forEach(th=>wireHeader(th, th.dataset.sort, ()=>{
-    const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();
+    const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();writeUrlState('push');
   }));
   document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
   document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
@@ -1773,12 +1917,15 @@ function switchLeague(b){
   $('labNote').textContent='';
   populateSelectors();fillMetricSelects();render();
   if(window.__wsInit) window.__wsInit();
+  writeUrlState('push');
 }
 
 function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
-  ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','viewPreset','rowLimit']
-    .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',render));
+  ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','rowLimit']
+    .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',()=>{
+      render(); writeUrlState(id==='searchInput'?'replace':'push');
+    }));
   // Opening TULIP Beta or the projections sorted by grade hides the point of them, so those views
   // select their own headline sort once. Any later manual sort is left alone.
   $('viewPreset').addEventListener('change',()=>{
@@ -1787,16 +1934,16 @@ function bind(){
       sortKey=own; sortDir=-1;
       if($('sortField')) $('sortField').value=own;
       if($('sortOrder')) $('sortOrder').value='-1';
-      render();
     }
+    render(); writeUrlState('push');
   });
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.goto)));
   $('projMethodBtn').onclick=openProjectionMethod;
   // Sort controls must SET the sort state, not merely re-render, so they get explicit handlers
   // rather than joining the generic list above.
-  $('sortField').addEventListener('change',()=>{sortKey=$('sortField').value;render();});
-  $('sortOrder').addEventListener('change',()=>{sortDir=Number($('sortOrder').value)||-1;render();});
-  $('resetBtn').onclick=reset;$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=applyLab;
+  $('sortField').addEventListener('change',()=>{sortKey=$('sortField').value;render();writeUrlState('push');});
+  $('sortOrder').addEventListener('change',()=>{sortDir=Number($('sortOrder').value)||-1;render();writeUrlState('push');});
+  $('resetBtn').onclick=()=>{reset();writeUrlState('push');};$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=()=>{applyLab();writeUrlState('push');};
   $('catalogBtn').onclick=openFieldCatalog;
   $('statGuideBtn').onclick=openStatGuide;
   // "?" opens the guide from anywhere, unless the user is typing in a field.
@@ -1806,7 +1953,7 @@ function bind(){
     if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA') return;
     e.preventDefault(); openStatGuide();
   });
-  $('compareBtn').onclick=openCompare;$('clearCompareBtn').onclick=()=>{compared.clear();render()};
+  $('compareBtn').onclick=openCompare;$('clearCompareBtn').onclick=()=>{compared.clear();render();writeUrlState('push');};
   $('addRuleBtn').onclick=()=>{
     $('ruleUnitHint').textContent='';
     $('ruleDialog').showModal();
@@ -1815,7 +1962,7 @@ function bind(){
     const k=$('ruleMetric').value;
     $('ruleUnitHint').textContent=isFraction(k)?'Enter percentage points, e.g. 60 for 60%':'';
   };
-  $('saveRuleBtn').onclick=()=>{rules.push({key:$('ruleMetric').value,op:$('ruleOp').value,value:Number($('ruleValue').value)});$('ruleDialog').close();render();};
+  $('saveRuleBtn').onclick=()=>{rules.push({key:$('ruleMetric').value,op:$('ruleOp').value,value:Number($('ruleValue').value)});$('ruleDialog').close();render();writeUrlState('push');};
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 }
 
@@ -1826,6 +1973,11 @@ window.__wsFiltered=()=>filteredPlayers();
 window.__wsCompared=()=>[...compared];
 window.__wsLabel=(k)=>colDef(k).label;
 window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
+
+window.addEventListener('popstate',()=>{
+  if(!DATA) return;
+  restoreUrlState(); render(); window.__wsRefresh?.();
+});
 
 async function init(){
   try{
@@ -1838,10 +1990,11 @@ async function init(){
     $('sourceLine').textContent=`Official NBA and G League stats: ${DATA.counts.records.toLocaleString()} player seasons for ${DATA.counts.uniquePeople.toLocaleString()} players`
       +(ro?`, plus ${ro} rostered who never played`:'')+`. Updated ${new Date(DATA.generatedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}.`;
     $('seasonEyebrow').textContent=DATA.seasonType;
-    populateSelectors();fillMetricSelects();bind();render();
+    populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();
     // Links from other pages (History Lab) can open the projections directly.
-    if(location.hash==='#projections') goTo('proj');
+    if(location.hash==='#projections' && !new URLSearchParams(location.search).has('view')) goTo('proj');
+    writeUrlState('replace');
     if(window.claude && !(await capability('downloads'))) $('exportBtn').hidden=true;
   }catch(e){
     $('sourceLine').textContent='The data build has not completed yet.';

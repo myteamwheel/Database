@@ -311,28 +311,36 @@ identically even though they are ranked separately.
 **Player Comps is a top-level site section**, not merely a table preset. Search is name-first with
 live clickable suggestions plus team and position filters. The page presents the closest historical
 same-league matches as large logo-led cards, followed by full target-vs-comp tables.
+The current player's individual style read sits directly below the target and above the comp cards.
+It gives the optimized blend shares, then names the closest selected-blend references for listed
+size, role/playmaking, scoring and defensive box-score activity; weak/unsupported trait matches are
+left unclaimed. The searchable player list can be scrolled when the query is empty or narrow.
 
 The visible comparison is a **one-to-three-player convex blend whose shares always total 100%**.
-The engine first creates a balanced shortlist of individual historical matches. It then chooses the
+The engine first creates a balanced shortlist of 18 individual historical matches. It then chooses the
 players and percentages jointly by minimizing the error between the current player and the weighted
-historical blend across role, creation, production, shot diet and defensive activity. Percentages are
+historical blend across available listed physical dimensions, role, creation, production, shot diet
+and defensive activity. Historical per-36 volume features are pace-adjusted where pace is available,
+standardized within league and season, and exposure-shrunk toward that season's median. Percentages are
 non-negative and sum to one before largest-remainder display rounding. A small complexity penalty
 keeps a needless third name out; a third player remains when it materially improves reconstruction.
 This is a genuine mixture estimate rather than three nearest neighbours with percentages assigned
 afterwards.
 
-A separate **Blend Confidence** score does not have to sum to anything. It is 72% reconstructed-
+A separate **Statistical Blend Fit** score does not have to sum to anything. It is 72% reconstructed-
 profile similarity and 28% blend-weighted individual match quality, adjusted for source coverage.
-This preserves the intuitive 100% blend while still allowing unusual players to have a low-confidence
+It is a heuristic fit score, not a calibrated confidence, probability, scouting verdict or forecast.
+This preserves the intuitive 100% blend while still allowing unusual players to have a low-fit
 historical comparison.
 
 The match uses **body compatibility rather than a position gate**. Listed professional height and
 weight are the primary body measurements; NBA Draft Combine wingspan and standing reach are added
 where they were actually measured. No wingspan or length value is estimated for a non-participant.
-The balanced individual-match weights are physical 20%, archetype/role and production 35%,
-scoring/shot profile 30% and defensive/rebounding activity 15%. Physical agreement is therefore a
-screen, not a second vote that can overwhelm a different basketball job. Positions may cross when
-the body and game genuinely match.
+When available, those measurements also participate in the blend reconstruction; missing dimensions
+are omitted and charged through the source-coverage penalty. Individual-match block weights are
+physical 20%, archetype/role and production 35%, scoring/shot profile 30% and defensive/rebounding
+activity 15%. Position is not a hard gate: players can match across listed positions when the
+measured body and statistical profile align.
 
 Historical pools currently cover **NBA 2009-10 through 2025-26** and **G League 2014-15 through
 2025-26**. The common historical comparison set now includes minutes/role, usage, per-36 scoring,

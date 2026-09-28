@@ -136,7 +136,7 @@ function historyRows(src, league) {
           ftPct: fin(fta) && fta >= 10 && fin(ftm) ? ftm / fta : null,
           ts,
           astPct: n(a.AST_PCT),
-          astTo: n(a.AST_TO),
+          astTo: n(a.AST_TO) ?? (fin(x.AST) && fin(x.TOV) && Number(x.TOV) > 0 ? Number(x.AST) / Number(x.TOV) : null),
           astRatio: n(a.AST_RATIO),
           orebPct: n(a.OREB_PCT),
           drebPct: n(a.DREB_PCT),
@@ -244,6 +244,72 @@ const BLOCKS = {
     },
   },
 };
+
+// Similarity uses context-adjusted profiles while every side-by-side value remains the published
+// raw statistic. Volume rates are converted from per-36 to per-100 possessions using player-season
+// pace, then centered/scaled within league-season so comparisons reflect a player's role relative
+// to that era rather than rule/tempo inflation. Reliability shrinkage pulls short samples toward
+// their own league-season median before standardizing; it never fills a missing feature.
+const MATCH_PRIOR = { mpg: 20, default: 240 };
+const PACE_RATE_AXES = new Set(['pts36', 'fga36', 'threeA36', 'fta36', 'reb36', 'ast36', 'stl36', 'blk36', 'tov36', 'pf36', 'plusMinus36', 'oreb36', 'dreb36']);
+const MATCH_AXES = Object.entries(BLOCKS).filter(([block]) => block !== 'physical')
+  .flatMap(([, spec]) => Object.entries(spec.axes).map(([key, axis]) => ({ key, axis })));
+const weightedMedian = (values) => {
+  const rows = values.filter((x) => fin(x.value) && x.weight > 0).sort((a, b) => a.value - b.value);
+  const total = rows.reduce((s, x) => s + x.weight, 0);
+  if (!total) return null;
+  let n = 0;
+  for (const x of rows) { n += x.weight; if (n >= total / 2) return x.value; }
+  return rows[rows.length - 1]?.value ?? null;
+};
+const featureExposure = (row, key) => key === 'mpg' ? Number(row.gp || 0) : Number(row.minutes || 0);
+function matchRawValue(row, key) {
+  const value = row.features?.[key];
+  if (!fin(value)) return null;
+  if (PACE_RATE_AXES.has(key) && fin(row.features?.pace) && Number(row.features.pace) > 0) {
+    return Number(value) * 48 / Number(row.features.pace);
+  }
+  return Number(value);
+}
+function prepareMatchProfiles(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = `${row.league}|${row.season}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  const distributions = new Map();
+  for (const [season, group] of groups) {
+    const stats = {};
+    for (const { key } of MATCH_AXES) {
+      const values = group.map((row) => ({ value: matchRawValue(row, key), weight: featureExposure(row, key) }))
+        .filter((x) => fin(x.value) && x.weight > 0);
+      const median = weightedMedian(values);
+      const robust = weightedMedian(values.map((x) => ({ value: Math.abs(x.value - median), weight: x.weight }))) * 1.4826;
+      const totalWeight = values.reduce((s, x) => s + x.weight, 0);
+      const mean = totalWeight ? values.reduce((s, x) => s + x.value * x.weight, 0) / totalWeight : median;
+      const variance = totalWeight ? values.reduce((s, x) => s + x.weight * (x.value - mean) ** 2, 0) / totalWeight : 0;
+      stats[key] = { median, scale: robust > 1e-9 ? robust : Math.sqrt(variance) || 1 };
+    }
+    distributions.set(season, stats);
+    for (const row of group) row.matchFeatures = normalizeMatchFeatures(row, stats);
+  }
+  return distributions;
+}
+function normalizeMatchFeatures(row, stats) {
+  const out = {};
+  for (const { key, axis } of MATCH_AXES) {
+    const value = matchRawValue(row, key), center = stats?.[key]?.median, scale = stats?.[key]?.scale;
+    if (!fin(value) || !fin(center) || !fin(scale) || scale <= 0) { out[key] = null; continue; }
+    const exposure = featureExposure(row, key);
+    const prior = MATCH_PRIOR[key] ?? MATCH_PRIOR.default;
+    const reliability = exposure / (exposure + prior);
+    const shrunk = center + reliability * (value - center);
+    out[key] = clamp((shrunk - center) / scale, -4, 4) * axis.scale;
+  }
+  return out;
+}
+
 function blockDistance(target, cand, spec, targetPhysical = false) {
   let acc = 0, w = 0, avail = 0, possible = 0;
   const detail = [];
@@ -279,8 +345,8 @@ function compare(target, cand) {
   const parts = [];
   let total = 0, totalW = 0;
   for (const [name, spec] of Object.entries(BLOCKS)) {
-    const a = name === 'physical' ? target.physical : target.features;
-    const b = name === 'physical' ? cand.physical : cand.features;
+    const a = name === 'physical' ? target.physical : (target.matchFeatures || target.features);
+    const b = name === 'physical' ? cand.physical : (cand.matchFeatures || cand.features);
     const d = blockDistance(a, b, spec, name === 'physical');
     if (!fin(d.distance)) continue;
     total += spec.weight * d.distance * d.distance;
@@ -310,6 +376,9 @@ function compare(target, cand) {
     score, distance, coverage,
     physicalCoverage: physical?.coverage ?? 0,
     blockScores: Object.fromEntries(parts.map((x) => [x.name, r1(similarityFromDistance(x.distance))])),
+    blockDetails: Object.fromEntries(parts.map((x) => [x.name,
+      x.detail.slice().sort((a, b) => a.z - b.z).slice(0, 4)
+        .map((axis) => ({ label: axis.label, gap: r1(axis.gap), normalizedGap: r1(axis.z) }))])),
     best: details.slice(0, 4),
     worst: [...details].sort((a, b) => b.z - a.z).slice(0, 4),
   };
@@ -396,6 +465,7 @@ function serializeComp(target, cand, m) {
     tmTovPct: r3(cand.features.tmTovPct), pie: r3(cand.features.pie), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
     style: deepOverlay(cur),
     blockScores: m.blockScores,
+    blockDetails: m.blockDetails,
     mostSimilar: m.best.map((x) => x.label),
     biggestDifferences: m.worst.map((x) => ({ label: x.label, normalizedGap: r1(x.z) })),
     relation: relation(target, cand),
@@ -403,13 +473,68 @@ function serializeComp(target, cand, m) {
   };
 }
 
-// A blend should reconstruct the target's basketball profile, not merely distribute 100 points
-// among the three nearest neighbours. These high-coverage, player-controlled axes are used for
-// the convex blend. Team-context outputs (ratings, plus-minus and PIE) remain visible in the
-// side-by-side table but cannot steer the composition.
+function playerStyleRead(target, selected, blend) {
+  const references = {};
+  for (const block of Object.keys(BLOCKS)) {
+    const options = selected.map((item) => ({
+      comp: item.cand,
+      score: Number(item.m.blockScores?.[block]),
+      coverage: block === 'physical' ? Number(item.m.physicalCoverage) : 1,
+      share: Number(blend.find((x) => String(x.playerId) === String(item.cand.playerId))?.share || 0),
+    })).filter((x) => Number.isFinite(x.score) && x.score >= 55
+      && (block !== 'physical' || x.coverage >= 0.45))
+      .sort((a, b) => b.score - a.score || b.share - a.share);
+    const best = options[0];
+    if (!best) continue;
+    const preferred = block === 'role' ? ['playmaking volume', 'assist rate', 'usage', 'shot volume', 'turnover load', 'rebounding role']
+      : block === 'scoring' ? ['scoring rate', 'true shooting', 'three-point shot share', 'three-point accuracy', 'free-throw pressure']
+      : block === 'defense' ? ['steal activity', 'rim protection', 'defensive rebounding', 'offensive rebounding']
+      : ['height', 'weight', 'wingspan', 'standing reach'];
+    const details = selected
+      .find((x) => String(x.cand.playerId) === String(best.comp.playerId))?.m.blockDetails?.[block] || [];
+    const axes = details.map((x) => x.label).filter((x) => preferred.includes(x)).slice(0, 2);
+    const alternate = options.find((x) => String(x.comp.playerId) !== String(best.comp.playerId) && x.share >= 10);
+    const alsoDetails = alternate && selected.find((x) => String(x.cand.playerId) === String(alternate.comp.playerId))?.m.blockDetails?.[block] || [];
+    const alsoAxes = alsoDetails.map((x) => x.label).filter((x) => preferred.includes(x)).slice(0, 2);
+    references[block] = { playerId: best.comp.playerId, name: best.comp.name, season: best.comp.season,
+      fit: r1(best.score), blendShare: best.share, axes,
+      ...(alternate ? { also: { playerId: alternate.comp.playerId, name: alternate.comp.name,
+        season: alternate.comp.season, fit: r1(alternate.score), blendShare: alternate.share,
+        axes: alsoAxes } } : {}) };
+  }
+  const frame = references.physical;
+  const role = references.role;
+  const scoring = references.scoring;
+  const defense = references.defense;
+  const mix = blend.map((x) => `${x.name} ${x.share}%`).join(', ');
+  const hash = [...String(target.playerId)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const link = (x, axes) => `${x.name} (${x.season})${axes?.length ? ` on ${axes.join(' and ')}` : ''}`;
+  const alternate = (x) => x?.also ? ` ${x.also.name} (${x.also.season}) also shares this profile on ${(x.also.axes || []).join(' and ') || 'the same statistical block'}.` : '';
+  const clauses = {
+    frame: frame ? `Listed frame is closest to ${link(frame, frame.axes)}.${alternate(frame)}` : 'Available measurements do not support a dependable frame comparison.',
+    role: role ? `Role and playmaking are closest to ${link(role, role.axes)}.${alternate(role)}` : 'Role/playmaking data do not identify a strong reference in this blend.',
+    scoring: scoring ? `Scoring shape is closest to ${link(scoring, scoring.axes)}.${alternate(scoring)}` : 'Scoring data do not identify a strong reference in this blend.',
+    defense: defense ? `Defensive box-score activity is closest to ${link(defense, defense.axes)}.${alternate(defense)}` : 'Defensive data do not identify a strong reference in this blend.',
+  };
+  const templates = [
+    `${target.name}'s statistical recipe is ${mix}. By attribute: ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
+    `A better shorthand than one comp: ${target.name} blends ${mix}. ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
+    `To picture ${target.name}, start with the formula ${mix}. ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
+    `${target.name} is not a one-player comp; the model mixes ${mix}. Its useful clues are these: ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
+    `The combination behind ${target.name} is ${mix}. For the job, look at role and creation; for the shot profile, scoring; for defense, defensive box-score activity. ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
+    `In one statistical sketch, ${target.name} is ${mix}. ${clauses.role} On offense, ${clauses.scoring[0].toLowerCase()}${clauses.scoring.slice(1)} ${clauses.defense} ${clauses.frame}`,
+    `No single historical player captures ${target.name}. The blend is ${mix}. ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
+  ];
+  return { text: templates[hash % templates.length], references, blend: mix,
+    caveat: 'These are statistical profile analogies, not claims of identical skill. The source data do not measure speed, vertical leap, strength, or movement/athleticism directly.' };
+}
+
+// A blend should reconstruct the target's listed physical profile and playing style, not merely
+// distribute 100 points among the three nearest neighbours. Available listed size dimensions and
+// high-coverage player-controlled axes enter the convex fit. Team-context outputs (ratings,
+// plus-minus and PIE) remain visible in the side-by-side table but cannot steer the composition.
 const BLEND_EXCLUDED = new Set(['offRtg', 'defRtg', 'netRtg', 'plusMinus36', 'pie', 'pace', 'poss']);
 const BLEND_AXES = Object.entries(BLOCKS)
-  .filter(([block]) => block !== 'physical')
   .flatMap(([block, spec]) => {
     const axisTotal = Object.entries(spec.axes)
       .filter(([key]) => !BLEND_EXCLUDED.has(key))
@@ -426,8 +551,10 @@ const BLEND_AXES = Object.entries(BLOCKS)
 
 function blendAxes(target, items) {
   return BLEND_AXES.filter((axis) => {
-    if (!fin(target.features[axis.key])) return false;
-    const covered = items.filter((x) => fin(x.cand.features[axis.key])).length;
+    const targetProfile = axis.block === 'physical' ? target.physical : (target.matchFeatures || target.features);
+    const profile = (rec) => axis.block === 'physical' ? rec.cand.physical : (rec.cand.matchFeatures || rec.cand.features);
+    if (!fin(targetProfile[axis.key])) return false;
+    const covered = items.filter((x) => fin(profile(x)[axis.key])).length;
     return covered / Math.max(1, items.length) >= 0.80;
   });
 }
@@ -437,7 +564,9 @@ function blendVector(rec, axes, target) {
     // Missing historical values are neutral on that one axis and are charged through the explicit
     // coverage penalty below. This avoids inventing a value or letting a sparse row win by making
     // the difficult axes disappear from the objective.
-    const raw = fin(rec.features[axis.key]) ? Number(rec.features[axis.key]) : Number(target.features[axis.key]);
+    const features = axis.block === 'physical' ? rec.physical : (rec.matchFeatures || rec.features);
+    const targetFeatures = axis.block === 'physical' ? target.physical : (target.matchFeatures || target.features);
+    const raw = fin(features[axis.key]) ? Number(features[axis.key]) : Number(targetFeatures[axis.key]);
     return raw / axis.scale * Math.sqrt(axis.weight);
   });
 }
@@ -458,7 +587,10 @@ function optimizeBlend(target, shortlist) {
   const vectors = shortlist.map((x) => blendVector(x.cand, axes, target));
   const axisWeight = axes.reduce((sum, axis) => sum + axis.weight, 0) || 1;
   const coverage = shortlist.map((x) => {
-    const seen = axes.reduce((sum, axis) => sum + (fin(x.cand.features[axis.key]) ? axis.weight : 0), 0);
+    const seen = axes.reduce((sum, axis) => {
+      const features = axis.block === 'physical' ? x.cand.physical : (x.cand.matchFeatures || x.cand.features);
+      return sum + (fin(features[axis.key]) ? axis.weight : 0);
+    }, 0);
     return seen / axisWeight;
   });
   let best = null;
@@ -466,7 +598,7 @@ function optimizeBlend(target, shortlist) {
   const costs = shortlist.map((x, i) => {
     const physical = Number(x.m.blockScores?.physical ?? x.m.score ?? 0) / 100;
     const match = Number(x.m.score || 0) / 100;
-    return 0.10 * (1 - physical) ** 2 + 0.08 * (1 - coverage[i]) + 0.04 * (1 - match) ** 2;
+    return 0.05 * (1 - physical) ** 2 + 0.08 * (1 - coverage[i]) + 0.04 * (1 - match) ** 2;
   });
 
   const consider = (indices, weights) => {
@@ -485,7 +617,7 @@ function optimizeBlend(target, shortlist) {
     }, 0);
     // A very small complexity cost makes a two-player explanation beat a three-player one when the
     // third player adds no material reconstruction value. It does not force sparse blends.
-    const objective = styleError + 0.10 * physicalPenalty + 0.08 * missingPenalty
+    const objective = styleError + 0.05 * physicalPenalty + 0.08 * missingPenalty
       + 0.04 * individualPenalty + 0.003 * (indices.length - 1);
     if (!best || objective < best.objective) {
       best = { indices, weights, objective, styleError, coverage: indices.reduce((s, idx, j) => s + weights[j] * coverage[idx], 0) };
@@ -552,11 +684,17 @@ function optimizeBlend(target, shortlist) {
 const result = { NBA: {}, GLEAGUE: {} };
 for (const lg of ['NBA', 'GLEAGUE']) {
   const pool = histories[lg];
+  const matchDistributions = prepareMatchProfiles(pool);
   const minMinutes = lg === 'NBA' ? 300 : 200;
   for (const p of data.leagues?.[lg] || []) {
     if (!p.appeared || !(p.minutes > 0)) continue;
     const target = currentHistoricalTarget(p, pool);
     if (!target) continue;
+    // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
+    target.name = p.name;
+    if (!target.matchFeatures) {
+      target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.season}`));
+    }
     const targetDeep = deepOverlay(p);
     // Pool is player-SEASON based, but the requested output is three distinct PLAYERS. Keep only
     // each candidate player's single best-matching historical season before ranking the final three.
@@ -583,14 +721,17 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const blend = optimized.blend;
     const confidence = optimized.confidence;
     const primary = best[0], rel = primary.relation || [];
+    const profileRead = playerStyleRead(target, optimized.selected, blend);
     result[lg][String(p.playerId)] = {
       top3: best,
       blend,
       blendConfidence: confidence,
       blendReconstructionScore: optimized.reconstructionScore,
       blendAxesUsed: optimized.axesUsed,
+      profileRead,
       targetSeason: target.season,
       targetSeasonType: target.seasonType,
+      matchMethod: 'pace-adjusted, league-season robust z-scores after exposure-weighted median shrinkage',
       targetGames: target.gp,
       targetMinutes: r1(target.minutes),
       matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
@@ -685,15 +826,21 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
-  version: '2.0.0',
+  version: '3.1.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
-  priority: 'body compatibility plus role, creation and shot-diet reconstruction; team-context outputs are descriptive and do not drive the blend',
+  priority: 'joint listed-size, role, creation, shot-diet and defensive-profile reconstruction; team-context outputs are descriptive and do not drive the blend',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
-  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest balanced candidates by non-negative convex reconstruction of role, production, shot-diet and defensive-activity axes; weights sum to 100; physical compatibility, missingness and unnecessary complexity are explicit penalties',
+  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest balanced candidates by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties',
+  matchAdjustments: {
+    pace: 'Per-36 volume axes are converted to per-100 possessions using the player-season pace when available.',
+    era: 'Each feature is centered on its weighted median and scaled by weighted median absolute deviation within league and season; this compares historical players relative to their same-era peers.',
+    shrinkage: 'Before standardizing, each feature is pulled toward its league-season median by exposure/(exposure+prior): minutes with a 240-minute prior, MPG with a 20-game prior.',
+    rawDisplay: 'These adjustments affect similarity and blend weights only. Side-by-side and target-stat values remain raw source values.',
+  },
   blendConfidence: '72% reconstructed-profile similarity plus 28% blend-weighted individual match quality, adjusted for feature coverage',
   scoreDistribution,
   blendDistribution,
@@ -704,9 +851,10 @@ data.analysis.playerCompsMeta = {
     ? 'Listed professional height/weight stay primary; official combine wingspan and standing reach are added where measured. Players who never attended keep those length fields blank.'
     : 'No combine measurement cache was present in this build. Height/weight still drive the physical block; wingspan/reach remain blank rather than invented.',
   limitations: [
-    'Blend Confidence is a heuristic fit score, not a calibrated probability or a prediction of career potential. Small current-season samples can give unstable comparisons.',
+    'Statistical Blend Fit is a heuristic fit score, not a calibrated probability or a prediction of career potential. Reliability shrinkage reduces short-sample influence but does not eliminate uncertainty.',
     'G League historical inputs use Regular Season totals; the main database combines Regular Season and Showcase Cup. The target scope is identified above each blend.',
     'Historical physical profiles use available listed measurements, which are not necessarily measurements from the displayed season.',
+    'Pace is adjusted where player-season pace is published; missing pace is not invented. League-season standardization reduces, but does not prove away, era effects.',
     'Historical shot-zone/tracking coverage is not uniform across seasons, so old player-seasons are compared on the common historical feature set rather than fabricated paint/mid-range data.',
     'G League historical body coverage is thinner for players who never appeared in the NBA player index.',
     'A player can match across listed positions; position labels are descriptive, not a hard filter.',

@@ -246,6 +246,16 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .ws-card.v-good .v{color:var(--pos)}.ws-card.v-bad .v{color:var(--neg)}
 .ws-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-top:8px}
 .ws-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+.scatter-scope{display:flex;align-items:flex-start;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;padding:9px 11px;margin:8px 0 12px;border:1px solid var(--line);background:var(--panel2)}
+.scatter-filter-chips{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 100%;margin-top:3px}
+.scatter-filter-chip{border:1px solid var(--field-line);border-radius:999px;background:var(--panel);color:var(--text);padding:3px 8px;font:11px var(--font);cursor:pointer}
+.scatter-filter-chip:hover{border-color:var(--neg)}
+.scatter-filter-chip span{color:var(--neg);font-weight:700;margin-left:3px}
+.scatter-legend{display:flex;gap:6px 14px;flex-wrap:wrap;padding:8px 0}
+.scatter-legend-item{display:inline-flex;align-items:center;gap:5px;font-size:11px}
+.scatter-legend-item i{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--swatch)}
+.scatter-legend-item small{color:var(--muted)}
+.scatter-scope .ws-actions{margin:0}
 .ws-actions{margin-top:18px}
 .pbar{display:grid;grid-template-columns:150px 1fr 40px auto;gap:10px;align-items:center;margin:4px 0;font-size:12px}
 .pbar-l{color:var(--muted);text-transform:capitalize}
@@ -280,7 +290,10 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .comp-search-panel label{display:grid;gap:4px;color:var(--muted);font-size:11.5px;font-weight:700}
 .comp-search-main input{height:38px;font-size:15px;font-weight:600}
 .comp-suggestions{position:absolute;z-index:40;top:68px;left:12px;width:min(560px,calc(100% - 24px));
-  background:var(--panel);border:1px solid var(--line-strong);box-shadow:var(--shadow);max-height:320px;overflow:auto}
+  background:var(--panel);border:1px solid var(--line-strong);box-shadow:var(--shadow);max-height:min(360px,55vh);
+  overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-gutter:stable}
+.comp-suggestion-count{position:sticky;top:0;z-index:1;padding:7px 11px;background:var(--panel2);border-bottom:1px solid var(--line);
+  color:var(--muted);font-size:11px;font-weight:700}
 .comp-suggestions button{display:flex;width:100%;justify-content:space-between;gap:16px;align-items:center;text-align:left;
   padding:9px 11px;border:0;border-bottom:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}
 .comp-suggestions button:hover,.comp-suggestions button:focus{background:var(--panel2);outline:none}
@@ -289,6 +302,14 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
   border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--panel)}
 .comp-target-strip h3{border:0;margin:2px 0;font-size:19px;padding:0}
 .comp-target-strip p{color:var(--muted)}
+.comp-style-read{display:grid;gap:10px;padding:16px 18px;border:1px solid var(--line-strong);border-left:5px solid var(--accent);background:var(--panel2)}
+.comp-style-read h3{font-size:18px;border:0;margin:2px 0 0;padding:0}
+.comp-style-read>p{margin:0;line-height:1.5}
+.comp-style-read .comp-style-copy{font-size:clamp(18px,1.45vw,23px);font-weight:600;line-height:1.55;color:var(--ink)}
+.comp-trait-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.comp-trait-reference{display:grid;align-content:start;gap:4px;padding:9px;background:var(--panel);border:1px solid var(--line);min-width:0}
+.comp-trait-reference>b{font-size:13px;color:var(--ink)}
+.comp-trait-reference .tiny{line-height:1.4}
 .comp-pool-note{text-align:right;color:var(--ink);font-weight:700}
 .comp-pool-note span{display:block;max-width:60ch;color:var(--muted);font-size:11px;font-weight:400}
 .comp-outlier-note{padding:11px 13px;border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--panel2)}
@@ -300,6 +321,7 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .comp-team-logo{position:relative;width:92px;height:92px;margin:8px auto 4px;display:grid;place-items:center}
 .comp-team-logo span{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);
   border:1px solid var(--line);color:var(--muted);font-weight:800;font-size:15px}
+.comp-team-logo span[hidden]{display:none}
 .comp-team-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .comp-hero-score{font-size:38px;line-height:1;font-weight:800;color:var(--ink);letter-spacing:-.04em;margin-top:4px}
 .comp-hero-strength{margin:5px 0 8px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -309,7 +331,7 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .comp-block-pills span{display:flex;justify-content:space-between;gap:8px;padding:6px 7px;background:var(--panel2);
   border:1px solid var(--line);font-size:11px;color:var(--muted)}
 .comp-block-pills b{color:var(--ink)}
-.comp-shorthand{padding:10px 12px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.team-fit-member{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid var(--line);color:var(--muted);font-size:10px;white-space:nowrap}
 .comp-detail-stack{display:grid;gap:14px;min-width:0;max-width:100%}
 .comp-detail-card{border:1px solid var(--line);background:var(--panel);padding:14px;min-width:0;max-width:100%}
 .comp-detail-head{display:flex;justify-content:space-between;align-items:end;gap:14px}
@@ -327,11 +349,13 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 @media(max-width:900px){
   .comp-hero-grid{grid-template-columns:1fr}
   .comp-hero-card{min-height:0}
+  .comp-trait-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .comp-search-panel{grid-template-columns:1fr 1fr}
   .comp-search-main{grid-column:1/-1}
   .comp-suggestions{top:116px}
 }
 @media(max-width:520px){
+  .comp-trait-grid{grid-template-columns:1fr 1fr}
   .comp-search-panel{grid-template-columns:1fr}
   .comp-search-main{grid-column:auto}
   .comp-suggestions{top:65px}

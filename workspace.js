@@ -28,11 +28,17 @@
     ['tulip', 'Role Value'],
   ];
 
+  const changeMode = (mode, push = true) => {
+    MODE = MODES.some(([key]) => key === mode) ? mode : 'database';
+    render();
+    if (push) window.__siteUrlChanged?.('push');
+  };
+
   function renderNav() {
     $('modeNav').innerHTML = MODES.map(([k, label]) =>
       `<button class="mode-tab${MODE === k ? ' active' : ''}" data-mode="${k}">${esc(label)}</button>`).join('');
     document.querySelectorAll('[data-mode]').forEach((b) => {
-      b.onclick = () => { MODE = b.dataset.mode; render(); };
+      b.onclick = () => changeMode(b.dataset.mode);
     });
   }
 
@@ -123,10 +129,12 @@
       const ap = q && fold(a.name).startsWith(q) ? 0 : 1;
       const bp = q && fold(b.name).startsWith(q) ? 0 : 1;
       return ap - bp || a.name.localeCompare(b.name);
-    }).slice(0, 8);
-    box.hidden = !list.length;
-    box.innerHTML = list.map((p) => `<button type="button" role="option" data-sim-pick="${esc(p.playerId)}">
-      <b>${esc(p.name)}</b><span>${esc(teamOf(p))} · ${esc(p.position || '—')}</span></button>`).join('');
+    });
+    box.hidden = false;
+    box.innerHTML = list.length ? `<div class="comp-suggestion-count" aria-live="polite">${list.length.toLocaleString()} ${q ? 'matching' : 'available'} players · scroll to browse${q ? '' : ' or type to narrow'}</div>`
+      + list.map((p) => `<button type="button" role="option" aria-selected="${String(p.playerId) === String(state.simPlayer)}" data-sim-pick="${esc(p.playerId)}">
+      <b>${esc(p.name)}</b><span>${esc(teamOf(p))} · ${esc(p.position || '—')}</span></button>`).join('')
+      : `<div class="comp-suggestion-count" role="status">No matching players. Try a different name, team, or position.</div>`;
   }
 
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
@@ -485,12 +493,19 @@
         <label>Y<select id="scY">${opt(state.scatterY)}</select></label>
         <label>Bubble size<select id="scSize"><option value="">none</option>${opt(state.scatterSize)}</select></label>
         <label>Colour by<select id="scColor">
-          ${['positionFamily', 'team', 'ageBand', 'primaryArchetype'].map((k) => `<option value="${k}"${k === state.scatterColor ? ' selected' : ''}>${k}</option>`).join('')}
+          ${[['positionFamily', 'Position group'], ['team', 'Team'], ['ageBand', 'Age band'], ['primaryArchetype', 'Primary archetype']].map(([k, label]) => `<option value="${k}"${k === state.scatterColor ? ' selected' : ''}>${label}</option>`).join('')}
         </select></label>
       </div>
       <div class="ws-controls">${presets.map(([x, y, l]) => `<button class="button secondary small" data-preset="${x}|${y}">${esc(l)}</button>`).join('')}</div>
+      <section class="scatter-scope" aria-label="Active Database filters">
+        <div><b>Database filter scope</b> <span class="tiny">The plot uses the same filters as Database.</span></div>
+        <div id="scFilterChips" class="scatter-filter-chips"></div>
+        <div class="ws-actions"><button type="button" class="button secondary small" id="scEditFilters">Edit filters in Database</button>
+          <button type="button" class="button secondary small" id="scClearFilters">Clear all filters</button></div>
+      </section>
       <div id="scStats" class="tiny"></div>
       <canvas id="scCanvas" width="1100" height="560" style="width:100%;max-width:1100px"></canvas>
+      <details id="scLegend"><summary>Full colour legend</summary><div id="scLegendItems" class="scatter-legend"></div></details>
       <div id="scHover" class="tiny"></div>
       <div id="scOutliers"></div><details><summary>Accessible chart data</summary><div id="scData" class="table-wrap"></div></details>`;
   }
@@ -503,6 +518,11 @@
       .map((p) => ({ p, x: Number(valueOf(p, state.scatterX)), y: Number(valueOf(p, state.scatterY)),
         s: state.scatterSize && fin(valueOf(p, state.scatterSize)) ? Number(valueOf(p, state.scatterSize)) : null }));
     ctx.clearRect(0, 0, cv.width, cv.height);
+    const activeFilters = window.__siteFilterSummary?.() || [];
+    $('scFilterChips').innerHTML = activeFilters.length
+      ? activeFilters.map((f) => `<button type="button" class="scatter-filter-chip" data-filter-clear="${esc(f.key)}" aria-label="Remove ${esc(f.label)} filter"><b>${esc(f.label)}:</b> ${esc(f.value)} <span aria-hidden="true">×</span></button>`).join('')
+      : '<span class="tiny">No Database filters are active.</span>';
+    $('scClearFilters').disabled = activeFilters.length === 0;
     $('scData').innerHTML = `<table><thead><tr><th>Player</th><th>${esc(window.__wsLabel(state.scatterX))}</th><th>${esc(window.__wsLabel(state.scatterY))}</th></tr></thead><tbody>${pts.map(q=>`<tr><td>${esc(q.p.name)}</td><td>${window.__wsFmt(q.x,state.scatterX)}</td><td>${window.__wsFmt(q.y,state.scatterY)}</td></tr>`).join('')}</tbody></table>`;
     if (pts.length < 2) { $('scStats').textContent = 'Not enough data for these axes.'; return; }
 
@@ -549,10 +569,12 @@
     ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.beginPath();
     ctx.moveTo(PX(xmin), PY(a + b * xmin)); ctx.lineTo(PX(xmax), PY(a + b * xmax)); ctx.stroke();
 
+    const countsByGroup = new Map();
+    for (const q of pts) countsByGroup.set(groupOf(q.p), (countsByGroup.get(groupOf(q.p)) || 0) + 1);
+    $('scLegendItems').innerHTML = groups.map((g) => `<span class="scatter-legend-item"><i style="--swatch:${hue(g)}"></i>${esc(g)} <small>${countsByGroup.get(g)}</small></span>`).join('');
     $('scStats').innerHTML = `<b>r = ${r.toFixed(3)}</b> · n = ${pts.length} · trend y = ${b.toFixed(3)}x + ${a.toFixed(2)}
       · ${list.length - pts.length} missing-coordinate rows excluded
-      · Database filters apply (${list.length} eligible players; change filters in Database)
-      · colour: ${groups.map((g) => `<span style="color:${hue(g)}">■</span> ${esc(g)}`).join(' ')}`;
+      · ${list.length} appeared players after filters`;
 
     // Outliers: largest residuals against the trend.
     const resid = pts.map((q) => ({ q, e: Math.abs(q.y - (a + b * q.x)) })).sort((u, v) => v.e - u.e).slice(0, 8);
@@ -573,7 +595,7 @@
       const cx = (ev.clientX - rect.left) * (cv.width / rect.width);
       const cy = (ev.clientY - rect.top) * (cv.height / rect.height);
       const hit = pts.find((q) => Math.hypot(q._px - cx, q._py - cy) <= q._r + 3);
-      if (hit) { state.player = hit.p.playerId; MODE = 'player'; render(); }
+      if (hit) { state.player = hit.p.playerId; changeMode('player'); }
     };
   }
 
@@ -607,9 +629,10 @@
     const ns = q?.league === 'NBA' ? 'nba' : 'nbagleague';
     const liveHost = location.protocol === 'https:';
     const src = id && liveHost ? `https://cdn.nba.com/logos/${ns}/${id}/primary/L/logo.svg` : '';
-    return `<div class="comp-team-logo"><span>${esc(team)}</span>${src
-      ? `<img src="${esc(src)}" alt="${esc(team)} logo" loading="lazy" onerror="this.style.display='none'">`
-      : ''}</div>`;
+    return `<div class="comp-team-logo">${src
+      ? `<img src="${esc(src)}" alt="${esc(team)} logo" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.hidden=false"><span hidden>${esc(team)}</span>`
+      : `<span>${esc(team)}</span>`
+      }</div>`;
   }
 
   function cval(v, type = '1') {
@@ -706,6 +729,13 @@
     const blend = set.blend || [];
     const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
     const confidence = set.blendConfidence;
+    const profileRead = set.profileRead || {};
+    const traitNames = { physical: 'Listed frame', role: 'Role & playmaking', scoring: 'Scoring & shot profile', defense: 'Defensive activity' };
+    const traitReferences = Object.entries(profileRead.references || {}).map(([key, ref]) => `
+      <div class="comp-trait-reference"><span class="eyebrow">${esc(traitNames[key] || key)}</span>
+        <b>${esc(ref.name)} · ${esc(ref.season)}</b>
+        <span class="tiny">${esc((ref.axes || []).join(' · ') || 'closest measured profile')} · ${num(ref.fit, 1)}/100 trait fit · ${ref.blendShare}% of blend</span>
+        ${ref.also ? `<span class="tiny comp-trait-alternate">Also in the blend: <b>${esc(ref.also.name)}</b> · ${esc((ref.also.axes || []).join(' · ') || 'related profile')} · ${num(ref.also.fit, 1)}/100 trait fit · ${ref.also.blendShare}%</span>` : ''}</div>`).join('');
 
     const heroes = shown.map((q, i) => {
       const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
@@ -750,6 +780,9 @@
       </div>
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
+      <details class="comp-method-note"><summary>How historical rates are compared</summary>
+        <p class="tiny">Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.</p>
+      </details>
       ${compPlayerSearch(p)}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
@@ -761,12 +794,17 @@
         <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
+      <section class="comp-style-read" aria-labelledby="comp-style-heading">
+        <div><div class="eyebrow">PLAYER PROFILE FROM THE BLEND</div><h3 id="comp-style-heading">How to picture ${esc(p.name)}</h3></div>
+        <p class="comp-style-copy">${esc(profileRead.text || set.shorthand || 'A player-specific style read is not available for this record.')}</p>
+        ${traitReferences ? `<div class="comp-trait-grid">${traitReferences}</div>` : ''}
+        <p class="tiny">These attribute references are the closest fits within the selected blend, not separate blend percentages. ${esc(profileRead.caveat || 'Comparisons are statistical analogies and should not be read as identical players.')}</p>
+      </section>
       <div class="comp-hero-grid">${heroes}</div>
-      <div class="comp-shorthand"><b>Blend read:</b> ${esc(set.shorthand || '')}</div>
       <div class="comp-detail-stack">${details}</div>
-      <p class="tiny comp-method"><b>Blend method:</b> the engine forms a balanced shortlist, then chooses one to three historical
+      <p class="tiny comp-method"><b>Blend method:</b> from a balanced shortlist of 18 historical player candidates, the engine chooses one to three
       players and their non-negative percentages together. It minimizes the error between the target and the weighted blend across
-      role, creation, production, shot diet and defensive activity; all shares sum to 100%. Physical compatibility, missing source
+        listed physical dimensions, role, creation, production, shot diet and defensive activity; all shares sum to 100%. Missing source
       fields and an unnecessary extra player are explicit penalties. Team ratings and plus-minus stay visible but do not steer the
       composition. <b>Statistical blend fit</b> combines reconstruction quality, individual match quality and feature coverage, so a
       unique player can still receive honest reference points without pretending the historical fit is strong.
@@ -782,10 +820,20 @@
     if (!t) return '<p class="loading">No team data.</p>';
     state.team = t.team;
     const needs = Object.entries(t.needs).sort((a, b) => b[1].need - a[1].need);
+    const isTeamMember = (fit) => {
+      const p = players().find((x) => String(x.playerId) === String(fit.playerId) && x.league === league());
+      if (!p) return false;
+      return league() === 'NBA' ? p.currentTeam === t.team
+        : (p.teams || []).some((x) => x.team === t.team) || p.team === t.team;
+    };
+    const rosterBasis = league() === 'NBA'
+      ? 'NBA needs use 2025–26 profiles assigned to the current 2026–27 roster.'
+      : 'G League needs use 2025–26 team assignments and profiles.';
     return `<h2>Team fit — ${esc(t.team)}</h2>
       <div class="ws-controls"><label>Team<select id="tfTeam">
         ${names.map((n) => `<option value="${esc(n)}"${n === t.team ? ' selected' : ''}>${esc(n)}</option>`).join('')}
-      </select></label><span class="tiny">${t.rosterSize} players counted toward this roster</span></div>
+      </select></label><span class="tiny">${t.rosterSize} measured player profiles used in the team-need baseline</span></div>
+      <p class="tiny">${rosterBasis} Players without a measured profile are omitted from the baseline.</p>
       <div class="ws-cols">
         <section><h3>Roster needs <span class="tiny">100 = biggest gap</span></h3>
           ${needs.map(([, v]) => bar(v.label, v.need)).join('')}</section>
@@ -793,11 +841,11 @@
           ${needs.slice().reverse().map(([, v]) => bar(v.label, v.strength)).join('')}</section>
       </div>
       <h3>Best fits</h3>
-      <p class="tiny">Fit is <b>not</b> quality or an acquisition recommendation. This includes current roster players; needs use previous-season minutes from players with measured profiles, excluding unmeasured players. A lower-graded player can fit better because he supplies what this roster lacks.</p>
+      <p class="tiny">Fit is <b>not</b> player quality or an acquisition recommendation. The ranking includes current/prior-team members as well as other players with measured profiles; marked team members are not automatically acquisition targets. A lower-graded player can fit better because his measured profile supplies what this team’s baseline lacks.</p>
       <div class="table-wrap"><table class="compare-table"><thead><tr>
         <th class="left">Player</th><th>Grade</th><th>Fit</th><th class="left">Why</th></tr></thead><tbody>
         ${t.topFits.slice(0, 30).map((f) => `<tr>
-          <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button></td>
+          <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button>${isTeamMember(f) ? `<span class="team-fit-member">${league() === 'NBA' ? 'Current roster' : '2025–26 team'}</span>` : ''}</td>
           <td>${gnum(f.grade)}</td><td><b>${f.score}/100</b></td>
           <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>') || 'No pronounced roster need crosses the explanation threshold; score reflects the weighted profile across all measured needs.'}</td></tr>`).join('')}
       </tbody></table></div>`;
@@ -1069,8 +1117,13 @@
   /* ------------------------------------------------------------- wiring */
   function wire() {
     const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
-    on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); });
-    on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; MODE = 'similarity'; render(); });
+    on('scEditFilters', 'click', () => changeMode('database'));
+    on('scClearFilters', 'click', () => window.__siteClearAllFilters?.());
+    document.querySelectorAll('[data-filter-clear]').forEach((b) => {
+      b.onclick = () => window.__siteClearFilter?.(b.dataset.filterClear);
+    });
+    on('wsPlayerSel', 'change', (e) => { state.player = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('wsFindSimilar', 'click', () => { state.simPlayer = state.player; changeMode('similarity'); });
     on('wsLoadHistoryGames', 'click', () => { const p = byId(state.player) || players()[0]; if (p) openHistoryGames(p); });
     const chooseCompPlayer = (raw) => {
       raw = String(raw || '').trim();
@@ -1078,7 +1131,7 @@
         || compPool().find((p) => compPlayerLabel(p) === raw)
         || compPool().find((p) => fold(p.name).startsWith(fold(raw)));
       if (exact) {
-        state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render();
+        state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); window.__siteUrlChanged?.('push');
       }
     };
     on('simSearch', 'focus', (e) => updateCompSuggestions(e.target.value));
@@ -1087,38 +1140,64 @@
       if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value); }
       if (e.key === 'Escape' && $('simSuggestions')) $('simSuggestions').hidden = true;
     });
-    on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); });
-    on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); });
+    on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
       const b = e.target.closest('[data-sim-pick]');
       if (!b) return;
       const exact = byId(b.dataset.simPick);
-      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); }
+      if (exact) { state.simPlayer = exact.playerId; state.player = exact.playerId; state.simQuery = ''; render(); window.__siteUrlChanged?.('push'); }
     });
-    on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); });
-    on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); });
-    on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); });
+    on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); window.__siteUrlChanged?.('push'); });
+    on('tuTarget', 'change', (e) => { state.tulipTarget = Number(e.target.value); render(); window.__siteUrlChanged?.('push'); });
     document.querySelectorAll('[data-tulip]').forEach((b) => {
-      b.onclick = () => { state.tulipPlayer = b.dataset.tulip; state.tulipTarget = null; render(); };
+      b.onclick = () => { state.tulipPlayer = b.dataset.tulip; state.tulipTarget = null; render(); window.__siteUrlChanged?.('push'); };
     });
     for (const [id, key] of [['scX', 'scatterX'], ['scY', 'scatterY'], ['scSize', 'scatterSize'], ['scColor', 'scatterColor']]) {
-      on(id, 'change', (e) => { state[key] = e.target.value; render(); });
+      on(id, 'change', (e) => { state[key] = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     }
     document.querySelectorAll('[data-preset]').forEach((b) => {
-      b.onclick = () => { const [x, y] = b.dataset.preset.split('|'); state.scatterX = x; state.scatterY = y; render(); };
+      b.onclick = () => { const [x, y] = b.dataset.preset.split('|'); state.scatterX = x; state.scatterY = y; render(); window.__siteUrlChanged?.('push'); };
     });
     // Only workspace player links use data-goto as a player id. The persistent site navigation also
     // uses data-goto (stats/proj/comps); binding those here overwrote app.js and made the top-level
     // Player Comps tab flash the right title before incorrectly opening the Player mode.
     document.querySelectorAll('#workspace [data-goto]').forEach((b) => {
-      b.onclick = () => { state.player = b.dataset.goto; MODE = 'player'; render(); };
+      b.onclick = () => { state.player = b.dataset.goto; changeMode('player'); };
     });
   }
 
-  window.__wsOpenPlayer = (id) => { state.player = id; MODE = 'player'; render(); };
+  window.__wsOpenPlayer = (id) => { state.player = id; changeMode('player'); };
   window.__wsInit = () => { render(); };
   window.__wsMode = () => MODE;
-  window.__wsSetMode = (m) => { MODE = m; render(); };
+  window.__wsSetMode = (m, push = true) => changeMode(m, push);
+  window.__wsRefresh = () => render();
+  window.__wsUrlState = () => ({
+    ...(state.player ? { player: state.player } : {}),
+    ...(state.simPlayer ? { sim: state.simPlayer } : {}),
+    ...(state.simTeam ? { simTeam: state.simTeam } : {}),
+    ...(state.simPosition ? { simPosition: state.simPosition } : {}),
+    ...(state.team ? { teamfit: state.team } : {}),
+    ...(state.tulipPlayer ? { rolePlayer: state.tulipPlayer } : {}),
+    ...(state.tulipTarget != null ? { target: state.tulipTarget } : {}),
+    ...(state.scatterX !== 'usg' ? { x: state.scatterX } : {}),
+    ...(state.scatterY !== 'ts' ? { y: state.scatterY } : {}),
+    ...(state.scatterSize ? { size: state.scatterSize } : {}),
+    ...(state.scatterColor !== 'positionFamily' ? { color: state.scatterColor } : {}),
+  });
+  window.__wsRestoreUrlState = (x = {}) => {
+    MODE = MODES.some(([key]) => key === x.mode) ? x.mode : 'database';
+    const valid = (id) => id != null && players().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
+    state.player = valid(x.player); state.simPlayer = valid(x.sim);
+    state.simTeam = x.simTeam || ''; state.simPosition = x.simPosition || '';
+    state.team = x.teamfit || null; state.tulipPlayer = valid(x.rolePlayer);
+    state.tulipTarget = fin(x.target) && Number(x.target) >= 0 && Number(x.target) <= 48 ? Number(x.target) : null;
+    if (numericFields().some((f) => f.key === x.x)) state.scatterX = x.x;
+    if (numericFields().some((f) => f.key === x.y)) state.scatterY = x.y;
+    if (!x.size || numericFields().some((f) => f.key === x.size)) state.scatterSize = x.size || '';
+    if (['positionFamily', 'team', 'ageBand', 'primaryArchetype'].includes(x.color)) state.scatterColor = x.color;
+  };
 
   /**
    * Self-initialise. app.js also calls __wsInit, but in the standalone build its init() runs

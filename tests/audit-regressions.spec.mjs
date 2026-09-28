@@ -37,6 +37,44 @@ test('scatter excludes missing coordinates before numeric conversion', async ({p
   await expect(page.locator('#scStats')).toContainText('r = 0.002');
 });
 
+test('shareable analysis URL restores league, tab, filters and chart axes', async ({page}) => {
+  const shared = `${PAGE}?league=GLEAGUE&mode=scatter&view=scoring&gp=10&q=James&x=pts&y=ts`;
+  await page.goto(shared);
+  await page.waitForFunction(() => window.DATA && document.querySelector('#scCanvas'));
+  await expect(page.locator('.league-tab[data-league="GLEAGUE"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-mode="scatter"]')).toHaveClass(/active/);
+  await expect(page.locator('#viewPreset')).toHaveValue('scoring');
+  await expect(page.locator('#minGp')).toHaveValue('10');
+  await expect(page.locator('#searchInput')).toHaveValue('James');
+  await expect(page.locator('#scX')).toHaveValue('pts');
+  await expect(page.locator('#scY')).toHaveValue('ts');
+  await expect(page.locator('#scFilterChips')).toContainText('Min games: 10');
+  await expect(page.locator('#scFilterChips')).toContainText('Search: James');
+});
+
+test('shareable Formula Lab score restores its metrics and weights', async ({page}) => {
+  const score = encodeURIComponent(JSON.stringify({ fields: [['pts', 2.5]], cohort: 'league' }));
+  await page.goto(`${PAGE}?score=${score}`);
+  await page.waitForFunction(() => window.DATA && document.querySelector('#tableBody tr td'));
+  await expect(page.locator('#labMetric1')).toHaveValue('pts');
+  await expect(page.locator('#labWeight1')).toHaveValue('2.5');
+  await expect(page.locator('#labMetric2')).toHaveValue('');
+  await expect(page.locator('#sortField')).toHaveValue('labScore');
+});
+
+test('Scatter exposes removable active filters and a complete accessible colour legend', async ({page}) => {
+  await page.goto(PAGE + '?mode=scatter&gp=20');
+  await page.waitForFunction(() => window.DATA && document.querySelector('#scCanvas'));
+  await expect(page.locator('#scFilterChips button[data-filter-clear="gp"]')).toBeVisible();
+  await page.click('#scFilterChips button[data-filter-clear="gp"]');
+  await expect(page.locator('#minGp')).toHaveValue('0');
+  await expect(page.locator('#scFilterChips')).toContainText('No Database filters are active');
+  await page.click('#scLegend summary');
+  await expect(page.locator('#scLegendItems .scatter-legend-item').first()).toBeVisible();
+  await page.click('#scEditFilters');
+  await expect(page.locator('[data-mode="database"]')).toHaveClass(/active/);
+});
+
 test('Role Value uses exact default target and hides stale rotation decisions', async ({page}) => {
   await page.click('[data-mode="tulip"]');
   const p=await page.evaluate(()=>{const p=DATA.leagues.NBA.find(p=>p.name==='Andre Drummond');return {id:p.playerId,target:p.tulip.card.targetMpg,impact:p.tulip.card.projection.projectedImpact};});
