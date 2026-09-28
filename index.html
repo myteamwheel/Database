@@ -6,7 +6,7 @@
   <meta name="description" content="2025-26 NBA and NBA G League player stats, rankings and 2026-27 projections" />
   <title>Pro Basketball Database: 2025-26 Player Stats and 2026-27 Projections</title>
   <!-- Versioned URLs make a Pages deploy immediately pick up the matching UI assets. -->
-  <link rel="stylesheet" href="styles.css?v=20260927-final-audit" />
+  <link rel="stylesheet" href="styles.css?v=20260928-roster-scope" />
 </head>
 <body>
   <header class="site-header">
@@ -49,6 +49,12 @@
       <div class="control-grid">
         <label class="wide">Search
           <input id="searchInput" type="search" placeholder="Player, team, country, college" />
+        </label>
+        <label id="rosterScopeControl">NBA roster view
+          <select id="rosterScope">
+            <option value="season">2025-26 performance</option>
+            <option value="current">Current NBA rosters</option>
+          </select>
         </label>
         <label>Team
           <select id="teamFilter"><option value="">All teams</option></select>
@@ -109,7 +115,7 @@
           </div>
           <div class="toggle-row">
             <label class="check"><input id="bothOnly" type="checkbox" /> Played in both the NBA and G League</label>
-            <label class="check"><input id="includeRosterOnly" type="checkbox" /> Include rostered players who never played</label>
+            <label class="check" id="rosterOnlyControl"><input id="includeRosterOnly" type="checkbox" /> Also show current-roster players with no 2025-26 NBA line</label>
           </div>
         </details>
         <details class="db-only lab-panel">
@@ -135,6 +141,8 @@
         <button id="resetBtn" class="text-button reset" type="button">Reset filters</button>
       </div>
     </section>
+
+    <section class="db-only roster-scope-note" id="rosterScopeNote" role="status" aria-live="polite" hidden></section>
 
     <section class="db-only active-rules" id="activeRules"></section>
 
@@ -182,7 +190,7 @@
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js?v=20260927-final-audit"></script>
-  <script src="workspace.js?v=20260927-final-audit"></script>
+  <script src="app.js?v=20260928-roster-scope"></script>
+  <script src="workspace.js?v=20260928-roster-scope"></script>
 </body>
 </html>

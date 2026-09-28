@@ -18,8 +18,13 @@
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
+  // Charts and rankings need a played season, while the Player and Player Comps pickers also
+  // need current-roster rookies and signings who have no 2025-26 NBA line yet.
   const players = () => (window.DATA?.leagues?.[league()] || []).filter((p) => p.appeared);
-  const byId = (id) => players().find((p) => p.playerId === id);
+  const pickerPlayers = () => league() === 'NBA'
+    ? (window.DATA?.leagues?.NBA || []).filter((p) => p.appeared || p.currentRoster)
+    : players();
+  const byId = (id) => pickerPlayers().find((p) => String(p.playerId) === String(id));
 
   /* ------------------------------------------------------------- mode nav */
   const MODES = [
@@ -81,7 +86,11 @@
   }
 
   /* ------------------------------------------------- shared UI fragments */
-  const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || p.team || 'Unsigned') : (p?.team || '—');
+  // An old season team is history, not a current roster claim. Never fall back to it here.
+  const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.team || '—');
+  const rosterLabel = (p) => p?.currentRoster && !p.appeared
+    ? `${teamOf(p)} · current roster, no 2025-26 NBA stats`
+    : teamOf(p);
 
   const bar = (label, v, extra = '') =>
     `<div class="pbar"><span class="pbar-l">${esc(label)}</span>
@@ -91,17 +100,17 @@
 
   const playerPicker = (id, selected, label) =>
     `<label>${esc(label)}<select id="${id}">${
-      players().slice().sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(teamOf(p))}</option>`).join('')
+      pickerPlayers().slice().sort((a, b) => a.name.localeCompare(b.name))
+        .map((p) => `<option value="${esc(p.playerId)}"${p.playerId === selected ? ' selected' : ''}>${esc(p.name)} — ${esc(rosterLabel(p))}</option>`).join('')
     }</select></label>`;
 
   const compPlayerLabel = (p) => `${p.name} — ${teamOf(p)}`;
-  const compPool = () => players().filter((p) =>
+  const compPool = () => pickerPlayers().filter((p) =>
     (!state.simTeam || teamOf(p) === state.simTeam)
     && (!state.simPosition || p.position === state.simPosition || p.positionFamily === state.simPosition));
   const compPlayerSearch = (p) => {
-    const teams = [...new Set(players().map(teamOf).filter(Boolean))].sort();
-    const positions = [...new Set(players().map((x) => x.position).filter(Boolean))].sort();
+    const teams = [...new Set(pickerPlayers().map(teamOf).filter(Boolean))].sort();
+    const positions = [...new Set(pickerPlayers().map((x) => x.position).filter(Boolean))].sort();
     if (state.simTeam && !teams.includes(state.simTeam)) state.simTeam = '';
     if (state.simPosition && !positions.includes(state.simPosition)) state.simPosition = '';
     return `<section class="comp-search-panel" aria-label="Player comparison search">
@@ -159,7 +168,7 @@
     }
     box.innerHTML = list.length ? `<div class="comp-suggestion-count" aria-live="polite">${list.length.toLocaleString()} ${q ? 'matching' : 'available'} players · scroll to browse${q ? '' : ' or type to narrow'}</div>`
       + list.map((p, i) => `<button id="simOption-${esc(p.playerId)}" class="${i === state.simActiveIndex ? 'is-active' : ''}" type="button" role="option" aria-selected="${i === state.simActiveIndex}" data-sim-pick="${esc(p.playerId)}">
-      <b>${esc(p.name)}</b><span>${esc(teamOf(p))} · ${esc(p.position || '—')}</span></button>`).join('')
+      <b>${esc(p.name)}</b><span>${esc(rosterLabel(p))} · ${esc(p.position || '—')}</span></button>`).join('')
       : `<div class="comp-suggestion-count" role="status">No matching players. Try a different name, team, or position.</div>`;
   }
 
@@ -247,6 +256,7 @@
     const p = byId(state.player) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
     state.player = p.playerId;
+    if (!p.appeared) return viewCurrentRosterOnlyPlayer(p);
     const sp = p.skillProfile || {};
     const cr = p.cohortRanks || {};
     const splits = ['home', 'road', 'wins', 'losses', 'starter', 'bench', 'preallstar', 'postallstar', 'clutch'];
@@ -328,6 +338,29 @@
 
     ${p.nbaTranslation && Object.keys(p.nbaTranslation).length ? translationBlock(p) : ''}
     <div class="ws-actions"><button class="button" id="wsFindSimilar">Find player comps</button></div>`;
+  }
+
+  /** A roster listing is useful, but it must never masquerade as a performance profile. */
+  function viewCurrentRosterOnlyPlayer(p) {
+    const proj = p.proj && p.proj.abstain !== true ? p.proj : null;
+    return `
+      <div class="ws-head">
+        <div>${playerPicker('wsPlayerSel', p.playerId, 'Player')}</div>
+        <div class="ws-title"><h2>${esc(p.name)}</h2>
+          <p class="tiny">NBA · ${esc(rosterLabel(p))} · ${esc(p.position || '—')} · ${esc(p.height || '—')} · ${p.weight ? `${p.weight} lb` : '—'}</p></div>
+      </div>
+      <section class="ws-card wide">
+        <div class="eyebrow">CURRENT NBA ROSTER PROFILE</div>
+        <h3>Listed on ${esc(teamOf(p))}; no 2025-26 NBA appearance</h3>
+        <p class="tiny">This player is included because the current official NBA roster snapshot lists him. He is intentionally not given a 2025-26 performance grade, rank, or historical player comp without a usable 2025-26 NBA sample.</p>
+      </section>
+      <div class="ws-grid">
+        <div class="ws-card"><div class="k">Current roster</div><div class="v">${esc(teamOf(p))}</div><p class="tiny">published current roster snapshot</p></div>
+        <div class="ws-card"><div class="k">2025-26 NBA line</div><div class="v">—</div><p class="tiny">no NBA appearance; not missing a stat row</p></div>
+        <div class="ws-card"><div class="k">Historical player comps</div><div class="v">N/A</div><p class="tiny">requires a usable 2025-26 NBA sample</p></div>
+        ${proj ? `<div class="ws-card"><div class="k">2026-27 projected PTS</div><div class="v">${num(proj.pts)}</div><p class="tiny">${num(proj.gp)} projected games · ${num(proj.mpg)} projected MPG</p></div>` : ''}
+      </div>
+      ${proj ? `<p class="tiny">The projection is a model output, not an announced role or a guarantee. It is shown separately from the unavailable 2025-26 performance profile.</p>` : ''}`;
   }
 
   function historyBlock(p) {
@@ -745,10 +778,13 @@
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
+      const reason = p.currentRoster&&!p.appeared
+        ? `${p.name} is on the current ${teamOf(p)} roster but has no 2025-26 NBA appearance, so the comparison engine has no target stat profile to match.`
+        : `${p.name} has no usable 2025-26 professional sample for this comparison.`;
       return `<h2>Player Comps</h2>
         ${compPlayerSearch(p)}
-        <div class="ws-card wide"><p>No historical comparison is available for <b>${esc(p.name)}</b>.
-        This usually means the player has no usable 2025-26 professional sample yet.</p></div>
+        <div class="ws-card wide"><div class="eyebrow">COMPARISON UNAVAILABLE</div><p><b>${esc(reason)}</b></p>
+        <p class="tiny">The site keeps the player searchable and shows his roster status, but it does not invent a player comp from no current-season stat line.</p></div>
         <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
     }
 
@@ -1258,7 +1294,7 @@
   });
   window.__wsRestoreUrlState = (x = {}) => {
     MODE = MODES.some(([key]) => key === x.mode) ? x.mode : 'database';
-    const valid = (id) => id != null && players().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
+    const valid = (id) => id != null && pickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
     state.player = valid(x.player); state.simPlayer = valid(x.sim);
     state.simTeam = x.simTeam || ''; state.simPosition = x.simPosition || '';
     state.team = x.teamfit || null; state.tulipPlayer = valid(x.rolePlayer);

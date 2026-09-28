@@ -110,6 +110,9 @@ details[open]>summary::after{content:" \25B4"}
 .more-filters>.control-grid{margin-top:8px}
 .toggle-row{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px}
 .check{display:flex;align-items:center;gap:6px;color:var(--text);font-size:12.5px;font-weight:400}
+.roster-scope-note{border:1px solid #b9d6c2;border-left:4px solid #2f855a;background:#f1faf4;color:#1c4a30;
+  margin:-2px 0 10px;padding:8px 12px;font-size:12.5px;line-height:1.4}
+.roster-scope-note b{color:#173f29}
 
 /* ---- Buttons ----------------------------------------------------------- */
 .btn,.button{appearance:none;border:1px solid var(--field-line);border-radius:3px;background:var(--panel);color:var(--text);

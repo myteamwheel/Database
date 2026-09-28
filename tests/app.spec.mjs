@@ -306,6 +306,63 @@ test.describe('roster-only players', () => {
       DATA.leagues.NBA.filter((p) => p.rosterOnly).every((p) => p.grade === null))).toBe(true);
     expect(errors).toEqual([]);
   });
+
+  test('current NBA roster scope includes new roster players and never includes unsigned players', async ({ page }) => {
+    const errors = await open(page);
+    const expected = await page.evaluate(() => ({
+      current: DATA.leagues.NBA.filter((p) => p.currentRoster).length,
+      ben: DATA.leagues.NBA.find((p) => p.name === 'Ben Simmons'),
+      unsigned: DATA.leagues.NBA.find((p) => p.appeared && !p.currentRoster),
+    }));
+    expect(expected.ben?.currentRoster).toBe(true);
+    expect(expected.unsigned).toBeTruthy();
+
+    await setVal(page, '#rosterScope', 'current');
+    await page.waitForTimeout(250);
+    expect(await count(page)).toBe(expected.current);
+    const scopeState = await page.evaluate(() => ({
+      title: document.getElementById('pageTitle').textContent,
+      note: document.getElementById('rosterScopeNote').textContent,
+      rows: [...document.querySelectorAll('#tableBody tr')].map((row) => row.textContent),
+      allCurrent: window.__wsFiltered().every((p) => p.currentRoster),
+    }));
+    expect(scopeState.title).toContain('Current Rosters');
+    expect(scopeState.note).toContain('Current NBA rosters');
+    expect(scopeState.allCurrent).toBe(true);
+
+    await setVal(page, '#searchInput', 'Ben Simmons');
+    await page.waitForTimeout(150);
+    expect(await page.locator('#tableBody').textContent()).toContain('Ben Simmons');
+    await setVal(page, '#searchInput', '');
+
+    await setVal(page, '#rosterScope', 'season');
+    await setVal(page, '#searchInput', expected.unsigned.name);
+    await page.waitForTimeout(200);
+    const unsignedRow = await page.$eval('#tableBody tr', (row) => row.textContent);
+    expect(unsignedRow).toContain('No NBA roster');
+    expect(errors).toEqual([]);
+  });
+
+  test('search and Player Comps keep a current roster-only player discoverable without inventing a comp', async ({ page }) => {
+    const errors = await open(page);
+    await setVal(page, '#searchInput', 'Ben Simmons');
+    await page.waitForTimeout(200);
+    expect(await page.locator('#tableBody').textContent()).toContain('Ben Simmons');
+    expect(await page.locator('#tableBody').textContent()).toContain('SAC');
+
+    await page.click('[data-mode="similarity"]');
+    await page.locator('#simSearch').fill('Ben Simmons');
+    await page.waitForTimeout(100);
+    await page.locator('[data-sim-pick="1627732"]').click();
+    await expect(page.locator('#workspace')).toContainText('COMPARISON UNAVAILABLE');
+    await expect(page.locator('#workspace')).toContainText('current SAC roster');
+
+    await page.click('[data-mode="player"]');
+    await expect(page.locator('#workspace')).toContainText('CURRENT NBA ROSTER PROFILE');
+    await expect(page.locator('#workspace')).toContainText('Listed on SAC; no 2025-26 NBA appearance');
+    await expect(page.locator('#workspace')).not.toContainText('Performance grade');
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('formula lab', () => {

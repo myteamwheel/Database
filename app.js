@@ -13,7 +13,7 @@ let restoringUrlState = false;
 const URL_FILTER_FIELDS = {
   q: 'searchInput', team: 'teamFilter', pos: 'positionFilter', country: 'countryFilter',
   gp: 'minGp', mpg: 'minMpg', min: 'minMin', grade: 'minGrade', reliability: 'minReliability',
-  teamMode: 'teamMode', view: 'viewPreset', sort: 'sortField', dir: 'sortOrder', rows: 'rowLimit',
+  rosterScope: 'rosterScope', teamMode: 'teamMode', view: 'viewPreset', sort: 'sortField', dir: 'sortOrder', rows: 'rowLimit',
 };
 const URL_ALLOWED_MODES = new Set(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
 
@@ -27,7 +27,7 @@ function writeUrlState(kind = 'replace') {
     const el = $(id);
     if (!el) continue;
     const value = el.type === 'checkbox' ? (el.checked ? '1' : '') : String(el.value || '');
-    const defaults = { teamMode: 'season', view: 'overall', sort: 'grade', dir: '-1', rows: '50', gp: '0', mpg: '0', min: '0', grade: '0', reliability: '0' };
+    const defaults = { rosterScope: 'season', teamMode: 'season', view: 'overall', sort: 'grade', dir: '-1', rows: '50', gp: '0', mpg: '0', min: '0', grade: '0', reliability: '0' };
     if (value && value !== (defaults[key] ?? '')) params.set(key, value);
   }
   if ($('bothOnly')?.checked) params.set('both', '1');
@@ -58,7 +58,7 @@ function restoreUrlState() {
     document.querySelectorAll('.league-tab').forEach((b) => b.classList.toggle('active', b.dataset.league === league));
     populateSelectors(); fillMetricSelects();
     for (const [id, value] of Object.entries({ searchInput: '', teamFilter: '', positionFilter: '', countryFilter: '',
-      minGp: '0', minMpg: '0', minMin: '0', minGrade: '0', minReliability: '0', teamMode: 'season',
+      minGp: '0', minMpg: '0', minMin: '0', minGrade: '0', minReliability: '0', rosterScope: 'season', teamMode: 'season',
       viewPreset: 'overall', rowLimit: '50', sortOrder: '-1' })) if ($(id)) $(id).value = value;
     sortKey = 'grade'; sortDir = -1;
     for (const [key, id] of Object.entries(URL_FILTER_FIELDS)) {
@@ -133,7 +133,8 @@ window.__siteFilterSummary = () => {
   for (const [key, [label, value]] of Object.entries(labels)) if (value) rows.push({ key, label, value });
   if ($('teamMode')?.value === 'only') rows.push({ key: 'teamMode', label: 'Team stats', value: 'Selected team only' });
   if ($('bothOnly')?.checked) rows.push({ key: 'both', label: 'League overlap', value: 'NBA and G League' });
-  if ($('includeRosterOnly')?.checked) rows.push({ key: 'roster', label: 'Roster-only players', value: 'Included' });
+  if (isCurrentNbaRosterView()) rows.push({ key: 'rosterScope', label: 'Roster view', value: 'Current NBA rosters' });
+  else if ($('includeRosterOnly')?.checked) rows.push({ key: 'roster', label: 'Roster-only players', value: 'Included' });
   for (const [i, rule] of rules.entries()) rows.push({ key: `rule:${i}`, label: colDef(rule.key).label, value: `${rule.op} ${rule.value}` });
   return rows;
 };
@@ -143,6 +144,7 @@ window.__siteClearFilter = (key) => {
   if (key.startsWith('rule:')) rules.splice(Number(key.slice(5)), 1);
   else if (key === 'both') $('bothOnly').checked = false;
   else if (key === 'roster') $('includeRosterOnly').checked = false;
+  else if (key === 'rosterScope') $('rosterScope').value = 'season';
   else if (key === 'teamMode') $('teamMode').value = 'season';
   else if (ids[key]) $(ids[key]).value = ['q', 'team', 'pos', 'country'].includes(key) ? '' : '0';
   render(); window.__wsRefresh?.(); writeUrlState('push');
@@ -175,10 +177,12 @@ function rehydrate(d) {
 }
 
 /** 2026-27 roster situation, as shown in the Status column. */
-const PROJ_STATUS = { same: 'Returning', new: 'New team', unsigned: 'No NBA team', 'nba-roster': 'On NBA roster', gleague: 'G League' };
+const PROJ_STATUS = { same: 'Returning', new: 'New team', unsigned: 'No NBA roster', 'nba-roster': 'On NBA roster', gleague: 'G League' };
 
 const get = (p, key) => {
-  if (key === 'team') return p.league === 'NBA' ? (p.currentTeam ?? null) : (p.team ?? null);
+  // Never render an old 2025-26 team as if it were the player's present NBA team. Historical
+  // team identity stays in seasonTeam and is shown beside the player when it adds context.
+  if (key === 'team') return p.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p.team ?? null);
   if (key === 'labScore') return p.labScore ?? null;
   if (key === 'viewRank') return viewRankOf.get(p.playerId) ?? null;
   if (key.startsWith('stats.')) return p.stats?.[key.slice(6)] ?? null;
@@ -603,6 +607,52 @@ const fromDisplayUnit = (key,v) => (finite(v) && isFraction(key) ? Number(v)/100
 function gradeClass(v){return v>=8.5?'elite':v>=6.5?'strong':v>=4?'mid':'low'}
 function currentPlayers(){return DATA?.leagues?.[league] || []}
 
+/** The current-roster view is NBA-only; G League has no equivalent published 2026-27 roster set. */
+function isCurrentNbaRosterView(){ return league === 'NBA' && $('rosterScope')?.value === 'current'; }
+
+function currentRosterCount(){ return currentPlayers().filter((p) => p.currentRoster).length; }
+
+/**
+ * Make the two valid contexts explicit: historical performance and the live roster snapshot.
+ * This prevents a 2025-26 player without a current NBA spot from looking rostered, while keeping
+ * his historical line available for research.
+ */
+function updateRosterScopeUi(){
+  const nba = league === 'NBA';
+  const scopeControl = $('rosterScopeControl');
+  const scope = $('rosterScope');
+  const rosterOnlyControl = $('rosterOnlyControl');
+  const note = $('rosterScopeNote');
+  if (!scopeControl || !scope || !note) return;
+
+  scopeControl.hidden = !nba;
+  if (!nba) {
+    note.hidden = true;
+    if (rosterOnlyControl) rosterOnlyControl.hidden = false;
+    return;
+  }
+
+  const performanceCount = DATA?.counts?.NBA ?? currentPlayers().filter((p) => p.appeared).length;
+  const rosterCount = currentRosterCount();
+  scope.options[0].textContent = `2025-26 performance (${performanceCount.toLocaleString()})`;
+  scope.options[1].textContent = `Current NBA rosters (${rosterCount.toLocaleString()})`;
+  const current = isCurrentNbaRosterView();
+  if (rosterOnlyControl) rosterOnlyControl.hidden = current;
+
+  // The league-tab count describes the active, top-level data scope—not a narrowed search.
+  $('nbaCount').textContent = (current ? rosterCount : performanceCount).toLocaleString();
+  $('nbaCount').title = current
+    ? `${rosterCount.toLocaleString()} players on the published current NBA roster snapshot`
+    : `${performanceCount.toLocaleString()} players with a 2025-26 NBA appearance`;
+
+  const asOf = longDate(DATA?.currentRosterMeta?.asOf);
+  note.hidden = !current;
+  if (current) {
+    const withoutLine = currentPlayers().filter((p) => p.currentRoster && !p.appeared).length;
+    note.innerHTML = `<b>Current NBA rosters:</b> ${rosterCount.toLocaleString()} players as of ${esc(asOf || 'the published snapshot')}, including ${withoutLine.toLocaleString()} players without a 2025-26 NBA appearance (such as rookies, new signings, or players who did not play). Their historical-stat cells are intentionally blank—not missing data.`;
+  }
+}
+
 function rawMetricKeys(){
   const keys=new Set();
   for(const p of currentPlayers()) for(const [k,v] of Object.entries(p.stats||{})) if(finite(v)) keys.add(`stats.${k}`);
@@ -663,6 +713,7 @@ const COLUMN_HELP = {"name": "WHAT: player name. PLAIN: who this is. Click it to
 // Keep the published glossary synchronized with the real grade ingredients rather than the older
 // prose that predated the current model.
 Object.assign(COLUMN_HELP, {
+  team: 'WHAT: current NBA roster status. PLAIN: an NBA abbreviation means the player is on that current roster; No NBA roster means the published snapshot has no current NBA team for him. The 2025-26 performance team is shown separately beside a player when it differs. G League rows remain their 2025-26 team until new G League rosters are published.',
   'components.scoring': 'WHAT: scoring component of the grade (30% weight). FORMULA: weighted percentile of points, free-throw attempts, three-point attempts and usage within the league.',
   'components.defense': 'WHAT: defense component (16% weight). FORMULA: weighted percentile of steals, blocks, defensive rating and defensive win shares.',
   'components.efficiency': 'WHAT: efficiency component (12% weight). FORMULA: weighted percentile of true shooting, effective field-goal percentage, turnovers and turnover percentage.',
@@ -1025,17 +1076,22 @@ function filteredPlayers(){
   const minRel=Number($('minReliability').value)||0;
   const teamMode=$('teamMode')?.value||'season';
   const showRosterOnly=$('includeRosterOnly')?.checked;
+  const currentRosterView=isCurrentNbaRosterView();
   let list=currentPlayers()
     .filter(p=>{
-      if(p.rosterOnly&&!showRosterOnly) return false;
       const hay=fold([p.name,p.currentTeam,p.seasonTeam,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
+      // A direct search should find a rookie or new signing even in the historical-stat view;
+      // browsing them all belongs in the explicit Current NBA rosters view.
+      const directRosterSearch=Boolean(q)&&hay.includes(q);
+      if(currentRosterView && !p.currentRoster) return false;
+      if(!currentRosterView && p.rosterOnly&&!showRosterOnly&&!directRosterSearch) return false;
       return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
         &&(!$('bothOnly').checked||p.bothLeagues);
     })
     // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
     .map(p=>teamScoped(p,team,teamMode))
     .filter(p=>{
-      const gradeOk=p.grade===null?(showRosterOnly||p.teamScopedTo):p.grade>=minGrade;
+      const gradeOk=p.grade===null?(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo):p.grade>=minGrade;
       return p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
         &&(p.teamScopedTo||(p.reliabilityWeight||0)>=minRel)&&applyRules(p);
     });
@@ -1082,9 +1138,12 @@ function renderRules(){
 
 /** Title, breadcrumb and section highlight follow the league and the view. */
 function updatePageHead(){
-  const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj';
-  $('pageTitle').textContent=isProj?`2026-27 ${lg} Projections`:`2025-26 ${lg} Player Stats`;
-  $('crumbs').textContent=`${lg} › ${isProj?'2026-27':'2025-26'} › ${isProj?'Projections':(PRESET_LABELS[preset]||'Player stats')}`;
+  const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj', currentRosterView=isCurrentNbaRosterView();
+  $('pageTitle').textContent=isProj?`2026-27 ${lg} Projections`:currentRosterView?'2026-27 NBA Current Rosters':`2025-26 ${lg} Player Stats`;
+  $('crumbs').textContent=isProj
+    ? `${lg} › 2026-27 › Projections`
+    : currentRosterView ? 'NBA › 2026-27 › Current rosters'
+      : `${lg} › 2025-26 › ${PRESET_LABELS[preset]||'Player stats'}`;
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',(b.dataset.goto==='proj')===isProj));
   $('projNote').hidden=!isProj;
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
@@ -1117,6 +1176,7 @@ function goTo(dest){
 }
 
 function render(){
+  updateRosterScopeUi();
   updatePageHead();
   const cols=visibleColumns();
   // Resolve a preset's fallback sort before sorting rows or deriving displayed ranks.
@@ -1138,7 +1198,7 @@ function render(){
     ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
     : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
-  $('sortLabel').textContent=`· sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
+  $('sortLabel').textContent=`· ${isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   hideStatTip(true);   // a re-render replaces the header the panel was anchored to
   $('tableHead').innerHTML=cols.map(key=>{
@@ -1149,7 +1209,8 @@ function render(){
     // announces the current ordering to screen readers.
     if(key==='viewRank') return '<th scope="col" aria-label="Display row number; not sortable">#</th>';
     const aria = sortKey===key ? (sortDir<0?'descending':'ascending') : 'none';
-    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(d.label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
+    const label=key==='team'&&league==='NBA'?(isCurrentNbaRosterView()?'Current team':'Current status'):d.label;
+    return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
   document.querySelectorAll('#tableHead [data-sort]').forEach(th=>wireHeader(th, th.dataset.sort, ()=>{
@@ -1171,12 +1232,17 @@ function cell(p,key){
     let sub;
     if($('viewPreset').value==='proj') sub=esc(p.position||'—');
     else if(p.league==='NBA'){
-      sub=esc(p.currentTeam||'Unsigned')+' · '+esc(p.position||'—');
+      sub=esc(p.currentTeam||'No NBA roster')+' · '+esc(p.position||'—');
+      if(p.currentRoster&&!p.appeared) sub+=' · Current roster, no 2025-26 NBA stats';
       if(p.seasonTeam&&p.seasonTeam!==p.currentTeam) sub+=' · 2025-26: '+esc(p.seasonTeam);
     } else sub=esc(p.team||'')+' · '+esc(p.position||'—');
     return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${sub}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${fmt(v,def.type)}</td>`;
+  if(key==='team'&&p.league==='NBA'){
+    const cls=p.currentTeam?'': 'status-unsigned';
+    return `<td class="${cls}">${fmt(v,def.type)}</td>`;
+  }
   if(key==='proj.status'){
     const cls=p.proj?.status==='new'?'status-new':p.proj?.status==='unsigned'?'status-unsigned':'';
     return `<td class="${cls}">${fmt(v,def.type)}</td>`;
@@ -1546,7 +1612,7 @@ function openPlayer(id){
         <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
         <h2>${esc(p.name)}</h2>
         <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
-        <p class="tiny">${p.currentRosterOnly?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
+        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>
@@ -1898,6 +1964,7 @@ function reset(){
   ['searchInput','teamFilter','positionFilter','countryFilter'].forEach(id=>$(id).value='');
   ['minGp','minMpg','minMin','minGrade','minReliability'].forEach(id=>$(id).value=0);
   $('bothOnly').checked=false;if($('includeRosterOnly'))$('includeRosterOnly').checked=false;
+  if($('rosterScope'))$('rosterScope').value='season';
   if($('teamMode'))$('teamMode').value='season';rules=[];render();
 }
 
@@ -1925,7 +1992,7 @@ function switchLeague(b){
 
 function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
-  ['searchInput','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','rowLimit']
+  ['searchInput','rosterScope','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','rowLimit']
     .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',()=>{
       render(); writeUrlState(id==='searchInput'?'replace':'push');
     }));
