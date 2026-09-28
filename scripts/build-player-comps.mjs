@@ -507,12 +507,19 @@ function playerStyleRead(target, selected, blend) {
   // They are not independent scouting grades: the exact matching axes remain available in the
   // data and the side-by-side table below the read.
   const has = (axes, label) => axes.includes(label);
-  const traitPhrase = (block, axes = []) => {
+  const selectedById = new Map(selected.map((item) => [String(item.cand.playerId), item]));
+  const traitPhrase = (block, axes = [], playerId) => {
+    const other = selectedById.get(String(playerId))?.cand.features || {};
+    const own = target.features;
+    // Similarity in an axis is not evidence of excellence in that skill. Use a positive
+    // style label only when BOTH profiles support it; otherwise describe the role neutrally.
+    const bothAtLeast = (key, threshold) => [own, other].every((p) => fin(p[key]) && p[key] >= threshold);
+    const bothBelow = (key, threshold) => [own, other].every((p) => fin(p[key]) && p[key] < threshold);
     if (block === 'physical') {
       const size = has(axes, 'height'), build = has(axes, 'weight');
       const length = has(axes, 'wingspan') || has(axes, 'standing reach');
       if (size && build && length) return 'size, build, and length';
-      if (size && build) return 'size and build';
+      if (size && build) return 'frame';
       if (size && length) return 'size and length';
       if (length) return 'length';
       if (build) return 'build';
@@ -523,9 +530,12 @@ function playerStyleRead(target, selected, blend) {
         || has(axes, 'assist-to-turnover profile') || has(axes, 'assist ratio');
       const workload = has(axes, 'usage') || has(axes, 'shot volume') || has(axes, 'minutes/role');
       const glass = has(axes, 'rebounding role') || has(axes, 'total rebounding rate');
-      if (creation && workload) return 'on-ball creation and playmaking';
-      if (creation) return 'connective playmaking';
+      if (creation && (bothAtLeast('ast36', 6) || bothAtLeast('astPct', 0.25))) return 'lead playmaking';
+      if (creation && (bothAtLeast('ast36', 3) || bothAtLeast('astPct', 0.14))) return 'secondary playmaking';
+      if (creation) return 'supporting passing role';
       if (workload && glass) return 'offensive role and rebounding involvement';
+      if (workload && bothAtLeast('usg', 0.28)) return 'high-usage scoring role';
+      if (workload && bothBelow('usg', 0.18)) return 'low-usage offensive role';
       if (workload) return 'offensive workload';
       if (glass) return 'rebounding role';
       if (has(axes, 'turnover load')) return 'ball-handling workload';
@@ -536,13 +546,13 @@ function playerStyleRead(target, selected, blend) {
       const efficient = has(axes, 'true shooting') || has(axes, 'effective field-goal percentage');
       const pressure = has(axes, 'free-throw pressure') || has(axes, 'free-throw volume');
       const scoring = has(axes, 'scoring rate');
-      if (spacing && efficient) return 'efficient floor spacing';
-      if (spacing && scoring) return 'perimeter-oriented scoring';
-      if (spacing) return 'three-point shooting';
-      if (pressure && scoring) return 'rim and line pressure';
-      if (pressure && efficient) return 'efficient line pressure';
-      if (pressure) return 'free-throw pressure';
-      if (efficient && scoring) return 'efficient scoring';
+      if (spacing && bothAtLeast('threeRate', 0.4) && bothAtLeast('fg3Pct', 0.35)) return 'floor spacing';
+      if (spacing && bothBelow('threeRate', 0.3)) return 'inside-the-arc scoring focus';
+      if (spacing && bothAtLeast('threeRate', 0.4)) return 'three-point-heavy shot selection';
+      if (spacing) return 'outside shooting mix';
+      if (pressure && bothAtLeast('ftRate', 0.3)) return 'ability to draw free throws';
+      if (pressure) return 'free-throw involvement';
+      if (efficient && scoring && bothAtLeast('ts', 0.6)) return 'efficient scoring';
       if (efficient) return 'shooting efficiency';
       if (scoring) return 'scoring output';
       return 'shooting profile';
@@ -551,12 +561,14 @@ function playerStyleRead(target, selected, blend) {
     const rim = has(axes, 'rim protection');
     const defensiveGlass = has(axes, 'defensive rebounding');
     const offensiveGlass = has(axes, 'offensive rebounding');
-    if (steals && rim) return 'event-creating defense';
-    if (rim && defensiveGlass) return 'interior activity and defensive rebounding';
+    if (steals && bothAtLeast('stl36', 1.5)) return 'turnover-forcing activity';
+    if (rim && bothAtLeast('blk36', 1.5)) return 'shot-blocking presence';
+    if (rim && defensiveGlass) return 'defensive rebounding';
     if (defensiveGlass && offensiveGlass) return 'work on the glass';
-    if (steals && defensiveGlass) return 'ball pressure and defensive rebounding';
-    if (steals) return 'ball-pressure activity';
-    if (rim) return 'rim-protection activity';
+    if (steals && defensiveGlass) return 'defensive rebounding';
+    if (rim && bothBelow('blk36', 0.6)) return 'limited shot-blocking';
+    if (steals) return 'turnover-forcing involvement';
+    if (rim) return 'shot-blocking role';
     if (defensiveGlass) return 'defensive rebounding';
     if (offensiveGlass) return 'offensive rebounding';
     return 'rebounding and disruption';
@@ -566,14 +578,13 @@ function playerStyleRead(target, selected, blend) {
     direct: [], supporting: [],
   }]));
   for (const [block, ref] of Object.entries(references)) {
-    contributions.get(String(ref.playerId))?.direct.push({ block, phrase: traitPhrase(block, ref.axes || []) });
+    contributions.get(String(ref.playerId))?.direct.push({ block, phrase: traitPhrase(block, ref.axes || [], ref.playerId) });
     if (ref.also) {
       contributions.get(String(ref.also.playerId))?.supporting.push({
-        block, phrase: traitPhrase(block, ref.also.axes || []),
+        block, phrase: traitPhrase(block, ref.also.axes || [], ref.also.playerId),
       });
     }
   }
-  const selectedById = new Map(selected.map((item) => [String(item.cand.playerId), item]));
   for (const component of contributions.values()) {
     if (component.direct.length || component.supporting.length) continue;
     const item = selectedById.get(String(component.playerId));
@@ -585,7 +596,7 @@ function playerStyleRead(target, selected, blend) {
     if (!strongest) continue;
     const details = item.m.blockDetails?.[strongest.block] || [];
     const axes = details.map((x) => x.label).slice(0, 2);
-    component.supporting.push({ block: strongest.block, phrase: traitPhrase(strongest.block, axes) });
+    component.supporting.push({ block: strongest.block, phrase: traitPhrase(strongest.block, axes, component.playerId) });
   }
   const positionParts = String(target.position || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
   const hasCenter = positionParts.some((x) => x.includes('C'));
@@ -597,7 +608,7 @@ function playerStyleRead(target, selected, blend) {
     : hasGuard ? 'guard'
     : hasForward ? 'forward/wing' : 'player';
   const traitJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]} with ${items[1]}`
+    : items.length === 2 ? `${items[0]} and ${items[1]}`
     : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
   const componentJoin = (items) => items.length < 2 ? items[0] || ''
     : items.length === 2 ? `${items[0]} with ${items[1]}`
@@ -618,11 +629,10 @@ function playerStyleRead(target, selected, blend) {
     .sort((a, b) => a.narrativeOrder - b.narrativeOrder || b.share - a.share)
     .map((item) => ({ ...item, text: `${item.name}'s ${item.phrase}` }));
   const primaryText = contributionsText.filter((item) => !item.supporting).map((item) => item.text);
-  const supportingText = contributionsText.filter((item) => item.supporting);
+  // Supporting references belong in their cards, not a redundant second sentence that
+  // repeats the same size, shooting or rebounding traits already described above.
   const text = primaryText.length
-    ? `${target.name} is a ${position} who combines ${componentJoin(primaryText)}.${supportingText.map((item) => ` ${item.name} also adds ${item.phrase}.`).join('')}`
-    : supportingText.length
-      ? `${target.name} is a ${position}. ${supportingText.map((item) => `${item.name} adds ${item.phrase}.`).join(' ')}`
+    ? `${target.name} is a ${position} who blends ${componentJoin(primaryText)}.`
     : `The blend offers a few statistical reference points for ${target.name}, but the available measurements do not support a clear trait-by-trait description.`;
   return { text, references, components, position, blend: mix,
     caveat: 'These labels summarize matched statistics, not scouting grades. The data do not measure athleticism, strength, speed, or movement.' };

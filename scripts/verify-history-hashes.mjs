@@ -7,10 +7,11 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
+const strict = process.argv.includes('--strict');
 const provPath = path.join(HIST, 'provenance.json');
 if (!fs.existsSync(provPath)) {
   console.log('No history cache present. Run: npm run fetch:history');
-  process.exit(0);
+  process.exit(strict ? 1 : 0);
 }
 const prov = JSON.parse(fs.readFileSync(provPath, 'utf8'));
 const fileFor = (ds) => {
@@ -28,3 +29,7 @@ for (const ds of prov.datasets) {
 console.log(`history cache: ${ok} verified · ${missing} missing · ${mismatch} mismatched (of ${prov.datasets.length})`);
 if (mismatch) { console.error('Cache does not match recorded provenance.'); process.exit(1); }
 if (missing) console.log('Missing files can be restored with: npm run fetch:history');
+if (strict && (missing || !ok)) {
+  console.error('Strict verification requires every recorded history file; this cache is incomplete.');
+  process.exit(1);
+}

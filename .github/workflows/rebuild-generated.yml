@@ -55,8 +55,8 @@ jobs:
             scripts/data/history/2021-22 scripts/data/history/2022-23 \
             scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
           npm run build:history
-          node scripts/audit-history.mjs
-          node scripts/verify-history-hashes.mjs
+          node scripts/audit-history.mjs --strict
+          node scripts/verify-history-hashes.mjs --strict
 
       - name: Rebuild database, models, projections, comps, and browser artifact
         run: |

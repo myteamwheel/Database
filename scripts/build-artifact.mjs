@@ -90,7 +90,7 @@ const body = escapeNonAscii(
   'html'
 );
 
-const html = `<title>Pro Basketball Database — 2025-26 Player Stats</title>
+const html = `<title>Pro Basketball Database &mdash; 2025-26 Player Stats</title>
 <base href="../">
 <style>
 ${css}

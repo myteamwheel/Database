@@ -65,6 +65,17 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.ok(set.profileRead.components.every((x) => !/\b(?:box-score|shot profile|listed frame)\b/i.test(x.phrase)),
       `${p.name}: blueprint uses a raw statistical label instead of a basketball trait`);
     assert.ok(set.profileRead?.caveat, `${p.name}: missing analogy limitation`);
+    for (const part of set.profileRead.components) {
+      const ref = set.top3.find((x) => String(x.playerId) === String(part.playerId));
+      const both = [set.targetStats, ref];
+      if (part.phrase.includes('floor spacing')) {
+        assert.ok(both.every((x) => x.threeRate >= 0.3995 && x.fg3Pct >= 0.3495), `${p.name}: unsupported floor-spacing label`);
+      }
+      if (part.phrase.includes('efficient scoring')) {
+        assert.ok(both.every((x) => x.ts >= 0.5995), `${p.name}: efficiency label inferred from axis name alone`);
+      }
+      assert.doesNotMatch(part.phrase, /ball.pressure|on-ball creation|efficient line pressure/, `${p.name}: unsupported scouting inference`);
+    }
     assert.equal(set.profileRead.blend, set.blend.map((x) => `${x.name} ${x.share}%`).join(', '), `${p.name}: prose blend disagrees with optimized weights`);
     assert.ok(Object.values(set.profileRead.references || {}).every((ref) =>
       set.blend.some((x) => String(x.playerId) === String(ref.playerId))

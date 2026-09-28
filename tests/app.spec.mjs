@@ -103,6 +103,9 @@ test.describe('data + load', () => {
     expect(playerId).toBeTruthy();
     await page.click('[data-mode="player"]');
     await page.selectOption('#wsPlayerSel', String(playerId));
+    const historyDetails = page.locator('details').filter({ has: page.locator('#wsLoadHistoryGames') });
+    await expect(historyDetails).not.toHaveAttribute('open', '');
+    await historyDetails.locator('summary').click();
     await expect(page.locator('#wsLoadHistoryGames')).toBeVisible();
     await page.click('#wsLoadHistoryGames');
     await expect(page.locator('#historyGameLog tbody tr').first()).toBeVisible({ timeout: 30000 });
@@ -489,6 +492,10 @@ test.describe('analysis workspace', () => {
     expect(composition.cardCount).toBeLessThanOrEqual(3);
     expect(composition.background).toContain('gradient');
     expect(composition.oldRead).toBe(false);
+    const sideDetails = page.locator('.comp-side-table-disclosure').first();
+    await expect(sideDetails).not.toHaveAttribute('open', '');
+    await sideDetails.locator('summary').click();
+    await expect(sideDetails.locator('table')).toBeVisible();
     for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
       'Usage', 'AST%', 'AST / TO', 'True shooting', 'eFG%', '3PA share', 'FT rate',
       'STL / 36', 'BLK / 36', 'DREB%', 'OREB%', 'REB%', 'Net rating']) {
@@ -510,6 +517,15 @@ test.describe('analysis workspace', () => {
     });
     expect(scroll.content).toBeGreaterThan(scroll.height);
     expect(scroll.top).toBeGreaterThan(0);
+    // The combobox must also expose the entire list without a mouse.
+    await page.press('#simSearch', 'ArrowUp');
+    await expect(menu.locator('[aria-selected="true"]')).toHaveCount(1);
+    expect(await menu.locator('[data-sim-pick]').last().getAttribute('aria-selected')).toBe('true');
+    await page.press('#simSearch', 'ArrowDown');
+    expect(await menu.locator('[data-sim-pick]').first().getAttribute('aria-selected')).toBe('true');
+    await page.press('#simSearch', 'Escape');
+    await expect(menu).toBeHidden();
+    await expect(page.locator('#simSearch')).toHaveAttribute('aria-expanded', 'false');
     const typed = await page.evaluate(() => {
       const ids = new Set(Object.keys(DATA.analysis.playerComps.NBA));
       const p = DATA.leagues.NBA.find((x, i) => i > 5 && ids.has(String(x.playerId)) && x.appeared);

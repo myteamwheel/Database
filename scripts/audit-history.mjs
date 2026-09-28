@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HIST = path.join(ROOT, 'scripts/data/history');
 const fails = [], warn = [];
+const strict = process.argv.includes('--strict');
 
 if (!fs.existsSync(HIST)) { console.error('no history directory'); process.exit(1); }
 const prov = JSON.parse(fs.readFileSync(path.join(HIST, 'provenance.json'), 'utf8'));
@@ -43,15 +44,18 @@ console.log(`  provenance complete on all ${prov.datasets.length}: ${missingProv
 /* ------------------------------------------------------ 2. load and key */
 console.log('\n--- 2. rows, keys and duplicates ---');
 const all = [];
+let missingRaw = 0;
 for (const season of prov.seasons) {
   for (const [file, st] of [['gamelog.json', 'Regular Season'], ['gamelog_playoffs.json', 'Playoffs']]) {
     const p = path.join(HIST, season, file);
-    if (!fs.existsSync(p)) continue;
+    if (!fs.existsSync(p)) { missingRaw++; continue; }
     const rows = JSON.parse(fs.readFileSync(p, 'utf8'));
     for (const r of rows) all.push(r);
   }
 }
 console.log(`  total player-game rows: ${all.length.toLocaleString()}`);
+if (missingRaw || !all.length) (strict ? fails : warn).push(
+  `Raw-history checks incomplete: ${missingRaw} missing game-log files, ${all.length} loaded rows. Hydrate the cache; use --strict to require complete raw coverage.`);
 console.log(`  unique games:    ${new Set(all.map((r) => r.gameId)).size.toLocaleString()}`);
 console.log(`  unique players:  ${new Set(all.map((r) => r.playerId)).size.toLocaleString()}`);
 console.log(`  unique teams:    ${new Set(all.map((r) => r.team)).size}`);

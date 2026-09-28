@@ -113,17 +113,20 @@ test.describe('Stat explainer UI', () => {
     }
   });
 
-  test('Stat guide lists every documented column and is searchable', async ({ page }) => {
+  test('Stat guide starts compact and searches all documented columns', async ({ page }) => {
     await open(page);
     await page.click('#statGuideBtn');
     await page.waitForSelector('[data-sg="list"] .stat-guide-item', { timeout: 5000 });
     const all = await page.locator('[data-sg="list"] .stat-guide-item').count();
-    expect(all).toBeGreaterThan(80);
+    expect(all).toBeGreaterThan(0);
+    expect(all).toBeLessThanOrEqual(14);
+    await expect(page.locator('.sg-count')).toContainText('search all');
+    await expect(page.locator('.stat-guide-item[open]')).toHaveCount(0);
     await page.fill('[data-sg="search"]', 'tulip');
     await page.waitForTimeout(250);
     const filtered = await page.locator('[data-sg="list"] .stat-guide-item').count();
     expect(filtered).toBeGreaterThan(0);
-    expect(filtered).toBeLessThan(all);
+    await page.locator('[data-sg="list"] .sg-key').filter({ hasText: /^tb\.tulip$/ }).click();
     const txt = await page.locator('[data-sg="list"]').innerText();
     expect(txt.toLowerCase()).toContain('how it is calculated');
 
@@ -132,13 +135,13 @@ test.describe('Stat explainer UI', () => {
     // already-closed dialog and the live one leaked.
     const before = await page.locator('dialog').count();
     for (let i = 0; i < 3; i++) {
-      await page.click('[data-sg="close"]');
+      await page.getByRole('button', { name: 'Close stat guide', exact: true }).click();
       await page.waitForTimeout(150);
       await page.click('#statGuideBtn');
       await page.waitForTimeout(200);
     }
     expect(await page.locator('dialog').count()).toBe(before);
-    await page.click('[data-sg="close"]');
+    await page.getByRole('button', { name: 'Close stat guide', exact: true }).click();
     await page.waitForTimeout(150);
     expect(await page.locator('dialog[open]').count()).toBe(0);
   });

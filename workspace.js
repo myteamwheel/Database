@@ -1196,8 +1196,10 @@
         if (!state.simSuggestionsOpen) updateCompSuggestions(e.target.value);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
         state.simActiveIndex = candidates.length
-          ? (state.simActiveIndex + delta + candidates.length) % candidates.length : -1;
+          ? (state.simActiveIndex < 0 ? (delta > 0 ? 0 : candidates.length - 1)
+            : (state.simActiveIndex + delta + candidates.length) % candidates.length) : -1;
         updateCompSuggestions(e.target.value);
+        $('simSuggestions')?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
       }
       if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value, true); }
       if (e.key === 'Escape') hideCompSuggestions();
@@ -1206,6 +1208,9 @@
       const box = $('simSuggestions');
       if (!box?.contains(document.activeElement)) hideCompSuggestions();
     }, 120));
+    on('simSuggestions', 'focusout', (e) => {
+      if (!e.currentTarget.contains(e.relatedTarget) && e.relatedTarget !== $('simSearch')) hideCompSuggestions();
+    });
     on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
