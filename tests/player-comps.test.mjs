@@ -52,6 +52,8 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.equal(set.blend.reduce((sum, x) => sum + x.share, 0), 100, `${p.name}: shares`);
     assert.ok(set.blend.every((x) => x.share > 0), `${p.name}: zero-share card`);
     assert.ok(set.profileRead?.text?.includes(p.name), `${p.name}: missing individualized profile description`);
+    assert.ok(set.profileRead.text.trim().split(/\s+/).length <= 60, `${p.name}: profile read is too long`);
+    assert.doesNotMatch(set.profileRead.text, /\b(?:19|20)\d{2}-\d{2}\b/, `${p.name}: profile prose should not repeat comp seasons`);
     assert.ok(set.profileRead?.caveat, `${p.name}: missing analogy limitation`);
     assert.equal(set.profileRead.blend, set.blend.map((x) => `${x.name} ${x.share}%`).join(', '), `${p.name}: prose blend disagrees with optimized weights`);
     assert.ok(Object.values(set.profileRead.references || {}).every((ref) =>

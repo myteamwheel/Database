@@ -459,16 +459,24 @@ test.describe('analysis workspace', () => {
     expect(txt).toContain('blend composition');
     expect(txt).toContain('STATISTICAL BLEND FIT');
     expect(txt).toContain('How to picture');
-    expect(txt).toContain('closest fits within the selected blend');
+    expect(txt).toContain('PLAYER STYLE SUMMARY');
+    expect(txt).toContain('Statistical parallels only');
     expect(await page.$$eval('#workspace .comp-trait-reference', (x) => x.length)).toBeGreaterThan(0);
     const composition = await page.evaluate(() => {
       const order = ['.comp-target-strip', '.comp-style-read', '.comp-hero-grid']
         .map((s) => [...document.querySelectorAll('#workspace ' + s)].at(-1).getBoundingClientRect().top);
-      return { order, size: parseFloat(getComputedStyle(document.querySelector('.comp-style-copy')).fontSize), oldRead: !!document.querySelector('.comp-shorthand') };
+      const copy = document.querySelector('.comp-style-copy').textContent;
+      const cues = [...document.querySelectorAll('.comp-trait-reference')].map((e) => e.textContent).join(' ');
+      return { order, size: parseFloat(getComputedStyle(document.querySelector('.comp-style-copy')).fontSize),
+        words: copy.trim().split(/\s+/).length, hasSeasonInProfile: /\b(?:19|20)\d{2}-\d{2}\b/.test(copy + cues),
+        oldRead: !!document.querySelector('.comp-shorthand') };
     });
     expect(composition.order[0]).toBeLessThan(composition.order[1]);
     expect(composition.order[1]).toBeLessThan(composition.order[2]);
-    expect(composition.size).toBeGreaterThanOrEqual(18);
+    expect(composition.size).toBeGreaterThanOrEqual(16);
+    expect(composition.size).toBeLessThanOrEqual(19);
+    expect(composition.words).toBeLessThanOrEqual(60);
+    expect(composition.hasSeasonInProfile).toBe(false);
     expect(composition.oldRead).toBe(false);
     for (const needle of ['Height', 'Weight', 'Wingspan', 'Standing reach', 'PTS / 36', 'FGA / 36',
       'Usage', 'AST%', 'AST / TO', 'True shooting', 'eFG%', '3PA share', 'FT rate',

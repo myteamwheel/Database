@@ -733,9 +733,8 @@
     const traitNames = { physical: 'Listed frame', role: 'Role & playmaking', scoring: 'Scoring & shot profile', defense: 'Defensive activity' };
     const traitReferences = Object.entries(profileRead.references || {}).map(([key, ref]) => `
       <div class="comp-trait-reference"><span class="eyebrow">${esc(traitNames[key] || key)}</span>
-        <b>${esc(ref.name)} · ${esc(ref.season)}</b>
-        <span class="tiny">${esc((ref.axes || []).join(' · ') || 'closest measured profile')} · ${num(ref.fit, 1)}/100 trait fit · ${ref.blendShare}% of blend</span>
-        ${ref.also ? `<span class="tiny comp-trait-alternate">Also in the blend: <b>${esc(ref.also.name)}</b> · ${esc((ref.also.axes || []).join(' · ') || 'related profile')} · ${num(ref.also.fit, 1)}/100 trait fit · ${ref.also.blendShare}%</span>` : ''}</div>`).join('');
+        <b>${esc(ref.name)}</b>
+        <span class="tiny">${esc((ref.axes || []).join(' · ') || 'closest available reference')}</span></div>`).join('');
 
     const heroes = shown.map((q, i) => {
       const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
@@ -795,10 +794,10 @@
           <span>${esc(meta.priority || '')}</span></div>
       </div>
       <section class="comp-style-read" aria-labelledby="comp-style-heading">
-        <div><div class="eyebrow">PLAYER PROFILE FROM THE BLEND</div><h3 id="comp-style-heading">How to picture ${esc(p.name)}</h3></div>
+        <div><div class="eyebrow">PLAYER STYLE SUMMARY</div><h3 id="comp-style-heading">How to picture ${esc(p.name)}</h3></div>
         <p class="comp-style-copy">${esc(profileRead.text || set.shorthand || 'A player-specific style read is not available for this record.')}</p>
         ${traitReferences ? `<div class="comp-trait-grid">${traitReferences}</div>` : ''}
-        <p class="tiny">These attribute references are the closest fits within the selected blend, not separate blend percentages. ${esc(profileRead.caveat || 'Comparisons are statistical analogies and should not be read as identical players.')}</p>
+        <p class="tiny comp-style-note">${esc(profileRead.caveat || 'These are statistical parallels, not claims of identical skill.')}</p>
       </section>
       <div class="comp-hero-grid">${heroes}</div>
       <div class="comp-detail-stack">${details}</div>

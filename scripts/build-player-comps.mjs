@@ -503,30 +503,40 @@ function playerStyleRead(target, selected, blend) {
         axes: alsoAxes } } : {}) };
   }
   const frame = references.physical;
-  const role = references.role;
-  const scoring = references.scoring;
-  const defense = references.defense;
   const mix = blend.map((x) => `${x.name} ${x.share}%`).join(', ');
-  const hash = [...String(target.playerId)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-  const link = (x, axes) => `${x.name} (${x.season})${axes?.length ? ` on ${axes.join(' and ')}` : ''}`;
-  const alternate = (x) => x?.also ? ` ${x.also.name} (${x.also.season}) also shares this profile on ${(x.also.axes || []).join(' and ') || 'the same statistical block'}.` : '';
-  const clauses = {
-    frame: frame ? `Listed frame is closest to ${link(frame, frame.axes)}.${alternate(frame)}` : 'Available measurements do not support a dependable frame comparison.',
-    role: role ? `Role and playmaking are closest to ${link(role, role.axes)}.${alternate(role)}` : 'Role/playmaking data do not identify a strong reference in this blend.',
-    scoring: scoring ? `Scoring shape is closest to ${link(scoring, scoring.axes)}.${alternate(scoring)}` : 'Scoring data do not identify a strong reference in this blend.',
-    defense: defense ? `Defensive box-score activity is closest to ${link(defense, defense.axes)}.${alternate(defense)}` : 'Defensive data do not identify a strong reference in this blend.',
+  const blockLabels = {
+    physical: 'listed frame', role: 'playmaking',
+    scoring: 'shot profile', defense: 'box-score defense',
   };
-  const templates = [
-    `${target.name}'s statistical recipe is ${mix}. By attribute: ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
-    `A better shorthand than one comp: ${target.name} blends ${mix}. ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
-    `To picture ${target.name}, start with the formula ${mix}. ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
-    `${target.name} is not a one-player comp; the model mixes ${mix}. Its useful clues are these: ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
-    `The combination behind ${target.name} is ${mix}. For the job, look at role and creation; for the shot profile, scoring; for defense, defensive box-score activity. ${clauses.role} ${clauses.scoring} ${clauses.defense} ${clauses.frame}`,
-    `In one statistical sketch, ${target.name} is ${mix}. ${clauses.role} On offense, ${clauses.scoring[0].toLowerCase()}${clauses.scoring.slice(1)} ${clauses.defense} ${clauses.frame}`,
-    `No single historical player captures ${target.name}. The blend is ${mix}. ${clauses.frame} ${clauses.role} ${clauses.scoring} ${clauses.defense}`,
-  ];
-  return { text: templates[hash % templates.length], references, blend: mix,
-    caveat: 'These are statistical profile analogies, not claims of identical skill. The source data do not measure speed, vertical leap, strength, or movement/athleticism directly.' };
+  const contributions = new Map(blend.map((item) => [String(item.playerId), {
+    name: item.name, primary: [], secondary: [],
+  }]));
+  for (const [block, ref] of Object.entries(references)) {
+    contributions.get(String(ref.playerId))?.primary.push(blockLabels[block]);
+    if (ref.also) {
+      const detail = (ref.also.axes || []).slice(0, 2);
+      contributions.get(String(ref.also.playerId))?.secondary.push(...(detail.length ? detail : [blockLabels[block]]));
+    }
+  }
+  const positionParts = String(target.position || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+  const position = positionParts.includes('C') && positionParts.includes('F') ? 'frontcourt'
+    : positionParts.includes('C') ? 'center'
+    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) && positionParts.includes('F') ? 'guard/wing'
+    : positionParts.some((x) => ['PG', 'SG', 'G'].includes(x)) ? 'guard'
+    : positionParts.includes('F') ? 'forward/wing' : '';
+  const naturalJoin = (items) => items.length < 2 ? items[0] || ''
+    : items.length === 2 ? `${items[0]} and ${items[1]}`
+    : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
+  const contributionsText = [...contributions.values()].map((item) => {
+    if (item.primary.length) return `${item.name}'s ${naturalJoin(item.primary)}`;
+    if (item.secondary.length) return `${item.name}'s secondary resemblance in ${item.secondary[0]}`;
+    return `${item.name}'s broader statistical resemblance`;
+  });
+  const text = contributionsText.length
+    ? `In the fitted blend, ${target.name}'s ${position ? `${position} ` : ''}profile combines ${naturalJoin(contributionsText)}.`
+    : `The blend offers a few statistical reference points for ${target.name}, but the available measurements do not support a clear trait-by-trait description.`;
+  return { text, references, blend: mix,
+    caveat: 'Statistical parallels only; the source data do not measure athleticism, strength, speed, or movement.' };
 }
 
 // A blend should reconstruct the target's listed physical profile and playing style, not merely
