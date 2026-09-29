@@ -4,6 +4,8 @@ import {
   projectionIdentity,
   extractArchivedPlayer,
   validateArchive,
+  nbaBaselines,
+  gleagueBaseline,
 } from '../scripts/lib/forecast-archive.mjs';
 
 let pass = 0;
@@ -98,6 +100,67 @@ test('inconsistent points accounting fails when accounting data is present', () 
   const row = extractArchivedPlayer('NBA', player);
   row.projection.pts = 30;
   assert.throws(() => validateArchive({ players: [row] }), /points accounting/i);
+});
+
+const seasonRecord = (season, gp, mpg, pts, reb, ast, fgm, fga, fg3m, fg3a, ftm, fta) => ({
+  season, team: 'AAA', gp, min: gp * mpg, pts: gp * pts,
+  oreb: gp * reb * 0.25, dreb: gp * reb * 0.75, ast: gp * ast, stl: gp, blk: gp * 0.5, tov: gp * 2, pf: gp * 2.2,
+  fgm: gp * fgm, fga: gp * fga, fg3m: gp * fg3m, fg3a: gp * fg3a, ftm: gp * ftm, fta: gp * fta,
+});
+
+const rec25 = seasonRecord('2025-26', 80, 30, 20, 8, 5, 7, 14, 2, 5, 4, 5);
+const rec24 = seasonRecord('2024-25', 60, 24, 12, 6, 4, 4, 10, 1, 4, 3, 4);
+const rec23 = seasonRecord('2023-24', 40, 18, 8, 4, 2, 3, 8, 1, 3, 1, 2);
+const nbaSeasons = new Map([
+  ['2025-26', new Map([[7, rec25]])],
+  ['2024-25', new Map([[7, rec24]])],
+  ['2023-24', new Map([[7, rec23]])],
+  ['2022-23', new Map([[8, seasonRecord('2022-23', 50, 20, 10, 5, 3, 4, 9, 1, 3, 1, 2)]])],
+]);
+const D = {
+  nba: { seasons: nbaSeasons, teamGames: () => 82 },
+  gleague: { seasons: new Map([['2025-26', new Map([[7, rec25]])]]), teamGames: () => 50 },
+};
+
+test('NBA repeat baseline matches last season and scales GP by appearance share', () => {
+  const { repeat } = nbaBaselines(D, 7, '2026-27');
+  assert.equal(repeat.pts, 20);
+  assert.equal(repeat.mpg, 30);
+  assert.equal(repeat.gp, 80);
+});
+
+test('NBA three-year baseline uses 5/4/3 times games for per-game stats', () => {
+  const { avg3 } = nbaBaselines(D, 7, '2026-27');
+  const den = 5*80 + 4*60 + 3*40;
+  const expectedPts = (5*80*20 + 4*60*12 + 3*40*8) / den;
+  assert.ok(Math.abs(avg3.pts - expectedPts) < 1e-12);
+  const expectedMpg = (5*80*30 + 4*60*24 + 3*40*18) / den;
+  assert.ok(Math.abs(avg3.mpg - expectedMpg) < 1e-12);
+});
+
+test('NBA three-year percentages pool weighted makes and attempts', () => {
+  const { avg3 } = nbaBaselines(D, 7, '2026-27');
+  const made = 5*rec25.fgm + 4*rec24.fgm + 3*rec23.fgm;
+  const att = 5*rec25.fga + 4*rec24.fga + 3*rec23.fga;
+  assert.ok(Math.abs(avg3.fgPct - made/att) < 1e-12);
+});
+
+test('NBA three-year GP uses weighted appearance shares', () => {
+  const { avg3 } = nbaBaselines(D, 7, '2026-27');
+  const expected = ((5*(80/82) + 4*(60/82) + 3*(40/82)) / (5+4+3)) * 82;
+  assert.ok(Math.abs(avg3.gp - expected) < 1e-12);
+});
+
+test('NBA naive baselines do not reach back beyond the recent three seasons', () => {
+  const out = nbaBaselines(D, 8, '2026-27');
+  assert.equal(out.repeat, null);
+  assert.equal(out.avg3, null);
+});
+
+test('G League exposes repeat only', () => {
+  const out = gleagueBaseline(D, 7, '2026-27', 50);
+  assert.equal(out.repeat.pts, 20);
+  assert.equal('avg3' in out, false);
 });
 
 if (!process.exitCode) console.log(`ALL PASS · ${pass} tests`);
