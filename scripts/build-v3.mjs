@@ -28,6 +28,7 @@ import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEM
 import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
 import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
+import { distributionSummary as tulipBetaDistribution, teamAllocationDiagnostics, validationStatus as tulipBetaValidationStatus } from './lib/tulip-beta-diagnostics.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -771,9 +772,16 @@ console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScore
   for (const r of gl.records) r.tulipBeta = { abstain: true, status: 'BETA', reason: 'not_supported_for_gleague' };
   const worst = ledger.reduce((a, x) => Math.max(a, Math.abs(x.sum)), 0);
   console.log(`TULIP Beta: scored ${betaScored}, abstained ${betaAbstain} · teams ${ledger.length} · worst ledger imbalance ${worst.toFixed(2)} MPG (rounding only) · G League abstains by design`);
+  const teamDiagnostics = Object.fromEntries(Object.keys(byTeam).sort()
+    .map((team) => [team, teamAllocationDiagnostics(nba.records, team)]));
   nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length,
     rosterScope: 'current 2026-27 NBA.com published rosters', rostersAsOf: currentRosterAsOf,
-    worstLedgerImbalance: worst };
+    baselineSeason: SEASON,
+    baselineSemantics: 'TULIP starts from each scored player\'s 2025-26 MPG while grouping players by their current 2026-27 roster. It is not current-season 2026-27 playing time.',
+    worstLedgerImbalance: worst,
+    distribution: tulipBetaDistribution(nba.records),
+    teamDiagnostics,
+    validation: tulipBetaValidationStatus() };
 }
 
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
@@ -955,10 +963,10 @@ const out = {
   },
   tulipBetaMeta: {
     status: 'EXPERIMENTAL BETA',
-    whatItIs: 'Zero-sum estimate of how many MPG a team could reallocate toward or away from each player, from team-relative player value, current workload, role evidence and the actual team-mates consuming those minutes.',
-    direction: 'Based on team-relative player value (shrunk BPM vs the minute-weighted team average).',
+    whatItIs: 'Experimental zero-sum heuristic for how many MPG the model reallocates toward or away from each scored player, from team-relative player value, a 2025-26 workload baseline, role evidence and the current-roster team-mates in the eligible pool.',
+    direction: 'Mechanically determined by team-relative player value (shrunk BPM vs the minute-weighted team average); the play-more/play-less sign has not been validated as a win-improving prescription.',
     magnitude: 'HEURISTIC. Starts from a per-SD movement, then compressed by workload state, role evidence and the roster minute ledger.',
-    notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
+    notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that either the play-more/play-less direction or the exact MPG deltas improve winning (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
     supportRating: 'The HIGH/MEDIUM/LOW field is RECOMMENDATION SUPPORT, not probability of correctness. It describes the strength of the data and evidence behind the recommendation inputs (minutes sample, role-evidence tier, whether the recommended workload sits inside historically observed support). It does NOT express a likelihood that the MPG recommendation is win-optimal.',
     framing: 'Outputs are recommendations from this heuristic. A positive value means TULIP Beta flags the player as underutilized under its own model; it is not an established finding about how the team is using him.',
     zeroSum: 'Recommended minutes conserve each eligible roster ledger: every minute granted is sourced from a team-mate.',

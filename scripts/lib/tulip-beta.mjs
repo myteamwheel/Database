@@ -1,3 +1,4 @@
+import { playerDriverTrace } from './tulip-beta-diagnostics.mjs';
 // TULIP BETA — experimental, zero-sum minute-reallocation estimate.
 //
 // ANSWERS: given the players available to a team, how many more or fewer MPG should each receive if
@@ -105,7 +106,7 @@ function roundLedgerSide(rows, targetTenths, sign) {
  * Compute TULIP Beta for one team's eligible roster. Returns a map playerId -> beta object.
  * The ledger conserves exactly: the sum of positive deltas equals the sum of negative deltas.
  */
-export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
+export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd, baselineSeason = '2025-26' }) {
   if (!fin(leagueBpm) || !fin(leagueGapSd) || Number(leagueGapSd) <= 0)
     throw new Error('TULIP requires a finite league mean and positive gap standard deviation');
   const elig = roster.filter((p) => p.appeared && fin(p.bpm) && fin(p.mpg)
@@ -169,9 +170,12 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     final = rounded.get(r.p.playerId) || 0;
     const currentMpg = Math.round(Number(r.p.mpg) * 10) / 10;
     const rec = Math.round((currentMpg + final) * 10) / 10;
-    out.set(r.p.playerId, {
+    const result = {
       tulip: final,
       currentMpg,
+      baselineSeason,
+      baselineTeam: r.p.seasonTeam || r.p.team || null,
+      baselineLabel: `${baselineSeason} MPG baseline`,
       recommendedMpg: rec,
       valueGap: Math.round(r.gap * 100) / 100,
       valueGapSd: Math.round(r.gapSd * 100) / 100,
@@ -191,7 +195,9 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
       interpretation: 'Experimental reallocation hypothesis; neither direction nor magnitude is validated to improve winning.',
       abstain: false,
       status: 'BETA',
-    });
+    };
+    result.drivers = playerDriverTrace(result);
+    out.set(r.p.playerId, result);
   }
   return out;
 }
