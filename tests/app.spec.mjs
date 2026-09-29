@@ -531,7 +531,8 @@ test.describe('analysis workspace', () => {
       const cues = cards.map((e) => e.textContent).join(' ');
       return { order, size: parseFloat(getComputedStyle(document.querySelector('.comp-style-copy')).fontSize),
         headingSize: parseFloat(getComputedStyle(document.querySelector('.comp-blueprint h3')).fontSize),
-        words: copy.trim().split(/\s+/).length, hasSeasonInProfile: /\b(?:19|20)\d{2}-\d{2}\b/.test(copy + cues),
+        words: copy.trim().split(/\s+/).length, hasSeasonInSummary: /\b(?:19|20)\d{2}-\d{2}\b/.test(copy),
+        hasMultiYearReference: cards.some((e) => /\b(?:19|20)\d{2}-\d{2}.*[–—].*(?:19|20)\d{2}-\d{2}\b/.test(e.textContent)),
         rawStatLabel: /\b(?:box-score|shot profile|listed frame)\b/i.test(copy + cues),
         usesFittedBlend: /\bin the fitted blend\b/i.test(copy),
         cardCount: cards.length, background: getComputedStyle(blueprint).backgroundImage,
@@ -543,7 +544,10 @@ test.describe('analysis workspace', () => {
     expect(composition.size).toBeLessThanOrEqual(24);
     expect(composition.headingSize).toBeGreaterThanOrEqual(29);
     expect(composition.words).toBeLessThanOrEqual(60);
-    expect(composition.hasSeasonInProfile).toBe(false);
+    // Keep years out of the short player-style sentence; dated multi-year reference cards remain
+    // visible as evidence so readers can tell which career stretch supports each trait analogy.
+    expect(composition.hasSeasonInSummary).toBe(false);
+    expect(composition.hasMultiYearReference).toBe(true);
     expect(composition.rawStatLabel).toBe(false);
     expect(composition.usesFittedBlend).toBe(false);
     expect(composition.cardCount).toBeGreaterThanOrEqual(1);
