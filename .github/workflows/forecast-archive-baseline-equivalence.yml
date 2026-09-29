@@ -1,0 +1,19 @@
+name: Forecast archive baseline equivalence
+# rerun after full-rebuild verifier
+
+on:
+  pull_request:
+    paths:
+      - 'tests/forecast-archive.test.mjs'
+      - '.github/workflows/forecast-archive-baseline-equivalence.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: node tests/forecast-archive.test.mjs
