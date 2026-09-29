@@ -155,6 +155,8 @@ if (importError) {
     forecastId: 'fixture',
     season: '2026-27',
     forecastType: 'preseason-full-season',
+    publishedAt: '2026-09-29',
+    sourceCommit: 'a'.repeat(40),
     leagues: { NBA: [archived], GLEAGUE: [abstained] }
   };
   const summary = validateArchive(baseArchive);
