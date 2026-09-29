@@ -29,12 +29,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - name: Rebuild TULIP data and standalone artifact
+      - name: Rebuild full review artifact
         run: |
-          npm run build:data
-          npm run build:standalone
+          npm run build
           npm run test:tulipbeta
           npm run test:tulipbeta:diagnostics
+          npm run test:projections
           npm run verify:artifact
       - name: Commit generated review artifacts
         shell: bash
