@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
 import { fileURLToPath } from 'node:url';
-import { tulipBetaForTeam, BETA_CONFIG } from '../scripts/lib/tulip-beta.mjs';
+import { tulipBetaForTeam, BETA_CONFIG, positionsCompatible, tulipDistribution } from '../scripts/lib/tulip-beta.mjs';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const D = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
 const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
@@ -172,6 +172,72 @@ t('18 overlapping evidence weaknesses are not multiplied into duplicate penaltie
     'the unsupported portion should receive one attenuation');
   assert.ok(out.get('21').evidenceFactor > 0.7 && out.get('21').evidenceFactor < 1,
     'the already-supported portion should remain unattenuated');
+});
+
+
+
+t('19 shipped rows preserve evaluation/allocation separation and v3 trace', () => {
+  const scored=nba.filter((p)=>p.tulipBeta&&!p.tulipBeta.abstain);
+  assert.ok(scored.length>250);
+  for(const p of scored){
+    const c=p.tulipBeta;
+    assert.ok(c.evaluation&&Number.isFinite(c.evaluation.valueGapSd), `${p.name}: missing evaluation block`);
+    assert.ok(!('recommendedMpg' in c.evaluation), `${p.name}: evaluation block leaked allocation output`);
+    assert.strictEqual(c.allocationBasis,'position-aware-diminishing-v3');
+    assert.ok(Number.isFinite(c.unfilledDesiredMpg)&&c.unfilledDesiredMpg>=0);
+    assert.ok(Number.isFinite(c.diminishingFactorFinal)&&c.diminishingFactorFinal>0&&c.diminishingFactorFinal<=1);
+    assert.ok(['roster-listed','unavailable'].includes(c.positionEvidence));
+    assert.ok(['verified-available','unverified'].includes(c.availability));
+  }
+});
+
+t('20 known-position transfer partners are position compatible', () => {
+  const byId=new Map(nba.map((p)=>[String(p.playerId),p]));
+  let checked=0;
+  for(const p of nba){
+    const c=p.tulipBeta;if(!c||c.abstain) continue;
+    for(const id of c.compatiblePartnerIds||[]){
+      const mate=byId.get(String(id));
+      assert.ok(mate,`${p.name}: missing partner ${id}`);
+      const compat=positionsCompatible(p,mate);
+      if(compat!==null){
+        checked++;
+        assert.strictEqual(compat,true,`${p.name} -> ${mate.name}: incompatible known positions`);
+      }
+    }
+  }
+  assert.ok(checked>20,`only ${checked} known-position transfers checked`);
+});
+
+t('21 published 3/5/7/10 distribution exactly matches player rows and is not a quota', () => {
+  const actual=tulipDistribution(nba.filter((p)=>p.tulipBeta&&!p.tulipBeta.abstain).map((p)=>p.tulipBeta));
+  assert.deepEqual(D.tulipBetaMeta.distribution,actual);
+  assert.strictEqual(actual.quotaApplied,false);
+  for(const side of ['absoluteAtLeast','positiveAtLeast','negativeAtLeast']){
+    assert.ok(actual[side][3]>=actual[side][5]&&actual[side][5]>=actual[side][7]&&actual[side][7]>=actual[side][10]);
+  }
+});
+
+t('22 constraint metadata quantifies position and availability evidence without inventing injuries', () => {
+  const m=D.tulipBetaMeta;
+  assert.match(m.config.version,/v3/);
+  assert.equal(m.config.positionGuard,'coarse-roster-family-overlap');
+  assert.ok(m.constraints.positionKnown>200);
+  assert.equal(m.constraints.positionKnown+m.constraints.positionUnknown,m.distribution.players);
+  assert.equal(m.constraints.availability.verifiedAvailable,0);
+  assert.equal(m.constraints.availability.verifiedUnavailable,0);
+  assert.equal(m.constraints.availability.unverified,m.distribution.players);
+  assert.match(m.constraints.availability.feed,/no verified injury\/availability feed/i);
+});
+
+t('23 UI explains position guard, diminishing returns and remaining lineup limits', () => {
+  assert.ok(/coarse G\/F\/C position families|coarse position-family/i.test(app),'position guard not explained');
+  assert.ok(/diminishing marginal|diminishing-return/i.test(app),'diminishing allocation not explained');
+  assert.ok(/not a playable 240-minute rotation/i.test(app),'playable-rotation limitation missing');
+  assert.ok(/does not enforce simultaneous five-man lineups or verified injury availability/i.test(app),
+    'remaining lineup/availability limits missing');
+  assert.ok(/PLAYER EVALUATION and MINUTE RECOMMENDATION are separate/.test(app),
+    'evaluation/allocation separation missing from tooltip');
 });
 
 // ---- team-ledger regression: a future UI change must not silently break zero-sum conservation ----
