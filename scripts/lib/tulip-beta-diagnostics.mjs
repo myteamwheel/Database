@@ -1,5 +1,5 @@
 const finite=(v)=>v!==null&&v!==undefined&&Number.isFinite(Number(v));
-const round=(v,d=3)=>Math.round(Number(v)*10**d)/10**d;
+const round=(v,d=3)=>{const x=Math.round(Number(v)*10**d)/10**d;return Object.is(x,-0)?0:x;};
 
 export const TULIP_BETA_VALIDATION = Object.freeze({
   source: 'TULIP_RESEARCH_STATUS.md',
