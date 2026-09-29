@@ -1,0 +1,26 @@
+{
+ "schemaVersion": 1,
+ "forecasts": [
+  {
+   "forecastId": "2026-27-preseason-2026-09-29-e718284",
+   "season": "2026-27",
+   "type": "preseason-full-season",
+   "publishedAt": "2026-09-29",
+   "sourceCommit": "e7182849d62cba46566f3ffafc4c1e620e5ef8ff",
+   "file": "2026-27-preseason-2026-09-29-e718284.json",
+   "sha256": "9a8de990784970618433b07094ad5f1537f2a73255558dbcdf9954fcc17e342d",
+   "counts": {
+    "byLeague": {
+     "GLEAGUE": 564,
+     "NBA": 705
+    },
+    "projected": 1267,
+    "abstained": 2,
+    "baselineAvailable": {
+     "repeat": 1159,
+     "avg3": 597
+    }
+   }
+  }
+ ]
+}
