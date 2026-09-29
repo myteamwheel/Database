@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
 import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
+import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
@@ -88,6 +89,17 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     if (probs.length) bad.push(`${p.name}: ${probs.join('; ')}`);
   }
   check(`${lg}: every projected line is possible and consistent`, bad.length === 0, bad.slice(0, 3).join(' | '));
+  const accountingFailures = [];
+  for (const p of data.leagues[lg]) {
+    if (!p.proj || p.proj.abstain) continue;
+    try {
+      validateProjectionAccounting(p.proj, { league: lg, scheduledGames: lg === 'NBA' ? 82 : 50 });
+    } catch (err) {
+      accountingFailures.push(`${p.name}: ${err.message}`);
+    }
+  }
+  check(`${lg}: central accounting validator accepts every published projection`,
+    accountingFailures.length === 0, accountingFailures.slice(0, 3).join(' | '));
 }
 
 // 5. The formula's points identity, including the G League's single free throw worth the trip.
