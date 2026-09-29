@@ -674,7 +674,38 @@ if (importError) {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'forecast-verify-'));
       try {
         const snapshotName = 'fixture.json';
-        const snapshot = JSON.stringify(baseArchive, null, 2) + '\n';
+        const verifierArchive = {
+          ...baseArchive,
+          publishedAt: '2026-09-29',
+          publicationBasis: 'explicit',
+          sourceCommit: 'a'.repeat(40),
+          model: {
+            id: 'PROJECTION_2026_27',
+            contextVersion: 'context-1',
+            timeframe: 'preseason-full-season',
+            rostersAsOf: '2026-09-29',
+            rosterSha256: 'b'.repeat(64),
+          },
+          sources: {
+            publicData: { path: 'public/data.json', sha256: 'c'.repeat(64) },
+            projectionCard: { path: 'PROJECTION_2026_27.json', sha256: 'd'.repeat(64) },
+            projectionInputs: { path: 'scripts/data/projection/inputs.json', sha256: 'e'.repeat(64) },
+            liveRoster: null,
+          },
+          counts: {
+            byLeague: {
+              NBA: { total: 1, projected: 1, abstained: 0 },
+              GLEAGUE: { total: 1, projected: 0, abstained: 1 },
+            },
+            projected: 1,
+            abstained: 1,
+            baselineAvailable: {
+              NBA: { repeat: 0, avg3: 0 },
+              GLEAGUE: { repeat: 0 },
+            },
+          },
+        };
+        const snapshot = JSON.stringify(verifierArchive, null, 2) + '\n';
         fs.writeFileSync(path.join(dir, snapshotName), snapshot);
         const manifest = {
           schemaVersion: 1,
@@ -704,6 +735,19 @@ if (importError) {
         check('archive directory verifier accepts a valid manifest and snapshot',
           verified.forecasts === 1 && verified.projected === 1 && verified.abstained === 1);
 
+        const missingProvenance = JSON.parse(JSON.stringify(verifierArchive));
+        delete missingProvenance.sources.projectionInputs;
+        const missingProvenanceBytes = JSON.stringify(missingProvenance, null, 2) + '\n';
+        fs.writeFileSync(path.join(dir, snapshotName), missingProvenanceBytes);
+        const missingProvenanceManifest = JSON.parse(JSON.stringify(manifest));
+        missingProvenanceManifest.forecasts[0].sha256 = crypto.createHash('sha256').update(missingProvenanceBytes).digest('hex');
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(missingProvenanceManifest, null, 2) + '\n');
+        check('archive source provenance metadata is required',
+          throws(() => verifyArchiveDirectory({ archiveDir: dir }), /source|provenance|projectionInputs/i));
+
+        fs.writeFileSync(path.join(dir, snapshotName), snapshot);
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(manifest, null, 2) + '\n');
+
         const badHash = JSON.parse(JSON.stringify(manifest));
         badHash.forecasts[0].sha256 = '0'.repeat(64);
         fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(badHash, null, 2) + '\n');
@@ -723,7 +767,7 @@ if (importError) {
           throws(() => verifyArchiveDirectory({ archiveDir: dir }), /duplicate/i));
 
         fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(manifest, null, 2) + '\n');
-        const malformed = JSON.parse(JSON.stringify(baseArchive));
+        const malformed = JSON.parse(JSON.stringify(verifierArchive));
         malformed.leagues.NBA[0].projection.accounting.fgm = 99;
         const malformedBytes = JSON.stringify(malformed, null, 2) + '\n';
         fs.writeFileSync(path.join(dir, snapshotName), malformedBytes);
