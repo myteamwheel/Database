@@ -168,7 +168,7 @@ Verification must ensure:
 - the initial `e718284` snapshot exactly matches the corresponding deployed forecast values;
 - normal build/refresh commands do not rewrite prior archive files.
 
-A CI guard should reject modification or deletion of an existing archive snapshot except through an explicit maintenance escape hatch documented for genuine corruption recovery. Git history remains the ultimate audit trail; the archive itself should also be tamper-evident through the manifest hash.
+A CI guard must treat snapshot files as append-only: additions are allowed, while modification, deletion or rename of an already-tracked snapshot file fails verification. `index.json` is the only archive file expected to change when a new snapshot is appended. Corruption recovery is outside normal tooling and requires a separately authorized maintenance commit; there is no ordinary overwrite flag. Git history remains the ultimate audit trail, and the manifest hash makes accidental drift immediately visible.
 
 ### 6. Scoring interface
 
@@ -178,6 +178,8 @@ Add a scorer that consumes:
 2. an explicit actual-results dataset for the same target season.
 
 The scorer never silently reads whatever the website currently considers “current.” The target season and actual-data source must be explicit.
+
+Actual-results input must declare `season`, `asOf`, and `status` where status is exactly `final` or `interim`. Final scoring accepts only `status: final`; interim scoring additionally requires the explicit `--interim` command-line mode and records the cutoff in the report.
 
 Initial scoring metrics:
 
@@ -255,7 +257,7 @@ The existing `package.json` should gain focused archive commands and the main ve
 
 The first archive must preserve the production forecast represented by release `e718284`, not a future improved forecast.
 
-If implementation occurs after source/model changes, the script must fetch/read the release artifacts at `e718284` or otherwise verify byte identity with those artifacts before writing the initial snapshot.
+If implementation occurs after source/model changes, the first snapshot must read the release artifacts by the `e718284` git ref (for example, from an explicit checkout/ref or `git show <ref>:<path>`) rather than trust the current working tree. The recorded SHA-256 values are computed from those release bytes before extraction.
 
 A later improved preseason forecast may be archived as a **new forecast id**. It never replaces the original one.
 
