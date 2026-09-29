@@ -226,6 +226,11 @@ test('buildArchive preserves release values and attaches same-date baselines', (
     sourceCommit:'abc123', publishedAt:'2026-09-29', publicationBasis:'verified-release-date', forecastId:'fixture' });
   assert.equal(archive.forecastId, 'fixture');
   assert.equal(archive.players.length, 2);
+  assert.deepEqual(archive.counts.byLeague,{GLEAGUE:1,NBA:1});
+  assert.equal(archive.counts.projected,2);
+  assert.equal(archive.counts.abstained,0);
+  assert.equal(archive.counts.baselineAvailable.repeat,2);
+  assert.equal(archive.counts.baselineAvailable.avg3,1);
   assert.equal(archive.players.find(x=>x.league==='NBA').baselines.repeat.pts, 20);
   assert.equal(archive.players.find(x=>x.league==='GLEAGUE').baselines.repeat.pts, 20);
 });
