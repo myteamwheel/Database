@@ -28,6 +28,7 @@ import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEM
 import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
 import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
+import { distributionSummary as tulipBetaDistribution, teamAllocationDiagnostics, validationStatus as tulipBetaValidationStatus } from './lib/tulip-beta-diagnostics.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -771,9 +772,16 @@ console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScore
   for (const r of gl.records) r.tulipBeta = { abstain: true, status: 'BETA', reason: 'not_supported_for_gleague' };
   const worst = ledger.reduce((a, x) => Math.max(a, Math.abs(x.sum)), 0);
   console.log(`TULIP Beta: scored ${betaScored}, abstained ${betaAbstain} · teams ${ledger.length} · worst ledger imbalance ${worst.toFixed(2)} MPG (rounding only) · G League abstains by design`);
+  const teamDiagnostics = Object.fromEntries(Object.keys(byTeam).sort()
+    .map((team) => [team, teamAllocationDiagnostics(nba.records, team)]));
   nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length,
     rosterScope: 'current 2026-27 NBA.com published rosters', rostersAsOf: currentRosterAsOf,
-    worstLedgerImbalance: worst };
+    baselineSeason: SEASON,
+    baselineSemantics: 'TULIP starts from each scored player\'s 2025-26 MPG while grouping players by their current 2026-27 roster. It is not current-season 2026-27 playing time.',
+    worstLedgerImbalance: worst,
+    distribution: tulipBetaDistribution(nba.records),
+    teamDiagnostics,
+    validation: tulipBetaValidationStatus() };
 }
 
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
