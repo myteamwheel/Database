@@ -4,7 +4,7 @@ let pass=0, fail=0;
 const check=(name,ok,detail='')=>{ if(ok){pass++;console.log(`  ok   ${name}`);}else{fail++;console.log(`  FAIL ${name}${detail?' :: '+detail:''}`);} };
 const throws=(fn,re)=>{try{fn();return false;}catch(e){return re?re.test(String(e.message||e)):true;}};
 
-const make = (ftValue=1,gp=70) => { fgm=8, fg3m=2, fga=16, fg3a=6, ftm=4, fta=5, oreb=1.2, dreb=5.3;
+const make = (ftValue=1,gp=70) => { const fgm=8, fg3m=2, fga=16, fg3a=6, ftm=4, fta=5, oreb=1.2, dreb=5.3;
   const pts=2*(fgm-fg3m)+3*fg3m+ftm*ftValue;
   const reb=oreb+dreb;
   return {
