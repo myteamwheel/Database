@@ -65,29 +65,17 @@ Verified capabilities in this section:
 - preseason-full-season remains the only production forecast target. The new timeframe helper is infrastructure for in-season actual-to-date / remaining-season / combined views; those views are not yet wired into the public UI.
 
 
-### TULIP feasibility review — PR #18
-
-Verified engineering and evidence status in this section:
-- The current preseason allocator uses each scored player's 2025-26 MPG as its baseline while grouping players by the current 2026-27 roster. The UI now says **Baseline MPG** rather than incorrectly implying those are current-season 2026-27 minutes.
-- Current NBA roster coverage: 598 roster rows, 425 scored by TULIP Beta and 173 explicit abstentions across 30 teams. G League continues to abstain rather than substituting a different value scale.
-- Published magnitude distribution: |TULIP| >=3 MPG: 231 players (119 positive / 112 negative); >=5: 127 (76 / 51); >=7: 57 (33 / 24); >=10: 17 (12 / 5). These thresholds are descriptive counts, not calibrated confidence bands or recommended quotas.
-- Recommendation-support distribution: HIGH 65, MEDIUM 4, LOW 356; 105 recommendations extrapolate beyond directly supported workload evidence. Support remains evidence strength, not probability of correctness.
-- Every current-team diagnostic distinguishes the guarantees actually enforced (zero-sum scored-player ledger and 0–40 individual workload bounds) from constraints not present in the model (verified simultaneous availability, positional/lineup feasibility and a complete playable 240-minute rotation).
-- Every scored row carries a structured driver trace for team-relative value, baseline/recommended workload, direct support ceiling, extrapolation, role evidence and roster-balance factor, plus explicit unavailable feasibility fields.
-- Frozen validation metadata records the prior negative result exactly: reduced form -0.127 points/SD, Anderson-Rubin 95% CI [-1.756, 1.021]. Exact magnitude is not validated, and ordinal play-more/play-less direction is not validated as a win prescription.
-- The Projected Role MPG historical backtest remains separate and is explicitly not evidence that TULIP Beta's allocator is valid.
-- The 2024-25 and 2025-26 chronological TULIP outcome holdouts remain unspent in this section. That is intentional: this work improves engineering truthfulness and feasibility accounting, not the underlying causal evidence.
-
-
 ### TULIP feasibility and validation review — PR #18
 
-Verified capabilities in this section:
-- Current-roster scope: 598 NBA roster rows across 30 teams; 425 receive TULIP Beta values and 173 explicitly abstain.
-- Magnitude distribution is now machine-readable and recomputed from the shipped player rows: |TULIP| >=3 MPG: 231 players (119 positive, 112 negative); >=5: 127 (76 positive, 51 negative); >=7: 57 (33 positive, 24 negative); >=10: 17 (12 positive, 5 negative).
-- Recommendation-support distribution: HIGH 65, MEDIUM 4, LOW 356; 105 recommendations extrapolate beyond direct workload evidence.
+Verified engineering and evidence status in this section:
+- The preseason allocator uses each scored player's 2025-26 MPG as its baseline while grouping players by the current 2026-27 roster. The UI now says **Baseline MPG** rather than implying those are current-season 2026-27 minutes.
+- Current-roster scope: 598 NBA roster rows across 30 teams; 425 receive TULIP Beta values and 173 explicitly abstain. G League continues to abstain rather than substituting a different value scale.
+- Magnitude distribution is machine-readable and recomputed from the shipped player rows: |TULIP| >=3 MPG: 231 players (119 positive, 112 negative); >=5: 127 (76, 51); >=7: 57 (33, 24); >=10: 17 (12, 5). These thresholds are descriptive counts, not calibrated confidence bands or recommended quotas.
+- Recommendation-support distribution: HIGH 65, MEDIUM 4, LOW 356; 105 recommendations extrapolate beyond direct workload evidence. Support is evidence strength, not probability of correctness.
 - Every current NBA team publishes roster count, scored/abstained count and reasons, eligible-pool baseline/recommended totals, gained/surrendered/net MPG, ledger conservation, individual 0–40 bounds, position-family coverage and an explicit feasibility status.
 - Feasibility is intentionally labeled PARTIAL_LEDGER_ONLY: the allocator conserves the scored eligible-player workload ledger and enforces individual bounds, but does not verify simultaneous availability, enforce positional/lineup constraints, or construct a complete playable 240-minute rotation.
-- Every scored player carries a structured trace for value signal, baseline workload, evidence-supported ceiling, extrapolation, evidence tier/factor, roster-balance factor and the unverified feasibility dimensions.
-- The TULIP UI now labels its source workload as Baseline MPG / 2025-26 MPG baseline, because current 2026-27 roster identity and last-season workload are different concepts.
-- Frozen research status is now machine-readable in the product: DEV reduced form -0.127 pts/SD and Anderson-Rubin 95% CI [-1.756, 1.021]; exact magnitude is not validated and ordinal play-more/play-less direction is not validated as a win prescription. The separate Projected Role MPG backtest is explicitly not borrowed as TULIP Beta validation.
-- This section did not inspect/spend the pre-registered chronological TULIP holdouts. No new win-optimality claim is made.
+- Every scored player carries a structured trace for team-relative value, baseline/recommended workload, evidence-supported ceiling, extrapolation, evidence tier/factor, roster-balance factor and the unverified feasibility dimensions.
+- Frozen research status is machine-readable in the product: DEV reduced form -0.127 pts/SD and Anderson-Rubin 95% CI [-1.756, 1.021]. Neither the play-more/play-less direction nor the exact MPG magnitude is validated as a win prescription.
+- The separate Projected Role MPG historical backtest is explicitly not borrowed as validation of the TULIP Beta allocator.
+- The 2024-25 and 2025-26 chronological TULIP outcome holdouts remain unspent in this section. No new win-optimality claim is made.
+
