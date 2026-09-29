@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { captureForecast, writeArchiveFiles, readGitFile } from '../scripts/archive-forecast.mjs';
 import {
   sha256,
@@ -11,6 +12,8 @@ import {
   nbaBaselines,
   gleagueBaseline,
   buildArchive,
+  deriveCohorts,
+  scoreArchive,
 } from '../scripts/lib/forecast-archive.mjs';
 
 let pass = 0;
@@ -269,6 +272,81 @@ test('writeArchiveFiles refuses overwrite and writes deterministic manifest', ()
     const index=JSON.parse(fs.readFileSync(path.join(root,'index.json'),'utf8'));
     assert.equal(index.forecasts[0].forecastId,'f1');
     assert.ok(index.forecasts[0].sha256);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+const archivedRow = (id, opts={}) => ({
+  identity:`NBA:${id}`, league:'NBA', playerId:String(id), nbaPersonId:id, name:`P${id}`,
+  team:opts.team || 'AAA', status:opts.status || 'same', basis:opts.basis || 'multi-year-history', age:opts.age ?? 27,
+  modelVersion:'m1', timeframe:'preseason-full-season',
+  projection:{gp:opts.gp ?? 80,mpg:opts.mpg ?? 30,pts:opts.pts ?? 20,reb:opts.reb ?? 8,ast:opts.ast ?? 5,stl:1,blk:.5,tov:2,fg3m:2,fgPct:.5,fg3Pct:.4,ftPct:.8},
+  why:{minutes:{last:opts.lastMpg ?? 25}},
+  baselines:{repeat:opts.repeat===null?null:(opts.repeat || {gp:78,mpg:28,pts:18,reb:7,ast:4,stl:.9,blk:.4,tov:2.1,fg3m:1.8,fgPct:.48,fg3Pct:.36,ftPct:.79}),
+             avg3:opts.avg3===null?null:(opts.avg3 || {gp:76,mpg:27,pts:17,reb:6.5,ast:3.8,stl:.8,blk:.4,tov:2,fg3m:1.7,fgPct:.47,fg3Pct:.35,ftPct:.78})}
+});
+const actualRow = (id, opts={}) => ({nbaPersonId:id,name:`P${id}`,team:opts.team || 'BBB',gp:opts.gp ?? 82,min:(opts.gp ?? 82)*(opts.mpg ?? 31),pts:(opts.gp ?? 82)*(opts.pts ?? 22),oreb:(opts.gp ?? 82)*2,dreb:(opts.gp ?? 82)*7,ast:(opts.gp ?? 82)*6,stl:(opts.gp ?? 82)*1.2,blk:(opts.gp ?? 82)*.6,tov:(opts.gp ?? 82)*2.2,fgm:opts.fgm ?? 700,fga:opts.fga ?? 1400,fg3m:opts.fg3m ?? 200,fg3a:opts.fg3a ?? 500,ftm:opts.ftm ?? 300,fta:opts.fta ?? 375});
+const actualFile = (rows,status='final') => ({schemaVersion:1,season:'2026-27',asOf:'2027-04-15',status,leagues:{NBA:rows,GLEAGUE:[]}});
+
+test('scoreArchive computes exact MAE RMSE bias and coverage', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1,{pts:20}),archivedRow(2,{pts:10,repeat:null,avg3:null}),{identity:'NBA:3',league:'NBA',nbaPersonId:3,name:'P3',abstain:true,reason:'no history',baselines:{repeat:null,avg3:null}}]};
+  const out=scoreArchive(archive,actualFile([actualRow(1,{pts:22}),actualRow(2,{pts:14}),actualRow(3,{pts:9})]));
+  const pts=out.leagues.NBA.allModel.metrics.pts;
+  assert.equal(pts.n,2); assert.equal(pts.mae,3); assert.ok(Math.abs(pts.rmse-Math.sqrt(10))<1e-12); assert.equal(pts.bias,-3);
+  assert.deepEqual(out.coverage.NBA,{archiveRows:3,projected:2,abstained:1,actualMatched:3,repeatAvailable:1,avg3Available:1});
+});
+
+test('paired baseline comparisons use identical eligible players', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1,{pts:20}),archivedRow(2,{pts:10,repeat:null,avg3:null})]};
+  const out=scoreArchive(archive,actualFile([actualRow(1,{pts:22}),actualRow(2,{pts:100})]));
+  assert.equal(out.leagues.NBA.allModel.metrics.pts.n,2);
+  assert.equal(out.leagues.NBA.vsRepeat.model.metrics.pts.n,1);
+  assert.equal(out.leagues.NBA.vsRepeat.baseline.metrics.pts.n,1);
+  assert.equal(out.leagues.NBA.vsRepeat.model.metrics.pts.mae,2);
+  assert.equal(out.leagues.NBA.vsRepeat.baseline.metrics.pts.mae,4);
+});
+
+test('shooting percentage thresholds are exact and do not remove other metrics', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1),archivedRow(2),archivedRow(3),archivedRow(4)]};
+  const rows=[actualRow(1,{fga:99,fg3a:49,fta:49}),actualRow(2,{fga:100,fg3a:50,fta:50}),actualRow(3,{fga:0,fg3a:0,fta:0}),actualRow(4,{fga:1400,fg3a:500,fta:375})];
+  const out=scoreArchive(archive,actualFile(rows));
+  assert.equal(out.leagues.NBA.allModel.metrics.fgPct.n,2);
+  assert.equal(out.leagues.NBA.allModel.metrics.fg3Pct.n,2);
+  assert.equal(out.leagues.NBA.allModel.metrics.ftPct.n,2);
+  assert.equal(out.leagues.NBA.allModel.metrics.pts.n,4);
+});
+
+test('deriveCohorts depends only on archived pre-outcome fields', () => {
+  assert.deepEqual(deriveCohorts(archivedRow(1,{status:'rookie',basis:'rookie-cohort-fallback',age:22,lastMpg:20})).sort(), ['age-23-and-under','prior-lower-minutes','rookie'].sort());
+  const mover=deriveCohorts(archivedRow(2,{status:'new',basis:'multi-year-history',age:34,lastMpg:30}));
+  assert.ok(mover.includes('new-team')); assert.ok(mover.includes('recent-history-veteran')); assert.ok(mover.includes('age-33-and-over')); assert.ok(mover.includes('prior-high-minutes'));
+  assert.ok(deriveCohorts(archivedRow(3,{status:'historical',basis:'older-history-fallback'})).includes('older-history-returner'));
+  assert.ok(deriveCohorts(archivedRow(4,{status:'unsigned'})).includes('unsigned-at-forecast'));
+});
+
+test('interim scoring requires explicit opt-in and omits GP', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1)]};
+  const interim=actualFile([actualRow(1,{gp:20})],'interim');
+  assert.throws(()=>scoreArchive(archive,interim),/interim/i);
+  const out=scoreArchive(archive,interim,{interim:true});
+  assert.equal(out.asOf,'2027-04-15'); assert.equal('gp' in out.leagues.NBA.allModel.metrics,false);
+});
+
+test('season and actual identity errors fail closed', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1)]};
+  assert.throws(()=>scoreArchive(archive,{...actualFile([actualRow(1)]),season:'2027-28'}),/season/i);
+  assert.throws(()=>scoreArchive(archive,actualFile([actualRow(1),actualRow(1)])),/duplicate.*NBA:1/i);
+});
+
+test('score CLI emits deterministic JSON and writes identical --out', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-score-cli-'));
+  try {
+    const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1)]};
+    const actual=actualFile([actualRow(1)]);
+    const ap=path.join(root,'archive.json'), xp=path.join(root,'actual.json'), op=path.join(root,'report.json');
+    fs.writeFileSync(ap,JSON.stringify(archive)); fs.writeFileSync(xp,JSON.stringify(actual));
+    const stdout=execFileSync(process.execPath,['scripts/score-forecast-archive.mjs','--archive',ap,'--actual',xp],{cwd:path.resolve('.'),encoding:'utf8'});
+    execFileSync(process.execPath,['scripts/score-forecast-archive.mjs','--archive',ap,'--actual',xp,'--out',op],{cwd:path.resolve('.'),encoding:'utf8'});
+    assert.deepEqual(JSON.parse(stdout),JSON.parse(fs.readFileSync(op,'utf8')));
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 });
 
