@@ -110,6 +110,63 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
       note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' } };
 }
 
+
+export function historicalFallbackEvidence(hist, targetSeason, weightedHistoricalExposure, reliability) {
+  const observed = (hist || []).filter((r) => r && (r.gp > 0 || r.min > 0));
+  const lastObservedSeason = observed[0]?.season || null;
+  const targetYear = seasonStart(targetSeason);
+  const lastYear = lastObservedSeason ? seasonStart(lastObservedSeason) : null;
+  const blankSeasonGapCount = Number.isFinite(lastYear) ? Math.max(0, targetYear - lastYear - 1) : null;
+  const exposure = Number.isFinite(weightedHistoricalExposure) ? Math.max(0, weightedHistoricalExposure) : 0;
+  const rel = Number.isFinite(reliability) ? clamp(reliability, 0, 1) : 0;
+  const support = !lastObservedSeason || exposure <= 0
+    ? 'unavailable'
+    : (exposure >= 20 && rel >= 0.25 ? 'low' : 'very-low');
+  return {
+    lastObservedSeason,
+    blankSeasonGapCount,
+    weightedHistoricalExposure: exposure,
+    reliability: rel,
+    support,
+    note: 'Older NBA evidence only. This fallback does not predict return-to-play, injury clearance, contract status, or current medical availability.',
+  };
+}
+
+const coverageField = (available, source, status = available ? 'available' : 'unavailable') => ({
+  available: !!available,
+  source,
+  status,
+});
+
+export function rookieInputCoverage(evidence = {}) {
+  const draft = Number.isFinite(evidence.draftPick) && evidence.draftPick > 0;
+  const position = typeof evidence.position === 'string' && evidence.position.trim().length > 0;
+  const age = Number.isFinite(evidence.age);
+  const cohort = Number.isFinite(evidence.peers) && evidence.peers > 0;
+  const preNba = evidence.preNbaStats && evidence.preNbaStats !== 'unavailable';
+  const contract = evidence.contractSecurity && evidence.contractSecurity !== 'unavailable';
+  const injury = evidence.currentInjuryClearance && evidence.currentInjuryClearance !== 'unavailable';
+  return {
+    draftSlot: coverageField(draft, 'NBA draft metadata'),
+    position: coverageField(position, 'NBA player index'),
+    entryAge: coverageField(age, 'NBA player index / projection row'),
+    historicalCohort: coverageField(cohort, 'historical NBA rookie cohort'),
+    preNbaProduction: coverageField(!!preNba, preNba ? 'verified pre-NBA input' : null),
+    contractSecurity: coverageField(!!contract, contract ? 'verified contract input' : null),
+    currentInjuryClearance: coverageField(!!injury, injury ? 'verified injury/availability input' : null),
+  };
+}
+
+export function summarizeRookieCoverage(rows = []) {
+  const keys = ['draftSlot','position','entryAge','historicalCohort','preNbaProduction','contractSecurity','currentInjuryClearance'];
+  const out = { players: rows.length };
+  for (const key of keys) {
+    const available = rows.filter((r) => r?.[key]?.available).length;
+    out[key] = { available, unavailable: rows.length - available };
+  }
+  return out;
+}
+
 /** Returner after at least three blank recent seasons: blend a no-recent-role model prior with
  * exposure-weighted older MPG/availability. True calendar gaps decay old evidence; this is an
  * explicit, low-support estimate, not an injury diagnosis. */
