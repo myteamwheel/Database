@@ -149,7 +149,7 @@ function confidenceOf(p,finalDelta,ceiling) {
 /** Marginal transfer priority. Strength is absolute team-relative signal in SD units. */
 export function marginalAllocationPriority(strength,movedMpg,scale=BETA_CONFIG.diminishingScaleMpg) {
   if(!fin(strength)||Number(strength)<0||!fin(movedMpg)||Number(movedMpg)<0||!fin(scale)||Number(scale)<=0) {
-    throw new Error('Marginal allocation priority requires non-negative strength/moved minutes and positive scale');
+    throw new Error(`Marginal allocation priority requires non-negative strength/moved minutes and positive scale (strength=${strength}, moved=${movedMpg}, scale=${scale})`);
   }
   return Number(strength)/(1+Number(movedMpg)/Number(scale));
 }
