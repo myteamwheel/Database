@@ -451,7 +451,14 @@ test('verifySnapshotAgainstRelease proves archived rows and source hashes match 
   archive.players.find(x=>x.identity==='NBA:7').projection.pts=999;
   assert.throws(()=>verifySnapshotAgainstRelease({archive,releaseData,rawSources:{
     'public/data.json':rawData,'PROJECTION_2026_27.json':rawCard,'scripts/data/projection/inputs.json':rawInputs,'scripts/data/live/roster.json':null,
-  }}),/release projection mismatch/i);
+  }}),/release (projection|snapshot) mismatch/i);
+
+  const baselineTamper=buildArchive({data:structuredClone(releaseData),card:releaseCard,rawInputs,sourceCommit:'abc123',
+    publishedAt:'2026-09-29',publicationBasis:'verified-release-date',forecastId:'fixture',sources});
+  baselineTamper.players.find(x=>x.identity==='NBA:7').baselines.repeat.pts=999;
+  assert.throws(()=>verifySnapshotAgainstRelease({archive:baselineTamper,releaseData,rawSources:{
+    'public/data.json':rawData,'PROJECTION_2026_27.json':rawCard,'scripts/data/projection/inputs.json':rawInputs,'scripts/data/live/roster.json':null,
+  }}),/release (baseline|snapshot) mismatch/i);
 });
 
 if (!process.exitCode) console.log(`ALL PASS · ${pass} tests`);
