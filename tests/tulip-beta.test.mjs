@@ -20,9 +20,8 @@ t('1 every eligible team ledger conserves (sum of deltas ~ 0)', () => {
     const s = arr.reduce((a, p) => a + p.tulipBeta.tulip, 0);
     if (Math.abs(s) > worst) { worst = Math.abs(s); worstT = team; }
   }
-  // each delta is rounded to 0.1 independently, so a roster of ~16 can drift up to ~0.8
-  assert.ok(worst <= 0.8, `worst imbalance ${worst.toFixed(2)} MPG on ${worstT}`);
-  console.log(`        (worst team imbalance ${worst.toFixed(2)} MPG across ${Object.keys(byTeam).length} teams — rounding only)`);
+  assert.ok(worst <= 0.01, `worst imbalance ${worst.toFixed(2)} MPG on ${worstT}`);
+  console.log(`        (worst team imbalance ${worst.toFixed(2)} MPG across ${Object.keys(byTeam).length} teams)`);
 });
 t('2 sign is consistent with the underlying value signal', () => {
   let bad = 0;
@@ -143,6 +142,36 @@ t('16 real current-roster recommendations are not trapped inside +/-8 MPG', () =
   console.log(`        real current-roster TULIP range: ${min.toFixed(1)} to +${max.toFixed(1)} MPG`);
   assert.ok(Math.max(Math.abs(min), Math.abs(max)) > 8,
     `generated recommendations are still effectively trapped inside +/-8 MPG: ${min} to ${max}`);
+});
+
+t('17 expansion beyond observed workload is marked LOW support, not hidden as confidence', () => {
+  const mk = (id, bpm, mpg, tier = 'A') => ({
+    playerId: String(id), appeared: true, bpm, mpg, minutes: 1000,
+    history: [['2025-26', 'Regular Season', [], 60, mpg]],
+    tulip: { frontier: [], card: { evidenceTier: { tier }, projection: { counterfactualSupport: { status: 'OK' } } },
+      roleScaleResponse: { response: 'SUPPORTED' } },
+  });
+  const rows = [mk(11, 12, 10), mk(12, -2, 18), mk(13, -2, 18), mk(14, -2, 18), mk(15, -2, 18)];
+  const out = tulipBetaForTeam(rows, { leagueBpm: 0, leagueGapSd: 1 });
+  const star = out.get('11');
+  assert.ok(star.recommendedMpg > star.supportedCeiling, 'scenario did not exercise extrapolation');
+  assert.strictEqual(star.confidence, 'LOW', 'unsupported expansion should be disclosed as low support');
+});
+
+t('18 overlapping evidence weaknesses are not multiplied into duplicate penalties', () => {
+  const mk = (id, bpm, mpg, weakest = false) => ({
+    playerId: String(id), appeared: true, bpm, mpg, minutes: 1000,
+    history: [['2025-26', 'Regular Season', [], 60, Math.max(mpg, id === 21 ? 35 : mpg)]],
+    tulip: { frontier: [{ mpg: 40, abstain: false }], card: { evidenceTier: { tier: 'A' },
+      projection: { counterfactualSupport: { status: weakest ? 'INSUFFICIENT' : 'OK' } } },
+      roleScaleResponse: { response: weakest ? 'INSUFFICIENT_HISTORY' : 'SUPPORTED' } },
+  });
+  const rows = [mk(21, 10, 5, true), mk(22, -2, 20), mk(23, -2, 20), mk(24, -2, 20), mk(25, -2, 20)];
+  const out = tulipBetaForTeam(rows, { leagueBpm: 0, leagueGapSd: 1 });
+  assert.ok(Math.abs(out.get('21').extrapolationFactor - 0.7) < 0.001,
+    'the unsupported portion should receive one attenuation');
+  assert.ok(out.get('21').evidenceFactor > 0.7 && out.get('21').evidenceFactor < 1,
+    'the already-supported portion should remain unattenuated');
 });
 
 // ---- team-ledger regression: a future UI change must not silently break zero-sum conservation ----

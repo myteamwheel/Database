@@ -10,10 +10,11 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
-  prepare, historyBefore, seasonPriors, teamPaces, leagueTrend, projectRates, roleFeatures, dot,
+  prepare, historyBefore, projectionHistory, seasonPriors, teamPaces, leagueTrend, projectRates, roleFeatures, dot,
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
+import { CONTEXT_VERSION, reconcileMinutes, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback } from './lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public/data.json');
@@ -26,13 +27,17 @@ const T = '2026-27', LAST = '2025-26';
  * Compute every player's projection into `data` (mutated in place) and return the counts.
  * Pure given its arguments, so the test suite can rebuild in memory and compare.
  */
-export function buildProjections(data, rawInputs, card) {
+export function buildProjections(data, rawInputs, card, { roster = null } = {}) {
   const inputsSha = crypto.createHash('sha256').update(rawInputs).digest('hex');
   if (card.builtFrom.sha256 !== inputsSha) {
     throw new Error(`inputs.json (${inputsSha.slice(0, 12)}) is not the file the card was fitted on (${card.builtFrom.sha256.slice(0, 12)}). Refit with scripts/fit-projections.mjs.`);
   }
   const inputs = JSON.parse(rawInputs);
+  // A live roster is context, not a mutation of the frozen training dataset/card.
+  if (roster) inputs.rosters2627 = roster;
   const D = prepare(inputs);
+  const rookies = rookieCohort(D, T);
+  const teamBudgets = {};
   const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
   const r2 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
   const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
@@ -66,14 +71,10 @@ export function buildProjections(data, rawInputs, card) {
     const isNba = leagueKey === 'nba';
     const games = isNba ? 82 : card.gleague.games;
 
-    // 2026-27 rosters (NBA). Players with no NBA past who were not drafted are camp invites; most
-    // are cut before opening night, so they do not count as competition for minutes.
+    // Every confirmed roster member counts. Undrafted does not establish camp-contract status.
     const rosters = new Map();
     if (isNba) {
       for (const [pid, team] of D.rosters2627) {
-        const b = D.bio.get(pid);
-        const hasPast = historyBefore(L, pid, T).some(Boolean);
-        if (!hasPast && !(b?.draftYear === 2026 && b?.draftNumber)) continue;
         if (!rosters.has(team)) rosters.set(team, []);
         rosters.get(team).push(pid);
       }
@@ -82,26 +83,33 @@ export function buildProjections(data, rawInputs, card) {
     const rows = [];
     for (const p of players) {
       const pid = Number(p.nbaPersonId);
-      const hist = historyBefore(L, pid, T);
-      if (!hist.some(Boolean)) {
+      const history = projectionHistory(L, pid, T);
+      const hist = history.hist;
+      const bio = D.bio.get(pid);
+      const team26 = isNba ? D.rosters2627.get(pid) || null : null;
+      const rookie = isNba && team26 && !hist.some(Boolean)
+        && (bio?.fromYear >= 2026 || bio?.draftYear === 2026)
+        ? rookieProjection(bio, Number.isFinite(p.age) ? p.age : null, rookies, ctx.priors) : null;
+      if (!hist.some(Boolean) && !rookie) {
         p.proj = { abstain: true, reason: isNba
           ? 'No NBA minutes in 2023-24, 2024-25 or 2025-26 to project from.'
           : 'No G League minutes in 2023-24, 2024-25 or 2025-26 to project from.' };
         continue;
       }
-      const last = hist.find(Boolean);
-      const bio = D.bio.get(pid);
-      const team26 = isNba ? D.rosters2627.get(pid) || null : null;
+      const last = hist.find(Boolean) || { team: team26 };
       const status = !isNba ? (D.rosters2627.has(pid) ? 'nba-roster' : 'gleague')
-        : team26 ? (team26 === last.team ? 'same' : 'new') : 'unsigned';
+        : rookie ? 'rookie' : history.fallback ? (team26 ? 'historical' : 'unsigned')
+          : team26 ? (team26 === last.team ? 'same' : 'new') : 'unsigned';
       const moved = status === 'new';
       const depth = isNba && team26 ? rosterDepth(L, T, rosters.get(team26) || [], pid, role.rookie, D.bio) : 0;
-      const pr = projectRates(hist, T, bio, ctx.priors, P, ctx.trend);
-      const f = roleFeatures(hist, T, bio, L.teamGames, pr, { moved, depth });
-      const mpgRaw = dot(role.minutes, f, MIN_FEATURES);
+      const pr = rookie?.pr || projectRates(hist, T, bio, ctx.priors, P, ctx.trend);
+      const recentFeatures = roleFeatures(hist, T, bio, L.teamGames, pr, { moved, depth });
+      const historicalRole = history.fallback ? historicalRoleProjection(hist, T, bio, L.teamGames, pr, { moved, depth }, role, P, games) : null;
+      const f = historicalRole?.f || recentFeatures;
+      const mpgRaw = rookie ? rookie.mpg : historicalRole ? historicalRole.mpg : dot(role.minutes, f, MIN_FEATURES);
       const mpg = Math.max(1, Math.min(isNba ? 40 : 42, mpgRaw));
-      const share = Math.max(0.05, Math.min(1, dot(role.gp, f, GP_FEATURES)));
-      rows.push({ p, pid, hist, last, bio, team: team26 || last.team, status, moved, depth, pr, f, mpgRaw, mpg, share,
+      const share = rookie?.share ?? historicalRole?.share ?? Math.max(0.05, Math.min(1, dot(role.gp, f, GP_FEATURES)));
+      rows.push({ p, pid, hist, historicalFallback: history.fallback, historicalRole, last, bio, rookie, team: team26 || last.team, status, moved, depth, pr, f, mpgRaw, mpg, share,
         games: share * games, mpgLast: hist[0] ? hist[0].min / hist[0].gp : null });
     }
 
@@ -114,6 +122,7 @@ export function buildProjections(data, rawInputs, card) {
     }
     for (const [key, list] of groups) {
       const solo = key.startsWith('solo:');
+      if (isNba && !solo) teamBudgets[key] = reconcileMinutes(list);
       const pace = solo || !isNba ? projectedPace(ctx.priors, ctx.trend, NaN, P)
         : projectedPace(ctx.priors, ctx.trend, ctx.paces.get(key), P);
       applyTeamContext(list, ctx.priors, pace, P, solo ? { noUsage: true, noRole: true } : {});
@@ -132,19 +141,33 @@ export function buildProjections(data, rawInputs, card) {
       const [mpgLo, mpgHi] = band(bands, 'mpg', line.mpg);
       const [gpLo, gpHi] = band(bands, 'gp', r.games);
       const coef = card[leagueKey].role.minutes;
-      const seasonsUsed = r.hist.map((h, i) => (h ? { season: prevSeason(T, i + 1), team: h.team, gp: h.gp, min: Math.round(h.min),
-        weight: [1, P.w2, P.w3][i] } : null)).filter(Boolean);
+      const seasonsUsed = r.hist.map((h, i) => {
+        if (!h) return null;
+        const elapsed = h.season ? Math.max(1, Number(T.slice(0, 4)) - Number(h.season.slice(0, 4))) : i + 1;
+        const weight = elapsed === 1 ? 1 : elapsed === 2 ? P.w2 : P.w3 ** (elapsed - 2);
+        return { season: h.season || prevSeason(T, i + 1), team: h.team, gp: h.gp, min: Math.round(h.min), weight };
+      }).filter(Boolean);
       p.proj = {
         season: T, team: r.team, status: r.status, age: pr.age,
+        modelVersion: `${card.id}+${CONTEXT_VERSION}`, timeframe: 'preseason-full-season',
+        basis: r.rookie ? 'rookie-cohort-fallback' : r.historicalFallback ? 'older-history-fallback' : 'multi-year-history',
+        role: line.mpg >= 28 ? 'core rotation' : line.mpg >= 18 ? 'regular rotation' : line.mpg >= 10 ? 'reserve rotation' : 'limited role',
+        effectiveMpg: r3(line.mpg * r.share),
+        usage: r3((r.rateFinal.fga + 0.44 * r.rateFinal.fta + r.rateFinal.tov) / (ctx.priors.playsPer100 * 5)),
+        uncertainty: { method: 'legacy-veteran-residuals', calibratedForContextVersion: false,
+          note: r.rookie ? 'Provisional cohort fallback; ranges have not been calibrated for rookies.' : r.historicalFallback ? 'Old-season fallback; long gaps and return-to-play uncertainty are not calibrated.' : 'Historical veteran residual ranges; new roster-minute adjustments have not been recalibrated.' },
+        availability: { basis: 'historical-appearance-rate', injuryStatus: 'not-verified' },
         gp: r1(r.games), mpg: r1(line.mpg), pts: r1(line.pts), reb: r1(line.reb), oreb: r1(line.oreb), dreb: r1(line.dreb),
         ast: r1(line.ast), stl: r1(line.stl), blk: r1(line.blk), tov: r1(line.tov), fg3m: r1(line.fg3m),
-        fga: r1(line.fga), fg3a: r1(line.fg3a), fta: r1(line.fta),
+        fga: r1(line.fga), fg3a: r1(line.fg3a), fta: r1(line.fta), fgm: r1(line.fgm), ftm: r1(line.ftm),
+        accounting: { ...line, ftValue: ftV, totals: Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm'].map(k => [k, line[k] * r.games])) },
         fgPct: r3(line.fgPct), fg3Pct: r3(line.fg3Pct), ftPct: r3(line.ftPct), ts: r3(line.ts),
         ptsLo: r1(ptsLo), ptsHi: r1(ptsHi), rebLo: r1(rebLo), rebHi: r1(rebHi), astLo: r1(astLo), astHi: r1(astHi),
         mpgLo: r1(mpgLo), mpgHi: r1(Math.min(isNba ? 42 : 44, mpgHi)), gpLo: r1(gpLo), gpHi: r1(Math.min(games, gpHi)),
         dPts: r1(line.pts - (p.pts ?? NaN)), dReb: r1(line.reb - (p.reb ?? NaN)), dAst: r1(line.ast - (p.ast ?? NaN)),
         dMpg: r1(line.mpg - (p.mpg ?? NaN)),
         why: {
+          rookie: r.rookie?.evidence || null,
           seasons: seasonsUsed,
           possessions: Math.round(pr.basePoss),
           // Share of each rate that comes from the player's own record rather than the position norm.
@@ -159,21 +182,28 @@ export function buildProjections(data, rawInputs, card) {
             last: r1(r.mpgLast), lateSeason: r.hist[0]?.postGp >= 5 ? r1(r.hist[0].postMin / r.hist[0].postGp) : null,
             startRate: r.hist[0] && Number.isFinite(r.hist[0].gs) ? r2(r.hist[0].gs / r.hist[0].gp) : null,
             projected: r1(line.mpg),
+            beforeTeamBudget: r1(r.minutesBeforeContext ?? line.mpg),
+            teamBudgetAdjustment: r1(r.minuteReconciliation || 0),
             effects: {
-              age: r1(minutesEffect(coef, f, { age: 0, ageYoung: 0, ageOld: 0 })),
-              newTeam: r1(minutesEffect(coef, f, { moved: 0, movedMpg: 0, movedDepth: 0 })),
-              depth: r1(minutesEffect(coef, f, { depth: 0, movedDepth: 0 })),
-              draftAndYouth: r1(minutesEffect(coef, f, { rookieScale: 0, pickYoung: 0 })),
+            age: r.rookie || r.historicalFallback ? null : r1(minutesEffect(coef, f, { age: 0, ageYoung: 0, ageOld: 0 })),
+              newTeam: r.rookie || r.historicalFallback ? null : r1(minutesEffect(coef, f, { moved: 0, movedMpg: 0, movedDepth: 0 })),
+              depth: r.rookie ? null : r1(minutesEffect(coef, f, { depth: 0, movedDepth: 0 })),
+              draftAndYouth: r.rookie ? null : r1(minutesEffect(coef, f, { rookieScale: 0, pickYoung: 0 })),
             },
             depth: isNba && r.status !== 'unsigned' ? r2(r.depth) : null,
           },
-          games: { lastShare: r2(f.gpShare1), projectedShare: r2(r.share) },
+          games: { lastShare: r2(r.historicalRole?.oldShare ?? f.gpShare1), projectedShare: r2(r.share) },
+          fallback: r.historicalRole ? { historicalRoleReliability: r3(r.historicalRole.reliability),
+            oldObservedMpg: r1(r.historicalRole.oldMpg), oldAppearanceShare: r2(r.historicalRole.oldShare),
+            rolePriorMpg: r1(r.historicalRole.priorMpg), appearancePrior: r2(r.historicalRole.priorShare) } : null,
           team: { usage: r3(r.factors.usage - 1), newTeam: r3(r.factors.newTeam - 1), pace: r1(r.factors.pace),
             leaguePace: r1(ctx.priors.pace), rosterBalance: r3(r.factors.rosterBalance) },
         },
       };
     }
     return { scored: rows.length, abstained: players.length - rows.length,
+      rookieFallbacks: rows.filter(r => r.rookie).length,
+      historicalFallbacks: rows.filter(r => r.historicalFallback).length,
       moved: rows.filter((r) => r.status === 'new').length, unsigned: rows.filter((r) => r.status === 'unsigned').length,
       teamMinutes: isNba ? teamMinuteTotals(rows) : null };
   }
@@ -214,7 +244,12 @@ export function buildProjections(data, rawInputs, card) {
   const bt = card.backtest;
   data.projectionMeta = {
     id: card.id, season: T, basedOn: LAST,
-    rostersAsOf: inputs.fetchedAt.slice(0, 10),
+    contextVersion: CONTEXT_VERSION, timeframe: 'preseason-full-season',
+    rostersAsOf: (roster?.fetchedAt || inputs.fetchedAt).slice(0, 10),
+    rosterSha256: crypto.createHash('sha256').update(JSON.stringify(inputs.rosters2627)).digest('hex'),
+    teamBudgets,
+    rookieEvaluation: evaluateRookieFallback(D, LAST),
+    contextValidation: 'Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations.',
     inputsSha256: inputsSha.slice(0, 16),
     counts: { nba, gleague },
     params: {
@@ -235,7 +270,9 @@ export function buildProjections(data, rawInputs, card) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const data = JSON.parse(fs.readFileSync(DATA, 'utf8'));
-  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')));
+  const livePath = path.join(ROOT, 'scripts/data/live/roster.json');
+  const roster = fs.existsSync(livePath) ? JSON.parse(fs.readFileSync(livePath, 'utf8')) : null;
+  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster });
   fs.writeFileSync(DATA, JSON.stringify(data));
   console.log(`2026-27 projections: NBA ${nba.scored} projected (${nba.moved} on new teams, ${nba.unsigned} not on a roster), ${nba.abstained} without recent NBA minutes`);
   console.log(`  G League ${gleague.scored} projected, ${gleague.abstained} without recent G League minutes`);

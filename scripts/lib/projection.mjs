@@ -56,7 +56,7 @@ function leagueSeasons(src) {
       const x = a.get(r.PLAYER_ID) || {};
       if (!(r.MIN > 0)) continue;
       m.set(r.PLAYER_ID, {
-        pid: r.PLAYER_ID, name: r.PLAYER_NAME, team: r.TEAM_ABBREVIATION, age: r.AGE,
+        pid: r.PLAYER_ID, name: r.PLAYER_NAME, team: r.TEAM_ABBREVIATION, season, age: r.AGE,
         gp: r.GP, min: r.MIN, fgm: r.FGM, fga: r.FGA, fg3m: r.FG3M, fg3a: r.FG3A,
         fg2m: r.FGM - r.FG3M, fg2a: r.FGA - r.FG3A, ftm: r.FTM, fta: r.FTA,
         oreb: r.OREB, dreb: r.DREB, ast: r.AST, tov: r.TOV, stl: r.STL, blk: r.BLK, pf: r.PF,
@@ -141,6 +141,19 @@ export function prepare(inputs) {
 /** The player's last three seasons before T, most recent first (null where he did not play). */
 export function historyBefore(league, pid, T) {
   return [1, 2, 3].map((n) => league.seasons.get(prevSeason(T, n))?.get(pid) || null);
+}
+
+/** Recent three-year history where possible; otherwise the last three meaningful historical
+ * seasons. The record's actual season remains attached so rates/ageing do not pretend a gap
+ * year was played. */
+export function projectionHistory(league, pid, T) {
+  const recent = historyBefore(league, pid, T);
+  if (recent.some(Boolean)) return { hist: recent, fallback: false };
+  const older = [...league.seasons.entries()]
+    .filter(([season]) => seasonStart(season) < seasonStart(T))
+    .map(([, map]) => map.get(pid)).filter((r) => r && r.min > 0)
+    .sort((a, b) => seasonStart(b.season) - seasonStart(a.season)).slice(0, 3);
+  return { hist: [...older, ...Array(Math.max(0, 3 - older.length)).fill(null)], fallback: older.length > 0 };
 }
 
 /* ------------------------------------------------------------------ league context per season */
@@ -265,7 +278,10 @@ export function ageLookup(table, age) {
 
 /** Age in season T from the most recent season we have. */
 export function ageInSeason(hist, T) {
-  for (let n = 0; n < hist.length; n++) if (hist[n] && Number.isFinite(hist[n].age)) return hist[n].age + n + 1;
+  for (let n = 0; n < hist.length; n++) if (hist[n] && Number.isFinite(hist[n].age)) {
+    const elapsed = hist[n].season ? seasonStart(T) - seasonStart(hist[n].season) : n + 1;
+    return hist[n].age + elapsed;
+  }
   return null;
 }
 
@@ -287,11 +303,14 @@ export function projectRates(hist, T, bioRow, priors, P, trend) {
   const wSum = {};
   hist.forEach((r, i) => {
     if (!r) return;
-    wPoss += w[i] * r.poss; wMin += w[i] * r.min;
-    for (const k of RATE_STATS) wSum[k] = (wSum[k] || 0) + w[i] * r[k];
+    const elapsed = r.season ? Math.max(1, seasonStart(T) - seasonStart(r.season)) : i + 1;
+    const rateWeight = elapsed === 1 ? w[0] : elapsed === 2 ? w[1] : w[2] ** (elapsed - 2);
+    const pctWeight = elapsed === 1 ? wp[0] : elapsed === 2 ? wp[1] : wp[2] ** (elapsed - 2);
+    wPoss += rateWeight * r.poss; wMin += rateWeight * r.min;
+    for (const k of RATE_STATS) wSum[k] = (wSum[k] || 0) + rateWeight * r[k];
     for (const [k, [m, a]] of Object.entries(PCT_STATS)) {
-      wSum['m:' + k] = (wSum['m:' + k] || 0) + wp[i] * r[m];
-      wSum['a:' + k] = (wSum['a:' + k] || 0) + wp[i] * r[a];
+      wSum['m:' + k] = (wSum['m:' + k] || 0) + pctWeight * r[m];
+      wSum['a:' + k] = (wSum['a:' + k] || 0) + pctWeight * r[a];
     }
   });
   const rate = {}, pieces = {};
@@ -356,7 +375,7 @@ export const GP_FEATURES = ['one', 'gpShare1', 'gpShare2', 'gpShare3', 'miss2', 
 export function roleFeatures(hist, T, bioRow, teamGames, rates, ctx) {
   const [a, b, c] = hist;
   const mpg = (r) => (r && r.gp > 0 ? r.min / r.gp : 0);
-  const share = (r, n) => (r ? Math.min(1, r.gp / teamGames(prevSeason(T, n), r.team)) : 0);
+  const share = (r, n) => (r ? Math.min(1, r.gp / teamGames(r.season || prevSeason(T, n), r.team)) : 0);
   const age = ageInSeason(hist, T) ?? 25;
   const yearsIn = bioRow?.fromYear ? seasonStart(T) - bioRow.fromYear + 1 : 6;
   const draft = bioRow?.draftNumber ?? 61;
@@ -417,8 +436,9 @@ export function rosterDepth(league, T, roster, pid, rookieCoef, bio) {
   let s = 0;
   for (const other of roster) {
     if (other === pid) continue;
-    const h = historyBefore(league, other, T)[0];
-    if (h) s += (h.min / h.gp) * Math.min(1, h.gp / league.teamGames(prevSeason(T), h.team));
+    const history = projectionHistory(league, other, T).hist;
+    const h = history.find(Boolean);
+    if (h) s += (h.min / h.gp) * Math.min(1, h.gp / league.teamGames(h.season || prevSeason(T), h.team));
     else s += expectedRookieMin(rookieCoef, bio.get(other));
   }
   return (s - 200) / 48;

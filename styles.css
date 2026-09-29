@@ -235,6 +235,10 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .proj-why ul{margin:4px 0 0;padding-left:16px}
 .proj-why li{margin:3px 0}
 .proj-why .k{color:var(--muted)}
+.proj-ranges{margin:6px 0 10px;padding:0 10px 8px;border-top:1px solid var(--line);font-size:12px}
+.proj-ranges summary,.proj-why summary{cursor:pointer;color:var(--link);font-weight:700;padding:9px 0}
+.proj-ranges .tiny{max-width:75ch}
+.proj-why{align-self:start}
 .proj-steps{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:6px 0 2px;font-size:12px}
 .proj-steps span{padding:2px 6px;border:1px solid var(--line);background:var(--panel2);border-radius:2px}
 .proj-steps i{color:var(--muted);font-style:normal}
@@ -342,6 +346,14 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .comp-blueprint-player h4{margin:2px 0 0;color:#fff;font-size:clamp(16px,1.25vw,19px);line-height:1.1}
 .comp-blueprint-player p{margin:0;color:#dcffea;font-size:12px;font-weight:600;line-height:1.35}
 .comp-blueprint .comp-style-note{margin:0;color:#c8edd5;font-size:11px}
+.comp-blueprint-player-top b{font-size:10px;white-space:nowrap;letter-spacing:.02em}
+.comp-overall-section{display:grid;grid-template-columns:minmax(200px,.7fr) minmax(0,1.3fr);align-items:center;gap:16px;margin:12px 0;padding:14px 16px;border:1px solid var(--line);background:var(--panel)}
+.comp-overall-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.comp-overall-card{min-width:0;padding:10px 12px;border:1px solid var(--line);background:var(--surface)}
+.comp-overall-card h4{margin:4px 0;font-size:15px}
+.comp-overall-card p{margin:0;color:var(--muted);font-size:11px}
+.comp-blend-heading{margin:18px 0 8px;font-size:18px}
+.comp-blend-heading span{color:var(--muted);font-size:12px;font-weight:500}
 .comp-style-note{color:var(--muted);font-size:11px}
 .comp-pool-note{text-align:right;color:var(--ink);font-weight:700}
 .comp-pool-note span{display:block;max-width:60ch;color:var(--muted);font-size:11px;font-weight:400}
@@ -395,6 +407,8 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
   .comp-blueprint{padding:18px 16px}
   .comp-blueprint-players{grid-template-columns:1fr}
   .comp-blueprint-player{min-height:0}
+  .comp-overall-section{grid-template-columns:1fr}
+  .comp-overall-grid{grid-template-columns:1fr}
   .comp-search-panel{grid-template-columns:1fr}
   .comp-search-main{grid-column:auto}
   .comp-suggestions{top:65px}

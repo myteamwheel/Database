@@ -23,11 +23,14 @@ assert.ok(Math.abs(triple.b-6)<1e-8&&Math.abs(triple.c-40)<1e-8,'triple edge mus
 const data = JSON.parse(fs.readFileSync(new URL('../public/data.json', import.meta.url), 'utf8'));
 const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
+const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '3.1.0');
+assert.equal(meta.version, '4.0.0');
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
 assert.match(meta.blendMethod, /non-negative convex reconstruction/i);
+assert.match(meta.referenceMethod, /fixed representative profile/i);
+assert.match(meta.styleMethod, /independent trait-specific search/i);
 assert.doesNotMatch(meta.blendMethod, /softmax/i);
 
 let checked = 0;
@@ -41,7 +44,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
   const adv = inputs[league === 'NBA' ? 'nba' : 'gleague']['2025-26'].adv;
   const pidIndex = adv.headers.indexOf('PLAYER_ID'), tsIndex = adv.headers.indexOf('TS_PCT');
   const sourceTs = new Map(adv.rows.map((row) => [String(row[pidIndex]), row[tsIndex]]));
-  assert.equal(Object.keys(sets).length, expected.length, `${league}: every appeared player needs a comp`);
+  assert.ok(Object.keys(sets).length >= expected.length, `${league}: appeared players and eligible historical targets need coverage`);
 
   for (const p of expected) {
     const set = sets[String(p.playerId)];
@@ -57,30 +60,26 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.doesNotMatch(set.profileRead.text, /\b(?:19|20)\d{2}-\d{2}\b/, `${p.name}: profile prose should not repeat comp seasons`);
     assert.doesNotMatch(set.profileRead.text, /\bin the fitted blend\b/i, `${p.name}: profile should read like a player description`);
     assert.ok(Array.isArray(set.profileRead.components), `${p.name}: missing blueprint components`);
-    assert.equal(set.profileRead.components.length, set.blend.length, `${p.name}: blueprint components and blend disagree`);
-    assert.deepEqual(set.profileRead.components.map((x) => String(x.playerId)), set.blend.map((x) => String(x.playerId)),
-      `${p.name}: blueprint references must preserve blend order`);
+    assert.ok(set.profileRead.components.length <= 3, `${p.name}: too many trait references`);
     assert.ok(set.profileRead.components.every((x) => typeof x.phrase === 'string' && x.phrase.trim()),
       `${p.name}: blueprint reference is missing a readable trait`);
     assert.ok(set.profileRead.components.every((x) => !/\b(?:box-score|shot profile|listed frame)\b/i.test(x.phrase)),
       `${p.name}: blueprint uses a raw statistical label instead of a basketball trait`);
     assert.ok(set.profileRead?.caveat, `${p.name}: missing analogy limitation`);
     for (const part of set.profileRead.components) {
-      const ref = set.top3.find((x) => String(x.playerId) === String(part.playerId));
-      const both = [set.targetStats, ref];
-      if (part.phrase.includes('floor spacing')) {
-        assert.ok(both.every((x) => x.threeRate >= 0.3995 && x.fg3Pct >= 0.3495), `${p.name}: unsupported floor-spacing label`);
-      }
-      if (part.phrase.includes('efficient scoring')) {
-        assert.ok(both.every((x) => x.ts >= 0.5995), `${p.name}: efficiency label inferred from axis name alone`);
-      }
+      assert.ok(part.referencePeriod?.seasonCount >= 2, `${p.name}: style reference should cover multiple seasons`);
+      assert.ok(set.profileRead.references && Object.keys(set.profileRead.references).length > 0,
+        `${p.name}: independent references lack trait evidence`);
       assert.doesNotMatch(part.phrase, /ball.pressure|on-ball creation|efficient line pressure/, `${p.name}: unsupported scouting inference`);
     }
     assert.equal(set.profileRead.blend, set.blend.map((x) => `${x.name} ${x.share}%`).join(', '), `${p.name}: prose blend disagrees with optimized weights`);
     assert.ok(Object.values(set.profileRead.references || {}).every((ref) =>
-      set.blend.some((x) => String(x.playerId) === String(ref.playerId))
-        && (!ref.also || set.blend.some((x) => String(x.playerId) === String(ref.also.playerId)))),
-    `${p.name}: trait reference not drawn from fitted blend`);
+      finite(ref.fit) && ref.fit >= 55 && ref.referencePeriod?.seasonCount >= 2),
+    `${p.name}: trait reference must have a documented multi-year fit`);
+    assert.ok(set.nearestOverall?.length <= 3, `${p.name}: too many independent overall matches`);
+    assert.ok(set.nearestOverall.every((x) => x.referenceProfile?.seasonCount >= 1
+      && (x.referenceProfile.seasonCount > 1 || x.referenceProfile.limited === true)), `${p.name}: overall comp lacks a disclosed reference period`);
+    assert.equal(new Set(set.nearestOverall.map(x=>String(x.playerId))).size, set.nearestOverall.length, `${p.name}: duplicate holistic comps`);
     assert.ok(set.blendConfidence >= 0 && set.blendConfidence <= 100, `${p.name}: confidence`);
     assert.ok(set.blendReconstructionScore >= 0 && set.blendReconstructionScore <= 100, `${p.name}: reconstruction`);
     assert.ok(set.blendAxesUsed >= 14, `${p.name}: too little common evidence`);
@@ -90,14 +89,14 @@ for (const league of ['NBA', 'GLEAGUE']) {
     const ts = sourceTs.get(String(p.nbaPersonId ?? p.playerId));
     if (typeof ts === 'number') assert.ok(Math.abs(set.targetStats.ts - ts) <= 0.000501,
       `${p.name}: comparison percentage lost its displayed decimal precision`);
-    for (const comp of set.top3.filter((x) => x.season !== '2025-26')) {
-      assert.equal(comp.currentSeasonDetailed, false, `${comp.name}: historical season flagged as current`);
+    for (const comp of set.top3.filter((x) => !x.referenceProfile?.seasons?.includes('2025-26'))) {
+      assert.equal(comp.currentSeasonDetailed, false, `${comp.name}: historical profile flagged as current`);
       assert.ok(Object.values(comp.style || {}).every((x) => x === null),
-        `${comp.name} ${comp.season}: current tracking leaked into historical season`);
+        `${comp.name} ${comp.season}: current tracking leaked into historical profile`);
     }
 
     for (let i = 0; i < set.top3.length; i++) {
-      const comp = set.top3[i], share = set.blend[i].share;
+      const comp = set.top3[i];
       assert.ok(Object.keys(comp.blockDetails || {}).length > 0, `${comp.name}: missing trait-level evidence`);
       const b = comp.blockScores || {};
       if (set.blend.length === 1 && b.physical > 90 && b.role < 60 && b.scoring < 60

@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
+import { reconcileMinutes } from '../scripts/lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
@@ -13,6 +14,7 @@ const card = JSON.parse(fs.readFileSync(path.join(ROOT, 'PROJECTION_2026_27.json
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
 
 let pass = 0, fail = 0;
+let rebuiltData;
 const check = (name, ok, detail = '') => {
   if (ok) { pass++; console.log(`  ok   ${name}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ' :: ' + detail : ''}`); }
 };
@@ -25,6 +27,7 @@ check('card matches the committed inputs file',
 {
   const copy = JSON.parse(JSON.stringify(data));
   buildProjections(copy, rawInputs, card);
+  rebuiltData = copy;
   let diff = 0, first = '';
   for (const lg of ['NBA', 'GLEAGUE']) {
     data.leagues[lg].forEach((p, i) => {
@@ -99,6 +102,33 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     check(`backtest ${card.backtest.nba.season}: ${k} beats repeating last season`, m[k].model < m[k].repeat, `${m[k].model} vs ${m[k].repeat}`);
   }
   check('projection metadata is published with the data', data.projectionMeta?.id === card.id && !!data.projectionMeta?.rostersAsOf);
+  const ledgers = Object.entries(rebuiltData.projectionMeta?.teamBudgets || {});
+  check('every listed NBA roster has an explicit 240-minute budget', ledgers.length === 30 && ledgers.every(([, x]) => x.allocated === 240 && x.excessFloor === 0), `${ledgers.length} teams`);
+  const uneven = ledgers.map(([team]) => rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
+    .reduce((sum, p) => sum + p.proj.effectiveMpg, 0));
+  check('published effective minutes reconcile after rounding', uneven.every(x => Math.abs(x - 240) <= 0.15), `${uneven.filter(x => Math.abs(x - 240) > 0.15).slice(0, 3)}`);
+  check('roster players without a recent line receive explicit fallback or abstention',
+    rebuiltData.leagues.NBA.filter(p => p.currentRoster && (!p.proj || (!p.proj.abstain && !['rookie-cohort-fallback', 'older-history-fallback', 'multi-year-history'].includes(p.proj.basis)))).length === 0);
+  const badAccounting = rebuiltData.leagues.NBA.filter(p => p.proj && !p.proj.abstain
+    && (Math.abs(p.proj.accounting.reb - p.proj.oreb - p.proj.dreb) > 0.11
+      || Math.abs(p.proj.accounting.pts - (2 * (p.proj.accounting.fgm - p.proj.accounting.fg3m) + 3 * p.proj.accounting.fg3m + p.proj.accounting.ftm)) > 0.11));
+  check('published points and rebound identities reconcile before rounding', badAccounting.length === 0, `${badAccounting.length} rows`);
+}
+
+// 8. Minute allocation respects the budget, boxes every player in, and responds monotonically to
+//    role priors without claiming that this allocation itself predicts an accurate rotation.
+{
+  const roster = Array.from({ length: 8 }, (_, i) => ({ pid: i, mpg: i < 5 ? 32 : 8, share: 1, pr: { baseMin: 900 } }));
+  const result = reconcileMinutes(roster, 240);
+  check('minute reconciliation exactly satisfies its budget', Math.abs(result.allocated - 240) < 1e-8
+    && Math.abs(roster.reduce((s, r) => s + r.effectiveMpg, 0) - 240) < 1e-6);
+  check('minutes stay inside feasible player bounds', roster.every(r => r.mpg >= 1 && r.mpg <= 40));
+  const unchanged = roster.map(r => r.mpg);
+  const raised = roster.map(r => ({ pid:r.pid, mpg:r.mpg, share:1, pr:{baseMin:900} }));
+  raised[0].mpg += 4;
+  reconcileMinutes(raised, 240);
+  check('adding role demand shifts minutes away from the rest of the team', raised[0].mpg > unchanged[0]
+    && raised.slice(1).reduce((s,r)=>s+r.mpg,0) < unchanged.slice(1).reduce((s,v)=>s+v,0));
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);

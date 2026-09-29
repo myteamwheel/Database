@@ -68,6 +68,7 @@ jobs:
           npm run test:tulipcapacity
           npm run test:projections
           npm run test:comps
+          npm run test:refresh
           npm run test:history
           npm run test:starter
           node scripts/verify-artifact.mjs

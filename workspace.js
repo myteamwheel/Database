@@ -790,6 +790,7 @@
 
     const targetPhysical = set.targetPhysical || {};
     const shown = set.top3 || [];
+    const nearestOverall = set.nearestOverall || [];
     const blend = set.blend || [];
     const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
     const confidence = set.blendConfidence;
@@ -803,9 +804,16 @@
     }[key] || 'STYLE')).join(' + ') || 'STYLE REFERENCE';
     const blueprintPlayers = blueprintComponents.map((item, i) => `
       <article class="comp-blueprint-player" data-comp-rank="${i + 1}">
-        <div class="comp-blueprint-player-top"><span>${esc(blueprintRole(item))}</span><b>${cval(item.share, '—')}%</b></div>
-        <h4>${esc(item.name || 'Historical reference')}</h4>
+        <div class="comp-blueprint-player-top"><span>${esc(blueprintRole(item))}</span><b>TRAIT FIT ${cval(item.fit, '—')}%</b></div>
+        <h4>${esc(item.name || 'Historical reference')} · ${esc(item.referencePeriod?.period || item.season || '')}</h4>
         <p>${esc(item.phrase || 'Historical blend reference')}</p>
+      </article>`).join('');
+
+    const overallCards = nearestOverall.map((q, i) => `
+      <article class="comp-overall-card">
+        <span class="eyebrow">OVERALL MATCH #${i + 1}</span>
+        <h4>${esc(q.name || 'Historical player')}</h4>
+        <p>${esc(q.referenceProfile?.period || q.season || 'Historical profile')} · ${num(q.similarity, 1)}/100 match quality</p>
       </article>`).join('');
 
     const heroes = shown.map((q, i) => {
@@ -867,6 +875,8 @@
         <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
+      ${set.targetHistoryNote ? `<p class="comp-outlier-note">${esc(set.targetHistoryNote)}</p>` : ''}
+      ${overallCards ? `<section class="comp-overall-section"><div><div class="eyebrow">CLOSEST OVERALL MATCHES</div><p class="tiny">Holistic matches across the available profile. These are ranked separately and do not determine the style blueprint or blend shares.</p></div><div class="comp-overall-grid">${overallCards}</div></section>` : ''}
       <section class="comp-style-read comp-blueprint" aria-labelledby="comp-style-heading">
         <div class="comp-blueprint-intro"><div class="comp-blueprint-target">
           <div class="eyebrow">PLAYER STYLE BLUEPRINT</div><h3 id="comp-style-heading">${esc(p.name)}</h3>
@@ -875,6 +885,7 @@
         ${blueprintPlayers ? `<div class="comp-blueprint-players" aria-label="Historical player references">${blueprintPlayers}</div>` : ''}
         <p class="tiny comp-style-note">${esc(profileRead.caveat || 'These are statistical parallels, not claims of identical skill.')}</p>
       </section>
+      <h3 class="comp-blend-heading">Blend contributors <span>· shares total 100%</span></h3>
       <div class="comp-hero-grid">${heroes}</div>
       <div class="comp-detail-stack">${details}</div>
       <p class="tiny comp-method"><b>Blend method:</b> from a balanced shortlist of 18 historical player candidates, the engine chooses one to three

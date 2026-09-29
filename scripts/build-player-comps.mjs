@@ -15,9 +15,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stableReferenceProfiles, historicalFallback, independentStyleRead } from './lib/comparison-profiles.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DATA_PATH = path.join(ROOT, 'public/data.json');
+const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.json');
 const INPUTS_PATH = path.join(ROOT, 'scripts/data/projection/inputs.json');
 const COMBINE_PATH = path.join(ROOT, 'scripts/data/combine_anthro.json');
 
@@ -106,6 +107,8 @@ function historyRows(src, league) {
         league, season, seasonType: 'Regular Season', playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || null,
         team: x.TEAM_ABBREVIATION || null, teamId: n(x.TEAM_ID), position: b.position || null,
         age: n(x.AGE), gp, minutes,
+        totals: Object.fromEntries(['FGA', 'FGM', 'FG3A', 'FG3M', 'FTA', 'FTM', 'PTS', 'AST', 'TOV']
+          .map((key) => [key, n(x[key])])),
         physical: {
           height: b.height ?? c.heightNoShoes ?? null,
           weight: b.weight ?? c.combineWeight ?? null,
@@ -237,7 +240,7 @@ const BLOCKS = {
     weight: 0.15,
     axes: {
       stl36: { scale: 0.45, weight: 0.8, label: 'steal activity' },
-      blk36: { scale: 0.65, weight: 0.9, label: 'rim protection' },
+      blk36: { scale: 0.65, weight: 0.9, label: 'shot blocking' },
       drebPct: { scale: 0.055, weight: 0.65, label: 'defensive rebounding' },
       orebPct: { scale: 0.045, weight: 0.35, label: 'offensive rebounding' },
       pf36: { scale: 1.4, weight: 0.12, label: 'foul activity' },
@@ -389,7 +392,9 @@ function currentHistoricalTarget(p, leagueHist) {
   // Prefer the exact committed 2025-26 projection-input row so target/candidate units are identical.
   let row = leagueHist.find((x) => x.playerId === pid && x.season === '2025-26');
   if (row) return row;
-  if (!p.appeared || !(p.minutes > 0)) return null;
+  if (!p.appeared || !(p.minutes > 0)) {
+    return historicalFallback(pid, leagueHist, p.league === 'GLEAGUE' ? 200 : 300);
+  }
   const b = bio.get(Number(pid)) || {};
   const c = combine.get(Number(pid)) || {};
   return {
@@ -436,7 +441,7 @@ function relation(target, comp) {
   if (fin(t.ast36) && fin(c.ast36) && t.ast36 - c.ast36 > 2.2) mods.push('more playmaking-heavy');
   else if (fin(t.ast36) && fin(c.ast36) && c.ast36 - t.ast36 > 2.2) mods.push('less playmaking-heavy');
   if (fin(t.ftRate) && fin(c.ftRate) && t.ftRate - c.ftRate > 0.12) mods.push('more rim/free-throw pressure');
-  if (fin(target.physical.weight) && fin(comp.physical.weight) && target.physical.weight - comp.physical.weight > 18) mods.push('stronger/heavier framed');
+  if (fin(target.physical.weight) && fin(comp.physical.weight) && target.physical.weight - comp.physical.weight > 18) mods.push('heavier framed');
   else if (fin(target.physical.weight) && fin(comp.physical.weight) && comp.physical.weight - target.physical.weight > 18) mods.push('lighter framed');
   return mods.slice(0, 2);
 }
@@ -445,6 +450,7 @@ function serializeComp(target, cand, m) {
   const cur = cand.season === '2025-26' ? currentByLeaguePid[cand.league]?.get(cand.playerId) : null;
   return {
     playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
+    referenceProfile: cand.referenceProfile || null,
     team: cand.team, teamId: cand.teamId ?? null, position: cand.position,
     age: r1(cand.age), similarity: r1(m.score), coverage: r1(m.coverage * 100),
     physicalCoverage: r1(m.physicalCoverage * 100),
@@ -473,170 +479,6 @@ function serializeComp(target, cand, m) {
   };
 }
 
-function playerStyleRead(target, selected, blend) {
-  const references = {};
-  for (const block of Object.keys(BLOCKS)) {
-    const options = selected.map((item) => ({
-      comp: item.cand,
-      score: Number(item.m.blockScores?.[block]),
-      coverage: block === 'physical' ? Number(item.m.physicalCoverage) : 1,
-      share: Number(blend.find((x) => String(x.playerId) === String(item.cand.playerId))?.share || 0),
-    })).filter((x) => Number.isFinite(x.score) && x.score >= 55
-      && (block !== 'physical' || x.coverage >= 0.45))
-      .sort((a, b) => b.score - a.score || b.share - a.share);
-    const best = options[0];
-    if (!best) continue;
-    const preferred = block === 'role' ? ['playmaking volume', 'assist rate', 'usage', 'shot volume', 'turnover load', 'rebounding role']
-      : block === 'scoring' ? ['scoring rate', 'true shooting', 'three-point shot share', 'three-point accuracy', 'free-throw pressure']
-      : block === 'defense' ? ['steal activity', 'rim protection', 'defensive rebounding', 'offensive rebounding']
-      : ['height', 'weight', 'wingspan', 'standing reach'];
-    const details = selected
-      .find((x) => String(x.cand.playerId) === String(best.comp.playerId))?.m.blockDetails?.[block] || [];
-    const axes = details.map((x) => x.label).filter((x) => preferred.includes(x)).slice(0, 2);
-    const alternate = options.find((x) => String(x.comp.playerId) !== String(best.comp.playerId) && x.share >= 10);
-    const alsoDetails = alternate && selected.find((x) => String(x.cand.playerId) === String(alternate.comp.playerId))?.m.blockDetails?.[block] || [];
-    const alsoAxes = alsoDetails.map((x) => x.label).filter((x) => preferred.includes(x)).slice(0, 2);
-    references[block] = { playerId: best.comp.playerId, name: best.comp.name, season: best.comp.season,
-      fit: r1(best.score), blendShare: best.share, axes,
-      ...(alternate ? { also: { playerId: alternate.comp.playerId, name: alternate.comp.name,
-        season: alternate.comp.season, fit: r1(alternate.score), blendShare: alternate.share,
-        axes: alsoAxes } } : {}) };
-  }
-  const mix = blend.map((x) => `${x.name} ${x.share}%`).join(', ');
-  // These descriptions deliberately translate the matched statistics into basketball language.
-  // They are not independent scouting grades: the exact matching axes remain available in the
-  // data and the side-by-side table below the read.
-  const has = (axes, label) => axes.includes(label);
-  const selectedById = new Map(selected.map((item) => [String(item.cand.playerId), item]));
-  const traitPhrase = (block, axes = [], playerId) => {
-    const other = selectedById.get(String(playerId))?.cand.features || {};
-    const own = target.features;
-    // Similarity in an axis is not evidence of excellence in that skill. Use a positive
-    // style label only when BOTH profiles support it; otherwise describe the role neutrally.
-    const bothAtLeast = (key, threshold) => [own, other].every((p) => fin(p[key]) && p[key] >= threshold);
-    const bothBelow = (key, threshold) => [own, other].every((p) => fin(p[key]) && p[key] < threshold);
-    if (block === 'physical') {
-      const size = has(axes, 'height'), build = has(axes, 'weight');
-      const length = has(axes, 'wingspan') || has(axes, 'standing reach');
-      if (size && build && length) return 'size, build, and length';
-      if (size && build) return 'frame';
-      if (size && length) return 'size and length';
-      if (length) return 'length';
-      if (build) return 'build';
-      return 'listed size';
-    }
-    if (block === 'role') {
-      const creation = has(axes, 'playmaking volume') || has(axes, 'assist rate')
-        || has(axes, 'assist-to-turnover profile') || has(axes, 'assist ratio');
-      const workload = has(axes, 'usage') || has(axes, 'shot volume') || has(axes, 'minutes/role');
-      const glass = has(axes, 'rebounding role') || has(axes, 'total rebounding rate');
-      if (creation && (bothAtLeast('ast36', 6) || bothAtLeast('astPct', 0.25))) return 'lead playmaking';
-      if (creation && (bothAtLeast('ast36', 3) || bothAtLeast('astPct', 0.14))) return 'secondary playmaking';
-      if (creation) return 'supporting passing role';
-      if (workload && glass) return 'offensive role and rebounding involvement';
-      if (workload && bothAtLeast('usg', 0.28)) return 'high-usage scoring role';
-      if (workload && bothBelow('usg', 0.18)) return 'low-usage offensive role';
-      if (workload) return 'offensive workload';
-      if (glass) return 'rebounding role';
-      if (has(axes, 'turnover load')) return 'ball-handling workload';
-      return 'offensive role';
-    }
-    if (block === 'scoring') {
-      const spacing = has(axes, 'three-point shot share') || has(axes, 'three-point accuracy');
-      const efficient = has(axes, 'true shooting') || has(axes, 'effective field-goal percentage');
-      const pressure = has(axes, 'free-throw pressure') || has(axes, 'free-throw volume');
-      const scoring = has(axes, 'scoring rate');
-      if (spacing && bothAtLeast('threeRate', 0.4) && bothAtLeast('fg3Pct', 0.35)) return 'floor spacing';
-      if (spacing && bothBelow('threeRate', 0.3)) return 'inside-the-arc scoring focus';
-      if (spacing && bothAtLeast('threeRate', 0.4)) return 'three-point-heavy shot selection';
-      if (spacing) return 'outside shooting mix';
-      if (pressure && bothAtLeast('ftRate', 0.3)) return 'ability to draw free throws';
-      if (pressure) return 'free-throw involvement';
-      if (efficient && scoring && bothAtLeast('ts', 0.6)) return 'efficient scoring';
-      if (efficient) return 'shooting efficiency';
-      if (scoring) return 'scoring output';
-      return 'shooting profile';
-    }
-    const steals = has(axes, 'steal activity');
-    const rim = has(axes, 'rim protection');
-    const defensiveGlass = has(axes, 'defensive rebounding');
-    const offensiveGlass = has(axes, 'offensive rebounding');
-    if (steals && bothAtLeast('stl36', 1.5)) return 'turnover-forcing activity';
-    if (rim && bothAtLeast('blk36', 1.5)) return 'shot-blocking presence';
-    if (rim && defensiveGlass) return 'defensive rebounding';
-    if (defensiveGlass && offensiveGlass) return 'work on the glass';
-    if (steals && defensiveGlass) return 'defensive rebounding';
-    if (rim && bothBelow('blk36', 0.6)) return 'limited shot-blocking';
-    if (steals) return 'turnover-forcing involvement';
-    if (rim) return 'shot-blocking role';
-    if (defensiveGlass) return 'defensive rebounding';
-    if (offensiveGlass) return 'offensive rebounding';
-    return 'rebounding and disruption';
-  };
-  const contributions = new Map(blend.map((item) => [String(item.playerId), {
-    playerId: item.playerId, name: item.name, season: item.season, share: item.share,
-    direct: [], supporting: [],
-  }]));
-  for (const [block, ref] of Object.entries(references)) {
-    contributions.get(String(ref.playerId))?.direct.push({ block, phrase: traitPhrase(block, ref.axes || [], ref.playerId) });
-    if (ref.also) {
-      contributions.get(String(ref.also.playerId))?.supporting.push({
-        block, phrase: traitPhrase(block, ref.also.axes || [], ref.also.playerId),
-      });
-    }
-  }
-  for (const component of contributions.values()) {
-    if (component.direct.length || component.supporting.length) continue;
-    const item = selectedById.get(String(component.playerId));
-    if (!item) continue;
-    const strongest = Object.keys(BLOCKS)
-      .map((block) => ({ block, score: Number(item.m.blockScores?.[block]) }))
-      .filter((x) => Number.isFinite(x.score))
-      .sort((a, b) => b.score - a.score)[0];
-    if (!strongest) continue;
-    const details = item.m.blockDetails?.[strongest.block] || [];
-    const axes = details.map((x) => x.label).slice(0, 2);
-    component.supporting.push({ block: strongest.block, phrase: traitPhrase(strongest.block, axes, component.playerId) });
-  }
-  const positionParts = String(target.position || '').toUpperCase().split(/[^A-Z]+/).filter(Boolean);
-  const hasCenter = positionParts.some((x) => x.includes('C'));
-  const hasForward = positionParts.some((x) => x.includes('F'));
-  const hasGuard = positionParts.some((x) => x.includes('G'));
-  const position = hasCenter && hasForward ? 'frontcourt player'
-    : hasCenter ? 'center'
-    : hasGuard && hasForward ? 'guard-wing'
-    : hasGuard ? 'guard'
-    : hasForward ? 'forward/wing' : 'player';
-  const traitJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]} and ${items[1]}`
-    : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
-  const componentJoin = (items) => items.length < 2 ? items[0] || ''
-    : items.length === 2 ? `${items[0]} with ${items[1]}`
-    : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
-  const components = [...contributions.values()].map((item) => {
-    const traits = item.direct.length ? item.direct : item.supporting;
-    const phrase = traitJoin([...new Set(traits.map((x) => x.phrase))]);
-    const firstBlock = traits.map((x) => ['physical', 'role', 'scoring', 'defense'].indexOf(x.block))
-      .filter((x) => x >= 0).sort((a, b) => a - b)[0] ?? 9;
-    return {
-      playerId: item.playerId, name: item.name, season: item.season, share: item.share,
-      phrase: phrase || 'statistical profile', narrativeOrder: firstBlock,
-      evidence: traits.map((x) => x.block),
-      supporting: !item.direct.length,
-    };
-  });
-  const contributionsText = [...components]
-    .sort((a, b) => a.narrativeOrder - b.narrativeOrder || b.share - a.share)
-    .map((item) => ({ ...item, text: `${item.name}'s ${item.phrase}` }));
-  const primaryText = contributionsText.filter((item) => !item.supporting).map((item) => item.text);
-  // Supporting references belong in their cards, not a redundant second sentence that
-  // repeats the same size, shooting or rebounding traits already described above.
-  const text = primaryText.length
-    ? `${target.name} is a ${position} who blends ${componentJoin(primaryText)}.`
-    : `The blend offers a few statistical reference points for ${target.name}, but the available measurements do not support a clear trait-by-trait description.`;
-  return { text, references, components, position, blend: mix,
-    caveat: 'These labels summarize matched statistics, not scouting grades. The data do not measure athleticism, strength, speed, or movement.' };
-}
 
 // A blend should reconstruct the target's listed physical profile and playing style, not merely
 // distribute 100 points among the three nearest neighbours. Available listed size dimensions and
@@ -795,8 +637,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const pool = histories[lg];
   const matchDistributions = prepareMatchProfiles(pool);
   const minMinutes = lg === 'NBA' ? 300 : 200;
+  const referencePool = stableReferenceProfiles(pool, minMinutes);
   for (const p of data.leagues?.[lg] || []) {
-    if (!p.appeared || !(p.minutes > 0)) continue;
+    if ((!p.appeared || !(p.minutes > 0)) && !p.currentRoster) continue;
     const target = currentHistoricalTarget(p, pool);
     if (!target) continue;
     // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
@@ -804,11 +647,11 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     if (!target.matchFeatures) {
       target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.season}`));
     }
-    const targetDeep = deepOverlay(p);
-    // Pool is player-SEASON based, but the requested output is three distinct PLAYERS. Keep only
-    // each candidate player's single best-matching historical season before ranking the final three.
+    const targetDeep = deepOverlay(target.targetBasis === 'historical-fallback' ? null : p);
+    // Every target sees exactly the same representative identity for each historical player.
+    // The nearest overall players and the reconstruction blend are separate outputs.
     const bestByPlayer = new Map();
-    for (const cand of pool) {
+    for (const cand of referencePool) {
       // A source row with no resolved person name is not an interpretable historical reference.
       // Excluding it is more honest than displaying its raw numeric identifier as a player comp.
       if (cand.playerId === target.playerId || cand.minutes < minMinutes || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
@@ -818,8 +661,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       let score = m.score;
       if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
       const item = { cand, m: { ...m, score } };
-      const prior = bestByPlayer.get(cand.playerId);
-      if (!prior || item.m.score > prior.m.score) bestByPlayer.set(cand.playerId, item);
+      bestByPlayer.set(cand.playerId, item);
     }
     // The nearest-neighbour score forms a defensible shortlist. The final one-to-three players and
     // their percentages are then chosen together by convex reconstruction of the target profile.
@@ -832,9 +674,10 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     const blend = optimized.blend;
     const confidence = optimized.confidence;
     const primary = best[0], rel = primary.relation || [];
-    const profileRead = playerStyleRead(target, optimized.selected, blend);
+    const profileRead = independentStyleRead(target, referencePool, blend);
     result[lg][String(p.playerId)] = {
       top3: best,
+      nearestOverall: shortlist.slice(0, 3).map((item) => serializeComp(target, item.cand, item.m)),
       blend,
       blendConfidence: confidence,
       blendReconstructionScore: optimized.reconstructionScore,
@@ -842,6 +685,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       profileRead,
       targetSeason: target.season,
       targetSeasonType: target.seasonType,
+      targetBasis: target.targetBasis || 'current-season',
+      targetSourceSeasons: target.targetSourceSeasons || [target.season],
+      targetHistoryNote: target.targetHistoryNote || null,
       matchMethod: 'pace-adjusted, league-season robust z-scores after exposure-weighted median shrinkage',
       targetGames: target.gp,
       targetMinutes: r1(target.minutes),
@@ -937,20 +783,23 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
-  version: '3.1.0',
+  version: '4.0.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
-  priority: 'joint listed-size, role, creation, shot-diet and defensive-profile reconstruction; team-context outputs are descriptive and do not drive the blend',
+  priority: 'overall comparisons, statistical blend shares, and independent style references answer different questions; reference periods are chosen before matching',
+  referenceMethod: 'one fixed representative profile per player: the highest-minute three-year calendar window with at least two meaningful seasons when available; pooled shooting attempts and minutes-weighted rate/era coordinates',
+  styleMethod: 'independent trait-specific search across the full same-league multi-year reference pool; at least two observed seasons, sufficient shared axes, fit >=55, no selected axis beyond 2.5 scale units; style cards have no blend percentages',
+  targetFallbackMethod: 'current roster players without current-season appearances use the latest meaningful three-year historical window where a >=300-minute NBA or >=200-minute G League season exists; explicitly dated, never presented as current production',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
-  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest balanced candidates by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties',
+  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties; nearestOverall is ranked independently and style references search the full stable pool',
   matchAdjustments: {
     pace: 'Per-36 volume axes are converted to per-100 possessions using the player-season pace when available.',
     era: 'Each feature is centered on its weighted median and scaled by weighted median absolute deviation within league and season; this compares historical players relative to their same-era peers.',
     shrinkage: 'Before standardizing, each feature is pulled toward its league-season median by exposure/(exposure+prior): minutes with a 240-minute prior, MPG with a 20-game prior.',
-    rawDisplay: 'These adjustments affect similarity and blend weights only. Side-by-side and target-stat values remain raw source values.',
+    rawDisplay: 'These adjustments affect similarity and blend weights only. Multi-year side-by-side references show pooled actual rates and pooled shooting attempts, with the exact source periods disclosed.',
   },
   blendConfidence: '72% reconstructed-profile similarity plus 28% blend-weighted individual match quality, adjusted for feature coverage',
   scoreDistribution,
@@ -969,6 +818,9 @@ data.analysis.playerCompsMeta = {
     'Historical shot-zone/tracking coverage is not uniform across seasons, so old player-seasons are compared on the common historical feature set rather than fabricated paint/mid-range data.',
     'G League historical body coverage is thinner for players who never appeared in the NBA player index.',
     'A player can match across listed positions; position labels are descriptive, not a hard filter.',
+    'Representative periods maximize meaningful playing exposure rather than selecting a best-matching season for each target. They describe a stable career phase, not necessarily a whole career or a peak.',
+    'Single-season careers may appear as explicitly limited overall references but cannot supply the independent style analogies.',
+    'Historical fallback targets describe past production, not current ability, health, or expected return performance.',
   ],
 };
 fs.writeFileSync(DATA_PATH, JSON.stringify(data));

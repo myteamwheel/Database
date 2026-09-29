@@ -302,9 +302,9 @@ const BASE_COLS = {
   'proj.age':{label:'Age',type:'int',help:'WHAT: his age during the 2026-27 season, on the NBA convention (age on February 1). PLAIN: age drives the aging adjustment in every projected stat.'},
   'proj.gp':{label:'GP',type:'int',help:'WHAT: projected games played, out of 82 (50 in the G League). PLAIN: how available he is likely to be. FORMULA: a model fitted on every NBA player-season since 2012-13 from the share of games he played in each of the last three seasons, games after the All-Star break, age, minutes and a team change, times 82. Assumes he is on a roster all season.'},
   'proj.mpg':{label:'MIN',type:'1',help:'WHAT: projected minutes per game. PLAIN: the role he is likely to have. FORMULA: a model fitted on every NBA player-season since 2012-13 from minutes in each of the last three seasons, minutes after the All-Star break, start rate, age, draft slot and experience for young players, productivity per possession, a team change, and how many minutes his 2026-27 teammates played last season.'},
-  'proj.pts':{label:'PTS',type:'1',help:'WHAT: projected points per game in 2026-27. PLAIN: what he is likely to average next season. FORMULA: points per 100 possessions x projected minutes x his team\u0027s projected pace / 48 / 100. Points per 100 = 2 x two-point attempts x projected 2P% + 3 x three-point attempts x projected 3P% + free throws made. Each rate blends his last three seasons weighted toward the most recent, is pulled toward a typical player at his position by an amount set per stat, then is adjusted for age, early-career development, the shot creation around him on his 2026-27 roster, and a team change. NOTE: tested accuracy is under How the projections work.'},
-  'proj.ptsLo':{label:'PTS low',type:'1',help:'WHAT: the low end of a likely range for his 2026-27 points per game. PLAIN: about 1 in 10 players with a similar projection finished below this. FORMULA: projection plus the 10th-percentile miss among players with similar projections in the 2025-26 test season.'},
-  'proj.ptsHi':{label:'PTS high',type:'1',help:'WHAT: the high end of a likely range for his 2026-27 points per game. PLAIN: about 1 in 10 players with a similar projection finished above this. FORMULA: projection plus the 90th-percentile miss among players with similar projections in the 2025-26 test season.'},
+  'proj.pts':{label:'PTS',type:'1',help:'WHAT: the central estimate of points per game in 2026-27. FORMULA: points from projected makes and free throws, adjusted for playing time, pace, roster-minute context and historical availability.'},
+  'proj.ptsLo':{label:'PTS low',type:'1',help:'Historical reference bound from the prior veteran model residuals. It has not been calibrated for the current roster-minute reconciliation or rookie fallback.'},
+  'proj.ptsHi':{label:'PTS high',type:'1',help:'Historical reference bound from the prior veteran model residuals. It has not been calibrated for the current roster-minute reconciliation or rookie fallback.'},
   'proj.reb':{label:'REB',type:'1',help:'WHAT: projected rebounds per game. FORMULA: offensive and defensive rebounds per 100 possessions, each projected on its own (three-season blend, position pull, age), x possessions per game.'},
   'proj.ast':{label:'AST',type:'1',help:'WHAT: projected assists per game. FORMULA: assists per 100 possessions (three-season blend, position pull, age, development, roster shot-creation balance, team change) x possessions per game.'},
   'proj.stl':{label:'STL',type:'1',help:'WHAT: projected steals per game. FORMULA: steals per 100 possessions (three-season blend, position pull, age) x possessions per game.'},
@@ -532,7 +532,7 @@ for (const [k,label] of Object.entries({
 })) BASE_COLS[k]={label,type:'int'};
 
 const PRESETS = {
-  proj:['select','viewRank','name','proj.team','proj.status','proj.age','proj.gp','proj.mpg','proj.pts','proj.ptsLo','proj.ptsHi','proj.reb','proj.ast','proj.stl','proj.blk','proj.tov','proj.fg3m','proj.fgPct','proj.fg3Pct','proj.ftPct','proj.ts','proj.lastPts','proj.dPts'],
+  proj:['select','viewRank','name','proj.team','proj.status','proj.age','proj.gp','proj.mpg','proj.pts','proj.reb','proj.ast','proj.stl','proj.blk','proj.tov','proj.fg3m','proj.fgPct','proj.fg3Pct','proj.ftPct','proj.ts','proj.lastPts','proj.dPts'],
   overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tb.tulip','tb.recommendedMpg','tb.confidence','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   workload:['select','viewRank','name','team','position','age','gp','mpg','grade','tc.capacityMpg','tc.teamASeasonMpg','tc.headroom','tc.evidence','tulip.leagueDelta'],
   capacity:['select','viewRank','name','team','position','age','gp','tc.teamASeasonMpg','tc.capacityMpg','tc.headroom','tc.interval50Low','tc.interval50High','tc.evidence','grade'],
@@ -1493,29 +1493,34 @@ function projCard(p){
   if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
     <p class="tiny" style="margin:8px 10px">${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
-  const row=(label,last,proj,lo,hi,d=1)=>`<tr><td class="left">${label}</td><td>${num(last,d)}</td><td><b>${num(proj,d)}</b></td>
-    <td>${finite(lo)&&finite(hi)?`${num(lo,d)} to ${num(hi,d)}`:''}</td></tr>`;
-  const prow=(label,last,proj)=>`<tr><td class="left">${label}</td><td>${pct(last)}</td><td><b>${pct(proj)}</b></td><td></td></tr>`;
-  const table=`<table class="compare-table"><thead><tr><th class="left">Per game</th><th>2025-26</th><th>2026-27</th><th>Likely range</th></tr></thead><tbody>
-    ${row('Games',p.gp,c.gp,c.gpLo,c.gpHi,0)}${row('Minutes',p.mpg,c.mpg,c.mpgLo,c.mpgHi)}${row('Points',p.pts,c.pts,c.ptsLo,c.ptsHi)}
-    ${row('Rebounds',p.reb,c.reb,c.rebLo,c.rebHi)}${row('Assists',p.ast,c.ast,c.astLo,c.astHi)}${row('Steals',p.stl,c.stl)}
+  const row=(label,last,proj,d=1)=>`<tr><td class="left">${label}</td><td>${num(last,d)}</td><td><b>${num(proj,d)}</b></td></tr>`;
+  const prow=(label,last,proj)=>`<tr><td class="left">${label}</td><td>${pct(last)}</td><td><b>${pct(proj)}</b></td></tr>`;
+  const table=`<table class="compare-table"><thead><tr><th class="left">Per game</th><th>2025-26</th><th>2026-27 estimate</th></tr></thead><tbody>
+    ${row('Games',p.gp,c.gp,0)}${row('Minutes',p.mpg,c.mpg)}${row('Points',p.pts,c.pts)}
+    ${row('Rebounds',p.reb,c.reb)}${row('Assists',p.ast,c.ast)}${row('Steals',p.stl,c.stl)}
     ${row('Blocks',p.blk,c.blk)}${row('Threes made',p.fg3,c.fg3m)}${row('Turnovers',p.tov,c.tov)}
     ${prow('FG%',p.fgPct,c.fgPct)}${prow('3P%',p.fg3Pct,c.fg3Pct)}${prow('FT%',p.ftPct,c.ftPct)}${prow('TS%',p.ts,c.ts)}
   </tbody></table>`;
+  const ranges=`<details class="proj-ranges"><summary>Show historical reference ranges</summary><p class="tiny">These ranges use residuals from the prior veteran model. The roster-minute and rookie additions have not been calibrated against those errors, so treat these as historical context rather than calibrated odds.</p>
+    <table class="compare-table"><thead><tr><th class="left">Per game</th><th>Low reference</th><th>Estimate</th><th>High reference</th></tr></thead><tbody>
+    ${[['Games',c.gpLo,c.gp,c.gpHi,0],['Minutes',c.mpgLo,c.mpg,c.mpgHi,1],['Points',c.ptsLo,c.pts,c.ptsHi,1],['Rebounds',c.rebLo,c.reb,c.rebHi,1],['Assists',c.astLo,c.ast,c.astHi,1]].map(([l,lo,v,hi,d])=>`<tr><td class="left">${l}</td><td>${num(lo,d)}</td><td><b>${num(v,d)}</b></td><td>${num(hi,d)}</td></tr>`).join('')}
+    </tbody></table></details>`;
 
   const items=[];
-  const statusText={same:`back with ${esc(c.team)}`,new:`with a new team, ${esc(c.team)}`,unsigned:'not on a published 2026-27 NBA roster yet; this line assumes he signs and plays',
+  const statusText={same:`back with ${esc(c.team)}`,new:`with a new team, ${esc(c.team)}`,rookie:`on the published ${esc(c.team)} roster; role is estimated from historical rookie cohorts`,historical:`on the published ${esc(c.team)} roster; this estimate uses older NBA history after a long gap`,unsigned:'not on a published 2026-27 NBA roster yet; this line assumes he signs and plays',
     'nba-roster':'on a 2026-27 NBA roster; this is his G League line if he plays there',gleague:`in the G League, last with ${esc(c.team)}`}[c.status]||'';
-  items.push(`<b>Team.</b> ${statusText}.${c.status==='new'?` Players who change teams take about ${Math.abs((w.team?.newTeam||0)*100).toFixed(0)}% fewer shots per possession in their first season, on average.`:''}`);
+  items.push(`<b>Team.</b> ${statusText}.${c.status==='new'?` The legacy team-change factor adjusts shot volume ${Math.abs((w.team?.newTeam||0)*100).toFixed(0)}% in this estimate.`:''}`);
   if(w.seasons?.length) items.push(`<b>Seasons used.</b> ${w.seasons.map(x=>`${esc(x.season)} ${esc(x.team)}, ${x.gp} games (weight ${Number(x.weight).toFixed(2)})`).join('; ')}. ${Number(w.possessions||0).toLocaleString()} possessions in all.`);
-  if(w.ownShare) items.push(`<b>Own record vs. position norm.</b> His own numbers carry ${Math.round(w.ownShare.fga*100)}% of the weight on shot volume, ${Math.round(w.ownShare.reb*100)}% on rebounds, ${Math.round(w.ownShare.ast*100)}% on assists and ${Math.round(w.ownShare.fg3*100)}% on 3P%; the rest comes from a typical ${esc(p.positionFamily||'player')} at his position.`);
+  if(w.ownShare&&c.basis==='rookie-cohort-fallback') items.push(`<b>Historical rookie cohort vs. position norm.</b> Comparable first-year players supply ${Math.round(w.ownShare.fga*100)}% of the shot-volume estimate, ${Math.round(w.ownShare.reb*100)}% of rebounds, ${Math.round(w.ownShare.ast*100)}% of assists and ${Math.round(w.ownShare.fg3*100)}% of three-point volume. His own NBA stats are not available; the rest is regressed to current positional rates.`);
+  else if(w.ownShare) items.push(`<b>Own record vs. position norm.</b> His own numbers carry ${Math.round(w.ownShare.fga*100)}% of the weight on shot volume, ${Math.round(w.ownShare.reb*100)}% on rebounds, ${Math.round(w.ownShare.ast*100)}% on assists and ${Math.round(w.ownShare.fg3*100)}% on 3P%; the rest comes from a typical ${esc(p.positionFamily||'player')} at his position.`);
   if(w.age&&finite(c.age)) items.push(`<b>Age ${c.age} in 2026-27.</b> Shot volume ${pctChange(w.age.scoring)}, free throws ${pctChange(w.age.freeThrows)}, rebounds ${pctChange(w.age.rebounds)}, assists ${pctChange(w.age.assists)}, steals ${pctChange(w.age.steals)}, blocks ${pctChange(w.age.blocks)}, from how players his age changed from one season to the next.`);
   if(finite(w.development)&&Math.abs(w.development)>=0.001) items.push(`<b>Early career.</b> Season ${w.yearsIn} in the league: shot volume ${pctChange(w.development)} for development, more for higher draft picks.`);
   if(w.minutes){
     const m=w.minutes, eff=m.effects||{};
     const parts=[['age',eff.age],['a new team',eff.newTeam],[`teammates' minutes`,eff.depth],['draft slot and youth',eff.draftAndYouth]]
       .filter(([,v])=>finite(v)&&Math.abs(v)>=0.1).map(([k,v])=>`${k} ${signed(v)}`);
-    items.push(`<b>Minutes.</b> ${num(m.last)} last season${finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)}.${parts.length?` Main adjustments: ${parts.join(', ')}.`:''}`);
+    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role.':c.basis==='older-history-fallback'?'Older NBA minutes are discounted after a long gap; this is a low-support return estimate.':`${num(m.last)} in ${c.basis==='older-history-fallback'?'his last active season':'2025-26'}`;
+    items.push(`<b>Minutes.</b> ${evidenceLead}${finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)} per game he plays${finite(m.teamBudgetAdjustment)&&Math.abs(m.teamBudgetAdjustment)>=0.1?`; roster-minute allocation ${signed(m.teamBudgetAdjustment)} MPG`:''}.${parts.length?` Other model adjustments: ${parts.join(', ')}.`:''}`);
   }
   if(w.games) items.push(`<b>Games.</b> Played ${Math.round((w.games.lastShare||0)*100)}% of his team's games last season; projected ${Math.round((w.games.projectedShare||0)*100)}%, or about ${Math.round(c.gp)} of ${games}.`);
   if(w.team&&p.league==='NBA'&&c.status!=='unsigned'){
@@ -1524,13 +1529,15 @@ function projCard(p){
     items.push(`<b>Team context.</b> ${esc(c.team)} projected pace ${num(w.team.pace)} possessions per 48 minutes (league ${num(w.team.leaguePace)}).${balText}`);
   }
   const s=w.pts100||{};
-  const steps=[['last season',s.last],['three-season blend',s.blended],['after age',s.aged],['with team context',s.final]].filter(([,v])=>finite(v));
+  const baselineLabel=c.basis==='rookie-cohort-fallback'?'rookie cohort':c.basis==='older-history-fallback'?'last active season':'last season';
+  const blendLabel=c.basis==='rookie-cohort-fallback'?'cohort rates':'multi-season blend';
+  const steps=[[baselineLabel,s.last],[blendLabel,s.blended],['after age',s.aged],['with team context',s.final]].filter(([,v])=>finite(v));
   const chain=steps.length?`<div class="proj-steps"><b>Points per 100 possessions:</b> ${steps.map(([k,v])=>`<span>${num(v)} <i>${k}</i></span>`).join(' → ')}</div>`:'';
-  return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
-    <div class="proj-body"><div>${table}</div>
-      <div class="proj-why"><div class="eyebrow">How this line was built</div><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
-      <p class="tiny">The range is where about 8 in 10 players with a similar projection finished in the 2025-26 test season.
-      <button class="text-button" type="button" data-proj-method>How the projections work</button></p></div></div></div>`;
+  return `<div class="proj-card"><div class="section-bar">2026-27 projection · ${esc(c.role||'projected role')}</div>
+    <div class="proj-body"><div>${table}${ranges}</div>
+      <details class="proj-why"><summary>How this line was built</summary><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
+      <p class="tiny">Availability uses historical appearance rates. Injury clearance and contract security are not verified here.
+      <button class="text-button" type="button" data-proj-method>How the projections work</button></p></details></div></div>`;
 }
 
 /** The method page: the formula, every factor, and how well it did on a season it never saw. */
@@ -1548,14 +1555,15 @@ function openProjectionMethod(){
   }).join('');
   const gl=m.backtest?.gleague, glRows=gl?Object.entries(gl.mae).map(([k,v])=>`<tr><td class="left">${labels[k]||k}</td><td${v.model<=v.repeat?' class="winner"':''}>${v.model.toFixed(2)}</td><td${v.repeat<v.model?' class="winner"':''}>${v.repeat.toFixed(2)}</td></tr>`).join(''):'';
   const ab=b.ablation||{}, full=mae.pts?.model;
+  const rookieCheck=m.rookieEvaluation;
+  const teamLedgers=Object.values(m.teamBudgets||{});
+  const teamLedgerRange=teamLedgers.length?`${Math.min(...teamLedgers.map(x=>x.allocated)).toFixed(1)}–${Math.max(...teamLedgers.map(x=>x.allocated)).toFixed(1)} MPG across ${teamLedgers.length} rosters`:'';
   const abRows=[['noUsage','Roster shot-creation balance'],['noMoved','Team change'],['noPace','Team pace'],['noTeamContext','All three together']]
     .filter(([k])=>ab[k]).map(([k,l])=>`<tr><td class="left">${l}</td><td>${Number(ab[k].pts).toFixed(3)}</td><td>${finite(full)?(ab[k].pts-full>=0?'+':'')+(ab[k].pts-full).toFixed(3):''}</td></tr>`).join('');
   const w=pr.recencyWeights||[1,0,0], sw=pr.shootingWeights||[1,0,0];
   $('projMethodBody').innerHTML=`<div class="proj-method">
     <h2>How the 2026-27 projections work</h2>
-    <p>Every player in the database with NBA or G League minutes in the last three seasons gets a projected
-    2026-27 regular-season line, per game. Each piece below was fitted on every NBA player-season from 2012-13
-    on, then tested on a season it had not seen.</p>
+    <p>These are preseason estimates for the 2026-27 regular season. Veteran statistical rates and the base role model come from a frozen fitted card. The current roster-minute reconciliation and rookie fallback were added afterward; the historical accuracy table below does not validate those additions.</p>
     <h3>The formula</h3>
     <div class="formula">per-game stat = rate per 100 possessions x possessions per game
 possessions per game = projected minutes x team pace / 48
@@ -1568,19 +1576,22 @@ shooting % = (weighted makes + R x expected %) / (weighted attempts + R), then a
     <ul>
       <li><b>Recent seasons.</b> The last three seasons, weighted ${w.map(x=>Number(x).toFixed(2)).join(' / ')} from newest to oldest, possession by possession. Shooting percentages remember further back (${sw.map(x=>Number(x).toFixed(2)).join(' / ')}) because touch changes more slowly than role.</li>
       <li><b>How much to trust a small sample.</b> Each stat is pulled toward a typical player at the same position by R possessions of that typical player. R was chosen by testing: ${Object.entries(R).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(', ')}. For shooting it is counted in attempts: 2P% ${Rp.fg2}, 3P% ${Rp.fg3}, FT% ${Rp.ft}. Three-point percentage regresses the most; free throws the least.</li>
-      <li><b>Age.</b> A separate aging curve for every stat, from how players of each age changed from one season to the next. Young players add shots, free throws and assists; after about 30, shot volume, free throws and athletic stats fall.</li>
+      <li><b>Age.</b> A separate aging curve for each recorded box-score stat, estimated from year-to-year player changes. It describes population averages and does not directly measure athleticism, speed or health.</li>
       <li><b>Development.</b> Players in their first four seasons get an extra adjustment beyond age, larger for higher draft picks.</li>
       <li><b>Minutes.</b> A fitted model of minutes per game from the last three seasons, minutes after the All-Star break, how often he started, age, experience and draft slot, how productive he is per possession, whether he changed teams, and how crowded his 2026-27 roster is.</li>
       <li><b>Games.</b> A fitted model of the share of games played from the last three seasons, the end of last season, age, role and a team change.</li>
       <li><b>Roster shot-creation balance.</b> If his 2026-27 teammates create fewer shots than a typical rotation, he takes more, and the reverse. Strength ${team.usageMu??'—'} (0 would mean no effect).</li>
-      <li><b>Team change.</b> Players on a new team take ${Math.abs((team.movedUsage||0)*100).toFixed(0)}% fewer shots per possession on average in their first season there.</li>
+      <li><b>Team change.</b> The frozen model applies a ${Math.abs((team.movedUsage||0)*100).toFixed(0)}% shot-volume adjustment to a player marked as moving teams. This coefficient is a model assumption, not a promise about an individual.</li>
       <li><b>Pace.</b> Per-game numbers use his 2026-27 team's pace, which carries over from last season at a rate of ${team.paceRho??'—'}.</li>
-      <li><b>2026-27 rosters.</b> Teams as published by the NBA on ${esc(longDate(m.rostersAsOf))}. Rookies drafted in 2026 count as teammates competing for minutes; they have no projection of their own here because they have no NBA or G League record yet.</li>
+      <li><b>Roster opportunity.</b> The NBA roster snapshot is dated ${esc(longDate(m.rostersAsOf))}. For players with recent NBA history, the fitted role estimate is reconciled across the listed roster so expected minutes sum to 240 per team game after weighting by projected appearance share. This is a preseason allocation across everyone on the roster, not a guarantee that the team has a fixed 240-minute healthy rotation every night. Players without recent history use a separate rookie-cohort fallback based on draft slot, position, historical first-season roles and roster competition; it currently lacks verified college/international statistics and contract-security inputs.</li>
+      <li><b>Availability and uncertainty.</b> Games played is a historical participation estimate. The model has no verified live injury clearance or news feed. Displayed ranges come from the older veteran model and have not been recalibrated for the current roster-minute or rookie changes.</li>
     </ul>
-    <h3>How accurate it is</h3>
-    <p>Fitted on seasons up to 2024-25, then used to project ${esc(b.season)} for the ${b.n} players with an NBA history, using the rosters teams opened that season with. Average miss per player, per game (lower is better; best in each row marked):</p>
+    <h3>Historical check of the frozen model</h3>
+    <p>The base model was fitted on seasons through 2024-25 and tested on ${esc(b.season)} for ${b.n} players with an NBA history. The comparison is a useful baseline check, but it predates the current 2026-27 roster-minute reconciliation and rookie fallback. It is not an accuracy score for today’s full projection.</p>
     <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Stat</th><th>This model</th><th>Repeat last season</th><th>3-season average</th></tr></thead><tbody>${accRows}</tbody></table></div>
     <p class="tiny">${esc(m.backtest?.development||'')}</p>
+    ${teamLedgerRange?`<h3>Roster-minute accounting</h3><p>All ${teamLedgers.length} NBA roster ledgers currently allocate ${teamLedgerRange}; player minutes are weighted by their expected appearance share. This verifies arithmetic feasibility, not that the predicted rotation is correct.</p>`:''}
+    ${rookieCheck?`<h3>Rookie fallback check</h3><p>On a retrospective ${esc(rookieCheck.season)} cohort (${rookieCheck.n} indexed entrants), the historical cohort fallback missed expected effective minutes by ${Number(rookieCheck.effectiveMinutesMae).toFixed(2)} per player, versus ${Number(rookieCheck.unconditionedCohortMinutesMae).toFixed(2)} for its unconditioned cohort average. Points miss among ${rookieCheck.appeared} who appeared was ${Number(rookieCheck.pointsMaeAmongAppearances).toFixed(2)} per game. ${esc(rookieCheck.limitations)}</p>`:''}
     ${abRows?`<h3>What the team factors add</h3><p>Average points miss on ${esc(b.season)} with one team factor switched off (the full model misses by ${finite(full)?Number(full).toFixed(3):'—'}):</p>
       <table class="compare-table"><thead><tr><th class="left">Switched off</th><th>PTS miss</th><th>Change</th></tr></thead><tbody>${abRows}</tbody></table>
       <p class="tiny">The team factors help, but modestly. Most of the accuracy comes from the minutes and games models and from pulling small samples toward the norm. A factor that did not help in testing (a minutes-change effect on shot volume) was left out.</p>`:''}
@@ -1589,9 +1600,10 @@ shooting % = (weighted makes + R x expected %) / (weighted attempts + R), then a
       <p class="tiny">G League free throws: since 2019-20 one free throw can be worth the whole trip, so points per free throw made are taken from the league (about 1.67), not assumed to be 1.</p>`:''}
     <h3>What it does not know</h3>
     <ul>
-      <li>Injuries, trades, signings or role news after ${esc(longDate(m.rostersAsOf))}. A player with no 2026-27 team is projected as if he plays.</li>
+      <li>Injuries, trades, signings, contract type or role news after ${esc(longDate(m.rostersAsOf))}. For an unsigned player, this estimate assumes he signs and plays; it is not a current-roster statement.</li>
       <li>Coaching changes and scheme, beyond team pace and roster balance.</li>
-      <li>Every line is conditional on playing: games played is projected among players who appear.</li>
+      <li>College/international box-score production is not in the rookie fallback, and absence or return-to-play risk is not assessed from a verified medical source.</li>
+      <li>Per-game rates are conditional on appearing; projected games are a separate estimate. Season totals multiply those two assumptions.</li>
     </ul>
     <p class="tiny">Model ${esc(m.id)} · inputs sha256 ${esc(m.inputsSha256)} · ${m.counts?.nba?.scored??'—'} NBA and ${m.counts?.gleague?.scored??'—'} G League players projected.</p>
   </div>`;
@@ -2057,8 +2069,10 @@ async function init(){
     window.DATA=DATA;
     $('nbaCount').textContent=DATA.counts.NBA.toLocaleString();$('gCount').textContent=DATA.counts.GLEAGUE.toLocaleString();
     const ro=(DATA.counts.rosterOnlyNBA||0)+(DATA.counts.rosterOnlyGLEAGUE||0);
+    const rosterAsOf=DATA.projectionMeta?.rostersAsOf;
+    const buildDate=new Date(DATA.generatedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     $('sourceLine').textContent=`Official NBA and G League stats: ${DATA.counts.records.toLocaleString()} player seasons for ${DATA.counts.uniquePeople.toLocaleString()} players`
-      +(ro?`, plus ${ro} rostered who never played`:'')+`. Updated ${new Date(DATA.generatedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}.`;
+      +(ro?`, plus ${ro} rostered who never played`:'')+`. ${DATA.season} stats; NBA roster snapshot ${rosterAsOf||'date unavailable'}; site built ${buildDate}.`;
     $('seasonEyebrow').textContent=DATA.seasonType;
     populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();

@@ -17,6 +17,7 @@
 //   4. zero-sum allocation    every minute granted is sourced from a team-mate; the ledger conserves
 
 export const BETA_CONFIG = {
+  version: 'tulip-beta-support-v2',
   shrinkMinutes: 400,      // BPM shrinkage toward league mean for small samples
   minMinutes: 200,         // below this a player is not an allocation candidate
   minMpg: 0.5,
@@ -57,17 +58,17 @@ function supportedFrontierMpg(p) {
  * Negative recommendations are driven by team-relative value and the zero-sum requirement; a player
  * is NOT punished merely because evidence about expanding him is absent.
  */
-function evidenceFactor(p, targetMpg) {
+function evidenceFactor(p) {
   const card = p.tulip && p.tulip.card;
   const tier = card && card.evidenceTier && card.evidenceTier.tier;
   let f = tier === 'A' ? 1.0 : tier === 'B' ? 0.85 : tier === 'C' ? 0.6 : 0.45;
   const rsr = p.tulip && p.tulip.roleScaleResponse;
-  if (rsr && /INSUFFICIENT/i.test(rsr.response || '')) f *= 0.8;
+  // These diagnostics describe overlapping limitations in the SAME role-comparison sample.
+  // Multiplying them counted that weakness repeatedly; use the weakest assessment once.
+  if (rsr && /INSUFFICIENT/i.test(rsr.response || '')) f = Math.min(f, 0.8);
   const cs = card && card.projection && card.projection.counterfactualSupport;
-  if (cs && cs.status && cs.status !== 'OK') f *= 0.7;
-  // If Role Evidence positively supports a workload at or above the target, restore confidence.
-  if (supportedFrontierMpg(p) >= targetMpg) f = Math.min(1.0, f * 1.6);
-  return Math.max(0.2, Math.min(1.0, f));
+  if (cs && cs.status && cs.status !== 'OK') f = Math.min(f, 0.7);
+  return f;
 }
 
 function confidenceOf(p, finalDelta, ceiling) {
@@ -75,8 +76,29 @@ function confidenceOf(p, finalDelta, ceiling) {
   const tier = p.tulip && p.tulip.card && p.tulip.card.evidenceTier && p.tulip.card.evidenceTier.tier;
   const inSupport = (Number(p.mpg) + finalDelta) <= ceiling + 0.05;
   if (mins >= 800 && (tier === 'A' || tier === 'B') && inSupport) return 'HIGH';
-  if (mins >= 300 && (tier === 'A' || tier === 'B' || inSupport)) return 'MEDIUM';
+  if (mins >= 300 && (tier === 'A' || tier === 'B' || tier === 'C') && inSupport) return 'MEDIUM';
   return 'LOW';
+}
+
+// Round the two sides to an identical number of tenths. Independent rounding caused the
+// published ledger to create/lose up to 0.3 MPG per team. Largest remainder is deterministic,
+// preserves direction, and never exceeds the feasible workload bounds.
+function roundLedgerSide(rows, targetTenths, sign) {
+  const total = rows.reduce((s, r) => s + Math.abs(r.desired), 0);
+  const quotas = rows.map((r) => {
+    const exact = total ? Math.abs(r.desired) / total * targetTenths : 0;
+    const limit = Math.max(0, Math.floor((sign > 0
+      ? BETA_CONFIG.ceilingHardCap - Number(r.p.mpg) : Number(r.p.mpg)) * 10 + 1e-7));
+    return { r, n: Math.min(Math.floor(exact), limit), fraction: exact % 1, limit };
+  });
+  let left = targetTenths - quotas.reduce((s, q) => s + q.n, 0);
+  quotas.sort((a, b) => b.fraction - a.fraction || String(a.r.p.playerId).localeCompare(String(b.r.p.playerId)));
+  while (left > 0) {
+    let progress = false;
+    for (const q of quotas) if (q.n < q.limit && left > 0) { q.n++; left--; progress = true; }
+    if (!progress) throw new Error('TULIP ledger rounding exceeded feasible workload');
+  }
+  return new Map(quotas.map(({ r, n }) => [r.p.playerId, sign * n / 10]));
 }
 
 /**
@@ -84,6 +106,8 @@ function confidenceOf(p, finalDelta, ceiling) {
  * The ledger conserves exactly: the sum of positive deltas equals the sum of negative deltas.
  */
 export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
+  if (!fin(leagueBpm) || !fin(leagueGapSd) || Number(leagueGapSd) <= 0)
+    throw new Error('TULIP requires a finite league mean and positive gap standard deviation');
   const elig = roster.filter((p) => p.appeared && fin(p.bpm) && fin(p.mpg)
     && (p.minutes || 0) >= BETA_CONFIG.minMinutes && p.mpg >= BETA_CONFIG.minMpg);
   if (elig.length < 5) return new Map();
@@ -110,19 +134,20 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     const headUp = Math.max(0, BETA_CONFIG.ceilingHardCap - Number(p.mpg));
     const headDown = Math.max(0, Number(p.mpg) - BETA_CONFIG.floorMpg);
 
-    let evF = 1;
+    let evF = 1, extrapolationFactor = 1, supportedGain = 0;
     if (desired > 0) {
-      evF = evidenceFactor(p, Number(p.mpg) + desired);
-      // Historical/role evidence is a SUPPORT signal, not a hard prohibition on growth. The old
-      // implementation capped positive movement at the highest workload already observed/supported,
-      // which made genuine breakouts mechanically unable to move much beyond ~8 MPG. Keep the
-      // evidence attenuation, but let a strong signal expand anywhere inside the feasible 0-40 MPG
-      // range. Confidence drops when the final recommendation exceeds the supported workload.
-      desired = Math.min(desired * evF, headUp);
+      extrapolationFactor = evidenceFactor(p);
+      supportedGain = Math.min(desired, Math.max(0, ceiling - Number(p.mpg)));
+      // Role-expansion uncertainty concerns the part OUTSIDE demonstrated workload. Do not
+      // suppress an already sustained role merely because an expansion-comparison card abstains.
+      const supportedAdjusted = supportedGain + (desired - supportedGain) * extrapolationFactor;
+      evF = supportedAdjusted / desired;
+      desired = Math.min(supportedAdjusted, headUp);
     } else {
       desired = Math.max(desired, -headDown);          // cannot take minutes he does not have
     }
-    rows.push({ p, gap, gapSd, rawSignalDelta, desired, ceiling, evF, shrunkBpm: shrunk.get(p.playerId) });
+    rows.push({ p, gap, gapSd, rawSignalDelta, desired, ceiling, evF, extrapolationFactor,
+      supportedGain, shrunkBpm: shrunk.get(p.playerId) });
   }
 
   // --- zero-sum: every granted minute is sourced from a team-mate ---
@@ -130,6 +155,10 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
   const P = pos.reduce((a, r) => a + r.desired, 0);
   const N = neg.reduce((a, r) => a - r.desired, 0);
   const T = Math.min(P, N);                            // only what can actually be sourced moves
+  const positiveCapacity = pos.reduce((s, r) => s + Math.floor(Math.max(0, BETA_CONFIG.ceilingHardCap - Number(r.p.mpg)) * 10 + 1e-7), 0);
+  const negativeCapacity = neg.reduce((s, r) => s + Math.floor(Number(r.p.mpg) * 10 + 1e-7), 0);
+  const tenths = Math.min(Math.floor(T * 10 + 1e-7), positiveCapacity, negativeCapacity);
+  const rounded = new Map([...roundLedgerSide(pos, tenths, 1), ...roundLedgerSide(neg, tenths, -1)]);
   const out = new Map();
   for (const r of rows) {
     let final = 0;
@@ -137,24 +166,29 @@ export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
     else if (r.desired < 0 && N > 0) final = r.desired * (T / N);
     const rosterBalanceFactor = r.desired > 0 ? (P > 0 ? T / P : 0)
       : r.desired < 0 ? (N > 0 ? T / N : 0) : 0;
-    final = Math.round(final * 10) / 10;
-    const rec = Math.round((Number(r.p.mpg) + final) * 10) / 10;
+    final = rounded.get(r.p.playerId) || 0;
+    const currentMpg = Math.round(Number(r.p.mpg) * 10) / 10;
+    const rec = Math.round((currentMpg + final) * 10) / 10;
     out.set(r.p.playerId, {
       tulip: final,
-      currentMpg: Math.round(Number(r.p.mpg) * 10) / 10,
+      currentMpg,
       recommendedMpg: rec,
       valueGap: Math.round(r.gap * 100) / 100,
       valueGapSd: Math.round(r.gapSd * 100) / 100,
       shrunkBpm: Math.round(r.shrunkBpm * 100) / 100,
-      // Explanation-only trace of the existing calculation. These fields expose the path without
-      // changing it: team-relative signal -> workload/role constraint -> roster-balanced TULIP.
+      // Trace: reliability-shrunk value -> supported/extrapolated workload -> balanced ledger.
       rawSignalDelta: Math.round(r.rawSignalDelta * 10) / 10,
       constrainedDelta: Math.round(r.desired * 10) / 10,
       rosterBalanceFactor: Math.round(rosterBalanceFactor * 1000) / 1000,
       supportedCeiling: Math.round(r.ceiling * 10) / 10,
       evidenceTier: (r.p.tulip && r.p.tulip.card && r.p.tulip.card.evidenceTier && r.p.tulip.card.evidenceTier.tier) || null,
       evidenceFactor: Math.round(r.evF * 100) / 100,
+      extrapolationFactor: r.extrapolationFactor,
+      supportedGain: Math.round(r.supportedGain * 10) / 10,
+      extrapolated: rec > r.ceiling + 0.05,
       confidence: confidenceOf(r.p, final, r.ceiling),
+      version: BETA_CONFIG.version,
+      interpretation: 'Experimental reallocation hypothesis; neither direction nor magnitude is validated to improve winning.',
       abstain: false,
       status: 'BETA',
     });

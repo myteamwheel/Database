@@ -58,6 +58,7 @@ jobs:
           npm run audit:presets
           npm run test:projections
           npm run test:comps
+          npm run test:refresh
           npm run test:tulipbeta
           npm run test:tulipcapacity
           npm run build:standalone

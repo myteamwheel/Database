@@ -1,0 +1,49 @@
+# Model and website rebuild
+
+Authorized by the user's “begin”. Baseline: the published roster-scope release. A checked box means the entire stated acceptance standard has been implemented and verified; all acceptance boxes remain unchecked until then. Partial code changes are recorded below, not presented as complete.
+
+## Current status — 2026-09-29
+
+Core model/code edits and focused verification are underway. Comparison and projection outputs were rebuilt. The browser suite could not launch Chromium in this local sandbox, so browser behavior remains unverified here. This remains a static GitHub Pages site: there is no secure on-page owner refresh, automatic transaction/injury/news feed, or scheduled stats ingestion. No model-accuracy gain is claimed for new projection context or TULIP changes.
+
+## Required checklist and completion standards
+
+- [ ] **1. Formula/data audit — IN PROGRESS.** Trace projections, rookies, TULIP, expected/recommended minutes, Team Fit, Role Value and comparisons; record sources, weights, defaults, caps, missingness, dependencies and preserved models. **Done when:** a reproducible formula/source map and confirmed issue list cover every model output.
+- [ ] **2. Contextual projections — PARTIAL.** Separate availability, minutes per appearance, role, usage and rates; use multi-year history, age/development, verified roster/injury context and teammate competition without double-counting; reconcile expected minutes. **Done when:** trusted situation inputs shift estimates coherently, accounting is exact and material changes have player-level explanations.
+- [ ] **3. Projection evaluation — PARTIAL.** Evaluate chronologically against last-season and weighted-average baselines with only as-of inputs; score cohorts, context changes and interval coverage. **Done when:** reproducible error/baseline/cohort/coverage results support any accuracy claim; no arbitrary variance inflation.
+- [ ] **4. Rookie model — PARTIAL.** Added an explicitly provisional historical entry-cohort fallback using draft pick, position and age; college/international production, contract security and verified role are not yet available. **Done when:** sources/coverage and fallbacks are documented for every rookie and leakage-safe cohort evaluation is reported.
+- [ ] **5. TULIP and recommended minutes — PARTIAL.** Reduced stacked evidence penalties; unsupported workload extrapolation is marked LOW; team deltas balance exactly. Current version remains experimental and is not an availability/position/diminishing-return optimized rotation. **Done when:** feasible available rotations, ±3/5/7/10 distributions, explanations and held-out checks are complete; no quotas or causal overclaims.
+- [ ] **6. Projection presentation — PARTIAL.** Central points remain primary; ranges and build rationale are collapsible and ranges state their calibration limits. **Done when:** accessible range/details, table, profile and export values agree and rendered behavior is verified.
+- [ ] **7. Holistic comps vs. style ingredients — IMPLEMENTED IN CODE; BROWSER CHECK PENDING.** Separate holistic overall matches from independent trait references; optimized nonnegative blend shares sum to 100%, while individualized prose describes broad tendencies. **Done when:** references, shares, semantics and responsive rendering are verified, with no claim that style means equal talent or complete defense.
+- [ ] **8. Stable reference identities — PARTIAL.** Added a fixed highest-exposure three-year reference window and pooled makes/attempts; single-year overall references can remain but are flagged as limited, while style traits require multi-year evidence. **Done when:** every exposed reference period and its supporting evidence are audited and reproducible.
+- [ ] **9. Refresh and publication — PARTIAL.** Official statistical imports now validate schema/player IDs/accounting, stage required responses, retain prior snapshots on failure and reject silent season rollover. There is no protected owner-triggered website refresh, roster/transaction, injury/news feed or schedule; static Pages cannot safely hold an owner credential. **Done when:** a secure ingestion/rebuild/publish path with source timestamps, changelog/progress, corrections/duplicates, rollover, rollback and success/failure demonstrations exists.
+- [ ] **10. Missed-season veterans — PARTIAL.** Older-history projection and comp fallbacks now keep historical evidence distinct from current-season stats; return-to-play is not predicted. **Done when:** established players remain searchable with dated useful history and explicit gaps/fallback status.
+- [ ] **11. Cross-tab consistency — IN PROGRESS.** Existing preset audit passes; identity/team/timeframe consistency and Team Fit needs remain to be checked. **Done when:** rookie, traded, unsigned, returner and dual-league cases reconcile across Database, Player, Compare, Scatter, Comps, Team Fit, Role Value, TULIP, Projections and History Lab.
+- [ ] **12. Score/missing-data meanings — PARTIAL.** Revised copy distinguishes TULIP support from probability, historical estimates from current stats, comparison blend shares from traits and fallback/range limitations. **Done when:** every score/column consistently distinguishes zero, missing, N/A, estimate, fallback and small sample.
+- [ ] **13. Statistical accounting — PARTIAL.** Projection outputs now carry makes/attempts/totals; tests check points, rebounds and expected team minutes. **Done when:** independent invariants cover rates, per-game/totals, percentages, roster totals and rounding in both leagues and UI.
+- [ ] **14. Full-site UX/regression — IN PROGRESS.** Code-level layout/search/collapse edits are present; local Chromium tests were blocked before page load by sandbox permissions. **Done when:** desktop/mobile browser flows verify navigation, scrolling, keyboard, filters/sort, selection/deep links, export, loading/empty states, clipping and state retention; live verification is separate.
+- [ ] **15. NBA/G League scope — PARTIAL.** Latest build has 705 NBA and 564 G League rows, including roster-only/non-appearing players; missing-evidence projections abstain. **Done when:** two-way affiliations, transfers, competition phases and league-specific feature limits are reconciled and labeled.
+- [ ] **16. Forecast timeframes — PARTIAL.** Current projection is labeled `preseason-full-season`. Actual-to-date, rest-of-season and combined full-season outputs are not implemented. **Done when:** targets, dates, trades/availability, preserved actuals and denominators reconcile correctly.
+- [ ] **17. Forecast archive/scoring — NOT STARTED.** Add immutable dated/versioned forecasts with source hashes and score original predictions as outcomes arrive. **Done when:** prediction/target dates, cohorts, sample counts, baselines and methods are reproducible and snapshots persist.
+- [ ] **18. Stability/sensitivity — PARTIAL.** Roster-minute budget and stat-accounting perturbations have tests; blend weights vary; TULIP can move beyond ±8. Full role/usage/availability/sample, threshold-churn and driver-ablation checks remain. **Done when:** reproducible perturbations yield coherent changes and unresolved instability is documented.
+
+## Cross-cutting completion gates
+
+- [ ] Player/league coverage states complete, partial, fallback or unavailable.
+- [ ] Formula docs identify code, source, model and input versions.
+- [ ] Evidence separates measured improvements, UI changes and experiments.
+- [ ] Material output changes have player-level explanations.
+- [ ] Failed refreshes preserve last-valid public data.
+- [ ] Independent calculations, historical checks, validation and rendered tests pass.
+- [ ] Verified artifact is published and checked on the live site.
+- [ ] Final report separates verified / corrected and verified / data-limited / outstanding items.
+
+## Evidence recorded so far
+
+- Passing focused checks: `test:tulipbeta` (24), `test:refresh`, `test:projections` (25), `test:comps` (1,143-player audit), `test:tulipcapacity` (16), `tulip:verify`, `tulip:backtest`, `test:history`, `test:starter`, `audit`, `audit:presets`, and `verify:artifact` (1,814,435 values compared).
+- Data audit reports 123 current NBA-roster entries without 2025-26 played stats and ten multi-team rows without full per-team stint detail; these are limitations, not fabricated lines.
+- TULIP currently has 33 players at +7 MPG or more and 12 at +10 or more. Those larger movements all exceed direct workload evidence and are labeled LOW support; they are not validated win-maximizing recommendations.
+- The legacy veteran projection backtest does not validate new context-1 minute reconciliation or rookie fallbacks. Displayed residual ranges are inherited and explicitly uncalibrated for these changes.
+- `test:tooltips` attempted 13 cases, but Chromium failed at launch (`bootstrap_check_in ... Permission denied`) before interacting with the site. Browser/live verification remains outstanding.
+- Refresh unit checks use synthetic payloads; no live source pull was run. Current script scope does not include official transactions, verified contracts, injuries or news, and GitHub Actions cannot reach the current stats source.
+- Push/deploy and post-deployment check remain outstanding until the audited changes are committed and the Pages workflow passes.
