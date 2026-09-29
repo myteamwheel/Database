@@ -35,4 +35,6 @@ jobs:
           git add scripts/data/forecast-archive
           git diff --cached --exit-code >/dev/null && { echo 'archive not generated'; exit 1; } || true
           git commit -m 'data: freeze 2026-27 preseason forecast'
+          git fetch origin "${{ github.head_ref }}"
+          git rebase "origin/${{ github.head_ref }}"
           git push origin HEAD:${{ github.head_ref }}
