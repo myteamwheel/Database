@@ -86,6 +86,50 @@ function validateArchiveProvenance(archive) {
   }
 }
 
+function validateSourceProvenance(archive, summary) {
+  if (!/^[0-9a-f]{40}$/.test(String(archive.sourceCommit || ''))) {
+    throw new Error('Forecast archive source provenance requires a full sourceCommit SHA.');
+  }
+  if (!archive.publishedAt || Number.isNaN(Date.parse(archive.publishedAt))) {
+    throw new Error('Forecast archive source provenance requires a valid publication date.');
+  }
+  if (!['explicit', 'source-commit-time'].includes(archive.publicationBasis)) {
+    throw new Error('Forecast archive source provenance requires a publicationBasis.');
+  }
+  const model = archive.model;
+  for (const key of ['id', 'contextVersion', 'timeframe', 'rostersAsOf', 'rosterSha256']) {
+    if (model?.[key] === null || model?.[key] === undefined || model?.[key] === '') {
+      throw new Error(`Forecast archive model provenance is missing ${key}.`);
+    }
+  }
+  if (!/^[0-9a-f]{64}$/.test(String(model.rosterSha256))) {
+    throw new Error('Forecast archive model provenance has an invalid rosterSha256.');
+  }
+
+  const sources = archive.sources;
+  for (const key of ['publicData', 'projectionCard', 'projectionInputs']) {
+    const source = sources?.[key];
+    if (!source?.path || !/^[0-9a-f]{64}$/.test(String(source.sha256 || ''))) {
+      throw new Error(`Forecast archive source provenance is missing or invalid: ${key}.`);
+    }
+  }
+  if (sources?.liveRoster != null) {
+    if (!sources.liveRoster.path || !/^[0-9a-f]{64}$/.test(String(sources.liveRoster.sha256 || ''))) {
+      throw new Error('Forecast archive source provenance has invalid liveRoster metadata.');
+    }
+  }
+
+  const expectedCounts = {
+    byLeague: summary.byLeague,
+    projected: summary.projected,
+    abstained: summary.abstained,
+    baselineAvailable: baselineAvailability(archive.leagues),
+  };
+  if (!archive.counts || !jsonEqual(archive.counts, expectedCounts)) {
+    throw new Error('Forecast archive embedded coverage/provenance counts do not match its player records.');
+  }
+}
+
 function validateManifestEntry(entry, archive, summary, bytes) {
   if (entry.forecastId !== archive.forecastId) throw new Error(`Manifest forecast id mismatch for ${entry.path}`);
   if (entry.season !== archive.season) throw new Error(`Manifest season mismatch for ${entry.forecastId}`);
@@ -149,6 +193,7 @@ export function verifyArchiveDirectory({ archiveDir = DEFAULT_ARCHIVE_DIR } = {}
     }
     validateArchiveProvenance(archive);
     const summary = validateArchive(archive);
+    validateSourceProvenance(archive, summary);
     validateManifestEntry(entry, archive, summary, bytes);
     projected += summary.projected;
     abstained += summary.abstained;
