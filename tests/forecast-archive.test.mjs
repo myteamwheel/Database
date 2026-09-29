@@ -103,9 +103,25 @@ test('inconsistent rebounds fail', () => {
 
 test('high-precision accounting is authoritative when rounded G League fields drift', () => {
   const row = extractArchivedPlayer('GLEAGUE', player);
-  row.projection.fgm=7.4; row.projection.fg3m=2.2; row.projection.ftm=1.2; row.projection.fta=1.5; row.projection.pts=20.5;
-  row.projection.accounting={...row.projection.accounting,fgm:7.449,fg3m:2.249,ftm:1.249,ftValue:2.7,pts:20.5193};
+  row.projection.fgm=7.4; row.projection.fga=15.3; row.projection.fgPct=0.484;
+  row.projection.fg3m=2.2; row.projection.fg3a=6.2; row.projection.fg3Pct=0.361;
+  row.projection.ftm=1.2; row.projection.fta=1.6; row.projection.ftPct=0.8; row.projection.pts=20.4;
+  row.projection.accounting={...row.projection.accounting,fgm:7.4,fga:15.3,fgPct:7.4/15.3,
+    fg3m:2.249,fg3a:2.249/0.361,fg3Pct:0.361,ftm:1.249,fta:1.249/0.8,ftPct:0.8,ftValue:2.7,pts:20.4213};
   assert.doesNotThrow(() => validateArchive({ players: [row] }));
+});
+
+test('high-precision shooting accounting is authoritative at low rounded volume', () => {
+  const row = extractArchivedPlayer('GLEAGUE', player);
+  row.projection.fg3m=0.2; row.projection.fg3a=0.4; row.projection.fg3Pct=0.361; row.projection.pts=18.1;
+  row.projection.accounting={...row.projection.accounting,fg3m:0.1444,fg3a:0.4,fg3Pct:0.361,pts:18.1444};
+  assert.doesNotThrow(() => validateArchive({ players: [row] }));
+});
+
+test('inconsistent high-precision shooting percentage fails', () => {
+  const row = extractArchivedPlayer('NBA', player);
+  row.projection.accounting.fg3Pct = 0.8;
+  assert.throws(() => validateArchive({ players: [row] }), /3P%.*accounting/i);
 });
 
 test('inconsistent high-precision points accounting fails', () => {
