@@ -27,7 +27,7 @@ import { EVIDENCE_TIERS, REQUIRED_BASELINES, historicalReadiness, GAME_ROW_SCHEM
          AVAILABILITY_ROW_SCHEMA, TRANSACTION_ROW_SCHEMA } from './lib/history.mjs';
 import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
-import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
+import { tulipBetaForTeam, BETA_CONFIG, tulipDistribution } from './lib/tulip-beta.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -750,16 +750,22 @@ console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScore
   const leagueGapSd = Math.sqrt(gaps.reduce((a, b) => a + (b - mg) ** 2, 0) / Math.max(1, gaps.length)) || 1;
 
   let betaScored = 0, betaAbstain = 0;
-  const ledger = [];
+  const ledger = [], betaValues = [];
   for (const t of Object.keys(byTeam)) {
     const m = tulipBetaForTeam(byTeam[t], { leagueBpm, leagueGapSd });
-    if (m.size) ledger.push({ team: t, sum: [...m.values()].reduce((a, v) => a + v.tulip, 0), n: m.size });
+    if (m.size) {
+      const values = [...m.values()];
+      ledger.push({ team: t, sum: values.reduce((a, v) => a + v.tulip, 0), n: m.size,
+        positionLimited: values.filter((v) => v.positionLimited).length,
+        unfilledDesiredMpg: values.reduce((a, v) => a + (Number(v.unfilledDesiredMpg) || 0), 0) });
+    }
     for (const r of byTeam[t]) {
       const v = m.get(r.playerId);
-      if (v) { r.tulipBeta = v; betaScored++; }
+      if (v) { r.tulipBeta = v; betaValues.push(v); betaScored++; }
       else {
         r.tulipBeta = { abstain: true, status: 'BETA',
           reason: !r.currentRoster || !r.currentTeam ? 'not_on_current_nba_roster'
+            : r.tulipAvailability?.verified === true && r.tulipAvailability?.available === false ? 'verified_unavailable'
             : !r.appeared ? 'no_appearance'
             : !finB(r.bpm) ? 'no_value_metric'
             : (r.minutes || 0) < BETA_CONFIG.minMinutes ? 'insufficient_minutes'
@@ -771,9 +777,24 @@ console.log(`Projected Role MPG ${capacityIndex.card.version}: scored ${capScore
   for (const r of gl.records) r.tulipBeta = { abstain: true, status: 'BETA', reason: 'not_supported_for_gleague' };
   const worst = ledger.reduce((a, x) => Math.max(a, Math.abs(x.sum)), 0);
   console.log(`TULIP Beta: scored ${betaScored}, abstained ${betaAbstain} · teams ${ledger.length} · worst ledger imbalance ${worst.toFixed(2)} MPG (rounding only) · G League abstains by design`);
+  const distribution = tulipDistribution(betaValues);
+  const positionKnown = betaValues.filter((v) => v.positionEvidence === 'roster-listed').length;
+  const positionUnknown = betaValues.length - positionKnown;
+  const positionLimited = betaValues.filter((v) => v.positionLimited).length;
+  const usedUnknownPositionCompatibility = betaValues.filter((v) => v.usedUnknownPositionCompatibility).length;
+  const unfilledDesiredMpg = betaValues.reduce((s, v) => s + (Number(v.unfilledDesiredMpg) || 0), 0);
+  const availability = {
+    verifiedAvailable: betaValues.filter((v) => v.availability === 'verified-available').length,
+    unverified: betaValues.filter((v) => v.availability === 'unverified').length,
+    verifiedUnavailable: nba.records.filter((r) => r.tulipBeta?.reason === 'verified_unavailable').length,
+    feed: 'no verified injury/availability feed is connected; missing status is not inferred from games missed',
+  };
   nba.tulipBetaMeta = { leagueBpm, leagueGapSd, config: BETA_CONFIG, teams: ledger.length,
     rosterScope: 'current 2026-27 NBA.com published rosters', rostersAsOf: currentRosterAsOf,
-    worstLedgerImbalance: worst };
+    worstLedgerImbalance: worst, distribution,
+    constraints: { positionKnown, positionUnknown, positionLimited, usedUnknownPositionCompatibility,
+      unfilledDesiredMpg: Math.round(unfilledDesiredMpg * 10) / 10, availability },
+    ledger };
 }
 
 // Build-dependent diagnostics are computed from the same records that ship in this artifact.
@@ -955,13 +976,16 @@ const out = {
   },
   tulipBetaMeta: {
     status: 'EXPERIMENTAL BETA',
-    whatItIs: 'Zero-sum estimate of how many MPG a team could reallocate toward or away from each player, from team-relative player value, current workload, role evidence and the actual team-mates consuming those minutes.',
-    direction: 'Based on team-relative player value (shrunk BPM vs the minute-weighted team average).',
-    magnitude: 'HEURISTIC. Starts from a per-SD movement, then compressed by workload state, role evidence and the roster minute ledger.',
+    whatItIs: 'Two-layer experimental recommendation. Player evaluation first measures reliability-shrunk value versus the current team average; a separate allocator then converts that signal into a zero-sum MPG suggestion.',
+    direction: 'Player-evaluation layer only: shrunk BPM versus the minute-weighted current-team average, in league-SD units.',
+    magnitude: 'HEURISTIC allocation layer. Starts from the value signal, then applies workload/role evidence, coarse roster-listed position-family substitution, diminishing marginal transfer priority and the zero-sum roster ledger.',
     notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
     supportRating: 'The HIGH/MEDIUM/LOW field is RECOMMENDATION SUPPORT, not probability of correctness. It describes the strength of the data and evidence behind the recommendation inputs (minutes sample, role-evidence tier, whether the recommended workload sits inside historically observed support). It does NOT express a likelihood that the MPG recommendation is win-optimal.',
     framing: 'Outputs are recommendations from this heuristic. A positive value means TULIP Beta flags the player as underutilized under its own model; it is not an established finding about how the team is using him.',
-    zeroSum: 'Recommended minutes conserve each eligible roster ledger: every minute granted is sourced from a team-mate.',
+    zeroSum: 'Recommended minutes conserve each eligible roster ledger: every 0.1 MPG granted is sourced from an opposite-direction team-mate.',
+    positionGuard: 'When both players have roster-listed position evidence, transfers require an overlapping G/F/C family. Missing position evidence remains unknown rather than being invented. This is a coarse substitution guard, not a five-man lineup model.',
+    diminishingReturns: 'Marginal transfer priority declines as more MPG are already moved for a player. The scale is a transparent heuristic stabilizer, not a fitted causal coefficient.',
+    availability: 'Only an explicit verified availability input can exclude a player for availability. This build has no verified injury/availability feed, so missing status is unverified and is not inferred from missed games.',
     gleague: 'Not supported: no published G League BPM and no standardized-PIE value implementation in this repository. G League abstains rather than improvising.',
     ...(nba.tulipBetaMeta || {}),
   },
