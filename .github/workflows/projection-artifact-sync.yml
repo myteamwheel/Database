@@ -49,4 +49,6 @@ jobs:
             exit 0
           fi
           git commit -m "Rebuild projection review artifacts for ${GITHUB_SHA::7}"
+          git fetch origin projection-model-rebuild-next
+          git rebase origin/projection-model-rebuild-next
           git push origin HEAD:projection-model-rebuild-next
