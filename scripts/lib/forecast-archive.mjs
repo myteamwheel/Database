@@ -78,7 +78,16 @@ function validateProjection(row) {
   for (const [pct,m,a,label] of [
     ['fgPct','fgm','fga','FG%'], ['fg3Pct','fg3m','fg3a','3P%'], ['ftPct','ftm','fta','FT%'],
   ]) {
-    if (finite(p[a]) && p[a] > 0 && finite(p[m]) && finite(p[pct]) && Math.abs(p[pct] - p[m] / p[a]) > 0.015) {
+    if (acc && finite(acc[a]) && acc[a] > 0 && finite(acc[m])) {
+      const implied = acc[m] / acc[a];
+      if (finite(acc[pct]) && Math.abs(acc[pct] - implied) > 1e-6) {
+        throw new Error(`${row.identity}: ${label} accounting does not reconcile with makes/attempts`);
+      }
+      const exactPct = finite(acc[pct]) ? acc[pct] : implied;
+      if (finite(p[pct]) && Math.abs(p[pct] - exactPct) > 0.002) {
+        throw new Error(`${row.identity}: published ${label} differs from accounting`);
+      }
+    } else if (finite(p[a]) && p[a] > 0 && finite(p[m]) && finite(p[pct]) && Math.abs(p[pct] - p[m] / p[a]) > 0.05) {
       throw new Error(`${row.identity}: ${label} does not reconcile with makes/attempts`);
     }
   }
