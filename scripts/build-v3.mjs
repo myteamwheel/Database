@@ -963,10 +963,10 @@ const out = {
   },
   tulipBetaMeta: {
     status: 'EXPERIMENTAL BETA',
-    whatItIs: 'Zero-sum estimate of how many MPG a team could reallocate toward or away from each player, from team-relative player value, current workload, role evidence and the actual team-mates consuming those minutes.',
-    direction: 'Based on team-relative player value (shrunk BPM vs the minute-weighted team average).',
+    whatItIs: 'Experimental zero-sum heuristic for how many MPG the model reallocates toward or away from each scored player, from team-relative player value, a 2025-26 workload baseline, role evidence and the current-roster team-mates in the eligible pool.',
+    direction: 'Mechanically determined by team-relative player value (shrunk BPM vs the minute-weighted team average); the play-more/play-less sign has not been validated as a win-improving prescription.',
     magnitude: 'HEURISTIC. Starts from a per-SD movement, then compressed by workload state, role evidence and the roster minute ledger.',
-    notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
+    notValidated: 'Pre-registered causal testing on 2015-16..2023-24 did NOT establish that either the play-more/play-less direction or the exact MPG deltas improve winning (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription.',
     supportRating: 'The HIGH/MEDIUM/LOW field is RECOMMENDATION SUPPORT, not probability of correctness. It describes the strength of the data and evidence behind the recommendation inputs (minutes sample, role-evidence tier, whether the recommended workload sits inside historically observed support). It does NOT express a likelihood that the MPG recommendation is win-optimal.',
     framing: 'Outputs are recommendations from this heuristic. A positive value means TULIP Beta flags the player as underutilized under its own model; it is not an established finding about how the team is using him.',
     zeroSum: 'Recommended minutes conserve each eligible roster ledger: every minute granted is sourced from a team-mate.',
