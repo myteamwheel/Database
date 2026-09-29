@@ -57,6 +57,7 @@ jobs:
         run: |
           node scripts/tulip-verify.mjs
           npm run test:tulipbeta
+          npm run test:tulipbeta:diagnostics
           npm run test:tulipcapacity
 
       - name: Verify tracked historical products and strict role-feature timing
