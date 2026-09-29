@@ -8,6 +8,8 @@ on:
       - 'scripts/lib/tulip-beta.mjs'
       - 'scripts/lib/tulip-beta-diagnostics.mjs'
       - 'app.js'
+      - 'tests/tulip-beta.test.mjs'
+      - 'tests/tulip-beta-diagnostics.test.mjs'
       - '.github/workflows/tulip-beta-artifact-sync.yml'
 
 permissions:
