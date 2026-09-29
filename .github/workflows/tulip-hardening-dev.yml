@@ -25,6 +25,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+      - name: Rebuild current database artifact
+        run: npm run build:data
+
       - name: Run focused TULIP hardening tests
         run: |
           node tests/tulip-rotation-hardening.test.mjs
