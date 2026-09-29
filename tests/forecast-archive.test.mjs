@@ -324,6 +324,15 @@ test('deriveCohorts depends only on archived pre-outcome fields', () => {
   assert.ok(deriveCohorts(archivedRow(4,{status:'unsigned'})).includes('unsigned-at-forecast'));
 });
 
+test('cohort score groups report explicit sample size', () => {
+  const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[
+    archivedRow(1,{status:'new'}), archivedRow(2,{status:'same'})
+  ]};
+  const out=scoreArchive(archive,actualFile([actualRow(1),actualRow(2)]));
+  assert.equal(out.leagues.NBA.cohorts['new-team'].n,1);
+  assert.equal(out.leagues.NBA.cohorts['same-team'].n,1);
+});
+
 test('interim scoring requires explicit opt-in and omits GP', () => {
   const archive={schemaVersion:1,forecastId:'f',season:'2026-27',players:[archivedRow(1)]};
   const interim=actualFile([actualRow(1,{gp:20})],'interim');
