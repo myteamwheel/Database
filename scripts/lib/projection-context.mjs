@@ -33,6 +33,74 @@ export function reconcileMinutes(rows, budget = 240) {
     excessFloor: Math.max(0, floor - budget), players: rows.length };
 }
 
+
+/** Evaluate only the minute-reconciliation layer on already-projected held-out rows.
+ * Rates are held fixed; per-game box-score stats scale only with the reconciled MPG.
+ * This deliberately does not claim validation for rookies, returners, injuries or availability.
+ */
+export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('Held-out reconciliation rows are required.');
+  const clones = rows.map((row) => {
+    if (!row?.team || !Number.isFinite(row.mpg) || !Number.isFinite(row.share) || !row.line || !row.actual) {
+      throw new Error('Held-out reconciliation row is missing team, minutes, share, line or actual.');
+    }
+    return { ...row, pr: { ...(row.pr || {}) }, line: { ...row.line }, actual: { ...row.actual },
+      originalMpg: row.mpg, originalEffective: row.mpg * row.share };
+  });
+  const groups = new Map();
+  for (const row of clones) {
+    if (!groups.has(row.team)) groups.set(row.team, []);
+    groups.get(row.team).push(row);
+  }
+
+  let exact = 0;
+  let completeTeams = 0;
+  let rosterPlayers = 0;
+  for (const list of groups.values()) {
+    const sizes = list.map((r) => r.rosterSize).filter(Number.isFinite);
+    const rosterSize = sizes.length ? Math.max(...sizes) : list.length;
+    rosterPlayers += rosterSize;
+    if (rosterSize === list.length) completeTeams++;
+    const result = reconcileMinutes(list, budget);
+    if (Math.abs(result.allocated - budget) < 1e-6) exact++;
+    for (const row of list) {
+      const ratio = row.originalMpg > 0 ? row.mpg / row.originalMpg : 1;
+      row.reconciledLine = {
+        mpg: row.mpg,
+        pts: row.line.pts * ratio,
+        reb: row.line.reb * ratio,
+        ast: row.line.ast * ratio,
+      };
+    }
+  }
+
+  const metrics = ['mpg','pts','reb','ast'];
+  const legacy = {}, reconciled = {}, delta = {};
+  for (const key of metrics) {
+    let a = 0, b = 0;
+    for (const row of clones) {
+      if (!Number.isFinite(row.line[key]) || !Number.isFinite(row.reconciledLine[key]) || !Number.isFinite(row.actual[key])) {
+        throw new Error(`Held-out reconciliation metric ${key} is not finite.`);
+      }
+      a += Math.abs(row.line[key] - row.actual[key]);
+      b += Math.abs(row.reconciledLine[key] - row.actual[key]);
+    }
+    legacy[key] = a / clones.length;
+    reconciled[key] = b / clones.length;
+    delta[key] = reconciled[key] - legacy[key];
+  }
+
+  return {
+    n: clones.length,
+    teams: groups.size,
+    population: 'history-eligible held-out players only',
+    teamBudgetCoverage: { exact, teams: groups.size, budget },
+    openingRosterCoverage: { modeledPlayers: clones.length, rosterPlayers, completeTeams, teams: groups.size },
+    mae: { legacy, reconciled, delta },
+    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Missing rookies and returners are reported through opening-roster coverage and are not validated by this result; rates, injuries and availability are held fixed.',
+  };
+}
+
 /** Build only completed, first NBA seasons strictly before the forecast year. No target
  * outcomes enter the cohort. Drafted players with zero first-year minutes remain in the
  * opportunity sample when the index contains them; historical index omissions remain a bias.
