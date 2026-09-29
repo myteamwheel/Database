@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
-import { reconcileMinutes, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
+import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
@@ -272,6 +272,19 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     unrelatedJump < 0.25, `largest unrelated jump ${unrelatedJump}`);
   check('all sensitivity scenarios remain inside feasible player bounds',
     [...roleUp,...avail,...sample,...tiny].every(r=>r.mpg>=1-1e-9 && r.mpg<=40+1e-9));
+  const incompleteBudget = reconciliationBudget(
+    Array.from({length:8},()=>({mpg:25,share:1})), {rosterPlayers:10, fullBudget:240});
+  check('incomplete roster coverage does not force projected players upward to fill unknown minutes',
+    incompleteBudget.requestedBudget === 200
+      && incompleteBudget.unprojectedRosterPlayers === 2
+      && incompleteBudget.unmodeledReserve === 40);
+  const completeBudget = reconciliationBudget(
+    Array.from({length:8},()=>({mpg:25,share:1})), {rosterPlayers:8, fullBudget:240});
+  check('complete roster coverage still reconciles to the full team budget',
+    completeBudget.requestedBudget === 240
+      && completeBudget.unprojectedRosterPlayers === 0
+      && completeBudget.unmodeledReserve === 0);
+
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
