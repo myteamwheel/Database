@@ -6,6 +6,34 @@ export const CONTEXT_VERSION = 'context-1';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 
+/** Decide how much of the 240-minute team budget may be allocated without inventing
+ * minutes for roster members who have no projection. Complete rosters use the full budget.
+ * Incomplete rosters may be reconciled downward, but never upward beyond their modeled demand. */
+export function reconciliationBudget(rows, { rosterPlayers = rows?.length || 0, fullBudget = 240 } = {}) {
+  if (!Array.isArray(rows)) throw new Error('Reconciliation rows are required.');
+  if (!Number.isInteger(rosterPlayers) || rosterPlayers < rows.length) {
+    throw new Error('Roster player count cannot be smaller than projected rows.');
+  }
+  if (!Number.isFinite(fullBudget) || fullBudget <= 0) throw new Error('Full team budget must be positive.');
+  const modeledDemand = rows.reduce((s, r) => {
+    if (!Number.isFinite(r?.mpg) || !Number.isFinite(r?.share) || r.mpg < 0 || r.share < 0) {
+      throw new Error('Reconciliation budget requires finite non-negative MPG and share.');
+    }
+    return s + r.mpg * r.share;
+  }, 0);
+  const unprojectedRosterPlayers = Math.max(0, rosterPlayers - rows.length);
+  const requestedBudget = unprojectedRosterPlayers > 0 ? Math.min(fullBudget, modeledDemand) : fullBudget;
+  return {
+    fullBudget,
+    requestedBudget,
+    modeledDemand,
+    projectedPlayers: rows.length,
+    rosterPlayers,
+    unprojectedRosterPlayers,
+    unmodeledReserve: Math.max(0, fullBudget - requestedBudget),
+  };
+}
+
 /** Minimise a weighted squared adjustment subject to bounds and a team-minute budget.
  * Effective minutes = MPG when playing * expected fraction of games played.
  * Lower-certainty roles can move further. This is accounting, not fitted predictive skill.
