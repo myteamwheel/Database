@@ -27,7 +27,7 @@ const throws = (fn, pattern) => {
 if (importError) {
   check('forecast archive module exists', false, importError.message);
 } else {
-  const { sha256, projectionIdentity, extractArchivedPlayer, validateArchive } = mod;
+  const { sha256, projectionIdentity, extractArchivedPlayer, validateArchive, nbaBaselines, gleagueBaseline } = mod;
 
   check('sha256 is deterministic',
     sha256('abc') === crypto.createHash('sha256').update('abc').digest('hex'));
@@ -169,6 +169,68 @@ if (importError) {
     throws(() => validateArchive({ ...baseArchive, leagues: { NBA: [invalidProjection({ reb: 9 })], GLEAGUE: [] } }), /reb/i));
   check('points accounting mismatch is rejected',
     throws(() => validateArchive({ ...baseArchive, leagues: { NBA: [invalidProjection({ pts: 99 })], GLEAGUE: [] } }), /points|pts/i));
+
+  const seasonRow = (season, gp, mpg, pts, shotScale = 1) => ({
+    season, team: 'PHI', gp, min: gp * mpg,
+    pts: gp * pts,
+    oreb: gp * 1, dreb: gp * 4,
+    ast: gp * 3, stl: gp * 1, blk: gp * 0.5, tov: gp * 2, pf: gp * 2,
+    fgm: gp * 4 * shotScale, fga: gp * 8 * shotScale,
+    fg3m: gp * 1 * shotScale, fg3a: gp * 3 * shotScale,
+    ftm: gp * 2 * shotScale, fta: gp * 2.5 * shotScale,
+  });
+  const nbaD = {
+    nba: {
+      seasons: new Map([
+        ['2025-26', new Map([[999, seasonRow('2025-26', 10, 20, 10, 1)]])],
+        ['2024-25', new Map([[999, seasonRow('2024-25', 20, 15, 8, 2)]])],
+        ['2023-24', new Map([[999, seasonRow('2023-24', 30, 10, 6, 3)]])],
+      ]),
+      teamGames: () => 82,
+    },
+    gleague: {
+      seasons: new Map([
+        ['2025-26', new Map([[999, seasonRow('2025-26', 12, 22, 12, 1)]])],
+      ]),
+      teamGames: () => 50,
+    },
+  };
+
+  check('NBA baseline functions are exported', typeof nbaBaselines === 'function');
+  check('G League baseline function is exported', typeof gleagueBaseline === 'function');
+
+  if (typeof nbaBaselines === 'function') {
+    const b = nbaBaselines(nbaD, 999, '2026-27');
+    check('repeat baseline uses the most recent recent season',
+      Math.abs(b.repeat.pts - 10) < 1e-12
+        && Math.abs(b.repeat.mpg - 20) < 1e-12
+        && Math.abs(b.repeat.gp - 10) < 1e-12);
+    check('NBA avg3 uses exact 5/4/3 x games weighting',
+      Math.abs(b.avg3.pts - 7.636363636363637) < 1e-12
+        && Math.abs(b.avg3.mpg - 14.090909090909092) < 1e-12
+        && Math.abs(b.avg3.gp - 18.333333333333332) < 1e-12);
+    check('NBA avg3 shooting percentages use weighted makes and attempts',
+      Math.abs(b.avg3.fgPct - 0.5) < 1e-12
+        && Math.abs(b.avg3.fg3Pct - (1 / 3)) < 1e-12
+        && Math.abs(b.avg3.ftPct - 0.8) < 1e-12);
+
+    const noRecent = {
+      nba: { seasons: new Map([['2022-23', new Map([[999, seasonRow('2022-23', 40, 20, 15)]])]]), teamGames: () => 82 }
+    };
+    const missing = nbaBaselines(noRecent, 999, '2026-27');
+    check('NBA naive baselines do not reach back beyond the recent three-year window',
+      missing.repeat === null && missing.avg3 === null);
+  }
+
+  if (typeof gleagueBaseline === 'function') {
+    const g = gleagueBaseline(nbaD, 999, '2026-27', 50);
+    check('G League archive baseline exposes repeat only',
+      Math.abs(g.repeat.pts - 12) < 1e-12
+        && Math.abs(g.repeat.mpg - 22) < 1e-12
+        && Math.abs(g.repeat.gp - 12) < 1e-12
+        && !('avg3' in g));
+  }
+
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
