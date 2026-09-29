@@ -370,7 +370,7 @@ test('score CLI emits deterministic JSON and writes identical --out', () => {
 test('verifyArchiveDirectory accepts a valid manifest and snapshot', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-ok-'));
   try {
-    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[]};
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[],counts:{byLeague:{},projected:0,abstained:0,baselineAvailable:{repeat:0,avg3:0}}};
     writeArchiveFiles(root,archive);
     const out=verifyArchiveDirectory({rootDir:root});
     assert.equal(out.snapshots,1);
@@ -381,7 +381,7 @@ test('verifyArchiveDirectory accepts a valid manifest and snapshot', () => {
 test('verifyArchiveDirectory fails on manifest hash mismatch and missing file', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-bad-'));
   try {
-    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[]};
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[],counts:{byLeague:{},projected:0,abstained:0,baselineAvailable:{repeat:0,avg3:0}}};
     writeArchiveFiles(root,archive);
     const indexPath=path.join(root,'index.json');
     const index=JSON.parse(fs.readFileSync(indexPath,'utf8'));
@@ -398,7 +398,7 @@ test('verifyArchiveDirectory fails on manifest hash mismatch and missing file', 
 test('verifyArchiveDirectory fails duplicate manifest ids and bad manifest counts', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-dupe-'));
   try {
-    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[]};
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',model:{id:'m1'},sources:{},players:[],counts:{byLeague:{},projected:0,abstained:0,baselineAvailable:{repeat:0,avg3:0}}};
     writeArchiveFiles(root,archive);
     const indexPath=path.join(root,'index.json');
     const index=JSON.parse(fs.readFileSync(indexPath,'utf8'));
