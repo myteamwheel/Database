@@ -1,0 +1,29 @@
+name: TULIP beta feasibility development tests
+
+on:
+  pull_request:
+    branches: [projection-model-rebuild-next]
+    paths:
+      - 'scripts/lib/tulip-beta.mjs'
+      - 'scripts/lib/tulip-beta-diagnostics.mjs'
+      - 'scripts/build-v3.mjs'
+      - 'tests/tulip-beta.test.mjs'
+      - 'tests/tulip-beta-diagnostics.test.mjs'
+      - 'app.js'
+      - 'docs/MODEL_REBUILD_CHECKLIST.md'
+      - 'docs/superpowers/plans/2026-09-29-tulip-beta-feasibility-validation.md'
+      - '.github/workflows/tulip-beta-feasibility-dev.yml'
+
+jobs:
+  tulip-beta-feasibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Run TULIP feasibility diagnostics tests
+        run: node tests/tulip-beta-diagnostics.test.mjs
