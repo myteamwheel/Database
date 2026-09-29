@@ -11,6 +11,7 @@ on:
       - 'scripts/fit-projections.mjs'
       - 'tests/forecast-timeframes.test.mjs'
       - 'tests/projection.test.mjs'
+      - 'tests/projection-validation.test.mjs'
       - 'PROJECTION_2026_27.json'
       - 'package.json'
       - '.github/workflows/projection-hardening-dev.yml'
@@ -30,4 +31,5 @@ jobs:
       - name: Run projection hardening tests
         run: |
           node tests/forecast-timeframes.test.mjs
+          node tests/projection-validation.test.mjs
           npm run test:projections
