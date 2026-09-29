@@ -24,6 +24,7 @@ on:
       - 'styles.css'
       - 'public/**'
       - 'scripts/**'
+      - '!scripts/data/forecast-archive/**'
       - 'tests/**'
       - 'PROJECTION_2026_27.json'
       - '.github/workflows/deploy-pages.yml'
