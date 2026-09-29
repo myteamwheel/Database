@@ -4,8 +4,7 @@ let pass=0, fail=0;
 const check=(name,ok,detail='')=>{ if(ok){pass++;console.log(`  ok   ${name}`);}else{fail++;console.log(`  FAIL ${name}${detail?' :: '+detail:''}`);} };
 const throws=(fn,re)=>{try{fn();return false;}catch(e){return re?re.test(String(e.message||e)):true;}};
 
-const make = (ftValue=1) => {
-  const gp=70, fgm=8, fg3m=2, fga=16, fg3a=6, ftm=4, fta=5, oreb=1.2, dreb=5.3;
+const make = (ftValue=1,gp=70) => { fgm=8, fg3m=2, fga=16, fg3a=6, ftm=4, fta=5, oreb=1.2, dreb=5.3;
   const pts=2*(fgm-fg3m)+3*fg3m+ftm*ftValue;
   const reb=oreb+dreb;
   return {
@@ -25,11 +24,11 @@ const make = (ftValue=1) => {
 };
 
 check('valid NBA projection accounting passes', validateProjectionAccounting(make(1), {league:'NBA',scheduledGames:82}) === true);
-check('valid G League nonstandard free throw value passes', validateProjectionAccounting(make(1.67), {league:'GLEAGUE',scheduledGames:50}) === true);
+check('valid G League nonstandard free throw value passes', validateProjectionAccounting(make(1.67,40), {league:'GLEAGUE',scheduledGames:50}) === true);
 check('makes cannot exceed attempts', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fgm:17}}, {league:'NBA',scheduledGames:82}), /fgm|fga/i));
 check('3PM cannot exceed FGM', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fg3m:9}}, {league:'NBA',scheduledGames:82}), /3pm|fg3m|fgm/i));
 check('rebounds must reconcile', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,reb:99}}, {league:'NBA',scheduledGames:82}), /reb/i));
-check('points respect stored free throw value', throws(()=>validateProjectionAccounting({...make(1.67),accounting:{...make(1.67).accounting,pts:10}}, {league:'GLEAGUE',scheduledGames:50}), /pts|points/i));
+check('points respect stored free throw value', throws(()=>validateProjectionAccounting({...make(1.67,40),accounting:{...make(1.67,40).accounting,pts:10}}, {league:'GLEAGUE',scheduledGames:50}), /pts|points/i));
 check('field goal percentage derives from accounting', throws(()=>validateProjectionAccounting({...make(),fgPct:.9}, {league:'NBA',scheduledGames:82}), /fg.*percent|fgPct/i));
 check('three point percentage derives from accounting', throws(()=>validateProjectionAccounting({...make(),fg3Pct:.9}, {league:'NBA',scheduledGames:82}), /3.*percent|fg3Pct/i));
 check('free throw percentage derives from accounting', throws(()=>validateProjectionAccounting({...make(),ftPct:.9}, {league:'NBA',scheduledGames:82}), /free.*percent|ftPct/i));
