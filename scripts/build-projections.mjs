@@ -38,9 +38,20 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
   const D = prepare(inputs);
   const rookies = rookieCohort(D, T);
   const teamBudgets = {};
-  const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
-  const r2 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
-  const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
+  // V8's libm can differ by a few ulps across macOS and Linux. Snap values that are only
+  // machine-noise away from a half-step before rounding, so the committed artifact rebuilds
+  // identically on developer machines and GitHub Actions. This changes no meaningful precision.
+  const stableRound = (v, places) => {
+    if (!Number.isFinite(v)) return null;
+    const scale = 10 ** places;
+    const scaled = v * scale;
+    const halfStep = Math.floor(scaled) + 0.5;
+    const snapped = Math.abs(scaled - halfStep) <= 1e-9 ? halfStep : scaled;
+    return Math.round(snapped) / scale;
+  };
+  const r1 = (v) => stableRound(v, 1);
+  const r2 = (v) => stableRound(v, 2);
+  const r3 = (v) => stableRound(v, 3);
 
   /** Points per 100 possessions implied by a set of rates and percentages. */
   function pts100(rate, pct, ftValue) {
