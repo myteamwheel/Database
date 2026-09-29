@@ -25,5 +25,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+      - name: Rebuild TULIP payload from source
+        run: npm run build:data
+
       - name: Run TULIP feasibility diagnostics tests
-        run: node tests/tulip-beta-diagnostics.test.mjs
+        run: |
+          node tests/tulip-beta-diagnostics.test.mjs
+          npm run test:tulipbeta
