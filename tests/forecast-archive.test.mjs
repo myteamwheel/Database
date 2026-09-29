@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { captureForecast, writeArchiveFiles, readGitFile } from '../scripts/archive-forecast.mjs';
-import { verifyArchiveDirectory, validateArchiveDiff } from '../scripts/verify-forecast-archive.mjs';
+import { verifyArchiveDirectory, validateArchiveDiff, verifySnapshotAgainstRelease } from '../scripts/verify-forecast-archive.mjs';
 import {
   sha256,
   projectionIdentity,
@@ -415,6 +415,29 @@ test('validateArchiveDiff rejects mutation deletion and rename of snapshots', ()
 
 test('validateArchiveDiff ignores unrelated paths', () => {
   assert.doesNotThrow(()=>validateArchiveDiff([{status:'M',path:'scripts/build-projections.mjs'}]));
+});
+
+
+
+test('verifySnapshotAgainstRelease proves archived rows and source hashes match frozen release', () => {
+  const rawData=Buffer.from(JSON.stringify(releaseData));
+  const rawCard=Buffer.from(JSON.stringify(releaseCard));
+  const rawInputs=Buffer.from(JSON.stringify(releaseInputs));
+  const sources={
+    'public/data.json':{present:true,sha256:sha256(rawData)},
+    'PROJECTION_2026_27.json':{present:true,sha256:sha256(rawCard)},
+    'scripts/data/projection/inputs.json':{present:true,sha256:sha256(rawInputs)},
+    'scripts/data/live/roster.json':{present:false,sha256:null},
+  };
+  const archive=buildArchive({data:structuredClone(releaseData),card:releaseCard,rawInputs,sourceCommit:'abc123',
+    publishedAt:'2026-09-29',publicationBasis:'verified-release-date',forecastId:'fixture',sources});
+  assert.doesNotThrow(()=>verifySnapshotAgainstRelease({archive,releaseData,rawSources:{
+    'public/data.json':rawData,'PROJECTION_2026_27.json':rawCard,'scripts/data/projection/inputs.json':rawInputs,'scripts/data/live/roster.json':null,
+  }}));
+  archive.players.find(x=>x.identity==='NBA:7').projection.pts=999;
+  assert.throws(()=>verifySnapshotAgainstRelease({archive,releaseData,rawSources:{
+    'public/data.json':rawData,'PROJECTION_2026_27.json':rawCard,'scripts/data/projection/inputs.json':rawInputs,'scripts/data/live/roster.json':null,
+  }}),/release projection mismatch/i);
 });
 
 if (!process.exitCode) console.log(`ALL PASS · ${pass} tests`);
