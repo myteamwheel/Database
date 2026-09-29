@@ -1,4 +1,5 @@
 name: Forecast archive baseline equivalence
+# rerun after full-rebuild verifier
 
 on:
   pull_request:
