@@ -65,6 +65,11 @@ jobs:
       - name: Verify starter reconstruction/precedence invariants
         run: npm run test:starter
 
+      - name: Verify forecast archive integrity
+        run: |
+          npm run test:forecast-archive
+          npm run verify:forecast-archive
+
       - name: Verify the published artifact is a lossless encoding
         run: node scripts/verify-artifact.mjs
 
