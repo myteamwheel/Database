@@ -5,6 +5,7 @@ on:
     branches: [main, v3-official-data]
     paths:
       - 'scripts/**'
+      - '!scripts/data/forecast-archive/**'
       - '!scripts/data/history/player_history_product.json'
       - 'app.js'
       - 'workspace.js'
