@@ -78,6 +78,7 @@ Verified engineering and evidence status in this section:
 - Frozen research status is machine-readable in the product: DEV reduced form -0.127 pts/SD and Anderson-Rubin 95% CI [-1.756, 1.021]. Neither the play-more/play-less direction nor the exact MPG magnitude is validated as a win prescription.
 - The separate Projected Role MPG historical backtest is explicitly not borrowed as validation of the TULIP Beta allocator.
 - The 2024-25 and 2025-26 chronological TULIP outcome holdouts remain unspent in this section. No new win-optimality claim is made.
+- Final review artifacts are produced by the full stacked build, preserving upstream projection/comparison metadata before `public/data.json` and `public/standalone.html` are committed.
 
 
 - PR #18 artifact-integrity follow-up: the TULIP artifact-sync workflow now runs the full repository build before committing `public/data.json` and `public/standalone.html`, so projection metadata, cross-league enrichment and comparison products cannot be stripped by a TULIP-only rebuild. The sync gate also runs TULIP diagnostics, projection tests and lossless-artifact verification before committing.
