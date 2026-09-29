@@ -48,7 +48,7 @@ export function distributionSummary(rows, thresholds=[3,5,7,10]){
     else support.UNKNOWN++;
     if(p.tulipBeta.extrapolated) extrapolated++;
   }
-  return {scored,abstained,thresholds:out,support,extrapolated};
+  return {scored:scored.length,abstained,thresholds:out,support,extrapolated};
 }
 
 function countBy(rows,key){
