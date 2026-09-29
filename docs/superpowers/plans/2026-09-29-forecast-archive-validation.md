@@ -215,7 +215,8 @@ Run:
 \`\`\`bash
 npm run archive:forecast -- \
   --ref e7182849d62cba46566f3ffafc4c1e620e5ef8ff \
-  --id 2026-27-preseason-2026-09-29-e718284
+  --id 2026-27-preseason-2026-09-29-e718284 \
+  --published-at 2026-09-29
 \`\`\`
 
 Expected: one new snapshot plus \`index.json\`; source commit is the full \`e718284...\` SHA and publication basis is \`source-commit-time\`.
