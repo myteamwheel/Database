@@ -81,6 +81,8 @@ jobs:
         run: |
           npm run test:projections
           node tests/forecast-timeframes.test.mjs
+          node tests/projection-validation.test.mjs
+          node tests/projection-context-reconciliation.test.mjs
           npm run test:forecast-archive
           if [[ "${{ github.event_name }}" == "pull_request" && -n "$PR_BASE_SHA" ]]; then
             npm run verify:forecast-archive -- --base-ref "$PR_BASE_SHA"
