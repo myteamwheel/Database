@@ -3,7 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { sha256, validateArchive, extractArchivedPlayer } from './lib/forecast-archive.mjs';
+import { sha256, validateArchive, extractArchivedPlayer, buildArchive } from './lib/forecast-archive.mjs';
 import { readGitFile } from './archive-forecast.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,6 +45,30 @@ export function verifySnapshotAgainstRelease({ archive, releaseData, rawSources 
   }
   if (archived.size || expectedCount !== (archive.players || []).length) {
     throw new Error(`${archive.forecastId}: archive contains player rows not present in frozen release`);
+  }
+
+  const rawCard=rawSources?.['PROJECTION_2026_27.json'];
+  const rawInputs=rawSources?.['scripts/data/projection/inputs.json'];
+  const rawRoster=rawSources?.[OPTIONAL_RELEASE_SOURCE] ?? null;
+  if (!rawCard || !rawInputs) throw new Error(`${archive.forecastId}: frozen release inputs unavailable for full snapshot verification`);
+  const rebuiltSources=Object.fromEntries(sourcePaths.map(p => {
+    const raw=rawSources?.[p] ?? null;
+    return [p, raw === null ? {present:false,sha256:null} : {present:true,sha256:sha256(raw)}];
+  }));
+  const rebuilt=buildArchive({
+    data: releaseData,
+    card: JSON.parse(rawCard.toString('utf8')),
+    rawInputs,
+    roster: rawRoster ? JSON.parse(rawRoster.toString('utf8')) : null,
+    sourceCommit: archive.sourceCommit,
+    publishedAt: archive.publishedAt,
+    publicationBasis: archive.publicationBasis,
+    forecastId: archive.forecastId,
+    sources: rebuiltSources,
+  });
+  rebuilt.sourceCommitTime=archive.sourceCommitTime ?? null;
+  if (!isDeepStrictEqual(rebuilt,archive)) {
+    throw new Error(`${archive.forecastId}: release snapshot mismatch after full rebuild`);
   }
   return { players: expectedCount, sources: sourcePaths.length };
 }
