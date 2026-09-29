@@ -46,12 +46,14 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     const scale = 10 ** places;
     const scaled = v * scale;
     const halfStep = Math.floor(scaled) + 0.5;
-    const snapped = Math.abs(scaled - halfStep) <= 1e-9 ? halfStep : scaled;
+    const snapTolerance = Math.max(1e-9, Number.EPSILON * Math.max(1, Math.abs(scaled)) * 16);
+    const snapped = Math.abs(scaled - halfStep) <= snapTolerance ? halfStep : scaled;
     return Math.round(snapped) / scale;
   };
   const r1 = (v) => stableRound(v, 1);
   const r2 = (v) => stableRound(v, 2);
   const r3 = (v) => stableRound(v, 3);
+  const r9 = (v) => stableRound(v, 9);
 
   /** Points per 100 possessions implied by a set of rates and percentages. */
   function pts100(rate, pct, ftValue) {
@@ -152,6 +154,13 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
       const [mpgLo, mpgHi] = band(bands, 'mpg', line.mpg);
       const [gpLo, gpHi] = band(bands, 'gp', r.games);
       const coef = card[leagueKey].role.minutes;
+      // Keep the full accounting detail useful without leaking platform-specific floating-point
+      // noise into the published JSON (which is rebuilt on both macOS and Linux).
+      const accounting = Object.fromEntries(Object.entries(line).map(([key, value]) =>
+        [key, Number.isFinite(value) ? r9(value) : value]));
+      accounting.ftValue = r9(ftV);
+      accounting.totals = Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm']
+        .map((key) => [key, r9(line[key] * r.games)]));
       const seasonsUsed = r.hist.map((h, i) => {
         if (!h) return null;
         const elapsed = h.season ? Math.max(1, Number(T.slice(0, 4)) - Number(h.season.slice(0, 4))) : i + 1;
@@ -171,7 +180,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         gp: r1(r.games), mpg: r1(line.mpg), pts: r1(line.pts), reb: r1(line.reb), oreb: r1(line.oreb), dreb: r1(line.dreb),
         ast: r1(line.ast), stl: r1(line.stl), blk: r1(line.blk), tov: r1(line.tov), fg3m: r1(line.fg3m),
         fga: r1(line.fga), fg3a: r1(line.fg3a), fta: r1(line.fta), fgm: r1(line.fgm), ftm: r1(line.ftm),
-        accounting: { ...line, ftValue: ftV, totals: Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm'].map(k => [k, line[k] * r.games])) },
+        accounting,
         fgPct: r3(line.fgPct), fg3Pct: r3(line.fg3Pct), ftPct: r3(line.ftPct), ts: r3(line.ts),
         ptsLo: r1(ptsLo), ptsHi: r1(ptsHi), rebLo: r1(rebLo), rebHi: r1(rebHi), astLo: r1(astLo), astHi: r1(astHi),
         mpgLo: r1(mpgLo), mpgHi: r1(Math.min(isNba ? 42 : 44, mpgHi)), gpLo: r1(gpLo), gpHi: r1(Math.min(games, gpHi)),
