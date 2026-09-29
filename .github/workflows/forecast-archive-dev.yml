@@ -46,6 +46,9 @@ jobs:
             scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
           npm run build:history
 
+      - name: Rebuild source artifact after history hydration
+        run: npm run build
+
       - name: Install Playwright dependencies
         run: |
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
