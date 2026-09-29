@@ -2,10 +2,65 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { sha256, validateArchive } from './lib/forecast-archive.mjs';
+import { isDeepStrictEqual } from 'node:util';
+import { sha256, validateArchive, extractArchivedPlayer } from './lib/forecast-archive.mjs';
+import { readGitFile } from './archive-forecast.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_DIR = path.join(ROOT, 'scripts/data/forecast-archive');
+
+
+const INITIAL_RELEASE = {
+  forecastId: '2026-27-preseason-2026-09-29-e718284',
+  ref: 'e7182849d62cba46566f3ffafc4c1e620e5ef8ff',
+  publishedAt: '2026-09-29',
+};
+const REQUIRED_RELEASE_SOURCES = ['public/data.json','PROJECTION_2026_27.json','scripts/data/projection/inputs.json'];
+const OPTIONAL_RELEASE_SOURCE = 'scripts/data/live/roster.json';
+
+export function verifySnapshotAgainstRelease({ archive, releaseData, rawSources }) {
+  const sourcePaths=[...REQUIRED_RELEASE_SOURCES, OPTIONAL_RELEASE_SOURCE];
+  for (const p of sourcePaths) {
+    const raw=rawSources?.[p] ?? null;
+    const recorded=archive.sources?.[p];
+    const present=raw !== null;
+    if (!recorded || recorded.present !== present) throw new Error(`${archive.forecastId}: release source presence mismatch for ${p}`);
+    const expectedHash=present ? sha256(raw) : null;
+    if (recorded.sha256 !== expectedHash) throw new Error(`${archive.forecastId}: release source hash mismatch for ${p}`);
+  }
+
+  const archived=new Map((archive.players || []).map(row => [row.identity,row]));
+  let expectedCount=0;
+  for (const league of ['NBA','GLEAGUE']) {
+    for (const player of releaseData.leagues?.[league] || []) {
+      expectedCount++;
+      const expected=extractArchivedPlayer(league,player);
+      const actual=archived.get(expected.identity);
+      if (!actual) throw new Error(`${archive.forecastId}: release projection missing from archive: ${expected.identity}`);
+      const comparable={...actual};
+      delete comparable.baselines;
+      if (!isDeepStrictEqual(comparable,expected)) throw new Error(`${archive.forecastId}: release projection mismatch for ${expected.identity}`);
+      archived.delete(expected.identity);
+    }
+  }
+  if (archived.size || expectedCount !== (archive.players || []).length) {
+    throw new Error(`${archive.forecastId}: archive contains player rows not present in frozen release`);
+  }
+  return { players: expectedCount, sources: sourcePaths.length };
+}
+
+function verifyInitialRelease(rootDir = DEFAULT_DIR) {
+  const file=path.join(rootDir,`${INITIAL_RELEASE.forecastId}.json`);
+  if (!fs.existsSync(file)) return null;
+  const archive=JSON.parse(fs.readFileSync(file,'utf8'));
+  if (archive.sourceCommit !== INITIAL_RELEASE.ref) throw new Error(`${archive.forecastId}: initial release source commit mismatch`);
+  if (archive.publishedAt !== INITIAL_RELEASE.publishedAt) throw new Error(`${archive.forecastId}: initial release publication date mismatch`);
+  const rawSources={};
+  for (const p of REQUIRED_RELEASE_SOURCES) rawSources[p]=readGitFile(INITIAL_RELEASE.ref,p);
+  rawSources[OPTIONAL_RELEASE_SOURCE]=readGitFile(INITIAL_RELEASE.ref,OPTIONAL_RELEASE_SOURCE,{optional:true});
+  const releaseData=JSON.parse(rawSources['public/data.json'].toString('utf8'));
+  return verifySnapshotAgainstRelease({archive,releaseData,rawSources});
+}
 
 function sameJson(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -104,6 +159,7 @@ function parseArgs(argv) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const opts=parseArgs(process.argv.slice(2));
   const result=verifyArchiveDirectory();
+  const release=verifyInitialRelease();
   const changed=opts.baseRef ? verifyAppendOnly(opts.baseRef) : null;
-  console.log(`forecast archive ok · ${result.snapshots} snapshot(s)${changed===null?'':` · append-only diff ${changed} path(s)`}`);
+  console.log(`forecast archive ok · ${result.snapshots} snapshot(s)${release?` · frozen release ${release.players} players verified`:''}${changed===null?'':` · append-only diff ${changed} path(s)`}`);
 }
