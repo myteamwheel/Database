@@ -120,6 +120,19 @@ if(!importError){
     assert.ok(/position(?:al)?\/lineup constraints|positions, or lineup constraints/i.test(app));
     assert.ok(/excluded current-roster players|current-roster players.*excluded/i.test(app));
   });
+
+  t('UI states that TULIP direction as well as magnitude is unvalidated',()=>{
+    assert.ok(/neither[^.]*play-more\/play-less direction[^.]*exact MPG/i.test(app)
+      || /either the play-more\/play-less direction or the exact MPG deltas/i.test(app));
+  });
+
+  console.log('        published TULIP distribution '+JSON.stringify(D.tulipBetaMeta?.distribution));
+  console.log('        team coverage '+JSON.stringify({
+    teams:Object.keys(D.tulipBetaMeta?.teamDiagnostics||{}).length,
+    currentRosterPlayers:Object.values(D.tulipBetaMeta?.teamDiagnostics||{}).reduce((s,x)=>s+x.currentRosterPlayers,0),
+    scoredPlayers:Object.values(D.tulipBetaMeta?.teamDiagnostics||{}).reduce((s,x)=>s+x.scoredPlayers,0),
+    abstainedPlayers:Object.values(D.tulipBetaMeta?.teamDiagnostics||{}).reduce((s,x)=>s+x.abstainedPlayers,0)
+  }));
 }
 
 console.log(`\n${fail===0?'ALL PASS':fail+' FAILURE(S)'} · ${pass} passed`);
