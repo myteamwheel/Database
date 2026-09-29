@@ -13,12 +13,12 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
-  prepare, historyBefore, seasonPriors, teamPaces, leagueRates, projectRates, roleFeatures,
+  prepare, historyBefore, projectionHistory, seasonPriors, teamPaces, leagueRates, projectRates, roleFeatures,
   perGameLine, actualLine, ridge, dot, prevSeason, seasonStart, seasonName, ageInSeason,
   RATE_STATS, PCT_STATS, USAGE_STATS, AGE_MIN, AGE_MAX, MIN_FEATURES, GP_FEATURES, playsPer100,
   applyTeamContext, projectedPace, leagueTrend, rosterDepth, expectedRookieMin,
 } from './lib/projection.mjs';
-import { evaluateMinuteReconciliation } from './lib/projection-context.mjs';
+import { evaluateMinuteReconciliation, historicalRoleProjection } from './lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INPUTS = path.join(ROOT, 'scripts/data/projection/inputs.json');
@@ -541,16 +541,66 @@ const testRows = evaluate(D.nba, NBA_TEST, fitTrain);
 const scAll = score(testRows);
 const scRot = score(testRows, (r) => r.q.actual.min >= 1000);
 const openingRoster = rostersFor(D.nba, NBA_TEST);
-const contextReconciliation = evaluateMinuteReconciliation(testRows.map((r) => ({
-  team: r.q.team,
-  rosterSize: (openingRoster.get(r.q.team) || []).length,
-  playerId: r.q.pid,
-  mpg: r.line.mpg,
-  share: r.share,
-  pr: { baseMin: r.pr.baseMin },
-  line: { mpg: r.line.mpg, pts: r.line.pts, reb: r.line.reb, ast: r.line.ast },
-  actual: (() => { const a = actualLine(r.q.actual); return { mpg: a.mpg, pts: a.pts, reb: a.reb, ast: a.ast }; })(),
-})));
+const scoredByPid = new Map(testRows.map((r) => [r.q.pid, r]));
+const reconciliationRows = [];
+let reconciliationExcludedTeams = 0;
+const heldoutCtx = contextFor(D.nba, NBA_TEST);
+for (const [team, roster] of openingRoster) {
+  const teamRows = [];
+  let supported = true;
+  for (const pid of roster) {
+    const scored = scoredByPid.get(pid);
+    if (scored) {
+      const a = actualLine(scored.q.actual);
+      teamRows.push({
+        team, rosterSize: roster.length, playerId: pid, score: true,
+        mpg: scored.line.mpg, share: scored.share, pr: { baseMin: scored.pr.baseMin },
+        line: { mpg: scored.line.mpg, pts: scored.line.pts, reb: scored.line.reb, ast: scored.line.ast },
+        actual: { mpg: a.mpg, pts: a.pts, reb: a.reb, ast: a.ast },
+      });
+      continue;
+    }
+
+    // Reserve opportunity for opening-roster players who are not in the veteran scoring sample.
+    // These proxies use only information available before the target season and are never scored.
+    const bio = D.bio.get(pid);
+    const history = projectionHistory(D.nba, pid, NBA_TEST);
+    if (history.fallback) {
+      const last = history.hist.find(Boolean);
+      const moved = !!last && team !== last.team;
+      const depth = depthOf(D.nba, NBA_TEST, roster, pid, fitTrain.role.rookie);
+      const pr = projectRates(history.hist, NBA_TEST, bio, heldoutCtx.priors, fitTrain.P, heldoutCtx.trend);
+      const hr = historicalRoleProjection(history.hist, NBA_TEST, bio, D.nba.teamGames, pr,
+        { moved, depth }, fitTrain.role, fitTrain.P, 82);
+      teamRows.push({
+        team, rosterSize: roster.length, playerId: pid, score: false, proxyType: 'older-history-returner',
+        mpg: hr.mpg, share: hr.share, pr: { baseMin: pr.baseMin },
+      });
+      continue;
+    }
+
+    const entryYear = bio?.fromYear || bio?.draftYear;
+    if (entryYear === seasonStart(NBA_TEST)) {
+      const effective = expectedRookieMin(fitTrain.role.rookie, bio);
+      teamRows.push({
+        team, rosterSize: roster.length, playerId: pid, score: false, proxyType: 'rookie',
+        // expectedRookieMin is fitted as effective minutes per team game. Keep that exact base
+        // demand here; the proxy exists only to reserve roster opportunity, not to predict MPG.
+        mpg: Math.max(1, Math.min(36, effective)), share: 1, pr: { baseMin: 0 },
+      });
+      continue;
+    }
+    supported = false;
+    break;
+  }
+  if (supported && teamRows.some((r) => r.score)) reconciliationRows.push(...teamRows);
+  else reconciliationExcludedTeams++;
+}
+const contextReconciliation = evaluateMinuteReconciliation(reconciliationRows, {
+  budget: 240,
+  totalOpeningTeams: openingRoster.size,
+  excludedTeams: reconciliationExcludedTeams,
+});
 report(`${DEV ? 'VALIDATION' : 'TEST'} ${NBA_TEST}, every player with NBA history`, scAll);
 report(`${DEV ? 'VALIDATION' : 'TEST'} ${NBA_TEST}, 1,000+ minutes`, scRot);
 log('  context reconciliation (minute layer only): ' + JSON.stringify(contextReconciliation));
