@@ -1,196 +1,330 @@
 // TULIP BETA — experimental, zero-sum minute-reallocation estimate.
 //
-// ANSWERS: given the players available to a team, how many more or fewer MPG should each receive if
-// the objective is to maximize winning? Displayed as TULIP = Recommended MPG - Current MPG.
+// The model is deliberately split into TWO layers:
+//   A. PLAYER EVALUATION: reliability-shrunk value versus the current team's allocated-minute average.
+//   B. MINUTE ALLOCATION: a heuristic recommendation that applies workload evidence, coarse position
+//      substitution, diminishing marginal priority and a zero-sum roster ledger.
 //
-// EPISTEMIC STATUS, STATED IN CODE BECAUSE IT MATTERS: the DIRECTION rests on team-relative player
-// value; the MAGNITUDE is heuristic. Pre-registered causal testing on 2015-16..2023-24 did NOT
-// establish that these deltas maximize wins (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI
-// [-1.756, 1.021]). This is decision support, not a validated coaching prescription. Do not present
-// it as one.
-//
-// FOUR THINGS SHAPE THE NUMBER, in order:
-//   1. team-relative value    who deserves minutes versus the team-mates actually consuming them
-//   2. workload state         a +1 SD player at 12 MPG and at 34 MPG must not get the same delta
-//   3. role evidence          expansion is attenuated where history does not support that workload,
-//                            but historical workload is not a hard cap on a breakout recommendation
-//   4. zero-sum allocation    every minute granted is sourced from a team-mate; the ledger conserves
+// EPISTEMIC STATUS: historical causal testing did NOT establish that the exact minute deltas maximize
+// wins. The allocator is decision support, not a validated coaching prescription.
 
 export const BETA_CONFIG = {
-  version: 'tulip-beta-support-v2',
-  shrinkMinutes: 400,      // BPM shrinkage toward league mean for small samples
-  minMinutes: 200,         // below this a player is not an allocation candidate
+  version: 'tulip-beta-position-diminishing-v3',
+  evaluationVersion: 'team-relative-value-v1',
+  allocationVersion: 'position-aware-diminishing-v3',
+  shrinkMinutes: 400,
+  minMinutes: 200,
   minMpg: 0.5,
-  minutesPerSd: 10.0,      // HEURISTIC starting movement per SD of team-relative value.
-                           // There is deliberately NO arbitrary +/-8 MPG delta clamp. The actual
-                           // bounds come from workload evidence, a 0-40 MPG feasible range, and the
-                           // roster's zero-sum minute supply.
-  floorMpg: 0,             // a player may be recommended out of the rotation when the signal is strong
-  ceilingHardCap: 40.0,    // feasible NBA workload ceiling; not an +/- delta cap
+  minutesPerSd: 10.0,
+  floorMpg: 0,
+  ceilingHardCap: 40.0,
+  allocationStepMpg: 0.1,
+  // Transparent heuristic: each additional 5 MPG already moved reduces marginal priority.
+  // This is a stabilizer, not a fitted causal coefficient.
+  diminishingScaleMpg: 5.0,
+  positionGuard: 'coarse-roster-family-overlap',
+  availabilityInput: 'explicit-verified-only',
 };
 
 const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+const round1 = (v) => Math.round((Number(v) + Number.EPSILON) * 10) / 10;
+const round2 = (v) => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+const round3 = (v) => Math.round((Number(v) + Number.EPSILON) * 1000) / 1000;
 
-/** Career-high and sustained workload from the compact history block (index 4 = mpg, 3 = gp). */
-function workloadHistory(p) {
-  const rows = Array.isArray(p.history) ? p.history : Object.values(p.history || {});
-  let careerHigh = 0, sustained = 0;
-  for (const r of rows) {
-    if (!Array.isArray(r) || r[1] !== 'Regular Season') continue;
-    const gp = Number(r[3]), mpg = Number(r[4]);
-    if (!fin(gp) || !fin(mpg) || gp < 20) continue;      // a real season, not a cameo
-    if (mpg > careerHigh) careerHigh = mpg;
-    if (gp >= 40 && mpg > sustained) sustained = mpg;    // sustained over a substantial season
-  }
-  return { careerHigh, sustained };
+const POSITION_MAP = { PG:'G', SG:'G', G:'G', SF:'F', PF:'F', F:'F', C:'C' };
+
+export function positionTokens(p) {
+  const raw = p?.positionFamily ?? p?.position;
+  if (!raw) return [];
+  const pieces = String(raw).toUpperCase().split(/[-/,s]+/).map((x) => POSITION_MAP[x] || null).filter(Boolean);
+  const order = ['G','F','C'];
+  return [...new Set(pieces)].sort((a,b) => order.indexOf(a) - order.indexOf(b));
 }
 
-/** Highest workload at which Role Evidence does NOT abstain. */
+/**
+ * true  -> known compatible position families overlap
+ * false -> known position families do not overlap
+ * null  -> one or both positions are unavailable, so compatibility is unknown rather than guessed
+ */
+export function positionsCompatible(a,b) {
+  const A=positionTokens(a), B=positionTokens(b);
+  if (!A.length || !B.length) return null;
+  return A.some((x) => B.includes(x));
+}
+
+function availabilityState(p) {
+  const a=p?.tulipAvailability;
+  if (a?.verified === true && a.available === false) return 'verified-unavailable';
+  if (a?.verified === true && a.available === true) return 'verified-available';
+  return 'unverified';
+}
+
+function eligiblePlayer(p) {
+  return p?.appeared
+    && fin(p.bpm)
+    && fin(p.mpg)
+    && (p.minutes || 0) >= BETA_CONFIG.minMinutes
+    && Number(p.mpg) >= BETA_CONFIG.minMpg
+    && availabilityState(p) !== 'verified-unavailable';
+}
+
+/**
+ * Layer A only: evaluate each eligible player's reliability-shrunk value relative to the
+ * minute-weighted team average. This function intentionally emits NO recommended minutes.
+ */
+export function tulipValueSignals(roster,{leagueBpm,leagueGapSd}) {
+  if (!fin(leagueBpm) || !fin(leagueGapSd) || Number(leagueGapSd) <= 0) {
+    throw new Error('TULIP requires a finite league mean and positive gap standard deviation');
+  }
+  const elig=(roster || []).filter(eligiblePlayer);
+  if (elig.length < 5) return new Map();
+
+  const shrunk=new Map();
+  for(const p of elig){
+    const m=Number(p.minutes)||0;
+    shrunk.set(String(p.playerId),(m*Number(p.bpm)+BETA_CONFIG.shrinkMinutes*Number(leagueBpm))/(m+BETA_CONFIG.shrinkMinutes));
+  }
+  const totMin=elig.reduce((a,p)=>a+Number(p.mpg),0);
+  const teamAvg=elig.reduce((a,p)=>a+shrunk.get(String(p.playerId))*Number(p.mpg),0)/totMin;
+  return new Map(elig.map((p)=>{
+    const playerId=String(p.playerId);
+    const sh=shrunk.get(playerId);
+    const gap=sh-teamAvg;
+    return [playerId,{
+      playerId,
+      evaluationVersion:BETA_CONFIG.evaluationVersion,
+      shrunkBpm:sh,
+      teamAverageShrunkBpm:teamAvg,
+      valueGap:gap,
+      valueGapSd:gap/Number(leagueGapSd),
+      currentMpg:Number(p.mpg),
+      availability:availabilityState(p),
+      positionTokens:positionTokens(p),
+      positionEvidence:positionTokens(p).length ? 'roster-listed' : 'unavailable',
+    }];
+  }));
+}
+
+/** Career-high and sustained workload from compact history (index 4 = MPG, index 3 = GP). */
+function workloadHistory(p) {
+  const rows=Array.isArray(p.history)?p.history:Object.values(p.history||{});
+  let careerHigh=0,sustained=0;
+  for(const r of rows){
+    if(!Array.isArray(r)||r[1]!=='Regular Season') continue;
+    const gp=Number(r[3]),mpg=Number(r[4]);
+    if(!fin(gp)||!fin(mpg)||gp<20) continue;
+    if(mpg>careerHigh) careerHigh=mpg;
+    if(gp>=40&&mpg>sustained) sustained=mpg;
+  }
+  return {careerHigh,sustained};
+}
+
 function supportedFrontierMpg(p) {
-  const f = (p.tulip && p.tulip.frontier) || [];
-  let best = 0;
-  for (const pt of f) if (!pt.abstain && fin(pt.mpg) && pt.mpg > best) best = pt.mpg;
+  const f=(p.tulip&&p.tulip.frontier)||[];
+  let best=0;
+  for(const pt of f) if(!pt.abstain&&fin(pt.mpg)&&pt.mpg>best) best=pt.mpg;
   return best;
 }
 
-/**
- * Role-evidence multiplier for POSITIVE recommendations only.
- * Negative recommendations are driven by team-relative value and the zero-sum requirement; a player
- * is NOT punished merely because evidence about expanding him is absent.
- */
 function evidenceFactor(p) {
-  const card = p.tulip && p.tulip.card;
-  const tier = card && card.evidenceTier && card.evidenceTier.tier;
-  let f = tier === 'A' ? 1.0 : tier === 'B' ? 0.85 : tier === 'C' ? 0.6 : 0.45;
-  const rsr = p.tulip && p.tulip.roleScaleResponse;
-  // These diagnostics describe overlapping limitations in the SAME role-comparison sample.
-  // Multiplying them counted that weakness repeatedly; use the weakest assessment once.
-  if (rsr && /INSUFFICIENT/i.test(rsr.response || '')) f = Math.min(f, 0.8);
-  const cs = card && card.projection && card.projection.counterfactualSupport;
-  if (cs && cs.status && cs.status !== 'OK') f = Math.min(f, 0.7);
+  const card=p.tulip&&p.tulip.card;
+  const tier=card&&card.evidenceTier&&card.evidenceTier.tier;
+  let f=tier==='A'?1:tier==='B'?0.85:tier==='C'?0.6:0.45;
+  const rsr=p.tulip&&p.tulip.roleScaleResponse;
+  if(rsr&&/INSUFFICIENT/i.test(rsr.response||'')) f=Math.min(f,0.8);
+  const cs=card&&card.projection&&card.projection.counterfactualSupport;
+  if(cs&&cs.status&&cs.status!=='OK') f=Math.min(f,0.7);
   return f;
 }
 
-function confidenceOf(p, finalDelta, ceiling) {
-  const mins = Number(p.minutes) || 0;
-  const tier = p.tulip && p.tulip.card && p.tulip.card.evidenceTier && p.tulip.card.evidenceTier.tier;
-  const inSupport = (Number(p.mpg) + finalDelta) <= ceiling + 0.05;
-  if (mins >= 800 && (tier === 'A' || tier === 'B') && inSupport) return 'HIGH';
-  if (mins >= 300 && (tier === 'A' || tier === 'B' || tier === 'C') && inSupport) return 'MEDIUM';
+function confidenceOf(p,finalDelta,ceiling) {
+  const mins=Number(p.minutes)||0;
+  const tier=p.tulip&&p.tulip.card&&p.tulip.card.evidenceTier&&p.tulip.card.evidenceTier.tier;
+  const inSupport=(Number(p.mpg)+finalDelta)<=ceiling+0.05;
+  if(mins>=800&&(tier==='A'||tier==='B')&&inSupport) return 'HIGH';
+  if(mins>=300&&(tier==='A'||tier==='B'||tier==='C')&&inSupport) return 'MEDIUM';
   return 'LOW';
 }
 
-// Round the two sides to an identical number of tenths. Independent rounding caused the
-// published ledger to create/lose up to 0.3 MPG per team. Largest remainder is deterministic,
-// preserves direction, and never exceeds the feasible workload bounds.
-function roundLedgerSide(rows, targetTenths, sign) {
-  const total = rows.reduce((s, r) => s + Math.abs(r.desired), 0);
-  const quotas = rows.map((r) => {
-    const exact = total ? Math.abs(r.desired) / total * targetTenths : 0;
-    const limit = Math.max(0, Math.floor((sign > 0
-      ? BETA_CONFIG.ceilingHardCap - Number(r.p.mpg) : Number(r.p.mpg)) * 10 + 1e-7));
-    return { r, n: Math.min(Math.floor(exact), limit), fraction: exact % 1, limit };
-  });
-  let left = targetTenths - quotas.reduce((s, q) => s + q.n, 0);
-  quotas.sort((a, b) => b.fraction - a.fraction || String(a.r.p.playerId).localeCompare(String(b.r.p.playerId)));
-  while (left > 0) {
-    let progress = false;
-    for (const q of quotas) if (q.n < q.limit && left > 0) { q.n++; left--; progress = true; }
-    if (!progress) throw new Error('TULIP ledger rounding exceeded feasible workload');
+/** Marginal transfer priority. Strength is absolute team-relative signal in SD units. */
+export function marginalAllocationPriority(strength,movedMpg,scale=BETA_CONFIG.diminishingScaleMpg) {
+  if(!fin(strength)||Number(strength)<0||!fin(movedMpg)||Number(movedMpg)<0||!fin(scale)||Number(scale)<=0) {
+    throw new Error('Marginal allocation priority requires non-negative strength/moved minutes and positive scale');
   }
-  return new Map(quotas.map(({ r, n }) => [r.p.playerId, sign * n / 10]));
+  return Number(strength)/(1+Number(movedMpg)/Number(scale));
+}
+
+function positionMatch(a,b) {
+  const c=positionsCompatible(a.p,b.p);
+  // Unknown position evidence must not be silently treated as "known compatible". It is allowed so
+  // the existing product does not fabricate a hard restriction from missing data, but the output
+  // records that the transfer used unknown compatibility.
+  return c===false?false:true;
+}
+
+function allocateLedger(rows) {
+  const pos=rows.filter((r)=>r.desired>0).map((r)=>({...r,remaining:r.desired,moved:0,partners:new Set(),unknownPartner:false}));
+  const neg=rows.filter((r)=>r.desired<0).map((r)=>({...r,remaining:-r.desired,moved:0,partners:new Set(),unknownPartner:false}));
+  const byId=new Map(rows.map((r)=>[String(r.p.playerId),{delta:0,partners:new Set(),unknownPartner:false}]));
+  const step=BETA_CONFIG.allocationStepMpg;
+  let iterations=0;
+
+  while(true){
+    let best=null;
+    for(const g of pos){
+      if(g.remaining<step-1e-9) continue;
+      for(const d of neg){
+        if(d.remaining<step-1e-9) continue;
+        if(!positionMatch(g,d)) continue;
+        const compatibility=positionsCompatible(g.p,d.p);
+        const gp=marginalAllocationPriority(Math.abs(g.gapSd),g.moved);
+        const dp=marginalAllocationPriority(Math.abs(d.gapSd),d.moved);
+        const score=gp+dp;
+        const key=`${String(g.p.playerId)}|${String(d.p.playerId)}`;
+        if(!best||score>best.score+1e-12||(Math.abs(score-best.score)<=1e-12&&key<best.key)) {
+          best={g,d,score,key,compatibility};
+        }
+      }
+    }
+    if(!best) break;
+    best.g.remaining-=step; best.d.remaining-=step;
+    best.g.moved+=step; best.d.moved+=step;
+    best.g.partners.add(String(best.d.p.playerId));
+    best.d.partners.add(String(best.g.p.playerId));
+    if(best.compatibility===null){best.g.unknownPartner=true;best.d.unknownPartner=true;}
+    const go=byId.get(String(best.g.p.playerId)), dn=byId.get(String(best.d.p.playerId));
+    go.delta+=step; dn.delta-=step;
+    go.partners.add(String(best.d.p.playerId)); dn.partners.add(String(best.g.p.playerId));
+    if(best.compatibility===null){go.unknownPartner=true;dn.unknownPartner=true;}
+    iterations++;
+    if(iterations>20000) throw new Error('TULIP allocation exceeded iteration safety bound');
+  }
+
+  const remainingOpposite=(row,sign)=>{
+    const others=sign>0?neg:pos;
+    return others.some((x)=>x.remaining>=step-1e-9);
+  };
+  const hasCompatibleRemaining=(row,sign)=>{
+    const others=sign>0?neg:pos;
+    return others.some((x)=>x.remaining>=step-1e-9&&positionMatch(sign>0?row:x,sign>0?x:row));
+  };
+
+  for(const g of pos){
+    const o=byId.get(String(g.p.playerId));
+    o.positionLimited=g.remaining>=step-1e-9&&remainingOpposite(g,1)&&!hasCompatibleRemaining(g,1);
+  }
+  for(const d of neg){
+    const o=byId.get(String(d.p.playerId));
+    o.positionLimited=d.remaining>=step-1e-9&&remainingOpposite(d,-1)&&!hasCompatibleRemaining(d,-1);
+  }
+  return {byId,iterations};
+}
+
+export function tulipDistribution(rows) {
+  const vals=(rows||[]).map((x)=>Number(x?.tulip)).filter(Number.isFinite);
+  const thresholds=[3,5,7,10];
+  const absoluteAtLeast={},positiveAtLeast={},negativeAtLeast={};
+  for(const n of thresholds){
+    absoluteAtLeast[n]=vals.filter((v)=>Math.abs(v)>=n-1e-9).length;
+    positiveAtLeast[n]=vals.filter((v)=>v>=n-1e-9).length;
+    negativeAtLeast[n]=vals.filter((v)=>v<=-n+1e-9).length;
+  }
+  return {players:vals.length,absoluteAtLeast,positiveAtLeast,negativeAtLeast,quotaApplied:false};
 }
 
 /**
- * Compute TULIP Beta for one team's eligible roster. Returns a map playerId -> beta object.
- * The ledger conserves exactly: the sum of positive deltas equals the sum of negative deltas.
+ * Layer B: transform pure player-value signals into a workload recommendation.
+ * Every moved 0.1 MPG is funded by an opposite-direction team-mate.
  */
-export function tulipBetaForTeam(roster, { leagueBpm, leagueGapSd }) {
-  if (!fin(leagueBpm) || !fin(leagueGapSd) || Number(leagueGapSd) <= 0)
-    throw new Error('TULIP requires a finite league mean and positive gap standard deviation');
-  const elig = roster.filter((p) => p.appeared && fin(p.bpm) && fin(p.mpg)
-    && (p.minutes || 0) >= BETA_CONFIG.minMinutes && p.mpg >= BETA_CONFIG.minMpg);
-  if (elig.length < 5) return new Map();
+export function tulipBetaForTeam(roster,{leagueBpm,leagueGapSd}) {
+  const signals=tulipValueSignals(roster,{leagueBpm,leagueGapSd});
+  if(!signals.size) return new Map();
+  const byId=new Map((roster||[]).map((p)=>[String(p.playerId),p]));
+  const rows=[];
 
-  const shrunk = new Map();
-  for (const p of elig) {
-    const m = Number(p.minutes) || 0;
-    shrunk.set(p.playerId, (m * Number(p.bpm) + BETA_CONFIG.shrinkMinutes * leagueBpm) / (m + BETA_CONFIG.shrinkMinutes));
-  }
-  const totMin = elig.reduce((a, p) => a + Number(p.mpg), 0);
-  const teamAvg = elig.reduce((a, p) => a + shrunk.get(p.playerId) * Number(p.mpg), 0) / totMin;
+  for(const [id,sig] of signals){
+    const p=byId.get(id);
+    const rawSignalDelta=sig.valueGapSd*BETA_CONFIG.minutesPerSd;
+    let desired=rawSignalDelta;
+    const wh=workloadHistory(p);
+    const ceiling=Math.min(BETA_CONFIG.ceilingHardCap,
+      Math.max(Number(p.mpg),wh.careerHigh,wh.sustained,supportedFrontierMpg(p)));
+    const headUp=Math.max(0,BETA_CONFIG.ceilingHardCap-Number(p.mpg));
+    const headDown=Math.max(0,Number(p.mpg)-BETA_CONFIG.floorMpg);
 
-  const rows = [];
-  for (const p of elig) {
-    const gap = shrunk.get(p.playerId) - teamAvg;
-    const gapSd = gap / leagueGapSd;
-    const rawSignalDelta = gapSd * BETA_CONFIG.minutesPerSd;
-    let desired = rawSignalDelta;
-
-    // --- workload state: what has this player actually sustained? ---
-    const wh = workloadHistory(p);
-    const ceiling = Math.min(BETA_CONFIG.ceilingHardCap,
-      Math.max(Number(p.mpg), wh.careerHigh, wh.sustained, supportedFrontierMpg(p)));
-    const headUp = Math.max(0, BETA_CONFIG.ceilingHardCap - Number(p.mpg));
-    const headDown = Math.max(0, Number(p.mpg) - BETA_CONFIG.floorMpg);
-
-    let evF = 1, extrapolationFactor = 1, supportedGain = 0;
-    if (desired > 0) {
-      extrapolationFactor = evidenceFactor(p);
-      supportedGain = Math.min(desired, Math.max(0, ceiling - Number(p.mpg)));
-      // Role-expansion uncertainty concerns the part OUTSIDE demonstrated workload. Do not
-      // suppress an already sustained role merely because an expansion-comparison card abstains.
-      const supportedAdjusted = supportedGain + (desired - supportedGain) * extrapolationFactor;
-      evF = supportedAdjusted / desired;
-      desired = Math.min(supportedAdjusted, headUp);
-    } else {
-      desired = Math.max(desired, -headDown);          // cannot take minutes he does not have
+    let evF=1,extrapolationFactor=1,supportedGain=0;
+    if(desired>0){
+      extrapolationFactor=evidenceFactor(p);
+      supportedGain=Math.min(desired,Math.max(0,ceiling-Number(p.mpg)));
+      const supportedAdjusted=supportedGain+(desired-supportedGain)*extrapolationFactor;
+      evF=desired? supportedAdjusted/desired:1;
+      desired=Math.min(supportedAdjusted,headUp);
+    }else{
+      desired=Math.max(desired,-headDown);
     }
-    rows.push({ p, gap, gapSd, rawSignalDelta, desired, ceiling, evF, extrapolationFactor,
-      supportedGain, shrunkBpm: shrunk.get(p.playerId) });
+    rows.push({p,...sig,rawSignalDelta,desired,ceiling,evF,extrapolationFactor,supportedGain});
   }
 
-  // --- zero-sum: every granted minute is sourced from a team-mate ---
-  const pos = rows.filter((r) => r.desired > 0), neg = rows.filter((r) => r.desired < 0);
-  const P = pos.reduce((a, r) => a + r.desired, 0);
-  const N = neg.reduce((a, r) => a - r.desired, 0);
-  const T = Math.min(P, N);                            // only what can actually be sourced moves
-  const positiveCapacity = pos.reduce((s, r) => s + Math.floor(Math.max(0, BETA_CONFIG.ceilingHardCap - Number(r.p.mpg)) * 10 + 1e-7), 0);
-  const negativeCapacity = neg.reduce((s, r) => s + Math.floor(Number(r.p.mpg) * 10 + 1e-7), 0);
-  const tenths = Math.min(Math.floor(T * 10 + 1e-7), positiveCapacity, negativeCapacity);
-  const rounded = new Map([...roundLedgerSide(pos, tenths, 1), ...roundLedgerSide(neg, tenths, -1)]);
-  const out = new Map();
-  for (const r of rows) {
-    let final = 0;
-    if (r.desired > 0 && P > 0) final = r.desired * (T / P);
-    else if (r.desired < 0 && N > 0) final = r.desired * (T / N);
-    const rosterBalanceFactor = r.desired > 0 ? (P > 0 ? T / P : 0)
-      : r.desired < 0 ? (N > 0 ? T / N : 0) : 0;
-    final = rounded.get(r.p.playerId) || 0;
-    const currentMpg = Math.round(Number(r.p.mpg) * 10) / 10;
-    const rec = Math.round((currentMpg + final) * 10) / 10;
-    out.set(r.p.playerId, {
-      tulip: final,
+  const allocation=allocateLedger(rows);
+  const out=new Map();
+  for(const r of rows){
+    const a=allocation.byId.get(String(r.p.playerId))||{delta:0,partners:new Set(),unknownPartner:false,positionLimited:false};
+    const final=round1(a.delta||0);
+    const currentMpg=round1(Number(r.p.mpg));
+    const rec=round1(currentMpg+final);
+    const desired=round1(r.desired);
+    const unfilled=round1(Math.max(0,Math.abs(r.desired)-Math.abs(final)));
+    const rosterBalanceFactor=Math.abs(r.desired)>1e-9?Math.min(1,Math.abs(final/r.desired)):0;
+    const positionKnown=positionTokens(r.p).length>0;
+    const factor=marginalAllocationPriority(1,Math.abs(final),BETA_CONFIG.diminishingScaleMpg);
+
+    out.set(String(r.p.playerId),{
+      tulip:final,
       currentMpg,
-      recommendedMpg: rec,
-      valueGap: Math.round(r.gap * 100) / 100,
-      valueGapSd: Math.round(r.gapSd * 100) / 100,
-      shrunkBpm: Math.round(r.shrunkBpm * 100) / 100,
-      // Trace: reliability-shrunk value -> supported/extrapolated workload -> balanced ledger.
-      rawSignalDelta: Math.round(r.rawSignalDelta * 10) / 10,
-      constrainedDelta: Math.round(r.desired * 10) / 10,
-      rosterBalanceFactor: Math.round(rosterBalanceFactor * 1000) / 1000,
-      supportedCeiling: Math.round(r.ceiling * 10) / 10,
-      evidenceTier: (r.p.tulip && r.p.tulip.card && r.p.tulip.card.evidenceTier && r.p.tulip.card.evidenceTier.tier) || null,
-      evidenceFactor: Math.round(r.evF * 100) / 100,
-      extrapolationFactor: r.extrapolationFactor,
-      supportedGain: Math.round(r.supportedGain * 10) / 10,
-      extrapolated: rec > r.ceiling + 0.05,
-      confidence: confidenceOf(r.p, final, r.ceiling),
-      version: BETA_CONFIG.version,
-      interpretation: 'Experimental reallocation hypothesis; neither direction nor magnitude is validated to improve winning.',
-      abstain: false,
-      status: 'BETA',
+      recommendedMpg:rec,
+
+      // Layer A: player evaluation, independent of the recommendation.
+      evaluation:{
+        version:r.evaluationVersion,
+        shrunkBpm:round2(r.shrunkBpm),
+        teamAverageShrunkBpm:round2(r.teamAverageShrunkBpm),
+        valueGap:round2(r.valueGap),
+        valueGapSd:round2(r.valueGapSd),
+      },
+      valueGap:round2(r.valueGap),
+      valueGapSd:round2(r.valueGapSd),
+      shrunkBpm:round2(r.shrunkBpm),
+
+      // Layer B trace.
+      rawSignalDelta:round1(r.rawSignalDelta),
+      constrainedDelta:desired,
+      requestedDelta:desired,
+      rosterBalanceFactor:round3(rosterBalanceFactor),
+      supportedCeiling:round1(r.ceiling),
+      evidenceTier:(r.p.tulip&&r.p.tulip.card&&r.p.tulip.card.evidenceTier&&r.p.tulip.card.evidenceTier.tier)||null,
+      evidenceFactor:round2(r.evF),
+      extrapolationFactor:r.extrapolationFactor,
+      supportedGain:round1(r.supportedGain),
+      extrapolated:rec>r.ceiling+0.05,
+      confidence:confidenceOf(r.p,final,r.ceiling),
+
+      allocationBasis:BETA_CONFIG.allocationVersion,
+      allocationStepMpg:BETA_CONFIG.allocationStepMpg,
+      diminishingScaleMpg:BETA_CONFIG.diminishingScaleMpg,
+      diminishingFactorFinal:round3(factor),
+      unfilledDesiredMpg:unfilled,
+      positionFamily:positionTokens(r.p).join('-')||null,
+      positionEvidence:positionKnown?'roster-listed':'unavailable',
+      positionLimited:!!a.positionLimited,
+      compatiblePartnerIds:[...a.partners].sort(),
+      usedUnknownPositionCompatibility:!!a.unknownPartner,
+      availability:r.availability,
+      allocationIterations:allocation.iterations,
+
+      version:BETA_CONFIG.version,
+      interpretation:'Experimental two-layer recommendation: player evaluation is separate from a position-aware, diminishing-return, zero-sum allocation heuristic. It is not validated as win-maximizing.',
+      abstain:false,
+      status:'BETA',
     });
   }
   return out;
