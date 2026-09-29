@@ -41,11 +41,22 @@ export function reconcileMinutes(rows, budget = 240) {
 export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('Held-out reconciliation rows are required.');
   const clones = rows.map((row) => {
-    if (!row?.team || !Number.isFinite(row.mpg) || !Number.isFinite(row.share) || !row.line || !row.actual) {
-      throw new Error('Held-out reconciliation row is missing team, minutes, share, line or actual.');
+    if (!row?.team || !Number.isFinite(row.mpg) || !Number.isFinite(row.share)) {
+      throw new Error('Held-out reconciliation row is missing team, minutes or share.');
     }
-    return { ...row, pr: { ...(row.pr || {}) }, line: { ...row.line }, actual: { ...row.actual },
-      originalMpg: row.mpg, originalEffective: row.mpg * row.share };
+    const score = row.score !== false;
+    if (score && (!row.line || !row.actual)) {
+      throw new Error('Scored held-out reconciliation row is missing line or actual.');
+    }
+    return {
+      ...row,
+      score,
+      pr: { ...(row.pr || {}) },
+      line: row.line ? { ...row.line } : null,
+      actual: row.actual ? { ...row.actual } : null,
+      originalMpg: row.mpg,
+      originalEffective: row.mpg * row.share,
+    };
   });
   const groups = new Map();
   for (const row of clones) {
@@ -64,6 +75,7 @@ export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
     const result = reconcileMinutes(list, budget);
     if (Math.abs(result.allocated - budget) < 1e-6) exact++;
     for (const row of list) {
+      if (!row.score) continue;
       const ratio = row.originalMpg > 0 ? row.mpg / row.originalMpg : 1;
       row.reconciledLine = {
         mpg: row.mpg,
@@ -74,30 +86,40 @@ export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
     }
   }
 
+  const scored = clones.filter((r) => r.score);
+  if (!scored.length) throw new Error('Held-out reconciliation requires at least one scoreable history-eligible row.');
   const metrics = ['mpg','pts','reb','ast'];
   const legacy = {}, reconciled = {}, delta = {};
   for (const key of metrics) {
     let a = 0, b = 0;
-    for (const row of clones) {
+    for (const row of scored) {
       if (!Number.isFinite(row.line[key]) || !Number.isFinite(row.reconciledLine[key]) || !Number.isFinite(row.actual[key])) {
         throw new Error(`Held-out reconciliation metric ${key} is not finite.`);
       }
       a += Math.abs(row.line[key] - row.actual[key]);
       b += Math.abs(row.reconciledLine[key] - row.actual[key]);
     }
-    legacy[key] = a / clones.length;
-    reconciled[key] = b / clones.length;
+    legacy[key] = a / scored.length;
+    reconciled[key] = b / scored.length;
     delta[key] = reconciled[key] - legacy[key];
   }
 
+  const proxyPlayers = clones.length - scored.length;
   return {
-    n: clones.length,
+    n: scored.length,
     teams: groups.size,
     population: 'history-eligible held-out players only',
     teamBudgetCoverage: { exact, teams: groups.size, budget },
-    openingRosterCoverage: { modeledPlayers: clones.length, rosterPlayers, completeTeams, teams: groups.size },
+    openingRosterCoverage: {
+      modeledPlayers: clones.length,
+      scoredPlayers: scored.length,
+      proxyPlayers,
+      rosterPlayers,
+      completeTeams,
+      teams: groups.size,
+    },
     mae: { legacy, reconciled, delta },
-    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Missing rookies and returners are reported through opening-roster coverage and are not validated by this result; rates, injuries and availability are held fixed.',
+    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Rookie and returner proxy rows reserve roster minutes but never enter the scored sample; rates, injuries and availability are held fixed.',
   };
 }
 
