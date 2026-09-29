@@ -38,7 +38,7 @@ export function reconcileMinutes(rows, budget = 240) {
  * Rates are held fixed; per-game box-score stats scale only with the reconciled MPG.
  * This deliberately does not claim validation for rookies, returners, injuries or availability.
  */
-export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
+export function evaluateMinuteReconciliation(rows, { budget = 240, totalOpeningTeams = null, excludedTeams = 0 } = {}) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('Held-out reconciliation rows are required.');
   const clones = rows.map((row) => {
     if (!row?.team || !Number.isFinite(row.mpg) || !Number.isFinite(row.share)) {
@@ -48,15 +48,10 @@ export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
     if (score && (!row.line || !row.actual)) {
       throw new Error('Scored held-out reconciliation row is missing line or actual.');
     }
-    return {
-      ...row,
-      score,
-      pr: { ...(row.pr || {}) },
+    return { ...row, score, pr: { ...(row.pr || {}) },
       line: row.line ? { ...row.line } : null,
       actual: row.actual ? { ...row.actual } : null,
-      originalMpg: row.mpg,
-      originalEffective: row.mpg * row.share,
-    };
+      originalMpg: row.mpg, originalEffective: row.mpg * row.share };
   });
   const groups = new Map();
   for (const row of clones) {
@@ -86,8 +81,8 @@ export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
     }
   }
 
-  const scored = clones.filter((r) => r.score);
-  if (!scored.length) throw new Error('Held-out reconciliation requires at least one scoreable history-eligible row.');
+  const scored = clones.filter((row) => row.score);
+  if (!scored.length) throw new Error('Held-out reconciliation requires at least one scored row.');
   const metrics = ['mpg','pts','reb','ast'];
   const legacy = {}, reconciled = {}, delta = {};
   for (const key of metrics) {
@@ -117,9 +112,11 @@ export function evaluateMinuteReconciliation(rows, { budget = 240 } = {}) {
       rosterPlayers,
       completeTeams,
       teams: groups.size,
+      totalOpeningTeams: Number.isFinite(totalOpeningTeams) ? totalOpeningTeams : groups.size + excludedTeams,
+      excludedTeams,
     },
     mae: { legacy, reconciled, delta },
-    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Rookie and returner proxy rows reserve roster minutes but never enter the scored sample; rates, injuries and availability are held fixed.',
+    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Opening-roster rookie and older-history returner proxies reserve minutes but are not scored. Unsupported incomplete teams are excluded; rates, injuries and availability are held fixed.',
   };
 }
 
