@@ -20,6 +20,8 @@
 - NBA baselines must reproduce the existing \`scripts/fit-projections.mjs\` definitions: repeat last season and 5/4/3 game-weighted three-year average.
 - G League gets the currently supported repeat-last-line baseline only.
 - Missing baselines/outcomes remain unavailable; never coerce them to zero.
+- Every snapshot records model id, model/context version, forecast timeframe, roster-as-of date, source commit and raw source hashes from the frozen release.
+- Every manifest entry records league counts plus projected, abstained and baseline-available counts.
 - Scoring always reports coverage/sample counts separately from error.
 - Percentage metrics use the existing held-out test eligibility: actual FGA >=100 for FG%, actual 3PA >=50 for 3P%, actual FTA >=50 for FT%.
 - Final scoring accepts only actual files with \`status: "final"\`; \`status: "interim"\` additionally requires explicit \`--interim\`.
@@ -259,7 +261,8 @@ git commit -m "data: freeze 2026-27 preseason forecast"
 
 Assert on hand-built forecast/actual rows:
 - MAE, RMSE and signed bias are exact;
-- model and each baseline are scored on the same eligible player set per metric;
+- the report includes an all-model sample plus a separate paired model-vs-repeat and model-vs-avg3 sample for each metric;
+- within each paired comparison, model and baseline use the exact same eligible players; a player with no baseline stays in all-model scoring but is excluded from that paired comparison;
 - coverage, abstention and unavailable-baseline counts are separate from error;
 - FG% requires actual FGA >=100, 3P% requires actual 3PA >=50, FT% requires actual FTA >=50;
 - a missing percentage outcome does not remove the player's PTS/REB/etc. scoring;
