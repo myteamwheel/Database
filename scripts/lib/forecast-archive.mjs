@@ -192,3 +192,172 @@ export function gleagueBaseline(D, pid, targetSeason, games) {
     },
   };
 }
+
+
+const SCORE_METRICS = ['gp', 'mpg', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'fg3m', 'fgPct', 'fg3Pct', 'ftPct'];
+const PCT_ATTEMPTS = { fgPct: ['fga', 100], fg3Pct: ['fg3a', 50], ftPct: ['fta', 50] };
+const COHORT_ORDER = [
+  'rookie',
+  'recent-history-veteran',
+  'older-history-returner',
+  'same-team',
+  'new-team',
+  'unsigned-at-forecast',
+  'age-23-and-under',
+  'age-33-and-over',
+  'prior-high-minutes',
+  'prior-lower-minutes',
+];
+
+export function deriveCohorts(player) {
+  const out = [];
+  const rookie = player?.status === 'rookie' || player?.basis === 'rookie-cohort-fallback';
+  if (rookie) out.push('rookie');
+  if (!rookie && player?.basis === 'multi-year-history') out.push('recent-history-veteran');
+  if (player?.basis === 'older-history-fallback') out.push('older-history-returner');
+  if (player?.status === 'same') out.push('same-team');
+  if (player?.status === 'new') out.push('new-team');
+  if (player?.status === 'unsigned') out.push('unsigned-at-forecast');
+  if (Number.isFinite(player?.age) && player.age <= 23) out.push('age-23-and-under');
+  if (Number.isFinite(player?.age) && player.age >= 33) out.push('age-33-and-over');
+  const lastMpg = player?.projection?.why?.minutes?.last;
+  if (Number.isFinite(lastMpg)) out.push(lastMpg >= 24 ? 'prior-high-minutes' : 'prior-lower-minutes');
+  return COHORT_ORDER.filter((name) => out.includes(name));
+}
+
+function eligibleMetric(metric, actual, interim) {
+  if (metric === 'gp' && interim) return false;
+  if (!Number.isFinite(actual?.[metric])) return false;
+  const rule = PCT_ATTEMPTS[metric];
+  if (!rule) return true;
+  const [attemptKey, minimum] = rule;
+  return Number.isFinite(actual?.gp)
+    && Number.isFinite(actual?.[attemptKey])
+    && actual.gp * actual[attemptKey] >= minimum;
+}
+
+function statsFromErrors(errors) {
+  if (!errors.length) return { available: false, n: 0 };
+  const n = errors.length;
+  const abs = errors.reduce((sum, e) => sum + Math.abs(e), 0);
+  const sq = errors.reduce((sum, e) => sum + e * e, 0);
+  const bias = errors.reduce((sum, e) => sum + e, 0);
+  return { available: true, n, mae: abs / n, rmse: Math.sqrt(sq / n), bias: bias / n };
+}
+
+function modelMetric(rows, actualByIdentity, metric, interim) {
+  const errors = [];
+  for (const row of rows) {
+    const actual = actualByIdentity.get(row.identity);
+    const forecast = row?.projection?.[metric];
+    if (!Number.isFinite(forecast) || !eligibleMetric(metric, actual, interim)) continue;
+    errors.push(forecast - actual[metric]);
+  }
+  return statsFromErrors(errors);
+}
+
+function pairedMetric(rows, actualByIdentity, metric, baselineName, interim) {
+  const modelErrors = [];
+  const baselineErrors = [];
+  for (const row of rows) {
+    const actual = actualByIdentity.get(row.identity);
+    const model = row?.projection?.[metric];
+    const baseline = row?.baselines?.[baselineName]?.[metric];
+    if (!Number.isFinite(model) || !Number.isFinite(baseline) || !eligibleMetric(metric, actual, interim)) continue;
+    modelErrors.push(model - actual[metric]);
+    baselineErrors.push(baseline - actual[metric]);
+  }
+  if (!modelErrors.length) return { available: false, n: 0 };
+  return {
+    available: true,
+    n: modelErrors.length,
+    model: statsFromErrors(modelErrors),
+    baseline: statsFromErrors(baselineErrors),
+  };
+}
+
+function scoreGroup(rows, actualByIdentity, league, interim) {
+  const metrics = SCORE_METRICS.filter((metric) => !(interim && metric === 'gp'));
+  const model = {};
+  for (const metric of metrics) model[metric] = modelMetric(rows, actualByIdentity, metric, interim);
+  const paired = {};
+  const baselineNames = league === 'NBA' ? ['repeat', 'avg3'] : ['repeat'];
+  for (const baselineName of baselineNames) {
+    paired[baselineName] = {};
+    for (const metric of metrics) paired[baselineName][metric] = pairedMetric(rows, actualByIdentity, metric, baselineName, interim);
+  }
+  return { model, paired };
+}
+
+function actualIdentityMap(league, rows) {
+  if (!Array.isArray(rows)) throw new Error(`${league}: actual-results league payload must be an array.`);
+  const map = new Map();
+  for (const row of rows) {
+    const identity = projectionIdentity(league, row);
+    if (map.has(identity)) throw new Error(`${league}: duplicate actual-results identity ${identity}.`);
+    map.set(identity, row);
+  }
+  return map;
+}
+
+function baselineCoverage(rows, league) {
+  const result = { repeat: rows.filter((row) => row?.baselines?.repeat).length };
+  if (league === 'NBA') result.avg3 = rows.filter((row) => row?.baselines?.avg3).length;
+  return result;
+}
+
+export function scoreArchive(archive, actuals, { interim = false } = {}) {
+  if (!archive?.season || !actuals?.season || archive.season !== actuals.season) {
+    throw new Error(`Forecast season ${archive?.season || 'missing'} does not match actual season ${actuals?.season || 'missing'}.`);
+  }
+  if (!actuals?.asOf || Number.isNaN(Date.parse(actuals.asOf))) {
+    throw new Error('Actual-results input requires a valid asOf date.');
+  }
+  if (!['final', 'interim'].includes(actuals?.status)) {
+    throw new Error('Actual-results status must be final or interim.');
+  }
+  if (actuals.status === 'interim' && !interim) {
+    throw new Error('Interim actual results require explicit interim scoring mode.');
+  }
+  if (actuals.status === 'final' && interim) {
+    throw new Error('Interim scoring mode cannot be used with final actual results.');
+  }
+
+  const report = {
+    forecastId: archive.forecastId ?? null,
+    season: archive.season,
+    actuals: { asOf: actuals.asOf, status: actuals.status },
+    leagues: {},
+  };
+
+  for (const league of ['NBA', 'GLEAGUE']) {
+    const archivedRows = Array.isArray(archive?.leagues?.[league]) ? archive.leagues[league] : [];
+    const projectedRows = archivedRows.filter((row) => !row.abstain && row.projection);
+    const actualByIdentity = actualIdentityMap(league, actuals?.leagues?.[league] ?? []);
+    const matchedActuals = projectedRows.filter((row) => actualByIdentity.has(row.identity)).length;
+    const leagueReport = {
+      coverage: {
+        archived: archivedRows.length,
+        projected: projectedRows.length,
+        abstained: archivedRows.length - projectedRows.length,
+        matchedActuals,
+        missingActuals: projectedRows.length - matchedActuals,
+        baselineAvailable: baselineCoverage(projectedRows, league),
+      },
+      overall: scoreGroup(projectedRows, actualByIdentity, league, actuals.status === 'interim'),
+      cohorts: {},
+    };
+
+    for (const cohort of COHORT_ORDER) {
+      const rows = projectedRows.filter((row) => deriveCohorts(row).includes(cohort));
+      if (!rows.length) continue;
+      leagueReport.cohorts[cohort] = {
+        archivedPlayers: rows.length,
+        ...scoreGroup(rows, actualByIdentity, league, actuals.status === 'interim'),
+      };
+    }
+    report.leagues[league] = leagueReport;
+  }
+
+  return report;
+}
