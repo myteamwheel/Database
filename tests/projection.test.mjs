@@ -204,6 +204,28 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       && summary.preNbaProduction.available === 0
       && summary.contractSecurity.available === 0
       && summary.currentInjuryClearance.available === 0);
+
+  const rookies = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'rookie-cohort-fallback');
+  check('published rookie fallbacks carry the machine-readable coverage block',
+    rookies.length > 0 && rookies.every((p) => p.proj.why?.rookie?.coverage
+      && p.proj.why.rookie.coverage.preNbaProduction.available === false
+      && p.proj.why.rookie.coverage.contractSecurity.available === false
+      && p.proj.why.rookie.coverage.currentInjuryClearance.available === false),
+    `${rookies.length} rookies`);
+  const metaCov = rebuiltData.projectionMeta?.rookieInputCoverage;
+  check('projection metadata aggregates rookie input coverage',
+    metaCov?.players === rookies.length
+      && metaCov?.historicalCohort?.available === rookies.length
+      && metaCov?.preNbaProduction?.available === 0
+      && metaCov?.contractSecurity?.available === 0
+      && metaCov?.currentInjuryClearance?.available === 0);
+
+  const returners = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'older-history-fallback');
+  check('published older-history fallbacks expose explicit support metadata',
+    returners.every((p) => ['low','very-low','unavailable'].includes(p.proj.why?.fallback?.support)
+      && p.proj.why.fallback.returnToPlayPredicted === false
+      && /injury clearance|return-to-play/i.test(p.proj.why.fallback.note || '')),
+    `${returners.length} returners`);
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
