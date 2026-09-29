@@ -73,6 +73,22 @@ jobs:
           BUILD_COMMIT: ${{ github.sha }}
         run: npm run verify:determinism
 
+      - name: Verify frozen projections and forecast archive integrity
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          npm run test:projections
+          npm run test:forecast-archive
+          if [[ "${{ github.event_name }}" == "pull_request" && -n "$PR_BASE_SHA" ]]; then
+            npm run verify:forecast-archive -- --base-ref "$PR_BASE_SHA"
+          elif [[ -n "$PUSH_BEFORE" && ! "$PUSH_BEFORE" =~ ^0+$ ]]; then
+            npm run verify:forecast-archive -- --base-ref "$PUSH_BEFORE"
+          else
+            npm run verify:forecast-archive
+          fi
+
       - name: Install Playwright
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
