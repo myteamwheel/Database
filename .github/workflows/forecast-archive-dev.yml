@@ -13,9 +13,8 @@ on:
       - 'package.json'
       - '.github/workflows/forecast-archive-dev.yml'
       - '.github/workflows/audit-player-database.yml'
-
-permissions:
-  contents: write
+      - '.github/workflows/rebuild-generated.yml'
+      - '.github/workflows/deploy-pages.yml'
 
 jobs:
   forecast-archive:
@@ -28,35 +27,29 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - name: Run forecast archive tests
-        run: node tests/forecast-archive.test.mjs
 
-      - name: Generate canonical e718284 snapshot when absent
-        id: snapshot
+      - name: Run focused forecast archive tests
+        run: |
+          npm run test:forecast-archive
+          npm run verify:forecast-archive -- --base-ref "${{ github.event.pull_request.base.sha }}"
+          npm run test:projections
+
+      - name: Hydrate immutable historical cache for full verify
         shell: bash
         run: |
-          SNAPSHOT="scripts/data/forecast-archive/2026-27-preseason-2026-09-29-e718284.json"
-          if [[ -f "$SNAPSHOT" ]]; then
-            echo "created=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          npm run archive:forecast -- \
-            --ref e7182849d62cba46566f3ffafc4c1e620e5ef8ff \
-            --id 2026-27-preseason-2026-09-29-e718284 \
-            --published-at 2026-09-29
-          echo "created=true" >> "$GITHUB_OUTPUT"
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+          npm run build:history
 
-      - name: Re-run archive tests against generated snapshot
-        if: steps.snapshot.outputs.created == 'true'
-        run: node tests/forecast-archive.test.mjs
-
-      - name: Commit generated snapshot to feature branch
-        if: steps.snapshot.outputs.created == 'true'
-        shell: bash
+      - name: Install Playwright dependencies
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/data/forecast-archive/index.json \
-            scripts/data/forecast-archive/2026-27-preseason-2026-09-29-e718284.json
-          git commit -m "data: freeze 2026-27 preseason forecast"
-          git push origin HEAD:${{ github.head_ref }}
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Run exact full project verification
+        run: npm run verify
