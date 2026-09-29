@@ -37,4 +37,5 @@ jobs:
           node tests/forecast-timeframes.test.mjs
           node tests/projection-validation.test.mjs
           node tests/projection-context-reconciliation.test.mjs
+          npm run evaluate:projection-context
           npm run test:projections
