@@ -14,7 +14,7 @@ import {
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
-import { CONTEXT_VERSION, reconcileMinutes, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
+import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public/data.json');
@@ -38,7 +38,6 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
   const D = prepare(inputs);
   const rookies = rookieCohort(D, T);
   const teamBudgets = {};
-  let rookieCoverageSummary = null;
   // V8's libm can differ by a few ulps across macOS and Linux. Snap values that are only
   // machine-noise away from a half-step before rounding, so the committed artifact rebuilds
   // identically on developer machines and GitHub Actions. This changes no meaningful precision.
@@ -136,7 +135,13 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     }
     for (const [key, list] of groups) {
       const solo = key.startsWith('solo:');
-      if (isNba && !solo) teamBudgets[key] = reconcileMinutes(list);
+      if (isNba && !solo) {
+        const rosterPlayers = (rosters.get(key) || []).length;
+        const coverage = reconciliationBudget(list, { rosterPlayers, fullBudget: 240 });
+        const ledger = reconcileMinutes(list, coverage.requestedBudget);
+        teamBudgets[key] = { ...ledger, ...coverage, allocated: ledger.allocated,
+          unmodeledReserve: Math.max(0, coverage.fullBudget - ledger.allocated) };
+      }
       const pace = solo || !isNba ? projectedPace(ctx.priors, ctx.trend, NaN, P)
         : projectedPace(ctx.priors, ctx.trend, ctx.paces.get(key), P);
       applyTeamContext(list, ctx.priors, pace, P, solo ? { noUsage: true, noRole: true } : {});
@@ -279,8 +284,8 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     rosterSha256: crypto.createHash('sha256').update(JSON.stringify(inputs.rosters2627)).digest('hex'),
     teamBudgets,
     rookieEvaluation: evaluateRookieFallback(D, LAST),
-    rookieInputCoverage: rookieCoverageSummary,
     rookieInputCoverage: nba.rookieCoverage,
+    contextReconciliation: bt.nba.contextReconciliation || null,
     contextValidation: 'Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations.',
     inputsSha256: inputsSha.slice(0, 16),
     counts: { nba, gleague },
