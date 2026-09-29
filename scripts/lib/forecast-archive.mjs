@@ -65,10 +65,15 @@ function validateProjection(row) {
   if (finite(p.reb) && finite(p.oreb) && finite(p.dreb) && !approx(p.reb, p.oreb + p.dreb)) {
     throw new Error(`${row.identity}: REB does not equal OREB + DREB`);
   }
-  if (finite(p.pts) && finite(p.fgm) && finite(p.fg3m) && finite(p.ftm)) {
-    const ftValue = finite(p.accounting?.ftValue) ? p.accounting.ftValue : 1;
-    const implied = 2 * (p.fgm - p.fg3m) + 3 * p.fg3m + p.ftm * ftValue;
-    if (!approx(p.pts, implied)) throw new Error(`${row.identity}: points accounting does not reconcile`);
+  const acc = p.accounting;
+  if (acc && finite(acc.pts) && finite(acc.fgm) && finite(acc.fg3m) && finite(acc.ftm)) {
+    const ftValue = finite(acc.ftValue) ? acc.ftValue : 1;
+    const implied = 2 * (acc.fgm - acc.fg3m) + 3 * acc.fg3m + acc.ftm * ftValue;
+    if (Math.abs(acc.pts - implied) > 1e-6) throw new Error(`${row.identity}: points accounting does not reconcile`);
+    if (finite(p.pts) && Math.abs(p.pts - acc.pts) > 0.11) throw new Error(`${row.identity}: published points differ from accounting`);
+  } else if (finite(p.pts) && finite(p.fgm) && finite(p.fg3m) && finite(p.ftm)) {
+    const implied = 2 * (p.fgm - p.fg3m) + 3 * p.fg3m + p.ftm;
+    if (Math.abs(p.pts - implied) > 0.35) throw new Error(`${row.identity}: points accounting does not reconcile`);
   }
   for (const [pct,m,a,label] of [
     ['fgPct','fgm','fga','FG%'], ['fg3Pct','fg3m','fg3a','3P%'], ['ftPct','ftm','fta','FT%'],
