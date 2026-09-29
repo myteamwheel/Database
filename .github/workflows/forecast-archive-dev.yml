@@ -1,0 +1,27 @@
+name: Forecast archive development tests
+
+on:
+  pull_request:
+    branches: [v3-official-data]
+    paths:
+      - 'scripts/lib/forecast-archive.mjs'
+      - 'scripts/archive-forecast.mjs'
+      - 'scripts/score-forecast-archive.mjs'
+      - 'scripts/verify-forecast-archive.mjs'
+      - 'scripts/data/forecast-archive/**'
+      - 'tests/forecast-archive.test.mjs'
+      - 'package.json'
+      - '.github/workflows/forecast-archive-dev.yml'
+      - '.github/workflows/audit-player-database.yml'
+
+jobs:
+  forecast-archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node tests/forecast-archive.test.mjs
