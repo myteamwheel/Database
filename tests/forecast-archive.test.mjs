@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 let mod = null;
 let captureMod = null;
@@ -406,6 +407,88 @@ if (importError) {
         }
       }
     }
+  }
+
+
+  const canonicalSnapshotPath = path.join('scripts', 'data', 'forecast-archive', '2026-27-preseason-2026-09-29-e718284.json');
+  if (fs.existsSync(canonicalSnapshotPath)) {
+    const releaseRef = 'e7182849d62cba46566f3ffafc4c1e620e5ef8ff';
+    const gitBytes = (filePath) => execFileSync('git', ['show', `${releaseRef}:${filePath}`], {
+      encoding: null,
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const snapshotBytes = fs.readFileSync(canonicalSnapshotPath);
+    const canonical = JSON.parse(snapshotBytes);
+    const releaseDataBytes = gitBytes('public/data.json');
+    const releaseCardBytes = gitBytes('PROJECTION_2026_27.json');
+    const releaseInputsBytes = gitBytes('scripts/data/projection/inputs.json');
+    const releaseData = JSON.parse(releaseDataBytes.toString('utf8'));
+
+    check('canonical snapshot pins the exact e718284 release and explicit publication date',
+      canonical.sourceCommit === releaseRef
+        && canonical.publishedAt === '2026-09-29'
+        && canonical.publicationBasis === 'explicit'
+        && canonical.forecastId === '2026-27-preseason-2026-09-29-e718284');
+
+    check('canonical snapshot hashes exact release bytes',
+      canonical.sources.publicData.sha256 === sha256(releaseDataBytes)
+        && canonical.sources.projectionCard.sha256 === sha256(releaseCardBytes)
+        && canonical.sources.projectionInputs.sha256 === sha256(releaseInputsBytes)
+        && canonical.sources.liveRoster === null);
+
+    let releaseMismatch = 0;
+    let firstReleaseMismatch = '';
+    for (const league of ['NBA', 'GLEAGUE']) {
+      const archivedRows = canonical.leagues[league];
+      const releasedRows = releaseData.leagues[league];
+      const archivedByIdentity = new Map(archivedRows.map((row) => [row.identity, row]));
+      if (archivedRows.length !== releasedRows.length) {
+        releaseMismatch++;
+        firstReleaseMismatch ||= `${league} row count ${archivedRows.length} vs ${releasedRows.length}`;
+      }
+      for (const player of releasedRows) {
+        const identity = projectionIdentity(league, player);
+        const row = archivedByIdentity.get(identity);
+        if (!row) {
+          releaseMismatch++;
+          firstReleaseMismatch ||= `${identity} missing`;
+          continue;
+        }
+        if (player.proj?.abstain) {
+          if (!row.abstain || row.reason !== player.proj.reason || 'projection' in row) {
+            releaseMismatch++;
+            firstReleaseMismatch ||= `${identity} abstention differs`;
+          }
+        } else if (row.abstain || JSON.stringify(row.projection) !== JSON.stringify(player.proj)) {
+          releaseMismatch++;
+          firstReleaseMismatch ||= `${identity} projection differs`;
+        }
+      }
+    }
+    check('canonical snapshot exactly preserves every released projection or abstention',
+      releaseMismatch === 0, firstReleaseMismatch);
+
+    const releaseProjected = ['NBA', 'GLEAGUE'].reduce((sum, league) =>
+      sum + releaseData.leagues[league].filter((p) => p.proj && !p.proj.abstain).length, 0);
+    const releaseAbstained = ['NBA', 'GLEAGUE'].reduce((sum, league) =>
+      sum + releaseData.leagues[league].filter((p) => p.proj?.abstain).length, 0);
+    check('canonical archive coverage counts equal the released data',
+      canonical.counts.projected === releaseProjected
+        && canonical.counts.abstained === releaseAbstained
+        && canonical.counts.byLeague.NBA.total === releaseData.leagues.NBA.length
+        && canonical.counts.byLeague.GLEAGUE.total === releaseData.leagues.GLEAGUE.length);
+
+    check('canonical identities are id-based rather than name-based',
+      ['NBA', 'GLEAGUE'].every((league) => canonical.leagues[league].every((row) =>
+        row.identity === `${league}:${row.nbaPersonId ?? row.playerId}`
+          && row.identity !== `${league}:${row.name}`)));
+
+    const manifest = JSON.parse(fs.readFileSync(path.join('scripts', 'data', 'forecast-archive', 'index.json'), 'utf8'));
+    const manifestEntry = manifest.forecasts.find((x) => x.forecastId === canonical.forecastId);
+    check('manifest hash pins the canonical snapshot bytes',
+      manifestEntry?.sha256 === sha256(snapshotBytes)
+        && manifestEntry?.sourceCommit === releaseRef);
   }
 
 }
