@@ -49,3 +49,17 @@ Release `e718284` is deployed to GitHub Pages. Its canonical Ubuntu rebuild, exa
 - Deployment verified: GitHub Pages workflow #97 succeeded for `e718284`; a live spot-check confirmed Ben Simmons has no invented player comp, projection point estimates are central with low/high ranges absent from the main table, and Jokić’s concise style summary is separated from its dated multi-year evidence cards.
 
 - Forecast archive milestone verified on branch `forecast-archive-validation`: canonical snapshot `2026-27-preseason-2026-09-29-e718284` exactly matches release `e718284`; manifest SHA-256 pins its bytes; append-only verification rejects modification/deletion/rename of prior snapshots; model-vs-baseline scoring uses paired eligible samples and reports coverage separately.
+
+
+### Projection hardening review — PR #16
+
+Verified capabilities in this section:
+- Explicit forecast-timeframe arithmetic now keeps actual-to-date, remaining-season and combined full-season views separate and pools percentages from makes/attempts rather than averaging percentages.
+- A shared NBA/G League projection-accounting validator checks shooting identities, rebound identity, derived percentages/true shooting, projected-game/minute bounds and per-game-to-total reconciliation.
+- Rookie fallbacks expose machine-readable input coverage. Draft slot, position, entry age and historical cohort are distinguished from unavailable pre-NBA production, contract security and current injury clearance.
+- Older-history returner fallbacks expose last observed season, blank-season gap, weighted exposure, reliability/support and an explicit statement that return-to-play and injury clearance are not predicted.
+- Team-minute reconciliation now records an explicit unmodeled reserve when a current roster contains players without projections instead of forcing projected players upward merely to reach 240 effective minutes.
+- Sensitivity tests cover role-demand, availability/share, historical-sample mobility and small-perturbation stability while preserving feasible bounds and the intended budget.
+- The held-out 2025-26 minute-layer check covers 459 scored history-eligible players on 29 fully reconstructable opening rosters plus 60 unscored rookie/returner proxies. The reconciliation layer changed MAE by +0.0618 MPG, -0.0241 PTS, +0.0047 REB and +0.0096 AST versus the same legacy projections. This is evidence about the minute-reconciliation layer only: it does not validate rookies, returners, injury/availability handling, or any new rate model.
+- The held-out result is intentionally not described as an accuracy improvement: MPG/REB/AST were essentially flat to slightly worse, while PTS improved by only 0.0241 MAE. The value of this section is stronger accounting, explicit evidence/coverage, safer incomplete-roster behavior and measurable stability rather than a claimed forecasting breakthrough.
+- preseason-full-season remains the only production forecast target. The new timeframe helper is infrastructure for in-season actual-to-date / remaining-season / combined views; those views are not yet wired into the public UI.
