@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { captureForecast, writeArchiveFiles } from '../scripts/archive-forecast.mjs';
+import { execFileSync } from 'node:child_process';
+import { captureForecast, writeArchiveFiles, readGitFile } from '../scripts/archive-forecast.mjs';
 import {
   sha256,
   projectionIdentity,
@@ -225,6 +226,20 @@ test('capture rejects roster hash mismatch', () => {
   ]);
   assert.throws(()=>captureForecast({ref:'r',forecastId:'f',publishedAt:'2026-09-29',dryRun:true,
     readRefFile:(ref,p,{optional=false}={})=>map.get(p)??(optional?null:(()=>{throw new Error('missing')})()),resolveRef:()=>({sha:'s',committedAt:'t'})}),/roster hash/i);
+});
+
+test('readGitFile supports release artifacts larger than Node default exec buffer', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-git-large-'));
+  try {
+    execFileSync('git',['init','-q'],{cwd:root});
+    execFileSync('git',['config','user.email','test@example.com'],{cwd:root});
+    execFileSync('git',['config','user.name','Test'],{cwd:root});
+    fs.writeFileSync(path.join(root,'large.json'),'x'.repeat(2_000_000));
+    execFileSync('git',['add','large.json'],{cwd:root});
+    execFileSync('git',['commit','-qm','large'],{cwd:root});
+    const out=readGitFile('HEAD','large.json',{cwd:root});
+    assert.equal(out.length,2_000_000);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
 });
 
 test('writeArchiveFiles refuses overwrite and writes deterministic manifest', () => {
