@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { captureForecast, writeArchiveFiles, readGitFile } from '../scripts/archive-forecast.mjs';
+import { verifyArchiveDirectory, validateArchiveDiff } from '../scripts/verify-forecast-archive.mjs';
 import {
   sha256,
   projectionIdentity,
@@ -348,6 +349,72 @@ test('score CLI emits deterministic JSON and writes identical --out', () => {
     execFileSync(process.execPath,['scripts/score-forecast-archive.mjs','--archive',ap,'--actual',xp,'--out',op],{cwd:path.resolve('.'),encoding:'utf8'});
     assert.deepEqual(JSON.parse(stdout),JSON.parse(fs.readFileSync(op,'utf8')));
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+
+
+test('verifyArchiveDirectory accepts a valid manifest and snapshot', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-ok-'));
+  try {
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',players:[]};
+    writeArchiveFiles(root,archive);
+    const out=verifyArchiveDirectory({rootDir:root});
+    assert.equal(out.snapshots,1);
+    assert.equal(out.forecasts[0],'f1');
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+test('verifyArchiveDirectory fails on manifest hash mismatch and missing file', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-bad-'));
+  try {
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',players:[]};
+    writeArchiveFiles(root,archive);
+    const indexPath=path.join(root,'index.json');
+    const index=JSON.parse(fs.readFileSync(indexPath,'utf8'));
+    index.forecasts[0].sha256='0'.repeat(64);
+    fs.writeFileSync(indexPath,JSON.stringify(index,null,1)+'\n');
+    assert.throws(()=>verifyArchiveDirectory({rootDir:root}),/hash/i);
+    index.forecasts[0].sha256=sha256(fs.readFileSync(path.join(root,'f1.json')));
+    index.forecasts[0].file='missing.json';
+    fs.writeFileSync(indexPath,JSON.stringify(index,null,1)+'\n');
+    assert.throws(()=>verifyArchiveDirectory({rootDir:root}),/missing/i);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+test('verifyArchiveDirectory fails duplicate manifest ids and bad manifest counts', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-verify-dupe-'));
+  try {
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'abc',players:[]};
+    writeArchiveFiles(root,archive);
+    const indexPath=path.join(root,'index.json');
+    const index=JSON.parse(fs.readFileSync(indexPath,'utf8'));
+    index.forecasts.push(structuredClone(index.forecasts[0]));
+    fs.writeFileSync(indexPath,JSON.stringify(index,null,1)+'\n');
+    assert.throws(()=>verifyArchiveDirectory({rootDir:root}),/duplicate/i);
+    index.forecasts.pop();
+    index.forecasts[0].counts.projected=1;
+    fs.writeFileSync(indexPath,JSON.stringify(index,null,1)+'\n');
+    assert.throws(()=>verifyArchiveDirectory({rootDir:root}),/count/i);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});
+
+test('validateArchiveDiff allows additions and index changes', () => {
+  assert.doesNotThrow(()=>validateArchiveDiff([
+    {status:'A',path:'scripts/data/forecast-archive/new.json'},
+    {status:'M',path:'scripts/data/forecast-archive/index.json'},
+  ]));
+});
+
+test('validateArchiveDiff rejects mutation deletion and rename of snapshots', () => {
+  for (const rows of [
+    [{status:'M',path:'scripts/data/forecast-archive/old.json'}],
+    [{status:'D',path:'scripts/data/forecast-archive/old.json'}],
+    [{status:'R100',path:'scripts/data/forecast-archive/old.json',newPath:'scripts/data/forecast-archive/new.json'}],
+  ]) assert.throws(()=>validateArchiveDiff(rows),/append-only/i);
+});
+
+test('validateArchiveDiff ignores unrelated paths', () => {
+  assert.doesNotThrow(()=>validateArchiveDiff([{status:'M',path:'scripts/build-projections.mjs'}]));
 });
 
 if (!process.exitCode) console.log(`ALL PASS · ${pass} tests`);
