@@ -177,8 +177,8 @@ function allocateLedger(rows) {
         if(d.remaining<step-1e-9) continue;
         if(!positionMatch(g,d)) continue;
         const compatibility=positionsCompatible(g.p,d.p);
-        const gp=marginalAllocationPriority(Math.abs(g.gapSd),g.moved);
-        const dp=marginalAllocationPriority(Math.abs(d.gapSd),d.moved);
+        const gp=marginalAllocationPriority(Math.abs(g.valueGapSd),g.moved);
+        const dp=marginalAllocationPriority(Math.abs(d.valueGapSd),d.moved);
         const score=gp+dp;
         const key=`${String(g.p.playerId)}|${String(d.p.playerId)}`;
         if(!best||score>best.score+1e-12||(Math.abs(score-best.score)<=1e-12&&key<best.key)) {
