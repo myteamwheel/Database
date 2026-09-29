@@ -1,4 +1,4 @@
-import { actualLine, historyBefore, prevSeason } from './projection.mjs';
+import { actualLine, historyBefore, prevSeason, prepare } from './projection.mjs';
 import crypto from 'node:crypto';
 
 const PROJECTION_FIELDS = [
@@ -148,4 +148,65 @@ export function gleagueBaseline(D, pid, targetSeason, games = 50) {
     repeat: last ? actualLine(last) : null,
     evidence: { seasons: hist.filter(Boolean).map(r => r.season), targetGames: games },
   };
+}
+
+
+function injectPublishedGLeagueBase(D, data, season = '2025-26') {
+  const gl = D.gleague?.seasons?.get(season);
+  if (!gl) return;
+  for (const p of data.leagues?.GLEAGUE || []) {
+    if (!p.appeared || !(p.gp > 0) || !(p.minutes > 0)) continue;
+    const g = p.gp, pid = Number(p.nbaPersonId);
+    if (!Number.isFinite(pid)) continue;
+    const fg3m = (p.fg3 || 0) * g, fg3a = (p.fg3a || 0) * g, fgm = (p.fg || 0) * g, fga = (p.fga || 0) * g;
+    gl.set(pid, {
+      pid, name: p.name, team: p.team, season, age: p.age, gp: g, min: p.minutes,
+      fgm, fga, fg3m, fg3a, fg2m: fgm - fg3m, fg2a: fga - fg3a,
+      ftm: (p.ft || 0) * g, fta: (p.fta || 0) * g,
+      oreb: (p.oreb || 0) * g, dreb: (p.dreb || 0) * g, ast: (p.ast || 0) * g, tov: (p.tov || 0) * g,
+      stl: (p.stl || 0) * g, blk: (p.blk || 0) * g, pf: (p.pf || 0) * g, pts: (p.pts || 0) * g,
+      usg: Number.isFinite(p.usg) ? p.usg / 100 : null, pace: Number.isFinite(p.pace) ? p.pace : null,
+      poss: Number.isFinite(p.poss) && p.poss > 0 ? p.poss : p.minutes * 100 / 48, pie: null,
+    });
+  }
+}
+
+export function buildArchive({ data, card, rawInputs, sourceCommit, publishedAt, publicationBasis = 'verified-release-date', forecastId, sources = null, roster = null }) {
+  if (!forecastId) throw new Error('forecast id is required');
+  if (!publishedAt) throw new Error('publishedAt is required');
+  const meta = data?.projectionMeta;
+  if (!meta?.season || !meta?.timeframe) throw new Error('projection season/timeframe is ambiguous');
+  const raw = Buffer.isBuffer(rawInputs) ? rawInputs : Buffer.from(String(rawInputs));
+  if (card?.builtFrom?.sha256 && card.builtFrom.sha256 !== sha256(raw)) throw new Error('projection card does not match frozen inputs');
+  const parsed = JSON.parse(raw.toString('utf8'));
+  if (roster) parsed.rosters2627 = roster;
+  const D = prepare(parsed);
+  injectPublishedGLeagueBase(D, data, '2025-26');
+  const players = [];
+  for (const [league, list] of Object.entries(data.leagues || {})) {
+    if (!['NBA','GLEAGUE'].includes(league)) continue;
+    for (const p of list) {
+      const row = extractArchivedPlayer(league, p);
+      const pid = Number(p.nbaPersonId);
+      row.baselines = league === 'NBA' ? nbaBaselines(D, pid, meta.season) : gleagueBaseline(D, pid, meta.season, card?.gleague?.games || 50);
+      players.push(row);
+    }
+  }
+  players.sort((a,b) => a.identity.localeCompare(b.identity));
+  const archive = {
+    schemaVersion: 1,
+    forecastId,
+    season: meta.season,
+    type: meta.timeframe,
+    publishedAt,
+    publicationBasis,
+    sourceCommit,
+    sourceCommitTime: null,
+    model: { id: meta.id ?? card?.id ?? null, contextVersion: meta.contextVersion ?? null },
+    roster: { asOf: meta.rostersAsOf ?? null, sha256: meta.rosterSha256 ?? null },
+    sources: sources || {},
+    players,
+  };
+  validateArchive(archive);
+  return archive;
 }
