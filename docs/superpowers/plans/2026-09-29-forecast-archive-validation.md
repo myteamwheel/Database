@@ -27,6 +27,8 @@
 - Final scoring accepts only actual files with \`status: "final"\`; \`status: "interim"\` additionally requires explicit \`--interim\`.
 - Cohorts are defined from archived pre-outcome fields only.
 - Node engine compatibility remains >=20 and no new runtime dependency is introduced.
+- `scripts/data/live/roster.json` was absent at the frozen `e718284` ref; the initial snapshot must record that source as absent and preserve the release's embedded `projectionMeta.rosterSha256` rather than inventing a file hash.
+- Snapshot-only changes under `scripts/data/forecast-archive/**` are repository evidence and must not trigger generated browser-artifact rebuilds or GitHub Pages deploys.
 
 ## Review Focus
 
@@ -35,6 +37,7 @@
 - A percentage can be numerically present but have insufficient actual attempts: exclude only that percentage metric, not the player's other eligible metrics.
 - A pull request can legitimately append a new snapshot and update \`index.json\`: immutability checks must allow additions while rejecting modification/deletion/rename of prior snapshot files.
 - An interim actual file can contain valid per-game rates before season end: allow explicitly labeled interim rate scoring but do not report GP as final forecast accuracy.
+- A snapshot-only commit must still run audit/archive integrity checks, but must not rebuild `public/data.json` or redeploy the static site.
 
 ---
 
@@ -105,7 +108,8 @@ Add synthetic three-season history where expected values can be calculated by ha
 - avg3 shooting percentages use weighted made/attempt totals rather than averaging percentages;
 - avg3 GP uses 5/4/3 weighted appearance shares;
 - no recent history returns \`null\` baselines rather than reaching back to an older-history fallback;
-- G League exposes repeat only.
+- G League exposes repeat only;
+- the G League repeat line matches the release's combined 2025–26 base where the regular-season input alone differs.
 
 - [ ] **Step 2: Run the focused test and verify failure**
 
@@ -354,7 +358,15 @@ In \`.github/workflows/audit-player-database.yml\`, add archive tests after proj
 
 For pull requests pass \`\${{ github.event.pull_request.base.sha }}\`. For pushes pass \`\${{ github.event.before }}\` when it is non-zero; otherwise run current-state verification without a base. Keep \`fetch-depth: 0\`, which the workflow already uses.
 
-- [ ] **Step 5: Run local verification**
+- [ ] **Step 5: Exclude snapshot-only commits from generated rebuild and Pages deploy**
+
+In `.github/workflows/rebuild-generated.yml`, keep the existing positive `scripts/**` trigger and add the later negative pattern:
+
+`!scripts/data/forecast-archive/**`
+
+In `.github/workflows/deploy-pages.yml`, do the same after `scripts/**`. This preserves normal behavior for archive source-code changes elsewhere under `scripts/**`, while appending only a snapshot/manifest does not rebuild or publish the public site. The audit workflow remains unfiltered and still verifies the archive.
+
+- [ ] **Step 6: Run local verification**
 
 Run:
 \`\`\`bash
