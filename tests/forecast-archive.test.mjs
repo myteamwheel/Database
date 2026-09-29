@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { captureForecast, writeArchiveFiles } from '../scripts/archive-forecast.mjs';
 import {
   sha256,
   projectionIdentity,
@@ -6,6 +10,7 @@ import {
   validateArchive,
   nbaBaselines,
   gleagueBaseline,
+  buildArchive,
 } from '../scripts/lib/forecast-archive.mjs';
 
 let pass = 0;
@@ -161,6 +166,77 @@ test('G League exposes repeat only', () => {
   const out = gleagueBaseline(D, 7, '2026-27', 50);
   assert.equal(out.repeat.pts, 20);
   assert.equal('avg3' in out, false);
+});
+
+
+
+const table = (headers, rows) => ({ headers, rows });
+const baseHeaders = ['PLAYER_ID','PLAYER_NAME','TEAM_ABBREVIATION','AGE','GP','MIN','FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','AST','TOV','STL','BLK','PF','PTS'];
+const advHeaders = ['PLAYER_ID','USG_PCT','PACE','POSS'];
+const releaseInputs = {
+  playerIndex: table([], []), rosters2627: table(['PERSON_ID','ROSTER_STATUS','TEAM_ABBREVIATION'], [[7,1,'AAA']]),
+  nba: {
+    '2025-26': { base: table(baseHeaders, [[7,'Veteran','AAA',27,80,2400,560,1120,160,400,320,400,160,480,400,160,80,40,160,1600]]), adv: table(advHeaders, [[7,.25,100,5000]]) },
+    '2024-25': { base: table(baseHeaders, [[7,'Veteran','AAA',26,60,1440,240,600,60,240,180,240,90,270,240,120,60,30,120,720]]), adv: table(advHeaders, [[7,.22,99,3000]]) },
+    '2023-24': { base: table(baseHeaders, [[7,'Veteran','AAA',25,40,720,120,320,40,120,40,80,40,120,80,80,40,20,80,320]]), adv: table(advHeaders, [[7,.20,98,1500]]) },
+  },
+  gleague: {
+    '2025-26': { base: table(baseHeaders, [[7,'Veteran','GLA',27,20,600,140,280,40,100,80,100,40,120,100,40,20,10,40,400]]), adv: table(advHeaders, [[7,.28,101,1300]]) },
+  },
+};
+const releaseData = {
+  projectionMeta: { id:'PROJECTION_2026_27', season:'2026-27', timeframe:'preseason-full-season', contextVersion:'context-1', rostersAsOf:'2026-09-28', rosterSha256:'placeholder' },
+  leagues: {
+    NBA: [{...player, playerId:'7', nbaPersonId:7, name:'Veteran'}],
+    GLEAGUE: [{...player, playerId:'g7', nbaPersonId:7, name:'Veteran', proj:{...projection, team:'GLA', status:'gleague'}}],
+  },
+};
+releaseData.projectionMeta.rosterSha256 = sha256(JSON.stringify(releaseInputs.rosters2627));
+const releaseCard = { id:'PROJECTION_2026_27', gleague:{games:50}, builtFrom:{sha256:sha256(JSON.stringify(releaseInputs))} };
+
+test('buildArchive preserves release values and attaches same-date baselines', () => {
+  const archive = buildArchive({ data: structuredClone(releaseData), card: releaseCard, rawInputs: JSON.stringify(releaseInputs),
+    sourceCommit:'abc123', publishedAt:'2026-09-29', publicationBasis:'verified-release-date', forecastId:'fixture' });
+  assert.equal(archive.forecastId, 'fixture');
+  assert.equal(archive.players.length, 2);
+  assert.equal(archive.players.find(x=>x.league==='NBA').baselines.repeat.pts, 20);
+  assert.equal(archive.players.find(x=>x.league==='GLEAGUE').baselines.repeat.pts, 20);
+});
+
+test('capture reads exact requested ref bytes and records absent optional roster', () => {
+  const bytes = new Map([
+    ['public/data.json', Buffer.from(JSON.stringify(releaseData))],
+    ['PROJECTION_2026_27.json', Buffer.from(JSON.stringify(releaseCard))],
+    ['scripts/data/projection/inputs.json', Buffer.from(JSON.stringify(releaseInputs))],
+  ]);
+  const seen=[];
+  const out = captureForecast({ ref:'release-ref', forecastId:'fixture', publishedAt:'2026-09-29', dryRun:true,
+    readRefFile:(ref,p,{optional=false}={})=>{ seen.push([ref,p]); if(bytes.has(p)) return bytes.get(p); if(optional) return null; throw new Error('missing'); },
+    resolveRef:()=>({sha:'fullsha',committedAt:'2026-09-29T05:51:38Z'}) });
+  assert.ok(seen.every(([ref])=>ref==='release-ref'));
+  assert.equal(out.archive.sources['scripts/data/live/roster.json'].present, false);
+  assert.equal(out.archive.sources['public/data.json'].sha256, sha256(bytes.get('public/data.json')));
+});
+
+test('capture rejects roster hash mismatch', () => {
+  const bad=structuredClone(releaseData); bad.projectionMeta.rosterSha256='bad';
+  const map=new Map([
+    ['public/data.json',Buffer.from(JSON.stringify(bad))],['PROJECTION_2026_27.json',Buffer.from(JSON.stringify(releaseCard))],['scripts/data/projection/inputs.json',Buffer.from(JSON.stringify(releaseInputs))],
+  ]);
+  assert.throws(()=>captureForecast({ref:'r',forecastId:'f',publishedAt:'2026-09-29',dryRun:true,
+    readRefFile:(ref,p,{optional=false}={})=>map.get(p)??(optional?null:(()=>{throw new Error('missing')})()),resolveRef:()=>({sha:'s',committedAt:'t'})}),/roster hash/i);
+});
+
+test('writeArchiveFiles refuses overwrite and writes deterministic manifest', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'forecast-archive-'));
+  try {
+    const archive={schemaVersion:1,forecastId:'f1',season:'2026-27',type:'preseason-full-season',publishedAt:'2026-09-29',sourceCommit:'s',players:[]};
+    writeArchiveFiles(root,archive);
+    assert.throws(()=>writeArchiveFiles(root,archive),/already exists/i);
+    const index=JSON.parse(fs.readFileSync(path.join(root,'index.json'),'utf8'));
+    assert.equal(index.forecasts[0].forecastId,'f1');
+    assert.ok(index.forecasts[0].sha256);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
 });
 
 if (!process.exitCode) console.log(`ALL PASS · ${pass} tests`);
