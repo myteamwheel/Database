@@ -70,5 +70,57 @@ if(!importError){
   });
 }
 
+
+const ROOT=path.join(path.dirname(fileURLToPath(import.meta.url)),'..');
+const D=JSON.parse(fs.readFileSync(path.join(ROOT,'public/data.json'),'utf8'));
+const app=fs.readFileSync(path.join(ROOT,'app.js'),'utf8');
+const nba=D.leagues.NBA;
+
+if(!importError){
+  const { distributionSummary, teamAllocationDiagnostics, validationStatus }=mod;
+
+  t('published global distribution matches the scored player rows',()=>{
+    assert.deepStrictEqual(D.tulipBetaMeta?.distribution,distributionSummary(nba));
+  });
+
+  t('published team diagnostics exactly reproduce every current-roster team',()=>{
+    const teams=[...new Set(nba.filter(p=>p.currentRoster&&p.currentTeam).map(p=>p.currentTeam))].sort();
+    const published=D.tulipBetaMeta?.teamDiagnostics||{};
+    assert.deepStrictEqual(Object.keys(published).sort(),teams);
+    for(const team of teams) assert.deepStrictEqual(published[team],teamAllocationDiagnostics(nba,team));
+  });
+
+  t('every scored row carries a structured trace and explicit preseason baseline semantics',()=>{
+    const scored=nba.filter(p=>p.tulipBeta&&!p.tulipBeta.abstain);
+    assert.ok(scored.length>200);
+    for(const p of scored){
+      const b=p.tulipBeta;
+      assert.ok(b.drivers, p.name+' missing drivers');
+      assert.strictEqual(b.drivers.feasibility.availabilityVerified,false);
+      assert.strictEqual(b.drivers.feasibility.positionConstraintsEnforced,false);
+      assert.strictEqual(b.drivers.feasibility.fullPlayable240Rotation,false);
+      assert.strictEqual(b.baselineSeason,'2025-26');
+      assert.ok(b.baselineLabel&&/2025-26/.test(b.baselineLabel));
+    }
+  });
+
+  t('published validation block matches the frozen negative research result',()=>{
+    assert.deepStrictEqual(D.tulipBetaMeta?.validation,validationStatus());
+  });
+
+  t('UI labels the offseason input as a baseline, not current-season MPG',()=>{
+    assert.ok(/Baseline MPG/.test(app),'Baseline MPG label missing');
+    assert.ok(/2025-26 MPG baseline/.test(app),'baseline-season explanation missing');
+    assert.ok(!/'tb\.currentMpg':\{label:'Current MPG'/.test(app),'TULIP column still mislabels prior-season MPG as current');
+  });
+
+  t('UI states feasibility limits explicitly',()=>{
+    assert.ok(/not a playable 240-minute rotation/i.test(app));
+    assert.ok(/availability[^.]*not verified|does not verify simultaneous availability/i.test(app));
+    assert.ok(/position(?:al)?\/lineup constraints|positions, or lineup constraints/i.test(app));
+    assert.ok(/excluded current-roster players|current-roster players.*excluded/i.test(app));
+  });
+}
+
 console.log(`\n${fail===0?'ALL PASS':fail+' FAILURE(S)'} · ${pass} passed`);
 process.exit(fail===0?0:1);
