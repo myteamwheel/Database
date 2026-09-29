@@ -1,12 +1,22 @@
 // Forecast archive regression tests. Node-only, deterministic.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 let mod = null;
+let captureMod = null;
 let importError = null;
+let captureImportError = null;
 try {
   mod = await import('../scripts/lib/forecast-archive.mjs');
 } catch (err) {
   importError = err;
+}
+try {
+  captureMod = await import('../scripts/archive-forecast.mjs');
+} catch (err) {
+  captureImportError = err;
 }
 
 let pass = 0;
@@ -229,6 +239,167 @@ if (importError) {
         && Math.abs(g.repeat.mpg - 22) < 1e-12
         && Math.abs(g.repeat.gp - 12) < 1e-12
         && !('avg3' in g));
+  }
+
+
+  check('forecast capture module exists', !captureImportError, captureImportError?.message || '');
+  if (!captureImportError) {
+    const { readGitFile, resolveGitCommit, buildArchive, writeArchiveFiles, captureForecast } = captureMod;
+    check('capture interfaces are exported',
+      typeof readGitFile === 'function'
+        && typeof resolveGitCommit === 'function'
+        && typeof buildArchive === 'function'
+        && typeof writeArchiveFiles === 'function'
+        && typeof captureForecast === 'function');
+
+    if (typeof readGitFile === 'function') {
+      const testPath = 'tests/forecast-archive.test.mjs';
+      const original = fs.readFileSync(testPath);
+      try {
+        fs.appendFileSync(testPath, '\n// working-tree-only mutation\n');
+        const committed = readGitFile('HEAD', testPath);
+        check('git-ref reads ignore working-tree mutations',
+          !committed.equals(fs.readFileSync(testPath))
+            && committed.equals(original));
+      } finally {
+        fs.writeFileSync(testPath, original);
+      }
+      check('missing required git-ref artifact fails closed',
+        throws(() => readGitFile('HEAD', 'definitely-not-a-release-artifact.json'), /git show|artifact|exist|path|fatal/i));
+    }
+
+    if (typeof resolveGitCommit === 'function') {
+      const resolved = resolveGitCommit('HEAD');
+      check('git ref resolves to full commit provenance',
+        /^[0-9a-f]{40}$/.test(resolved.sha)
+          && !Number.isNaN(Date.parse(resolved.committedAt)));
+    }
+
+    if (typeof buildArchive === 'function') {
+      const fixtureProjection = {
+        ...projection,
+        accounting: { ...projection.accounting },
+      };
+      const fixtureData = {
+        projectionMeta: {
+          id: 'PROJECTION_2026_27',
+          season: '2026-27',
+          contextVersion: 'context-1',
+          timeframe: 'preseason-full-season',
+          rostersAsOf: '2026-09-29',
+          rosterSha256: null,
+        },
+        leagues: {
+          NBA: [{ ...player, proj: fixtureProjection }],
+          GLEAGUE: [{ nbaPersonId: 777, playerId: 'gl-777', name: 'G League Example', team: 'LIN', proj: { abstain: true, reason: 'No history.' } }],
+        },
+      };
+      const fixtureInputs = {
+        fetchedAt: '2026-09-29T12:00:00Z',
+        rosters2627: [{ PERSON_ID: 123, TEAM_ABBREVIATION: 'PHI' }],
+        playerIndex: [],
+        nba: {},
+        nbaOpening: {},
+        gleague: {},
+      };
+      const rawInputsFixture = Buffer.from(JSON.stringify(fixtureInputs));
+      fixtureData.projectionMeta.rosterSha256 = crypto.createHash('sha256')
+        .update(JSON.stringify(fixtureInputs.rosters2627)).digest('hex');
+      const rawDataFixture = Buffer.from(JSON.stringify(fixtureData));
+      const fixtureCard = { id: 'PROJECTION_2026_27', gleague: { games: 50 } };
+      const rawCardFixture = Buffer.from(JSON.stringify(fixtureCard));
+
+      const archive = buildArchive({
+        data: fixtureData,
+        card: fixtureCard,
+        rawData: rawDataFixture,
+        rawCard: rawCardFixture,
+        rawInputs: rawInputsFixture,
+        rosterBytes: null,
+        sourceCommit: 'a'.repeat(40),
+        publishedAt: '2026-09-29T12:00:00Z',
+        publicationBasis: 'source-commit-time',
+        forecastId: 'fixture-capture',
+      });
+      check('capture preserves exact model/context/roster metadata',
+        archive.model.id === 'PROJECTION_2026_27'
+          && archive.model.contextVersion === 'context-1'
+          && archive.model.timeframe === 'preseason-full-season'
+          && archive.model.rostersAsOf === '2026-09-29'
+          && archive.sources.liveRoster === null);
+      check('capture hashes raw release artifacts',
+        archive.sources.publicData.sha256 === crypto.createHash('sha256').update(rawDataFixture).digest('hex')
+          && archive.sources.projectionCard.sha256 === crypto.createHash('sha256').update(rawCardFixture).digest('hex')
+          && archive.sources.projectionInputs.sha256 === crypto.createHash('sha256').update(rawInputsFixture).digest('hex'));
+
+      const badRosterData = JSON.parse(JSON.stringify(fixtureData));
+      badRosterData.projectionMeta.rosterSha256 = '0'.repeat(64);
+      check('capture rejects a projection roster hash mismatch',
+        throws(() => buildArchive({
+          data: badRosterData,
+          card: fixtureCard,
+          rawData: Buffer.from(JSON.stringify(badRosterData)),
+          rawCard: rawCardFixture,
+          rawInputs: rawInputsFixture,
+          rosterBytes: null,
+          sourceCommit: 'a'.repeat(40),
+          publishedAt: '2026-09-29T12:00:00Z',
+          publicationBasis: 'source-commit-time',
+          forecastId: 'bad-roster',
+        }), /roster.*hash|rosterSha/i));
+
+      const noTimeframe = JSON.parse(JSON.stringify(fixtureData));
+      delete noTimeframe.projectionMeta.timeframe;
+      check('capture rejects ambiguous forecast timeframe',
+        throws(() => buildArchive({
+          data: noTimeframe,
+          card: fixtureCard,
+          rawData: Buffer.from(JSON.stringify(noTimeframe)),
+          rawCard: rawCardFixture,
+          rawInputs: rawInputsFixture,
+          rosterBytes: null,
+          sourceCommit: 'a'.repeat(40),
+          publishedAt: '2026-09-29T12:00:00Z',
+          publicationBasis: 'source-commit-time',
+          forecastId: 'no-timeframe',
+        }), /timeframe/i));
+
+      if (typeof writeArchiveFiles === 'function') {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'forecast-archive-'));
+        try {
+          const first = writeArchiveFiles(archive, { archiveDir: dir });
+          check('archive writer creates snapshot and manifest',
+            fs.existsSync(first.snapshotPath) && fs.existsSync(first.manifestPath));
+          check('duplicate forecast id is rejected instead of overwritten',
+            throws(() => writeArchiveFiles(archive, { archiveDir: dir }), /already exists|duplicate/i));
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      }
+
+      if (typeof captureForecast === 'function') {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'forecast-dry-run-'));
+        try {
+          const before = fs.readdirSync(dir);
+          captureForecast({
+            ref: 'HEAD',
+            forecastId: 'dry-run-fixture',
+            archiveDir: dir,
+            dryRun: true,
+            artifactPaths: {
+              data: 'public/data.json',
+              card: 'PROJECTION_2026_27.json',
+              inputs: 'scripts/data/projection/inputs.json',
+              roster: 'scripts/data/live/roster.json',
+            },
+          });
+          check('dry-run capture creates no archive files',
+            JSON.stringify(fs.readdirSync(dir)) === JSON.stringify(before));
+        } finally {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      }
+    }
   }
 
 }
