@@ -287,5 +287,21 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 }
 
+
+{
+  const cv = rebuiltData.projectionMeta?.contextReconciliation;
+  const cardCv = CARD.backtest?.nba?.contextReconciliation;
+  check('published context reconciliation report matches the frozen model card',
+    cv && cardCv && JSON.stringify(cv) === JSON.stringify(cardCv));
+  check('context reconciliation report does not overclaim held-out improvement',
+    /history-eligible/i.test(cv?.population || '')
+      && /not scored|not validated|held fixed|proxy/i.test(cv?.limitations || '')
+      && Number.isFinite(cv?.mae?.delta?.mpg));
+  check('held-out context report records complete team-budget coverage explicitly',
+    cv?.teamBudgetCoverage?.exact === cv?.teamBudgetCoverage?.teams
+      && cv?.openingRosterCoverage?.completeTeams === cv?.teams
+      && cv?.openingRosterCoverage?.excludedTeams >= 0);
+}
+
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
 process.exit(fail ? 1 : 0);
