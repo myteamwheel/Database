@@ -296,8 +296,14 @@ if (importError) {
       };
       const fixtureInputs = {
         fetchedAt: '2026-09-29T12:00:00Z',
-        rosters2627: [{ PERSON_ID: 123, TEAM_ABBREVIATION: 'PHI' }],
-        playerIndex: [],
+        rosters2627: {
+          headers: ['PERSON_ID', 'TEAM_ABBREVIATION', 'ROSTER_STATUS', 'PLAYER_FIRST_NAME', 'PLAYER_LAST_NAME', 'POSITION', 'HEIGHT', 'WEIGHT', 'DRAFT_NUMBER', 'DRAFT_YEAR', 'FROM_YEAR'],
+          rows: [[123, 'PHI', 1, 'Archive', 'Example', 'G', '6-5', 205, 10, 2024, 2024]],
+        },
+        playerIndex: {
+          headers: ['PERSON_ID', 'PLAYER_FIRST_NAME', 'PLAYER_LAST_NAME', 'POSITION', 'HEIGHT', 'WEIGHT', 'DRAFT_NUMBER', 'DRAFT_YEAR', 'FROM_YEAR'],
+          rows: [],
+        },
         nba: {},
         nbaOpening: {},
         gleague: {},
