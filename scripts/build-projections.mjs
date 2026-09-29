@@ -166,6 +166,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         [key, Number.isFinite(value) ? r9(value) : value]));
       accounting.ftValue = r9(ftV);
       const publishedGp = r1(r.games);
+      accounting.gp = publishedGp;
       accounting.totals = Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm']
         .map((key) => [key, r9(accounting[key] * publishedGp)]));
       const seasonsUsed = r.hist.map((h, i) => {
