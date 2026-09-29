@@ -333,7 +333,7 @@ function scorePair(rows, baseline, interim) {
 }
 
 function scoreGroup(rows, league, interim) {
-  const result={allModel:scoreOne(rows,r=>r.player.projection,interim),vsRepeat:scorePair(rows,'repeat',interim)};
+  const result={n:rows.length,allModel:scoreOne(rows,r=>r.player.projection,interim),vsRepeat:scorePair(rows,'repeat',interim)};
   if (league === 'NBA') result.vsAvg3=scorePair(rows,'avg3',interim);
   return result;
 }
