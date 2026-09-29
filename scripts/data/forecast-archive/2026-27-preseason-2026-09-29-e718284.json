@@ -273820,5 +273820,17 @@
     }
    }
   }
- ]
+ ],
+ "counts": {
+  "projected": 1267,
+  "abstained": 2,
+  "byLeague": {
+   "GLEAGUE": 564,
+   "NBA": 705
+  },
+  "baselineAvailable": {
+   "repeat": 1159,
+   "avg3": 597
+  }
+ }
 }
