@@ -66,9 +66,17 @@ jobs:
         run: npm run test:starter
 
       - name: Verify forecast archive integrity
+        shell: bash
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           npm run test:forecast-archive
           npm run verify:forecast-archive
+          BASE="${PR_BASE:-$PUSH_BEFORE}"
+          if [ -n "$BASE" ] && ! [[ "$BASE" =~ ^0+$ ]]; then
+            npm run verify:forecast-archive -- --base-ref "$BASE"
+          fi
 
       - name: Verify the published artifact is a lossless encoding
         run: node scripts/verify-artifact.mjs
