@@ -53,6 +53,11 @@ async function playerWith(page, direction) {
       evidenceTier: c.evidenceTier,
       raw: c.rawSignalDelta,
       constrained: c.constrainedDelta,
+      positionFamily: c.positionFamily,
+      positionLimited: c.positionLimited,
+      unfilledDesiredMpg: c.unfilledDesiredMpg,
+      diminishingFactorFinal: c.diminishingFactorFinal,
+      availability: c.availability,
     };
   }, direction);
 }
@@ -134,6 +139,12 @@ test.describe('Why this TULIP?', () => {
     expect(text).toMatch(new RegExp(`tier\\s+${player.evidenceTier}`, 'i'));
     expect(text).toMatch(new RegExp(`factor\\s+${player.evidenceFactor.toFixed(2)}`, 'i'));
     expect(text).toMatch(/positive expansion/i);
+    expect(text).toMatch(/position feasibility/i);
+    expect(text).toMatch(/diminishing returns/i);
+    expect(text).toMatch(/availability/i);
+    if (player.positionFamily) expect(text).toContain(player.positionFamily);
+    if (player.positionLimited) expect(text).toContain(player.unfilledDesiredMpg.toFixed(1));
+    expect(text).toMatch(/unverified|verified as available/i);
     expect(text).toMatch(/not (?:a )?probability/i);
     await expect(page.locator('#playerDialogBody')).toContainText(/experimental beta/i);
     expect(text).not.toMatch(/optimal rotation|proven best allocation|expected wins added|will increase wins|should definitely play|confidence of correctness/i);
@@ -210,6 +221,25 @@ test.describe('TULIP Team Allocation controls', () => {
         expect(new Set(directions)).toEqual(new Set([filter]));
       }
     }
+    expect(errors).toEqual([]);
+  });
+
+  test('team view renders constraint diagnostics and never calls the result a playable rotation', async ({ page }) => {
+    const errors = await open(page);
+    const team = await page.evaluate(() => [...new Set(DATA.leagues.NBA
+      .filter((player) => player.tulipBeta && !player.tulipBeta.abstain)
+      .map((player) => player.currentTeam))].sort()[0]);
+    await page.evaluate((selectedTeam) => openTeamAllocation(selectedTeam), team);
+    const text = await page.locator('#teamAllocationDialog').innerText();
+    expect(text).toMatch(/magnitude distribution/i);
+    expect(text).toMatch(/3\+ MPG/i);
+    expect(text).toMatch(/5\+ MPG/i);
+    expect(text).toMatch(/7\+ MPG/i);
+    expect(text).toMatch(/10\+ MPG/i);
+    expect(text).toMatch(/position-limited/i);
+    expect(text).toMatch(/not a playable 240-minute rotation/i);
+    expect(text).toMatch(/five-man lineups/i);
+    expect(text).toMatch(/injury availability/i);
     expect(errors).toEqual([]);
   });
 

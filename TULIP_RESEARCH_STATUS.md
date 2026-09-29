@@ -33,10 +33,25 @@
 8. **Both chronological holdout seasons (2024-25, 2025-26) remain untouched** and unspent, available
    for a genuinely improved future model.
 
-## Not shipped
-`TULIP: +X.X MPG`, `UNDERUSED`, `ABOUT RIGHT`, `OVERUSED` — none ships with a winning
-interpretation. TULIP Score may be preserved only as an experimental, descriptive, team-relative
-value ranking, labelled as such, and is not a coaching recommendation.
+## Product status after the 2026-09-29 engineering hardening
+
+An **experimental TULIP Beta MPG reallocation is now shipped as decision support**, but the negative
+research conclusion above is unchanged. The product explicitly separates:
+
+1. a descriptive, reliability-shrunk team-relative player-value signal; and
+2. a separate heuristic allocator that applies workload/role evidence, coarse roster-listed G/F/C
+   substitution, diminishing marginal transfer priority and a zero-sum ledger.
+
+The displayed MPG delta is **not identified as the win-maximizing answer**, and the HIGH/MEDIUM/LOW
+field is recommendation-support evidence rather than a probability of correctness. The allocator may
+be useful for inspecting what the current heuristic implies, but it is not a validated coaching
+prescription.
+
+The 2024-25 and 2025-26 chronological TULIP holdouts remain untouched. This engineering hardening
+does not spend them and does not convert the failed DEV identification result into a positive claim.
+
+The old categorical labels `UNDERUSED`, `ABOUT RIGHT`, and `OVERUSED` still do not ship with a
+winning interpretation.
 
 ## Kept, and kept separate
 **Projected Role MPG** (`TULIP_CAPACITY_V1`, card-sha256:96cb2f34c6cd06c3) — a validated forecast of

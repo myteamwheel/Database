@@ -91,3 +91,17 @@ So current evidence supports **"this player should move UP or DOWN in the rotati
 **Therefore: the displayed number may not be presented as the win-maximizing answer until the minute
 MAGNITUDE is validated prospectively against team outcomes. Direction and ranking may be presented as
 such today; magnitude may not.** Closing that gap is the open work.
+
+
+## 2026-09-29 engineering note
+
+The current experimental Beta is closer to the locked definition operationally than the earlier
+advisory allocator: player evaluation is separated from minute allocation, known roster-listed
+position families constrain transfers, marginal transfer priority diminishes as minutes move, and
+the ledger remains exactly conserving. These are **feasibility and transparency improvements, not
+identification of the winning objective**.
+
+There is still no verified injury/availability feed, no simultaneous five-man lineup optimizer, and
+no prospective evidence establishing that the direction or exact MPG magnitude improves winning.
+Accordingly, the Beta must continue to be labeled experimental and may not be described as the
+win-optimal solution.

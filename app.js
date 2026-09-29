@@ -284,9 +284,9 @@ const BASE_COLS = {
   magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
-  'tb.tulip':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game TULIP Beta RECOMMENDS for this player, under its heuristic, if the team\u0027s objective is to maximize winning. PLAIN: does this heuristic flag him as underutilized or overutilized by his current team? A positive value means the model recommends more minutes \u2014 it is not an established finding that he is being misused. FORMULA: starts from his team-relative value \u2014 shrunk BPM minus his team\u0027s minute-weighted average BPM, in league SD units \u2014 then compressed by three constraints: (1) WORKLOAD STATE, since a +1 SD player at 12 MPG has more room than one at 34; (2) ROLE EVIDENCE, which attenuates expansion where history does not support that workload; (3) ZERO-SUM ALLOCATION, so every minute granted is sourced from a team-mate and each team\u0027s ledger conserves. EXPERIMENTAL BETA: pre-registered causal testing on 2015-16 to 2023-24 did NOT establish that these exact deltas maximize wins (reduced form -0.127 pts/SD, 95% CI [-1.756, 1.021]). The DIRECTION rests on team-relative value; the MAGNITUDE is heuristic. Treat as decision support, not a validated coaching prescription. Blank means TULIP abstained \u2014 blank is NOT zero and always sorts last.'},
+  'tb.tulip':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game TULIP Beta recommends under its experimental allocator. The PLAYER EVALUATION and MINUTE RECOMMENDATION are separate. FORMULA: Layer A measures reliability-shrunk BPM versus the current team minute-weighted average in league-SD units. Layer B converts that signal into a workload request, applies workload and Role Evidence, then transfers minutes in 0.1-MPG steps through a zero-sum roster ledger. When both players have roster-listed position evidence, a transfer requires overlapping G/F/C position families; missing position is left unknown rather than invented. Marginal transfer priority declines as more minutes are already moved for a player, so large signals face diminishing-return stabilization. EXPERIMENTAL BETA: historical causal testing did NOT establish that these exact deltas maximize wins. Blank means TULIP abstained; blank is not zero and sorts last.'},
   'tb.currentMpg':{label:'Current MPG',type:'1',help:'WHAT: minutes per game he is actually playing this season \u2014 the workload TULIP is recommending a change FROM.'},
-  'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: the workload this experimental allocator suggests. PLAIN: current workload after applying the TULIP reallocation. FORMULA: Current MPG + TULIP, bounded to the feasible 0-40 MPG range. Historical workload and Role Evidence reduce confidence and attenuate positive expansion, but they are not a hard ceiling: a strong breakout signal can recommend a workload above anything the player has previously sustained.'},
+  'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: Current MPG plus the final TULIP allocation. This is an experimental workload recommendation, not a player-quality score and not a predicted coach rotation. The value is bounded to 0-40 MPG, role evidence attenuates unsupported expansion, the roster ledger is zero-sum, known G/F/C position families constrain which opposite-direction team-mates can fund a transfer, and marginal transfer priority diminishes as more minutes are moved. It is still not a playable 240-minute lineup model because simultaneous lineups and verified injury availability are not modeled.'},
   'tb.confidence':{label:'Support',type:'text',help:'RECOMMENDATION SUPPORT; NOT PROBABILITY OF CORRECTNESS. HIGH / MEDIUM / LOW describes the strength of the DATA AND EVIDENCE behind the recommendation\u0027s inputs \u2014 sample size (minutes played), the role-evidence tier behind any expansion, and whether the recommended workload sits inside historically observed support. It does NOT mean the MPG recommendation is likely to be win-optimal. Nothing here claims "82% likely to be correct"; causal validation of the magnitude failed, so no such claim is available to make.'},
   'tb.valueGapSd':{label:'Value vs team (SD)',type:'signed2',help:'WHAT: his shrunk BPM minus his team\u0027s minute-weighted average BPM, in league standard-deviation units. PLAIN: how much better or worse he is than the average minute his team currently buys. This is the DIRECTION signal behind TULIP.'},
   'tb.supportedCeiling':{label:'Evidence-supported MPG',type:'1',help:'WHAT: the highest workload this player has already sustained or that Role Evidence directly supports. PLAIN: where the direct workload evidence ends. FORMULA: max(Current MPG, career-high MPG from 20+ game seasons, best 40+ game sustained-season MPG, highest non-abstaining Role Evidence frontier MPG), capped at 40. This is NOT a hard TULIP cap. A recommendation may exceed it when the team-relative signal is strong, but that part is extrapolation and therefore carries weaker support/confidence.'},
@@ -1288,7 +1288,7 @@ function tulipConstraintPath(c){
   const minutesPerSd=Number(DATA?.tulipBetaMeta?.config?.minutesPerSd)||10.0;
   const raw=finite(c.rawSignalDelta)?c.rawSignalDelta:(Number(c.valueGapSd)||0)*minutesPerSd;
   const constrained=finite(c.constrainedDelta)?c.constrainedDelta:c.tulip;
-  const constraintNote=raw>0?'role evidence attenuation + 40 MPG feasibility applied':raw<0?'0 MPG floor applied':'constraints reviewed';
+  const constraintNote=raw>0?'workload + role evidence applied before allocation':raw<0?'0 MPG floor applied before allocation':'constraints reviewed';
   return `<div class="tulip-constraint-path" aria-label="TULIP constraint path">
     <div class="tulip-constraint-step"><span>Raw signal</span><b>${signed(raw)} MPG</b>
       <small>team-relative value</small></div>
@@ -1297,7 +1297,7 @@ function tulipConstraintPath(c){
       <small>${constraintNote}</small></div>
     <span class="tulip-constraint-arrow" aria-hidden="true">&rarr;</span>
     <div class="tulip-constraint-step"><span>Roster-balanced final TULIP</span><b>${signed(c.tulip)} MPG</b>
-      <small>team ledger conserved</small></div>
+      <small>position-aware, diminishing-return team ledger conserved</small></div>
   </div>`;
 }
 
@@ -1319,12 +1319,26 @@ function whyTulipBlock(p,c){
     : c.tulip<0
       ? `${signed(Math.abs(c.tulip))} MPG becomes available to higher-ranked team-mates on ${esc(team)}.`
       : `The roster-balanced result is no displayed change on ${esc(team)}.`;
+  const positionLine=c.positionLimited
+    ? `Coarse position-family matching left ${num(c.unfilledDesiredMpg)} MPG of the evidence-adjusted request unfilled because no compatible opposite-direction supply remained.`
+    : c.positionEvidence==='unavailable'
+      ? 'Roster position evidence is unavailable here, so the allocator records compatibility as unknown rather than inventing a position.'
+      : `Roster-listed ${esc(c.positionFamily||'position')} compatibility was enforced for known-position transfers.`;
+  const diminishLine=Math.abs(Number(c.tulip)||0)>0
+    ? `Marginal transfer priority falls as minutes move; after this allocation the stabilizer is ${num((Number(c.diminishingFactorFinal)||1)*100,0)}% of its initial priority (heuristic scale ${num(c.diminishingScaleMpg)} MPG).`
+    : 'No minutes moved, so the diminishing-return stabilizer did not affect the displayed workload.';
+  const availabilityLine=c.availability==='verified-available'
+    ? 'Availability was explicitly verified as available for this input.'
+    : 'No verified availability status is available for this player in the current data feed; TULIP does not infer health from games missed.';
   return `<section class="tulip-why tulip-explanation" aria-label="Why this TULIP">
     <h3>Why TULIP recommends ${signed(c.tulip)} MPG</h3>
     <div class="tulip-why-list">
       <p><b>Team-relative value:</b> ${esc(signal)} — ${signed(c.valueGapSd,2)} SD versus ${esc(team)}'s average allocated minute.</p>
       <p><b>Current workload:</b> ${workload}</p>
       ${roleLine}
+      <p><b>Position feasibility:</b> ${positionLine}</p>
+      <p><b>Diminishing returns:</b> ${diminishLine}</p>
+      <p><b>Availability:</b> ${availabilityLine}</p>
       <p><b>Roster effect:</b> ${roster}</p>
       <p><b>Final:</b> ${num(c.currentMpg)} &rarr; ${num(c.recommendedMpg)} MPG.</p>
     </div>
@@ -1390,13 +1404,19 @@ function openTeamAllocation(team,{preserveState=false}={}){
   const surrendered=baseRoster.filter(p=>p.tulipBeta.tulip<0).slice().sort((a,b)=>a.tulipBeta.tulip-b.tulipBeta.tulip);
   const gTot=gained.reduce((a,p)=>a+p.tulipBeta.tulip,0);
   const sTot=surrendered.reduce((a,p)=>a+p.tulipBeta.tulip,0);
+  const magnitudeDist=[3,5,7,10].map(n=>[n,baseRoster.filter(p=>Math.abs(Number(p.tulipBeta.tulip)||0)>=n-1e-9).length]);
+  const positionLimitedCount=baseRoster.filter(p=>p.tulipBeta.positionLimited).length;
+  const unfilledTotal=baseRoster.reduce((a,p)=>a+(Number(p.tulipBeta.unfilledDesiredMpg)||0),0);
   const visible=roster.filter(p=>teamAllocState.filter==='all'||teamAllocationDirection(p)===teamAllocState.filter);
   const li=(p)=>`<div class="raw-row"><span>${esc(p.name)}</span><b>${signed(p.tulipBeta.tulip)}</b></div>`;
   const ev=(p)=>{const c=p.tulipBeta;
     const expansion=(finite(c.rawSignalDelta)?Number(c.rawSignalDelta):Number(c.valueGapSd))>0;
-    if(!expansion) return '<span class="role-evidence-label">Not applied to reductions</span><span class="tiny">Expansion constraint only</span>';
-    return c.evidenceTier
-      ? `<span class="role-evidence-label">${esc(roleEvidencePlain(c.evidenceTier,c.evidenceFactor))}</span><span class="tiny">Tier ${esc(c.evidenceTier)} · factor ${num(c.evidenceFactor,2)}</span>`:'—';};
+    const role=expansion
+      ? (c.evidenceTier?`<span class="role-evidence-label">${esc(roleEvidencePlain(c.evidenceTier,c.evidenceFactor))}</span><span class="tiny">Tier ${esc(c.evidenceTier)} · factor ${num(c.evidenceFactor,2)}</span>`:'—')
+      : '<span class="role-evidence-label">Not applied to reductions</span><span class="tiny">Expansion constraint only</span>';
+    const pos=c.positionFamily?`Position ${esc(c.positionFamily)}`:'Position unknown';
+    const constraint=c.positionLimited?` · ${num(c.unfilledDesiredMpg)} MPG unfilled by position guard`:'';
+    return `${role}<span class="tiny">${pos}${constraint}</span>`;};
   const filterButton=(value,label)=>`<button class="button secondary small" type="button" data-ta-filter="${value}"
     aria-pressed="${teamAllocState.filter===value}">${label}</button>`;
   teamAllocDlg.innerHTML=`${teamAllocationHeader(`TULIP Team Allocation — ${esc(team)}`)}
@@ -1406,12 +1426,8 @@ function openTeamAllocation(team,{preserveState=false}={}){
       <div class="detail-card"><div class="k">Net reallocation</div><div class="v">${signed(net)}</div></div>
       <div class="detail-card"><div class="k">Eligible players</div><div class="v">${baseRoster.length}</div></div>
     </div>
-    <p class="tiny">TULIP Beta reallocates a team's existing player-minute workload toward players
-    favored by its team-relative performance and role evidence. Positive values gain minutes;
-    negative values surrender minutes. The roster ledger is conserved. TULIP Beta is experimental and
-    its exact MPG recommendations have not been validated as win-maximizing. Net reallocation is
-    0.0 apart from per-player rounding to one decimal. <b>This is a workload redistribution heuristic, not a playable 240-minute rotation.</b>
-    The sum combines historical individual workloads and does not enforce simultaneous availability, positions, or lineup constraints.</p>
+    <p class="tiny">TULIP Beta keeps player evaluation separate from the recommendation allocator. Positive values gain minutes and negative values surrender minutes; the eligible-roster ledger is conserved. For known roster-listed positions, transfers require overlapping coarse G/F/C families, and marginal transfer priority diminishes as more MPG are already moved. The exact MPG recommendations have not been validated as win-maximizing. <b>This is still not a playable 240-minute rotation.</b> It does not enforce simultaneous five-man lineups or verified injury availability, and missing position/availability evidence is not guessed.</p>
+    <p class="tiny"><b>Magnitude distribution (not quotas):</b> ${magnitudeDist.map(([n,count])=>`${n}+ MPG: ${count}`).join(' · ')}. Position-limited rows: ${positionLimitedCount}. Evidence-adjusted request left unfilled: ${num(unfilledTotal)} MPG across the eligible roster.</p>
     <div class="crossover">
       <div class="eyebrow">MINUTES GAINED &nbsp;(${signed(gTot)})</div>
       <div class="raw-grid">${gained.length?gained.map(li).join(''):'<div class="raw-row"><span>none</span><b>0.0</b></div>'}</div>
@@ -1719,7 +1735,7 @@ function openPlayer(id){
       ${mateRows}
       <p class="tiny"><button class="button" data-teamalloc="${esc(p.currentTeam||p.team||'')}">View ${esc(p.currentTeam||p.team||'team')} TULIP Allocation</button></p>
       <p class="tiny"><b>Status: experimental beta.</b> The direction is based on team-relative player
-      value; the magnitude is constrained by workload/role evidence and a zero-sum roster allocator.
+      value; the recommendation is produced separately by workload/role evidence, coarse position-family substitution, diminishing marginal priority and a zero-sum roster allocator.
       Historical causal testing did not establish that the exact MPG deltas maximize wins, so treat
       these as decision-support estimates rather than validated coaching prescriptions. The Support
       rating above describes the strength of the evidence behind the inputs \u2014 it is NOT a
