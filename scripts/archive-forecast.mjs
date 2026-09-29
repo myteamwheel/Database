@@ -9,8 +9,8 @@ const DEFAULT_DIR = path.join(ROOT, 'scripts/data/forecast-archive');
 const REQUIRED = ['public/data.json','PROJECTION_2026_27.json','scripts/data/projection/inputs.json'];
 const OPTIONAL_ROSTER = 'scripts/data/live/roster.json';
 
-export function readGitFile(ref, filePath, { optional = false, cwd = ROOT } = {}) {
-  try { return execFileSync('git', ['show', `${ref}:${filePath}`], { cwd, maxBuffer: 64 * 1024 * 1024 }); }
+export function readGitFile(ref, filePath, { optional = false, cwd = ROOT, run = execFileSync } = {}) {
+  try { return run('git', ['show', `${ref}:${filePath}`], { cwd, maxBuffer: 256 * 1024 * 1024 }); }
   catch (error) { if (optional) return null; throw new Error(`cannot read ${filePath} at ${ref}: ${error.message}`); }
 }
 
