@@ -45,12 +45,14 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
     if (proj.ts !== null && proj.ts !== undefined) fail('true shooting/TS must be unavailable with zero attempts');
   } else if (!near(proj.ts,expectedTs,1e-3 + tolerance)) fail('true shooting/TS does not derive from accounting');
 
+  if (finite(a.gp) && (a.gp < 0 || a.gp > games + tolerance)) fail('accounting GP exceeds league schedule or is invalid');
   if (a.totals && typeof a.totals === 'object') {
+    const accountingGp = finite(a.gp) ? a.gp : proj.gp;
     for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
       if (!finite(a.totals[k])) fail(`total ${k} is invalid`);
-      const expected = a[k]*proj.gp;
+      const expected = a[k]*accountingGp;
       if (!near(a.totals[k],expected,Math.max(1e-5,tolerance*Math.max(1,Math.abs(expected))))) {
-        fail(`total ${k} does not equal per-game accounting x GP`);
+        fail(`total ${k} does not equal per-game accounting x accounting GP`);
       }
     }
   }
