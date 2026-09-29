@@ -12,6 +12,7 @@ on:
       - 'tests/forecast-timeframes.test.mjs'
       - 'tests/projection.test.mjs'
       - 'tests/projection-validation.test.mjs'
+      - 'tests/projection-context-reconciliation.test.mjs'
       - 'PROJECTION_2026_27.json'
       - 'package.json'
       - '.github/workflows/projection-hardening-dev.yml'
@@ -35,4 +36,5 @@ jobs:
         run: |
           node tests/forecast-timeframes.test.mjs
           node tests/projection-validation.test.mjs
+          node tests/projection-context-reconciliation.test.mjs
           npm run test:projections
