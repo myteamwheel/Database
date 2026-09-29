@@ -42,6 +42,50 @@ function safeSnapshotPath(archiveDir, relativePath) {
   return resolved;
 }
 
+
+function requireSha256(value, label) {
+  if (!/^[0-9a-f]{64}$/i.test(String(value || ''))) {
+    throw new Error(`Forecast archive source provenance ${label} requires a full SHA256 hash.`);
+  }
+}
+
+function validateArchiveProvenance(archive) {
+  if (archive?.schemaVersion !== 1) throw new Error('Forecast archive snapshot schemaVersion must be 1.');
+  if (!archive?.forecastId || !archive?.season || !archive?.forecastType) {
+    throw new Error('Forecast archive snapshot is missing forecast identity metadata.');
+  }
+  if (!archive?.publishedAt || Number.isNaN(Date.parse(archive.publishedAt))) {
+    throw new Error('Forecast archive snapshot requires a valid publication date.');
+  }
+  if (!/^[0-9a-f]{40}$/i.test(String(archive?.sourceCommit || ''))) {
+    throw new Error('Forecast archive snapshot requires a full source commit SHA.');
+  }
+  if (!archive?.publicationBasis) throw new Error('Forecast archive snapshot requires publicationBasis provenance.');
+
+  const model = archive?.model;
+  if (!model?.id || !model?.contextVersion || !model?.timeframe || !model?.rostersAsOf) {
+    throw new Error('Forecast archive model/context/roster provenance is incomplete.');
+  }
+  if (model.timeframe !== archive.forecastType) {
+    throw new Error('Forecast archive model timeframe does not match forecast type.');
+  }
+  if (Number.isNaN(Date.parse(model.rostersAsOf))) {
+    throw new Error('Forecast archive roster-as-of provenance is invalid.');
+  }
+  requireSha256(model.rosterSha256, 'model.rosterSha256');
+
+  const sources = archive?.sources;
+  for (const key of ['publicData', 'projectionCard', 'projectionInputs']) {
+    const source = sources?.[key];
+    if (!source?.path) throw new Error(`Forecast archive source provenance is missing ${key}.`);
+    requireSha256(source.sha256, `sources.${key}.sha256`);
+  }
+  if (sources?.liveRoster != null) {
+    if (!sources.liveRoster.path) throw new Error('Forecast archive live-roster source provenance is missing its path.');
+    requireSha256(sources.liveRoster.sha256, 'sources.liveRoster.sha256');
+  }
+}
+
 function validateManifestEntry(entry, archive, summary, bytes) {
   if (entry.forecastId !== archive.forecastId) throw new Error(`Manifest forecast id mismatch for ${entry.path}`);
   if (entry.season !== archive.season) throw new Error(`Manifest season mismatch for ${entry.forecastId}`);
@@ -103,6 +147,7 @@ export function verifyArchiveDirectory({ archiveDir = DEFAULT_ARCHIVE_DIR } = {}
     } catch (err) {
       throw new Error(`Forecast archive snapshot is not valid JSON (${entry.path}): ${err.message}`);
     }
+    validateArchiveProvenance(archive);
     const summary = validateArchive(archive);
     validateManifestEntry(entry, archive, summary, bytes);
     projected += summary.projected;
