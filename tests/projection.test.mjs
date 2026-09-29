@@ -290,7 +290,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 {
   const cv = rebuiltData.projectionMeta?.contextReconciliation;
-  const cardCv = CARD.backtest?.nba?.contextReconciliation;
+  const cardCv = card.backtest?.nba?.contextReconciliation;
   check('published context reconciliation report matches the frozen model card',
     cv && cardCv && JSON.stringify(cv) === JSON.stringify(cardCv));
   check('context reconciliation report does not overclaim held-out improvement',
