@@ -50,7 +50,8 @@
     "tulip:backtest": "node scripts/tulip-backtest.mjs",
     "test:tulipbeta": "node tests/tulip-beta.test.mjs",
     "test:tulipcapacity": "node tests/tulip-capacity-v1.test.mjs",
-    "test:refresh": "node tests/refresh.test.mjs"
+    "test:refresh": "node tests/refresh.test.mjs",
+    "archive:forecast": "node scripts/archive-forecast.mjs"
   },
   "engines": {
     "node": ">=20"
