@@ -63,7 +63,7 @@ function verifyInitialRelease(rootDir = DEFAULT_DIR) {
 }
 
 function sameJson(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return isDeepStrictEqual(a, b);
 }
 
 export function verifyArchiveDirectory({ rootDir = DEFAULT_DIR } = {}) {
