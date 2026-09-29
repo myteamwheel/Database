@@ -54,7 +54,8 @@
     "archive:forecast": "node scripts/archive-forecast.mjs",
     "score:forecast": "node scripts/score-forecast-archive.mjs",
     "test:forecast-archive": "node tests/forecast-archive.test.mjs",
-    "verify:forecast-archive": "node scripts/verify-forecast-archive.mjs"
+    "verify:forecast-archive": "node scripts/verify-forecast-archive.mjs",
+    "evaluate:projection-context": "node scripts/fit-projections.mjs context"
   },
   "engines": {
     "node": ">=20"

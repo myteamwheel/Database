@@ -14,7 +14,7 @@ import {
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
-import { CONTEXT_VERSION, reconcileMinutes, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback } from './lib/projection-context.mjs';
+import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public/data.json');
@@ -135,7 +135,13 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     }
     for (const [key, list] of groups) {
       const solo = key.startsWith('solo:');
-      if (isNba && !solo) teamBudgets[key] = reconcileMinutes(list);
+      if (isNba && !solo) {
+        const rosterPlayers = (rosters.get(key) || []).length;
+        const coverage = reconciliationBudget(list, { rosterPlayers, fullBudget: 240 });
+        const ledger = reconcileMinutes(list, coverage.requestedBudget);
+        teamBudgets[key] = { ...ledger, ...coverage, allocated: ledger.allocated,
+          unmodeledReserve: Math.max(0, coverage.fullBudget - ledger.allocated) };
+      }
       const pace = solo || !isNba ? projectedPace(ctx.priors, ctx.trend, NaN, P)
         : projectedPace(ctx.priors, ctx.trend, ctx.paces.get(key), P);
       applyTeamContext(list, ctx.priors, pace, P, solo ? { noUsage: true, noRole: true } : {});
@@ -159,8 +165,10 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
       const accounting = Object.fromEntries(Object.entries(line).map(([key, value]) =>
         [key, Number.isFinite(value) ? r9(value) : value]));
       accounting.ftValue = r9(ftV);
+      const publishedGp = r1(r.games);
+      accounting.gp = publishedGp;
       accounting.totals = Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm']
-        .map((key) => [key, r9(line[key] * r.games)]));
+        .map((key) => [key, r9(accounting[key] * publishedGp)]));
       const seasonsUsed = r.hist.map((h, i) => {
         if (!h) return null;
         const elapsed = h.season ? Math.max(1, Number(T.slice(0, 4)) - Number(h.season.slice(0, 4))) : i + 1;
@@ -177,7 +185,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         uncertainty: { method: 'legacy-veteran-residuals', calibratedForContextVersion: false,
           note: r.rookie ? 'Provisional cohort fallback; ranges have not been calibrated for rookies.' : r.historicalFallback ? 'Old-season fallback; long gaps and return-to-play uncertainty are not calibrated.' : 'Historical veteran residual ranges; new roster-minute adjustments have not been recalibrated.' },
         availability: { basis: 'historical-appearance-rate', injuryStatus: 'not-verified' },
-        gp: r1(r.games), mpg: r1(line.mpg), pts: r1(line.pts), reb: r1(line.reb), oreb: r1(line.oreb), dreb: r1(line.dreb),
+        gp: publishedGp, mpg: r1(line.mpg), pts: r1(line.pts), reb: r1(line.reb), oreb: r1(line.oreb), dreb: r1(line.dreb),
         ast: r1(line.ast), stl: r1(line.stl), blk: r1(line.blk), tov: r1(line.tov), fg3m: r1(line.fg3m),
         fga: r1(line.fga), fg3a: r1(line.fg3a), fta: r1(line.fta), fgm: r1(line.fgm), ftm: r1(line.ftm),
         accounting,
@@ -213,9 +221,17 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
             depth: isNba && r.status !== 'unsigned' ? r2(r.depth) : null,
           },
           games: { lastShare: r2(r.historicalRole?.oldShare ?? f.gpShare1), projectedShare: r2(r.share) },
-          fallback: r.historicalRole ? { historicalRoleReliability: r3(r.historicalRole.reliability),
+          fallback: r.historicalRole ? {
+            historicalRoleReliability: r3(r.historicalRole.reliability),
             oldObservedMpg: r1(r.historicalRole.oldMpg), oldAppearanceShare: r2(r.historicalRole.oldShare),
-            rolePriorMpg: r1(r.historicalRole.priorMpg), appearancePrior: r2(r.historicalRole.priorShare) } : null,
+            rolePriorMpg: r1(r.historicalRole.priorMpg), appearancePrior: r2(r.historicalRole.priorShare),
+            lastObservedSeason: r.historicalRole.lastObservedSeason,
+            blankSeasonGapCount: r.historicalRole.blankSeasonGapCount,
+            weightedHistoricalExposure: r3(r.historicalRole.weightedHistoricalExposure),
+            support: r.historicalRole.support,
+            returnToPlayPredicted: false,
+            note: r.historicalRole.note,
+          } : null,
           team: { usage: r3(r.factors.usage - 1), newTeam: r3(r.factors.newTeam - 1), pace: r1(r.factors.pace),
             leaguePace: r1(ctx.priors.pace), rosterBalance: r3(r.factors.rosterBalance) },
         },
@@ -223,6 +239,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     }
     return { scored: rows.length, abstained: players.length - rows.length,
       rookieFallbacks: rows.filter(r => r.rookie).length,
+      rookieCoverage: isNba ? summarizeRookieCoverage(rows.filter(r => r.rookie).map(r => r.rookie.evidence.coverage)) : null,
       historicalFallbacks: rows.filter(r => r.historicalFallback).length,
       moved: rows.filter((r) => r.status === 'new').length, unsigned: rows.filter((r) => r.status === 'unsigned').length,
       teamMinutes: isNba ? teamMinuteTotals(rows) : null };
@@ -269,6 +286,8 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     rosterSha256: crypto.createHash('sha256').update(JSON.stringify(inputs.rosters2627)).digest('hex'),
     teamBudgets,
     rookieEvaluation: evaluateRookieFallback(D, LAST),
+    rookieInputCoverage: nba.rookieCoverage,
+    contextReconciliation: bt.nba.contextReconciliation || null,
     contextValidation: 'Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations.',
     inputsSha256: inputsSha.slice(0, 16),
     counts: { nba, gleague },

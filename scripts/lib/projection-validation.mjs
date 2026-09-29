@@ -1,0 +1,60 @@
+const DEFAULT_TOL = 1e-6;
+
+const finite = (v) => Number.isFinite(v);
+const near = (a,b,t=DEFAULT_TOL) => finite(a) && finite(b) && Math.abs(a-b) <= t;
+
+function fail(msg){ throw new Error(msg); }
+
+export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=null,tolerance=DEFAULT_TOL}={}) {
+  if (!proj || typeof proj !== 'object') fail('projection is required');
+  const a = proj.accounting;
+  if (!a || typeof a !== 'object') fail('projection accounting is required');
+
+  const games = scheduledGames ?? (league === 'NBA' ? 82 : league === 'GLEAGUE' ? 50 : null);
+  if (!Number.isFinite(games) || games <= 0) fail('scheduled games must be positive');
+  if (!(finite(proj.gp) && proj.gp >= 0 && proj.gp <= games + tolerance)) fail('GP exceeds league schedule or is invalid');
+  const maxMpg = league === 'NBA' ? 42 : 44;
+  if (!(finite(proj.mpg) && proj.mpg >= 0 && proj.mpg <= maxMpg + tolerance)) fail('MPG/minutes outside league bound');
+
+  for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
+    if (!finite(a[k]) || a[k] < -tolerance) fail(`accounting ${k} is invalid`);
+  }
+  if (a.fgm > a.fga + tolerance) fail('FGM exceeds FGA');
+  if (a.fg3m > a.fg3a + tolerance) fail('FG3M/3PM exceeds FG3A/3PA');
+  if (a.fg3m > a.fgm + tolerance) fail('FG3M/3PM exceeds FGM');
+  if (a.ftm > a.fta + tolerance) fail('FTM exceeds FTA');
+  if (!near(a.reb,a.oreb+a.dreb,tolerance)) fail('REB must equal OREB + DREB');
+
+  const ftValue = finite(a.ftValue) ? a.ftValue : 1;
+  const pts = 2*(a.fgm-a.fg3m)+3*a.fg3m+a.ftm*ftValue;
+  if (!near(a.pts,pts,tolerance)) fail('PTS/points accounting mismatch');
+
+  const pctChecks = [
+    ['fgPct', a.fga > 0 ? a.fgm/a.fga : null, 'FG percentage'],
+    ['fg3Pct', a.fg3a > 0 ? a.fg3m/a.fg3a : null, '3-point percentage'],
+    ['ftPct', a.fta > 0 ? a.ftm/a.fta : null, 'free throw percentage'],
+  ];
+  for (const [field,expected,label] of pctChecks) {
+    if (expected === null) {
+      if (proj[field] !== null && proj[field] !== undefined) fail(`${label} must be unavailable with zero attempts`);
+    } else if (!near(proj[field],expected,1e-3 + tolerance)) fail(`${label}/${field} does not derive from accounting`);
+  }
+  const tsDen = 2*(a.fga + 0.44*a.fta);
+  const expectedTs = tsDen > 0 ? a.pts/tsDen : null;
+  if (expectedTs === null) {
+    if (proj.ts !== null && proj.ts !== undefined) fail('true shooting/TS must be unavailable with zero attempts');
+  } else if (!near(proj.ts,expectedTs,1e-3 + tolerance)) fail('true shooting/TS does not derive from accounting');
+
+  if (finite(a.gp) && (a.gp < 0 || a.gp > games + tolerance)) fail('accounting GP exceeds league schedule or is invalid');
+  if (a.totals && typeof a.totals === 'object') {
+    const accountingGp = finite(a.gp) ? a.gp : proj.gp;
+    for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
+      if (!finite(a.totals[k])) fail(`total ${k} is invalid`);
+      const expected = a[k]*accountingGp;
+      if (!near(a.totals[k],expected,Math.max(1e-5,tolerance*Math.max(1,Math.abs(expected))))) {
+        fail(`total ${k} does not equal per-game accounting x accounting GP`);
+      }
+    }
+  }
+  return true;
+}

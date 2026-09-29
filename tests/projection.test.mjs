@@ -6,7 +6,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
-import { reconcileMinutes } from '../scripts/lib/projection-context.mjs';
+import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
+import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
@@ -88,6 +89,17 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     if (probs.length) bad.push(`${p.name}: ${probs.join('; ')}`);
   }
   check(`${lg}: every projected line is possible and consistent`, bad.length === 0, bad.slice(0, 3).join(' | '));
+  const accountingFailures = [];
+  for (const p of data.leagues[lg]) {
+    if (!p.proj || p.proj.abstain) continue;
+    try {
+      validateProjectionAccounting(p.proj, { league: lg, scheduledGames: lg === 'NBA' ? 82 : 50 });
+    } catch (err) {
+      accountingFailures.push(`${p.name}: ${err.message}`);
+    }
+  }
+  check(`${lg}: central accounting validator accepts every published projection`,
+    accountingFailures.length === 0, accountingFailures.slice(0, 3).join(' | '));
 }
 
 // 5. The formula's points identity, including the G League's single free throw worth the trip.
@@ -127,10 +139,25 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
   check('projection metadata is published with the data', data.projectionMeta?.id === card.id && !!data.projectionMeta?.rostersAsOf);
   const ledgers = Object.entries(rebuiltData.projectionMeta?.teamBudgets || {});
-  check('every listed NBA roster has an explicit 240-minute budget', ledgers.length === 30 && ledgers.every(([, x]) => x.allocated === 240 && x.excessFloor === 0), `${ledgers.length} teams`);
-  const uneven = ledgers.map(([team]) => rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
-    .reduce((sum, p) => sum + p.proj.effectiveMpg, 0));
-  check('published effective minutes reconcile after rounding', uneven.every(x => Math.abs(x - 240) <= 0.15), `${uneven.filter(x => Math.abs(x - 240) > 0.15).slice(0, 3)}`);
+  const completeLedgers = ledgers.filter(([, x]) => x.unprojectedRosterPlayers === 0);
+  const incompleteLedgers = ledgers.filter(([, x]) => x.unprojectedRosterPlayers > 0);
+  check('every listed NBA roster has an explicit minute-budget ledger',
+    ledgers.length === 30
+      && completeLedgers.every(([, x]) => Math.abs(x.allocated - 240) < 1e-6 && x.unmodeledReserve === 0 && x.excessFloor === 0)
+      && incompleteLedgers.every(([, x]) => x.allocated <= 240 + 1e-6
+        && Math.abs(x.unmodeledReserve - (240 - x.allocated)) < 1e-6
+        && x.requestedBudget <= 240 + 1e-6),
+    `${completeLedgers.length} complete, ${incompleteLedgers.length} incomplete`);
+  const uneven = ledgers.map(([team, ledger]) => ({
+    team,
+    expected: ledger.allocated,
+    actual: rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
+      .reduce((sum, p) => sum + p.proj.effectiveMpg, 0),
+  }));
+  check('published effective minutes reconcile to each team ledger after rounding',
+    uneven.every(x => Math.abs(x.actual - x.expected) <= 0.15),
+    uneven.filter(x => Math.abs(x.actual - x.expected) > 0.15).slice(0, 3)
+      .map(x => `${x.team}:${x.actual.toFixed(2)} vs ${x.expected.toFixed(2)}`).join(', '));
   check('roster players without a recent line receive explicit fallback or abstention',
     rebuiltData.leagues.NBA.filter(p => p.currentRoster && (!p.proj || (!p.proj.abstain && !['rookie-cohort-fallback', 'older-history-fallback', 'multi-year-history'].includes(p.proj.basis)))).length === 0);
   const badAccounting = rebuiltData.leagues.NBA.filter(p => p.proj && !p.proj.abstain
@@ -153,6 +180,154 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   reconcileMinutes(raised, 240);
   check('adding role demand shifts minutes away from the rest of the team', raised[0].mpg > unchanged[0]
     && raised.slice(1).reduce((s,r)=>s+r.mpg,0) < unchanged.slice(1).reduce((s,v)=>s+v,0));
+}
+
+
+// 9. Returner and rookie fallbacks expose machine-readable support/coverage without pretending
+//    unavailable evidence exists.
+{
+  const ret = historicalFallbackEvidence([
+    null, null, null,
+    { season:'2022-23', gp:60, min:1500 },
+    { season:'2021-22', gp:40, min:800 },
+  ], '2026-27', 42, 42/(42+40));
+  check('older-history fallback records its last observed season and blank-season gap',
+    ret.lastObservedSeason === '2022-23' && ret.blankSeasonGapCount === 3);
+  check('older-history fallback records weighted exposure and reliability',
+    Math.abs(ret.weightedHistoricalExposure - 42) < 1e-12 && Math.abs(ret.reliability - 42/82) < 1e-12);
+  check('older-history fallback support stays explicitly low',
+    ret.support === 'low' && /return-to-play|injury clearance/i.test(ret.note));
+
+  const veryLow = historicalFallbackEvidence([{season:'2022-23',gp:5,min:50}], '2026-27', 5, 5/45);
+  check('weak returner evidence is classified very-low rather than promoted',
+    veryLow.support === 'very-low');
+  const unavailable = historicalFallbackEvidence([], '2026-27', 0, 0);
+  check('no historical returner exposure is unavailable',
+    unavailable.support === 'unavailable' && unavailable.lastObservedSeason === null);
+
+  const cov = rookieInputCoverage({
+    draftPick: 12, position:'F', age:20, peers:45,
+    preNbaStats:'unavailable'
+  });
+  check('rookie input coverage distinguishes known and unavailable inputs',
+    cov.draftSlot.available === true
+      && cov.position.available === true
+      && cov.entryAge.available === true
+      && cov.historicalCohort.available === true
+      && cov.preNbaProduction.available === false
+      && cov.contractSecurity.available === false
+      && cov.currentInjuryClearance.available === false);
+
+  const summary = summarizeRookieCoverage([
+    cov,
+    rookieInputCoverage({draftPick:null,position:null,age:null,peers:30,preNbaStats:'unavailable'})
+  ]);
+  check('rookie coverage summary reports counts by input without filling gaps',
+    summary.players === 2
+      && summary.draftSlot.available === 1
+      && summary.position.available === 1
+      && summary.entryAge.available === 1
+      && summary.historicalCohort.available === 2
+      && summary.preNbaProduction.available === 0
+      && summary.contractSecurity.available === 0
+      && summary.currentInjuryClearance.available === 0);
+
+  const rookies = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'rookie-cohort-fallback');
+  check('published rookie fallbacks carry the machine-readable coverage block',
+    rookies.length > 0 && rookies.every((p) => p.proj.why?.rookie?.coverage
+      && p.proj.why.rookie.coverage.preNbaProduction.available === false
+      && p.proj.why.rookie.coverage.contractSecurity.available === false
+      && p.proj.why.rookie.coverage.currentInjuryClearance.available === false),
+    `${rookies.length} rookies`);
+  const metaCov = rebuiltData.projectionMeta?.rookieInputCoverage;
+  check('projection metadata aggregates rookie input coverage',
+    metaCov?.players === rookies.length
+      && metaCov?.historicalCohort?.available === rookies.length
+      && metaCov?.preNbaProduction?.available === 0
+      && metaCov?.contractSecurity?.available === 0
+      && metaCov?.currentInjuryClearance?.available === 0);
+
+  const returners = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'older-history-fallback');
+  check('published older-history fallbacks expose explicit support metadata',
+    returners.every((p) => ['low','very-low','unavailable'].includes(p.proj.why?.fallback?.support)
+      && p.proj.why.fallback.returnToPlayPredicted === false
+      && /injury clearance|return-to-play/i.test(p.proj.why.fallback.note || '')),
+    `${returners.length} returners`);
+}
+
+
+// 10. Minute reconciliation sensitivity: controlled input changes must produce coherent,
+//     bounded responses while conserving the team budget.
+{
+  const mk = (mpg=30, share=1, baseMin=900) => ({ mpg, share, pr:{baseMin} });
+  const base = Array.from({length:8},()=>mk());
+  reconcileMinutes(base,240);
+  const baseEff = base.map(r=>r.effectiveMpg);
+
+  const roleUp = Array.from({length:8},()=>mk());
+  roleUp[0].mpg += 1;
+  reconcileMinutes(roleUp,240);
+  check('role-demand increase moves the targeted effective minutes upward',
+    roleUp[0].effectiveMpg > baseEff[0]);
+  check('role-demand perturbation preserves the team budget',
+    Math.abs(roleUp.reduce((s,r)=>s+r.effectiveMpg,0)-240) < 1e-6);
+
+  const avail = Array.from({length:8},()=>mk());
+  avail[0].share = 0.5;
+  reconcileMinutes(avail,240);
+  check('availability reduction lowers the targeted effective minutes',
+    avail[0].effectiveMpg < baseEff[0]);
+  check('availability reduction reallocates released effective minutes to teammates',
+    avail.slice(1).reduce((s,r)=>s+r.effectiveMpg,0) > baseEff.slice(1).reduce((s,v)=>s+v,0));
+  check('availability perturbation preserves the team budget',
+    Math.abs(avail.reduce((s,r)=>s+r.effectiveMpg,0)-240) < 1e-6);
+
+  const sample = Array.from({length:8},(_,i)=>mk(25,1,i===0?2400:i===1?100:900));
+  const before = sample.map(r=>r.mpg*r.share);
+  reconcileMinutes(sample,240);
+  const highSampleMove = Math.abs(sample[0].effectiveMpg-before[0]);
+  const lowSampleMove = Math.abs(sample[1].effectiveMpg-before[1]);
+  check('lower-sample roles are more mobile than established roles under identical pressure',
+    lowSampleMove > highSampleMove + 1e-6,
+    `low ${lowSampleMove.toFixed(3)} vs high ${highSampleMove.toFixed(3)}`);
+
+  const tiny = Array.from({length:8},()=>mk());
+  tiny[0].mpg += 0.2;
+  reconcileMinutes(tiny,240);
+  const unrelatedJump = Math.max(...tiny.slice(1).map((r,i)=>Math.abs(r.effectiveMpg-baseEff[i+1])));
+  check('small role perturbations do not create multi-MPG jumps in unrelated players',
+    unrelatedJump < 0.25, `largest unrelated jump ${unrelatedJump}`);
+  check('all sensitivity scenarios remain inside feasible player bounds',
+    [...roleUp,...avail,...sample,...tiny].every(r=>r.mpg>=1-1e-9 && r.mpg<=40+1e-9));
+  const incompleteBudget = reconciliationBudget(
+    Array.from({length:8},()=>({mpg:25,share:1})), {rosterPlayers:10, fullBudget:240});
+  check('incomplete roster coverage does not force projected players upward to fill unknown minutes',
+    incompleteBudget.requestedBudget === 200
+      && incompleteBudget.unprojectedRosterPlayers === 2
+      && incompleteBudget.unmodeledReserve === 40);
+  const completeBudget = reconciliationBudget(
+    Array.from({length:8},()=>({mpg:25,share:1})), {rosterPlayers:8, fullBudget:240});
+  check('complete roster coverage still reconciles to the full team budget',
+    completeBudget.requestedBudget === 240
+      && completeBudget.unprojectedRosterPlayers === 0
+      && completeBudget.unmodeledReserve === 0);
+
+}
+
+
+{
+  const cv = rebuiltData.projectionMeta?.contextReconciliation;
+  const cardCv = card.backtest?.nba?.contextReconciliation;
+  check('published context reconciliation report matches the frozen model card',
+    cv && cardCv && JSON.stringify(cv) === JSON.stringify(cardCv));
+  check('context reconciliation report does not overclaim held-out improvement',
+    /history-eligible/i.test(cv?.population || '')
+      && /not scored|not validated|held fixed|proxy/i.test(cv?.limitations || '')
+      && Number.isFinite(cv?.mae?.delta?.mpg));
+  check('held-out context report records complete team-budget coverage explicitly',
+    cv?.teamBudgetCoverage?.exact === cv?.teamBudgetCoverage?.teams
+      && cv?.openingRosterCoverage?.completeTeams === cv?.teams
+      && cv?.openingRosterCoverage?.excludedTeams >= 0);
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
