@@ -5,6 +5,56 @@ import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeat
 export const CONTEXT_VERSION = 'context-1';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+
+/** Machine-readable support for an older-history returner estimate. This describes evidence only;
+ * it does not diagnose injury status or predict return-to-play. */
+export function historicalFallbackEvidence(hist, targetSeason, weightedExposure, reliability) {
+  const rows = (hist || []).filter((r) => r && r.season);
+  const last = rows.sort((a,b) => seasonStart(b.season) - seasonStart(a.season))[0] || null;
+  const gap = last ? Math.max(0, seasonStart(targetSeason) - seasonStart(last.season) - 1) : null;
+  const exposure = Number.isFinite(weightedExposure) ? Math.max(0, weightedExposure) : 0;
+  const rel = Number.isFinite(reliability) ? clamp(reliability, 0, 1) : 0;
+  const support = exposure <= 0 ? 'unavailable' : rel < 0.35 ? 'very-low' : 'low';
+  return {
+    lastObservedSeason: last?.season || null,
+    blankSeasonGapCount: gap,
+    weightedHistoricalExposure: exposure,
+    reliability: rel,
+    support,
+    returnToPlayPredicted: false,
+    note: 'Older NBA history informs role only. Current injury clearance and return-to-play are not verified or predicted.',
+  };
+}
+
+/** Describe which inputs a rookie fallback actually knows. Unavailable evidence remains unavailable. */
+export function rookieInputCoverage(evidence = {}) {
+  const field = (available, source, value = null) => ({ available: !!available, source: available ? source : null, value: available ? value : null });
+  const draft = Number.isFinite(evidence.draftPick) && evidence.draftPick > 0;
+  const pos = typeof evidence.position === 'string' && evidence.position.trim().length > 0;
+  const age = Number.isFinite(evidence.age);
+  const cohort = Number.isFinite(evidence.peers) && evidence.peers > 0;
+  const pre = evidence.preNbaStats && evidence.preNbaStats !== 'unavailable';
+  return {
+    draftSlot: field(draft, 'nba-bio', draft ? evidence.draftPick : null),
+    position: field(pos, 'nba-bio', pos ? evidence.position : null),
+    entryAge: field(age, 'nba-bio', age ? evidence.age : null),
+    historicalCohort: field(cohort, 'historical-entry-cohort', cohort ? evidence.peers : null),
+    preNbaProduction: field(pre, pre ? 'verified-pre-nba' : null, pre ? evidence.preNbaStats : null),
+    contractSecurity: field(false, null),
+    currentInjuryClearance: field(false, null),
+  };
+}
+
+export function summarizeRookieCoverage(items = []) {
+  const keys = ['draftSlot','position','entryAge','historicalCohort','preNbaProduction','contractSecurity','currentInjuryClearance'];
+  const out = { players: items.length };
+  for (const key of keys) {
+    const available = items.filter((x) => x?.[key]?.available === true).length;
+    out[key] = { available, unavailable: items.length - available };
+  }
+  return out;
+}
+
 /** Minimise a weighted squared adjustment subject to bounds and a team-minute budget.
  * Effective minutes = MPG when playing * expected fraction of games played.
  * Lower-certainty roles can move further. This is accounting, not fitted predictive skill.
@@ -102,12 +152,13 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
     pct[k] = clamp(norm[k] + num / (den + 2), 0.05, 0.95);
     pieces[k] = { base: pct[k], prior: norm[k], own: null, weightOnOwn: den / (den + 2), ageAdd: 0 };
   }
-  return { mpg, share, pr: { rate, pct, pieces, age, yearsIn: 1, draft: pick, basePoss: 0, baseMin: 0 },
-    evidence: { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
-      draftPick: pick === 61 ? null : pick, position: bio.position, age,
-      peers: candidates.length, effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
-      seasons: [...new Set(candidates.map(x => x.season))].sort(),
-      note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' } };
+  const evidence = { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
+    draftPick: pick === 61 ? null : pick, position: bio.position, age,
+    peers: candidates.length, effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
+    seasons: [...new Set(candidates.map(x => x.season))].sort(),
+    note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' };
+  evidence.coverage = rookieInputCoverage(evidence);
+  return { mpg, share, pr: { rate, pct, pieces, age, yearsIn: 1, draft: pick, basePoss: 0, baseMin: 0 }, evidence };
 }
 
 
@@ -185,13 +236,15 @@ export function historicalRoleProjection(hist, T, bio, teamGames, rates, ctx, ro
     return { r, w, sample, mpg: r.min / r.gp, share: clamp(r.gp / teamGames(r.season || T, r.team), 0, 1) };
   });
   const exposure = entries.reduce((s, x) => s + x.w * x.sample, 0);
-  if (!exposure) return { mpg: priorMpg, share: priorShare, priorMpg, priorShare, reliability: 0, f: prior };
+  if (!exposure) return { mpg: priorMpg, share: priorShare, priorMpg, priorShare, exposure: 0, reliability: 0,
+    ...historicalFallbackEvidence(hist, T, 0, 0), f: prior };
   const oldMpg = entries.reduce((s, x) => s + x.w * x.sample * x.mpg, 0) / exposure;
   const oldShare = entries.reduce((s, x) => s + x.w * x.sample * x.share, 0) / exposure;
   const reliability = exposure / (exposure + 40);
   return { mpg: clamp(priorMpg + reliability * (oldMpg - priorMpg), 1, 40),
     share: clamp(priorShare + reliability * (oldShare - priorShare), 0.05, 0.98),
-    priorMpg, priorShare, oldMpg, oldShare, exposure, reliability, f: prior };
+    priorMpg, priorShare, oldMpg, oldShare, exposure, reliability,
+    ...historicalFallbackEvidence(hist, T, exposure, reliability), f: prior };
 }
 
 /** Independent chronological check of the fallback alone, including nonappearance outcomes.
