@@ -77,3 +77,17 @@ Verified engineering and evidence status in this section:
 - Frozen validation metadata records the prior negative result exactly: reduced form -0.127 points/SD, Anderson-Rubin 95% CI [-1.756, 1.021]. Exact magnitude is not validated, and ordinal play-more/play-less direction is not validated as a win prescription.
 - The Projected Role MPG historical backtest remains separate and is explicitly not evidence that TULIP Beta's allocator is valid.
 - The 2024-25 and 2025-26 chronological TULIP outcome holdouts remain unspent in this section. That is intentional: this work improves engineering truthfulness and feasibility accounting, not the underlying causal evidence.
+
+
+### TULIP feasibility and validation review — PR #18
+
+Verified capabilities in this section:
+- Current-roster scope: 598 NBA roster rows across 30 teams; 425 receive TULIP Beta values and 173 explicitly abstain.
+- Magnitude distribution is now machine-readable and recomputed from the shipped player rows: |TULIP| >=3 MPG: 231 players (119 positive, 112 negative); >=5: 127 (76 positive, 51 negative); >=7: 57 (33 positive, 24 negative); >=10: 17 (12 positive, 5 negative).
+- Recommendation-support distribution: HIGH 65, MEDIUM 4, LOW 356; 105 recommendations extrapolate beyond direct workload evidence.
+- Every current NBA team publishes roster count, scored/abstained count and reasons, eligible-pool baseline/recommended totals, gained/surrendered/net MPG, ledger conservation, individual 0–40 bounds, position-family coverage and an explicit feasibility status.
+- Feasibility is intentionally labeled PARTIAL_LEDGER_ONLY: the allocator conserves the scored eligible-player workload ledger and enforces individual bounds, but does not verify simultaneous availability, enforce positional/lineup constraints, or construct a complete playable 240-minute rotation.
+- Every scored player carries a structured trace for value signal, baseline workload, evidence-supported ceiling, extrapolation, evidence tier/factor, roster-balance factor and the unverified feasibility dimensions.
+- The TULIP UI now labels its source workload as Baseline MPG / 2025-26 MPG baseline, because current 2026-27 roster identity and last-season workload are different concepts.
+- Frozen research status is now machine-readable in the product: DEV reduced form -0.127 pts/SD and Anderson-Rubin 95% CI [-1.756, 1.021]; exact magnitude is not validated and ordinal play-more/play-less direction is not validated as a win prescription. The separate Projected Role MPG backtest is explicitly not borrowed as TULIP Beta validation.
+- This section did not inspect/spend the pre-registered chronological TULIP holdouts. No new win-optimality claim is made.
