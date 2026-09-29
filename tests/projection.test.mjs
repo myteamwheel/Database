@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
-import { reconcileMinutes } from '../scripts/lib/projection-context.mjs';
+import { reconcileMinutes, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
@@ -153,6 +153,57 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   reconcileMinutes(raised, 240);
   check('adding role demand shifts minutes away from the rest of the team', raised[0].mpg > unchanged[0]
     && raised.slice(1).reduce((s,r)=>s+r.mpg,0) < unchanged.slice(1).reduce((s,v)=>s+v,0));
+}
+
+
+// 9. Returner and rookie fallbacks expose machine-readable support/coverage without pretending
+//    unavailable evidence exists.
+{
+  const ret = historicalFallbackEvidence([
+    null, null, null,
+    { season:'2022-23', gp:60, min:1500 },
+    { season:'2021-22', gp:40, min:800 },
+  ], '2026-27', 42, 42/(42+40));
+  check('older-history fallback records its last observed season and blank-season gap',
+    ret.lastObservedSeason === '2022-23' && ret.blankSeasonGapCount === 3);
+  check('older-history fallback records weighted exposure and reliability',
+    Math.abs(ret.weightedHistoricalExposure - 42) < 1e-12 && Math.abs(ret.reliability - 42/82) < 1e-12);
+  check('older-history fallback support stays explicitly low',
+    ret.support === 'low' && /return-to-play|injury clearance/i.test(ret.note));
+
+  const veryLow = historicalFallbackEvidence([{season:'2022-23',gp:5,min:50}], '2026-27', 5, 5/45);
+  check('weak returner evidence is classified very-low rather than promoted',
+    veryLow.support === 'very-low');
+  const unavailable = historicalFallbackEvidence([], '2026-27', 0, 0);
+  check('no historical returner exposure is unavailable',
+    unavailable.support === 'unavailable' && unavailable.lastObservedSeason === null);
+
+  const cov = rookieInputCoverage({
+    draftPick: 12, position:'F', age:20, peers:45,
+    preNbaStats:'unavailable'
+  });
+  check('rookie input coverage distinguishes known and unavailable inputs',
+    cov.draftSlot.available === true
+      && cov.position.available === true
+      && cov.entryAge.available === true
+      && cov.historicalCohort.available === true
+      && cov.preNbaProduction.available === false
+      && cov.contractSecurity.available === false
+      && cov.currentInjuryClearance.available === false);
+
+  const summary = summarizeRookieCoverage([
+    cov,
+    rookieInputCoverage({draftPick:null,position:null,age:null,peers:30,preNbaStats:'unavailable'})
+  ]);
+  check('rookie coverage summary reports counts by input without filling gaps',
+    summary.players === 2
+      && summary.draftSlot.available === 1
+      && summary.position.available === 1
+      && summary.entryAge.available === 1
+      && summary.historicalCohort.available === 2
+      && summary.preNbaProduction.available === 0
+      && summary.contractSecurity.available === 0
+      && summary.currentInjuryClearance.available === 0);
 }
 
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
