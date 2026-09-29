@@ -228,5 +228,51 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     `${returners.length} returners`);
 }
 
+
+// 10. Minute reconciliation sensitivity: controlled input changes must produce coherent,
+//     bounded responses while conserving the team budget.
+{
+  const mk = (mpg=30, share=1, baseMin=900) => ({ mpg, share, pr:{baseMin} });
+  const base = Array.from({length:8},()=>mk());
+  reconcileMinutes(base,240);
+  const baseEff = base.map(r=>r.effectiveMpg);
+
+  const roleUp = Array.from({length:8},()=>mk());
+  roleUp[0].mpg += 1;
+  reconcileMinutes(roleUp,240);
+  check('role-demand increase moves the targeted effective minutes upward',
+    roleUp[0].effectiveMpg > baseEff[0]);
+  check('role-demand perturbation preserves the team budget',
+    Math.abs(roleUp.reduce((s,r)=>s+r.effectiveMpg,0)-240) < 1e-6);
+
+  const avail = Array.from({length:8},()=>mk());
+  avail[0].share = 0.5;
+  reconcileMinutes(avail,240);
+  check('availability reduction lowers the targeted effective minutes',
+    avail[0].effectiveMpg < baseEff[0]);
+  check('availability reduction reallocates released effective minutes to teammates',
+    avail.slice(1).reduce((s,r)=>s+r.effectiveMpg,0) > baseEff.slice(1).reduce((s,v)=>s+v,0));
+  check('availability perturbation preserves the team budget',
+    Math.abs(avail.reduce((s,r)=>s+r.effectiveMpg,0)-240) < 1e-6);
+
+  const sample = Array.from({length:8},(_,i)=>mk(25,1,i===0?2400:i===1?100:900));
+  const before = sample.map(r=>r.mpg*r.share);
+  reconcileMinutes(sample,240);
+  const highSampleMove = Math.abs(sample[0].effectiveMpg-before[0]);
+  const lowSampleMove = Math.abs(sample[1].effectiveMpg-before[1]);
+  check('lower-sample roles are more mobile than established roles under identical pressure',
+    lowSampleMove > highSampleMove + 1e-6,
+    `low ${lowSampleMove.toFixed(3)} vs high ${highSampleMove.toFixed(3)}`);
+
+  const tiny = Array.from({length:8},()=>mk());
+  tiny[0].mpg += 0.2;
+  reconcileMinutes(tiny,240);
+  const unrelatedJump = Math.max(...tiny.slice(1).map((r,i)=>Math.abs(r.effectiveMpg-baseEff[i+1])));
+  check('small role perturbations do not create multi-MPG jumps in unrelated players',
+    unrelatedJump < 0.25, `largest unrelated jump ${unrelatedJump}`);
+  check('all sensitivity scenarios remain inside feasible player bounds',
+    [...roleUp,...avail,...sample,...tiny].every(r=>r.mpg>=1-1e-9 && r.mpg<=40+1e-9));
+}
+
 console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
 process.exit(fail ? 1 : 0);
