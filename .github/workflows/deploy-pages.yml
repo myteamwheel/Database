@@ -23,6 +23,9 @@ on:
       - 'workspace.js'
       - 'styles.css'
       - 'public/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'PROJECTION_2026_27.json'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 

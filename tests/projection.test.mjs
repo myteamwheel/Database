@@ -29,12 +29,36 @@ check('card matches the committed inputs file',
   buildProjections(copy, rawInputs, card);
   rebuiltData = copy;
   let diff = 0, first = '';
+  const examples = [];
+  const fieldDiffs = new Map();
+  const collectDiffs = (a, b, prefix = '') => {
+    if (Object.is(a, b)) return [];
+    if (a && b && typeof a === 'object' && typeof b === 'object'
+        && !Array.isArray(a) && !Array.isArray(b)) {
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      return [...keys].flatMap(k => collectDiffs(a[k], b[k], prefix ? `${prefix}.${k}` : k));
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const n = Math.max(a.length, b.length), out = [];
+      for (let i = 0; i < n; i++) out.push(...collectDiffs(a[i], b[i], `${prefix}[${i}]`));
+      return out;
+    }
+    return [{ path: prefix, committed: a, rebuilt: b }];
+  };
   for (const lg of ['NBA', 'GLEAGUE']) {
     data.leagues[lg].forEach((p, i) => {
-      if (JSON.stringify(p.proj) !== JSON.stringify(copy.leagues[lg][i].proj)) { diff++; first ||= `${lg} ${p.name}`; }
+      const rebuilt = copy.leagues[lg][i].proj;
+      if (JSON.stringify(p.proj) !== JSON.stringify(rebuilt)) {
+        diff++; first ||= `${lg} ${p.name}`;
+        const changes = collectDiffs(p.proj, rebuilt);
+        for (const c of changes) fieldDiffs.set(c.path, (fieldDiffs.get(c.path) || 0) + 1);
+        if (examples.length < 8) examples.push({ player: `${lg} ${p.name}`, changes: changes.slice(0, 8) });
+      }
     });
   }
-  check('rebuild reproduces the committed projections exactly', diff === 0, `${diff} differ, first ${first}`);
+  const fields = [...fieldDiffs].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => `${k}:${n}`).join(', ');
+  check('rebuild reproduces the committed projections exactly', diff === 0,
+    `${diff} differ, first ${first}; fields ${fields}; examples ${JSON.stringify(examples)}`);
 }
 
 // 3. Every player has a projection or an explicit, explained abstention. Never silently missing.
