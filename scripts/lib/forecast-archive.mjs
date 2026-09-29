@@ -224,3 +224,141 @@ export function buildArchive({ data, card, rawInputs, sourceCommit, publishedAt,
   validateArchive(archive);
   return archive;
 }
+
+
+const SCORE_METRICS = ['gp','mpg','pts','reb','ast','stl','blk','tov','fg3m','fgPct','fg3Pct','ftPct'];
+
+export function deriveCohorts(player) {
+  if (!player || player.abstain) return [];
+  const out = [];
+  const status = player.status;
+  const basis = player.basis;
+  if (status === 'rookie' || basis === 'rookie-cohort-fallback') out.push('rookie');
+  else if (basis === 'multi-year-history') out.push('recent-history-veteran');
+  if (basis === 'older-history-fallback') out.push('older-history-returner');
+  if (status === 'same') out.push('same-team');
+  if (status === 'new') out.push('new-team');
+  if (status === 'unsigned') out.push('unsigned-at-forecast');
+  if (Number.isFinite(player.age) && player.age <= 23) out.push('age-23-and-under');
+  if (Number.isFinite(player.age) && player.age >= 33) out.push('age-33-and-over');
+  const last = player.why?.minutes?.last;
+  if (Number.isFinite(last)) out.push(last >= 24 ? 'prior-high-minutes' : 'prior-lower-minutes');
+  return out;
+}
+
+function actualIdentity(league, row) {
+  const id = row?.nbaPersonId;
+  if (id === null || id === undefined || id === '') throw new Error(`actual ${league} row missing nbaPersonId`);
+  return `${league}:${id}`;
+}
+
+function actualPerGame(row) {
+  const gp = Number(row.gp);
+  if (!(gp > 0)) return { gp: Number.isFinite(gp) ? gp : null };
+  const pg = (k) => Number.isFinite(Number(row[k])) ? Number(row[k]) / gp : null;
+  const fga = Number(row.fga), fg3a = Number(row.fg3a), fta = Number(row.fta);
+  return {
+    gp,
+    mpg: pg('min'), pts: pg('pts'),
+    reb: Number.isFinite(Number(row.oreb)) && Number.isFinite(Number(row.dreb)) ? (Number(row.oreb)+Number(row.dreb))/gp : null,
+    ast: pg('ast'), stl: pg('stl'), blk: pg('blk'), tov: pg('tov'), fg3m: pg('fg3m'),
+    fgPct: fga > 0 && Number.isFinite(Number(row.fgm)) ? Number(row.fgm)/fga : null,
+    fg3Pct: fg3a > 0 && Number.isFinite(Number(row.fg3m)) ? Number(row.fg3m)/fg3a : null,
+    ftPct: fta > 0 && Number.isFinite(Number(row.ftm)) ? Number(row.ftm)/fta : null,
+    attempts: { fga: Number.isFinite(fga) ? fga : 0, fg3a: Number.isFinite(fg3a) ? fg3a : 0, fta: Number.isFinite(fta) ? fta : 0 },
+  };
+}
+
+export function normalizeActualResults(actuals) {
+  if (actuals?.schemaVersion !== 1) throw new Error('actual results schemaVersion must be 1');
+  if (!actuals?.season || !actuals?.asOf || !['final','interim'].includes(actuals?.status)) {
+    throw new Error('actual results require season, asOf, and final/interim status');
+  }
+  const out = new Map();
+  for (const league of ['NBA','GLEAGUE']) {
+    for (const row of actuals.leagues?.[league] || []) {
+      const key = actualIdentity(league,row);
+      if (out.has(key)) throw new Error(`duplicate actual identity ${key}`);
+      out.set(key,{...row,league,identity:key,line:actualPerGame(row)});
+    }
+  }
+  return out;
+}
+
+function metricEligible(metric, actual, interim) {
+  if (metric === 'gp' && interim) return false;
+  if (metric === 'fgPct') return actual.line.attempts?.fga >= 100;
+  if (metric === 'fg3Pct') return actual.line.attempts?.fg3a >= 50;
+  if (metric === 'ftPct') return actual.line.attempts?.fta >= 50;
+  return true;
+}
+
+function summarize(values) {
+  if (!values.length) return { available:false, n:0 };
+  let abs=0, sq=0, bias=0;
+  for (const [pred,act] of values) { const e=pred-act; abs+=Math.abs(e); sq+=e*e; bias+=e; }
+  return { available:true, n:values.length, mae:abs/values.length, rmse:Math.sqrt(sq/values.length), bias:bias/values.length };
+}
+
+function scoreOne(rows, getter, interim) {
+  const metrics = {};
+  for (const metric of SCORE_METRICS) {
+    if (metric === 'gp' && interim) continue;
+    const values=[];
+    for (const row of rows) {
+      if (!metricEligible(metric,row.actual,interim)) continue;
+      const pred=getter(row)?.[metric], act=row.actual.line?.[metric];
+      if (Number.isFinite(pred) && Number.isFinite(act)) values.push([pred,act]);
+    }
+    metrics[metric]=summarize(values);
+  }
+  return {metrics};
+}
+
+function scorePair(rows, baseline, interim) {
+  const model={metrics:{}}, base={metrics:{}};
+  for (const metric of SCORE_METRICS) {
+    if (metric === 'gp' && interim) continue;
+    const modelValues=[], baseValues=[];
+    for (const row of rows) {
+      if (!metricEligible(metric,row.actual,interim)) continue;
+      const mp=row.player.projection?.[metric], bp=row.player.baselines?.[baseline]?.[metric], act=row.actual.line?.[metric];
+      if (Number.isFinite(mp) && Number.isFinite(bp) && Number.isFinite(act)) {
+        modelValues.push([mp,act]); baseValues.push([bp,act]);
+      }
+    }
+    model.metrics[metric]=summarize(modelValues); base.metrics[metric]=summarize(baseValues);
+  }
+  return {model,baseline:base};
+}
+
+function scoreGroup(rows, league, interim) {
+  const result={allModel:scoreOne(rows,r=>r.player.projection,interim),vsRepeat:scorePair(rows,'repeat',interim)};
+  if (league === 'NBA') result.vsAvg3=scorePair(rows,'avg3',interim);
+  return result;
+}
+
+export function scoreArchive(archive, actuals, {interim=false}={}) {
+  if (!archive?.season || archive.season !== actuals?.season) {
+    throw new Error(`forecast/actual season mismatch: ${archive?.season} vs ${actuals?.season}`);
+  }
+  if (actuals.status === 'interim' && !interim) throw new Error('interim actual results require explicit interim mode');
+  if (actuals.status === 'final' && interim) throw new Error('interim mode requires interim actual results');
+  const actualMap=normalizeActualResults(actuals);
+  const output={schemaVersion:1,forecastId:archive.forecastId,season:archive.season,asOf:actuals.asOf,status:actuals.status,
+    interim:actuals.status==='interim',coverage:{},leagues:{}};
+  for (const league of ['NBA','GLEAGUE']) {
+    const players=(archive.players||[]).filter(p=>p.league===league);
+    const coverage={archiveRows:players.length,projected:players.filter(p=>!p.abstain).length,
+      abstained:players.filter(p=>p.abstain).length,actualMatched:players.filter(p=>actualMap.has(p.identity)).length,
+      repeatAvailable:players.filter(p=>p.baselines?.repeat).length,avg3Available:players.filter(p=>p.baselines?.avg3).length};
+    output.coverage[league]=coverage;
+    const rows=players.filter(p=>!p.abstain && actualMap.has(p.identity)).map(player=>({player,actual:actualMap.get(player.identity)}));
+    const scored=scoreGroup(rows,league,output.interim);
+    const cohorts={};
+    const names=[...new Set(rows.flatMap(r=>deriveCohorts(r.player)))].sort();
+    for (const name of names) cohorts[name]=scoreGroup(rows.filter(r=>deriveCohorts(r.player).includes(name)),league,output.interim);
+    output.leagues[league]={...scored,cohorts};
+  }
+  return output;
+}
