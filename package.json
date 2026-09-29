@@ -51,7 +51,8 @@
     "test:tulipbeta": "node tests/tulip-beta.test.mjs",
     "test:tulipcapacity": "node tests/tulip-capacity-v1.test.mjs",
     "test:refresh": "node tests/refresh.test.mjs",
-    "archive:forecast": "node scripts/archive-forecast.mjs"
+    "archive:forecast": "node scripts/archive-forecast.mjs",
+    "score:forecast": "node scripts/score-forecast-archive.mjs"
   },
   "engines": {
     "node": ">=20"
