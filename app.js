@@ -1410,7 +1410,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
     <p class="tiny">TULIP Beta reallocates a team's existing player-minute workload toward players
     favored by its team-relative performance and role evidence. Positive values gain minutes;
     negative values surrender minutes. The roster ledger is conserved. TULIP Beta is experimental and
-    its exact MPG recommendations have not been validated as win-maximizing; neither has the play-more/play-less direction. Net reallocation is
+    neither its play-more/play-less direction nor its exact MPG magnitude has been validated as win-maximizing. Net reallocation is
     0.0 apart from per-player rounding to one decimal. <b>This is a workload redistribution heuristic, not a playable 240-minute rotation.</b>
     The sum combines historical individual workloads. <b>Availability is not verified</b>, positional/lineup constraints are not enforced, and excluded current-roster players may exist when TULIP abstains.</p>
     ${diag?`<p class="tiny"><b>Roster coverage:</b> ${diag.scoredPlayers}/${diag.currentRosterPlayers} current-roster players scored; ${diag.abstainedPlayers} excluded current-roster players. This is a conserved eligible-player workload ledger, not a complete 240-minute rotation.</p>`:''}
