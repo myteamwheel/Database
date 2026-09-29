@@ -139,10 +139,25 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
   check('projection metadata is published with the data', data.projectionMeta?.id === card.id && !!data.projectionMeta?.rostersAsOf);
   const ledgers = Object.entries(rebuiltData.projectionMeta?.teamBudgets || {});
-  check('every listed NBA roster has an explicit 240-minute budget', ledgers.length === 30 && ledgers.every(([, x]) => x.allocated === 240 && x.excessFloor === 0), `${ledgers.length} teams`);
-  const uneven = ledgers.map(([team]) => rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
-    .reduce((sum, p) => sum + p.proj.effectiveMpg, 0));
-  check('published effective minutes reconcile after rounding', uneven.every(x => Math.abs(x - 240) <= 0.15), `${uneven.filter(x => Math.abs(x - 240) > 0.15).slice(0, 3)}`);
+  const completeLedgers = ledgers.filter(([, x]) => x.unprojectedRosterPlayers === 0);
+  const incompleteLedgers = ledgers.filter(([, x]) => x.unprojectedRosterPlayers > 0);
+  check('every listed NBA roster has an explicit minute-budget ledger',
+    ledgers.length === 30
+      && completeLedgers.every(([, x]) => Math.abs(x.allocated - 240) < 1e-6 && x.unmodeledReserve === 0 && x.excessFloor === 0)
+      && incompleteLedgers.every(([, x]) => x.allocated <= 240 + 1e-6
+        && Math.abs(x.unmodeledReserve - (240 - x.allocated)) < 1e-6
+        && x.requestedBudget <= 240 + 1e-6),
+    `${completeLedgers.length} complete, ${incompleteLedgers.length} incomplete`);
+  const uneven = ledgers.map(([team, ledger]) => ({
+    team,
+    expected: ledger.allocated,
+    actual: rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
+      .reduce((sum, p) => sum + p.proj.effectiveMpg, 0),
+  }));
+  check('published effective minutes reconcile to each team ledger after rounding',
+    uneven.every(x => Math.abs(x.actual - x.expected) <= 0.15),
+    uneven.filter(x => Math.abs(x.actual - x.expected) > 0.15).slice(0, 3)
+      .map(x => `${x.team}:${x.actual.toFixed(2)} vs ${x.expected.toFixed(2)}`).join(', '));
   check('roster players without a recent line receive explicit fallback or abstention',
     rebuiltData.leagues.NBA.filter(p => p.currentRoster && (!p.proj || (!p.proj.abstain && !['rookie-cohort-fallback', 'older-history-fallback', 'multi-year-history'].includes(p.proj.basis)))).length === 0);
   const badAccounting = rebuiltData.leagues.NBA.filter(p => p.proj && !p.proj.abstain
