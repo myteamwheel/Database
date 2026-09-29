@@ -18,6 +18,7 @@ import {
   RATE_STATS, PCT_STATS, USAGE_STATS, AGE_MIN, AGE_MAX, MIN_FEATURES, GP_FEATURES, playsPer100,
   applyTeamContext, projectedPace, leagueTrend, rosterDepth, expectedRookieMin,
 } from './lib/projection.mjs';
+import { evaluateMinuteReconciliation } from './lib/projection-context.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INPUTS = path.join(ROOT, 'scripts/data/projection/inputs.json');
@@ -539,8 +540,24 @@ const fitTrain = fitAll(D.nba, NBA_TRAIN);
 const testRows = evaluate(D.nba, NBA_TEST, fitTrain);
 const scAll = score(testRows);
 const scRot = score(testRows, (r) => r.q.actual.min >= 1000);
+const openingRoster = rostersFor(D.nba, NBA_TEST);
+const contextReconciliation = evaluateMinuteReconciliation(testRows.map((r) => ({
+  team: r.q.team,
+  rosterSize: (openingRoster.get(r.q.team) || []).length,
+  playerId: r.q.pid,
+  mpg: r.line.mpg,
+  share: r.share,
+  pr: { baseMin: r.pr.baseMin },
+  line: { mpg: r.line.mpg, pts: r.line.pts, reb: r.line.reb, ast: r.line.ast },
+  actual: (() => { const a = actualLine(r.q.actual); return { mpg: a.mpg, pts: a.pts, reb: a.reb, ast: a.ast }; })(),
+})));
 report(`${DEV ? 'VALIDATION' : 'TEST'} ${NBA_TEST}, every player with NBA history`, scAll);
 report(`${DEV ? 'VALIDATION' : 'TEST'} ${NBA_TEST}, 1,000+ minutes`, scRot);
+log('  context reconciliation (minute layer only): ' + JSON.stringify(contextReconciliation));
+if (process.argv.includes('context')) {
+  log('\nCONTEXT_RECONCILIATION ' + JSON.stringify(contextReconciliation));
+  process.exit(0);
+}
 const boots = {};
 for (const k of STAT_KEYS) boots[k] = { vsRepeat: bootstrap(testRows, k, 'repeat'), vsAvg3: bootstrap(testRows, k, 'avg3') };
 log('\n  model gain in MAE (positive = model better), 95% bootstrap interval');
@@ -712,7 +729,7 @@ const card = round({
     protocol: 'Parameters fitted on 2012-13..2024-25 targets only; tested on 2025-26 using the rosters teams opened 2025-26 with.',
     development: 'Model choices (features, factors, weights) were made on a separate check season: fit through 2023-24, checked on 2024-25. One early 2025-26 run was seen before that; it exposed a bug (three-point and free-throw attempts counted twice), which was fixed. The 2025-26 figures here come from the final model.',
     nba: { season: NBA_TEST, all: { n: scAll.n, mae: summary(scAll) }, rotation1000: { n: scRot.n, mae: summary(scRot) },
-      gainVsBaselines: boots, ablation: ablate, residualBands },
+      contextReconciliation, gainVsBaselines: boots, ablation: ablate, residualBands },
     gleague: { season: GL_TEST, n: glRows.length, mae: glScore, residualBands: glBands },
   },
 });
