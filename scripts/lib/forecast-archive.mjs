@@ -221,7 +221,13 @@ export function buildArchive({ data, card, rawInputs, sourceCommit, publishedAt,
     sources: sources || {},
     players,
   };
-  validateArchive(archive);
+  const summary = validateArchive(archive);
+  const baselineAvailable = { repeat: 0, avg3: 0 };
+  for (const player of players) {
+    if (player.baselines?.repeat) baselineAvailable.repeat++;
+    if (player.baselines?.avg3) baselineAvailable.avg3++;
+  }
+  archive.counts = { ...summary, baselineAvailable };
   return archive;
 }
 
