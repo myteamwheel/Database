@@ -1,3 +1,4 @@
+import { actualLine, historyBefore, prevSeason } from './projection.mjs';
 import crypto from 'node:crypto';
 
 const PROJECTION_FIELDS = [
@@ -98,4 +99,53 @@ export function validateArchive(archive) {
     validateProjection(row);
   }
   return { projected, abstained, byLeague };
+}
+
+const BASELINE_STAT_KEYS = ['mpg','gp','pts','reb','ast','stl','blk','tov','fg3m'];
+
+export function nbaBaselines(D, pid, targetSeason) {
+  const hist = historyBefore(D.nba, pid, targetSeason);
+  const last = hist.find(Boolean);
+  if (!last) return { repeat: null, avg3: null, evidence: { seasons: [] } };
+  const idx = hist.indexOf(last);
+  const repeat = actualLine(last);
+  repeat.gp = Math.min(1, last.gp / D.nba.teamGames(last.season || prevSeason(targetSeason, idx + 1), last.team)) * 82;
+
+  const weights = [5,4,3];
+  const lines = hist.map(r => r ? actualLine(r) : null);
+  let den = 0;
+  hist.forEach((r,i) => { if (r) den += weights[i] * r.gp; });
+  if (!(den > 0)) return { repeat, avg3: null, evidence: { seasons: hist.filter(Boolean).map(r => r.season) } };
+  const avg3 = {};
+  for (const k of [...BASELINE_STAT_KEYS, 'fga','fg3a','fta']) {
+    let total = 0;
+    hist.forEach((r,i) => { if (r) total += weights[i] * r.gp * lines[i][k]; });
+    avg3[k] = total / den;
+  }
+  const weightedTotal = (key) => hist.reduce((sum,r,i) => sum + (r ? weights[i] * r[key] : 0), 0);
+  avg3.fgPct = weightedTotal('fga') > 0 ? weightedTotal('fgm') / weightedTotal('fga') : null;
+  avg3.fg3Pct = weightedTotal('fg3a') > 0 ? weightedTotal('fg3m') / weightedTotal('fg3a') : null;
+  avg3.ftPct = weightedTotal('fta') > 0 ? weightedTotal('ftm') / weightedTotal('fta') : null;
+  let share = 0, shareWeight = 0;
+  hist.forEach((r,i) => {
+    if (!r) return;
+    const games = D.nba.teamGames(r.season || prevSeason(targetSeason, i + 1), r.team);
+    share += weights[i] * Math.min(1, r.gp / games);
+    shareWeight += weights[i];
+  });
+  avg3.gp = shareWeight > 0 ? (share / shareWeight) * 82 : null;
+  return {
+    repeat,
+    avg3,
+    evidence: { seasons: hist.filter(Boolean).map(r => r.season), weights: [5,4,3] },
+  };
+}
+
+export function gleagueBaseline(D, pid, targetSeason, games = 50) {
+  const hist = historyBefore(D.gleague, pid, targetSeason);
+  const last = hist.find(Boolean);
+  return {
+    repeat: last ? actualLine(last) : null,
+    evidence: { seasons: hist.filter(Boolean).map(r => r.season), targetGames: games },
+  };
 }
