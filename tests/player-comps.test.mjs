@@ -25,7 +25,8 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.0.0');
+assert.equal(meta.version, '4.1.0');
+assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
 assert.match(meta.blendMethod, /non-negative convex reconstruction/i);
@@ -44,7 +45,10 @@ for (const league of ['NBA', 'GLEAGUE']) {
   const adv = inputs[league === 'NBA' ? 'nba' : 'gleague']['2025-26'].adv;
   const pidIndex = adv.headers.indexOf('PLAYER_ID'), tsIndex = adv.headers.indexOf('TS_PCT');
   const sourceTs = new Map(adv.rows.map((row) => [String(row[pidIndex]), row[tsIndex]]));
-  assert.ok(Object.keys(sets).length >= expected.length, `${league}: appeared players and eligible historical targets need coverage`);
+  assert.equal(Object.keys(sets).length, expected.length, `${league}: comparisons must exist only for players with current-season appearances`);
+  for (const p of data.leagues[league].filter((player) => !player.appeared || !(player.minutes > 0))) {
+    assert.equal(sets[String(p.playerId)], undefined, `${p.name}: no-appearance player must not receive an invented comparison`);
+  }
 
   for (const p of expected) {
     const set = sets[String(p.playerId)];

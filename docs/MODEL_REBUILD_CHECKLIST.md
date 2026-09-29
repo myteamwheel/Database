@@ -4,7 +4,7 @@ Authorized by the user's “begin”. Baseline: the published roster-scope relea
 
 ## Current status — 2026-09-29
 
-Core model/code edits and focused verification are underway. Comparison and projection outputs were rebuilt. The browser suite could not launch Chromium in this local sandbox, so browser behavior remains unverified here. This remains a static GitHub Pages site: there is no secure on-page owner refresh, automatic transaction/injury/news feed, or scheduled stats ingestion. No model-accuracy gain is claimed for new projection context or TULIP changes.
+Core model/code edits and focused verification are underway. Comparison and projection outputs were rebuilt. The pre-fix CI browser run found a real bug: no-appearance, roster-only players could inherit an old comparison target. The generator now excludes them and its contract checks exact target eligibility; Ben Simmons remains searchable but no longer has an invented comparison. Four other browser assertions expected superseded copy/behavior and have been updated to check the current labels, collapsed projection ranges, player-card rows and historical-validation wording. Local Chromium cannot launch in this sandbox, so those changes await the next CI browser run and live verification. This remains a static GitHub Pages site: there is no secure on-page owner refresh, automatic transaction/injury/news feed, or scheduled stats ingestion. No model-accuracy gain is claimed for new projection context or TULIP changes.
 
 ## Required checklist and completion standards
 
@@ -40,7 +40,7 @@ Core model/code edits and focused verification are underway. Comparison and proj
 
 ## Evidence recorded so far
 
-- Passing focused checks: `test:tulipbeta` (24), `test:refresh`, `test:projections` (25), `test:comps` (1,143-player audit), `test:tulipcapacity` (16), `tulip:verify`, `tulip:backtest`, `test:history`, `test:starter`, `audit`, `audit:presets`, and `verify:artifact` (1,814,435 values compared).
+- Passing focused checks after the current edits: `test:tulipbeta` (24), `test:refresh`, `test:projections` (25, including exact rebuild), `test:comps` (1,143 appeared-player targets only), `test:tulipcapacity` (16), `tulip:verify`, `tulip:backtest`, `test:history`, `test:starter`, `audit`, `audit:presets`, and `verify:artifact` (1,814,435 values compared). A dedicated assertion confirms roster-only Ben Simmons has no comparison entry.
 - Data audit reports 123 current NBA-roster entries without 2025-26 played stats and ten multi-team rows without full per-team stint detail; these are limitations, not fabricated lines.
 - TULIP currently has 33 players at +7 MPG or more and 12 at +10 or more. Those larger movements all exceed direct workload evidence and are labeled LOW support; they are not validated win-maximizing recommendations.
 - The legacy veteran projection backtest does not validate new context-1 minute reconciliation or rookie fallbacks. Displayed residual ranges are inherited and explicitly uncalibrated for these changes.

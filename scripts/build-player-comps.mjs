@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stableReferenceProfiles, historicalFallback, independentStyleRead } from './lib/comparison-profiles.mjs';
+import { stableReferenceProfiles, independentStyleRead } from './lib/comparison-profiles.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.json');
@@ -392,9 +392,6 @@ function currentHistoricalTarget(p, leagueHist) {
   // Prefer the exact committed 2025-26 projection-input row so target/candidate units are identical.
   let row = leagueHist.find((x) => x.playerId === pid && x.season === '2025-26');
   if (row) return row;
-  if (!p.appeared || !(p.minutes > 0)) {
-    return historicalFallback(pid, leagueHist, p.league === 'GLEAGUE' ? 200 : 300);
-  }
   const b = bio.get(Number(pid)) || {};
   const c = combine.get(Number(pid)) || {};
   return {
@@ -639,7 +636,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const minMinutes = lg === 'NBA' ? 300 : 200;
   const referencePool = stableReferenceProfiles(pool, minMinutes);
   for (const p of data.leagues?.[lg] || []) {
-    if ((!p.appeared || !(p.minutes > 0)) && !p.currentRoster) continue;
+    // A roster listing is not a statistical target. Keep no-appearance players searchable in the
+    // site, but do not invent a current-season comp from their old career line.
+    if (!p.appeared || !(p.minutes > 0)) continue;
     const target = currentHistoricalTarget(p, pool);
     if (!target) continue;
     // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
@@ -726,6 +725,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const expectedIds = (data.leagues?.[lg] || [])
     .filter((p) => p.appeared && Number(p.minutes) > 0)
     .map((p) => String(p.playerId));
+  const unexpected = Object.keys(result[lg]).filter((id) => !expectedIds.includes(id));
   const missing = expectedIds.filter((id) => !result[lg][id]);
   const short = Object.entries(result[lg]).filter(([, set]) => {
     const count = (set.top3 || []).length;
@@ -737,8 +737,8 @@ for (const lg of ['NBA', 'GLEAGUE']) {
     (set.blend || []).length < 1 || (set.blend || []).length > 3
     || set.blend.reduce((a, x) => a + Number(x.share || 0), 0) !== 100
     || !fin(set.blendConfidence));
-  if (missing.length || short.length || wrongLeague.length || badBlend.length) {
-    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}, badBlend=${badBlend.length}`);
+  if (missing.length || unexpected.length || short.length || wrongLeague.length || badBlend.length) {
+    throw new Error(`player comps contract failed for ${lg}: missing=${missing.length}, unexpected=${unexpected.length}, short/duplicate=${short.length}, wrongLeague=${wrongLeague.length}, badBlend=${badBlend.length}`);
   }
 }
 
@@ -783,7 +783,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
-  version: '4.0.0',
+  version: '4.1.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',
@@ -791,7 +791,7 @@ data.analysis.playerCompsMeta = {
   priority: 'overall comparisons, statistical blend shares, and independent style references answer different questions; reference periods are chosen before matching',
   referenceMethod: 'one fixed representative profile per player: the highest-minute three-year calendar window with at least two meaningful seasons when available; pooled shooting attempts and minutes-weighted rate/era coordinates',
   styleMethod: 'independent trait-specific search across the full same-league multi-year reference pool; at least two observed seasons, sufficient shared axes, fit >=55, no selected axis beyond 2.5 scale units; style cards have no blend percentages',
-  targetFallbackMethod: 'current roster players without current-season appearances use the latest meaningful three-year historical window where a >=300-minute NBA or >=200-minute G League season exists; explicitly dated, never presented as current production',
+  targetEligibility: 'only players with a 2025-26 appearance and positive minutes receive a player-comparison target; roster-only players remain searchable but have no invented historical fallback comparison',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
   blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties; nearestOverall is ranked independently and style references search the full stable pool',
@@ -820,7 +820,7 @@ data.analysis.playerCompsMeta = {
     'A player can match across listed positions; position labels are descriptive, not a hard filter.',
     'Representative periods maximize meaningful playing exposure rather than selecting a best-matching season for each target. They describe a stable career phase, not necessarily a whole career or a peak.',
     'Single-season careers may appear as explicitly limited overall references but cannot supply the independent style analogies.',
-    'Historical fallback targets describe past production, not current ability, health, or expected return performance.',
+    'No-appearance roster records are not comparison targets; historical player references describe their own past production, not current ability, health, or expected return performance.',
   ],
 };
 fs.writeFileSync(DATA_PATH, JSON.stringify(data));

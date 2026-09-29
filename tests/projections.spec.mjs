@@ -37,13 +37,23 @@ test.describe('2026-27 projections', () => {
     await expect(page.locator('#viewPreset')).toHaveValue('proj');
     await expect(page.locator('.site-link[data-goto="proj"]')).toHaveClass(/active/);
     const headers = await page.$$eval('thead th', (ths) => ths.map((t) => t.innerText.trim()));
-    for (const h of ['Team', 'Status', 'GP', 'MIN', 'PTS', 'PTS low', 'PTS high', 'REB', 'AST', '3PM', 'FG%', 'PTS chg']) {
+    for (const h of ['Team', 'Status', 'GP', 'MIN', 'PTS', 'REB', 'AST', '3PM', 'FG%', 'PTS chg']) {
       expect(headers.some((x) => x.replace(/ [↓↑]$/, '') === h), `missing column ${h}`).toBe(true);
     }
+    expect(headers.some((x) => /PTS (low|high)/.test(x))).toBe(false);
     const col = headers.findIndex((h) => h.startsWith('PTS') && !h.includes('low') && !h.includes('high') && !h.includes('chg'));
     const pts = await page.$$eval('#tableBody tr', (rows, i) => rows.map((r) => Number(r.children[i].innerText)), col);
     expect(pts.length).toBeGreaterThan(20);
     for (let i = 1; i < pts.length; i++) expect(pts[i]).toBeLessThanOrEqual(pts[i - 1]);
+    const id = await page.evaluate(() => DATA.leagues.NBA.find((p) => p.proj && !p.proj.abstain).playerId);
+    await page.evaluate((pid) => openPlayer(pid), id);
+    const card = page.locator('#playerDialogBody .proj-card');
+    await expect(card.locator('details.proj-ranges')).not.toHaveAttribute('open', '');
+    await card.locator('details.proj-ranges summary').click();
+    await expect(card.locator('details.proj-ranges table')).toBeVisible();
+    await expect(card.locator('details.proj-ranges')).toContainText('Low reference');
+    await expect(card.locator('details.proj-ranges')).toContainText('High reference');
+    await page.click('[data-close="playerDialog"]');
     // Back to the season stats.
     await page.click('.site-link[data-goto="stats"]');
     await expect(page.locator('#pageTitle')).toHaveText('2025-26 NBA Player Stats');
@@ -70,23 +80,29 @@ test.describe('2026-27 projections', () => {
     await expect(card).toContainText('How this line was built');
     await expect(card).toContainText(/new team/i);
     await expect(card).toContainText(/Points per 100 possessions/);
+    const rowLabels = await card.locator('.proj-body > div > table:first-child td.left').allTextContents();
     for (const row of ['Games', 'Minutes', 'Points', 'Rebounds', 'Assists', 'FG%', '3P%', 'FT%']) {
-      await expect(card.locator('td.left', { hasText: new RegExp(`^${row.replace('%', '%')}$`) })).toHaveCount(1);
+      expect(rowLabels.map((label) => label.trim())).toContain(row);
     }
     expect(errors).toEqual([]);
   });
 
-  test('the method page states the formula and the tested accuracy', async ({ page }) => {
+  test('the method page states the formula and accurately labels the historical validation', async ({ page }) => {
     const errors = await open(page);
     await page.click('.site-link[data-goto="proj"]');
     await page.click('#projMethodBtn');
     const body = page.locator('#projMethodBody');
     await expect(body).toBeVisible();
     await expect(body.locator('.formula')).toContainText('rate = BASE x AGE');
-    await expect(body).toContainText('How accurate it is');
-    // The points row marks this model as the best of the three columns.
+    await expect(body).toContainText('Historical check of the frozen model');
+    await expect(body).toContainText('It is not an accuracy score for today’s full projection.');
+    // The winning cell must follow the measured MAEs, not assume a particular model always wins.
     const ptsRow = body.locator('tr', { has: page.locator('td.left', { hasText: /^Points$/ }) }).first();
-    await expect(ptsRow.locator('td').nth(1)).toHaveClass(/winner/);
+    const expectedWinnerIndex = await page.evaluate(() => {
+      const x = DATA.projectionMeta.backtest.nba.mae.pts;
+      return [x.model, x.repeat, x.avg3].indexOf(Math.min(x.model, x.repeat, x.avg3)) + 1;
+    });
+    await expect(ptsRow.locator('td').nth(expectedWinnerIndex)).toHaveClass(/winner/);
     await expect(body).toContainText('What it does not know');
     expect(errors).toEqual([]);
   });

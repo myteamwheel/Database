@@ -519,7 +519,8 @@ test.describe('analysis workspace', () => {
     expect(txt).toContain('blend composition');
     expect(txt).toContain('STATISTICAL BLEND FIT');
     expect(txt).toContain('PLAYER STYLE BLUEPRINT');
-    expect(txt).toContain('These labels summarize matched statistics');
+    expect(txt).toContain('The large percentages are the blend composition');
+    expect(txt).toContain('not a probability, calibrated confidence');
     expect(await page.$$eval('#workspace .comp-blueprint-player', (x) => x.length)).toBeGreaterThan(0);
     const composition = await page.evaluate(() => {
       const order = ['.comp-target-strip', '.comp-style-read', '.comp-hero-grid']
