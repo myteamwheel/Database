@@ -101,9 +101,16 @@ test('inconsistent rebounds fail', () => {
   assert.throws(() => validateArchive({ players: [row] }), /REB.*OREB.*DREB/i);
 });
 
-test('inconsistent points accounting fails when accounting data is present', () => {
+test('high-precision accounting is authoritative when rounded G League fields drift', () => {
+  const row = extractArchivedPlayer('GLEAGUE', player);
+  row.projection.fgm=7.4; row.projection.fg3m=2.2; row.projection.ftm=1.2; row.projection.fta=1.5; row.projection.pts=20.5;
+  row.projection.accounting={...row.projection.accounting,fgm:7.449,fg3m:2.249,ftm:1.249,ftValue:2.7,pts:20.5193};
+  assert.doesNotThrow(() => validateArchive({ players: [row] }));
+});
+
+test('inconsistent high-precision points accounting fails', () => {
   const row = extractArchivedPlayer('NBA', player);
-  row.projection.pts = 30;
+  row.projection.accounting.pts = 30;
   assert.throws(() => validateArchive({ players: [row] }), /points accounting/i);
 });
 
