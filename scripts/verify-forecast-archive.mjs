@@ -107,6 +107,7 @@ export function verifyArchiveDirectory({ rootDir = DEFAULT_DIR } = {}) {
       baselineAvailable,
     };
     if (!sameJson(entry.counts, expectedCounts)) throw new Error(`${entry.forecastId}: manifest count mismatch`);
+    if (!sameJson(archive.counts, expectedCounts)) throw new Error(`${entry.forecastId}: snapshot count mismatch`);
 
     if (!archive.model?.id || !archive.sourceCommit || !archive.publishedAt) throw new Error(`${entry.forecastId}: incomplete forecast provenance`);
     if (!archive.sources || typeof archive.sources !== 'object') throw new Error(`${entry.forecastId}: source provenance missing`);
