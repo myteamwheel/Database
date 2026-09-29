@@ -79,3 +79,5 @@ Verified engineering and evidence status in this section:
 - The separate Projected Role MPG historical backtest is explicitly not borrowed as validation of the TULIP Beta allocator.
 - The 2024-25 and 2025-26 chronological TULIP outcome holdouts remain unspent in this section. No new win-optimality claim is made.
 
+
+- PR #18 artifact-integrity follow-up: the TULIP artifact-sync workflow now runs the full repository build before committing `public/data.json` and `public/standalone.html`, so projection metadata, cross-league enrichment and comparison products cannot be stripped by a TULIP-only rebuild. The sync gate also runs TULIP diagnostics, projection tests and lossless-artifact verification before committing.
