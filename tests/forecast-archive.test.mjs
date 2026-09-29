@@ -7,8 +7,10 @@ import { execFileSync } from 'node:child_process';
 
 let mod = null;
 let captureMod = null;
+let verifyMod = null;
 let importError = null;
 let captureImportError = null;
+let verifyImportError = null;
 try {
   mod = await import('../scripts/lib/forecast-archive.mjs');
 } catch (err) {
@@ -18,6 +20,11 @@ try {
   captureMod = await import('../scripts/archive-forecast.mjs');
 } catch (err) {
   captureImportError = err;
+}
+try {
+  verifyMod = await import('../scripts/verify-forecast-archive.mjs');
+} catch (err) {
+  verifyImportError = err;
 }
 
 let pass = 0;
@@ -653,6 +660,102 @@ if (importError) {
     check('manifest hash pins the canonical snapshot bytes',
       manifestEntry?.sha256 === sha256(snapshotBytes)
         && manifestEntry?.sourceCommit === releaseRef);
+  }
+
+
+  check('forecast archive verifier module exists', !verifyImportError, verifyImportError?.message || '');
+  if (!verifyImportError) {
+    const { verifyArchiveDirectory, validateAppendOnlyChanges } = verifyMod;
+    check('verifier interfaces are exported',
+      typeof verifyArchiveDirectory === 'function'
+        && typeof validateAppendOnlyChanges === 'function');
+
+    if (typeof verifyArchiveDirectory === 'function') {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'forecast-verify-'));
+      try {
+        const snapshotName = 'fixture.json';
+        const snapshot = JSON.stringify(baseArchive, null, 2) + '\n';
+        fs.writeFileSync(path.join(dir, snapshotName), snapshot);
+        const manifest = {
+          schemaVersion: 1,
+          forecasts: [{
+            forecastId: 'fixture',
+            season: '2026-27',
+            type: 'preseason-full-season',
+            publishedAt: '2026-09-29',
+            sourceCommit: 'a'.repeat(40),
+            path: snapshotName,
+            sha256: crypto.createHash('sha256').update(snapshot).digest('hex'),
+            byLeague: {
+              NBA: { total: 1, projected: 1, abstained: 0 },
+              GLEAGUE: { total: 1, projected: 0, abstained: 1 },
+            },
+            projected: 1,
+            abstained: 1,
+            baselineAvailable: {
+              NBA: { repeat: 0, avg3: 0 },
+              GLEAGUE: { repeat: 0 },
+            },
+          }],
+        };
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(manifest, null, 2) + '\n');
+
+        const verified = verifyArchiveDirectory({ archiveDir: dir });
+        check('archive directory verifier accepts a valid manifest and snapshot',
+          verified.forecasts === 1 && verified.projected === 1 && verified.abstained === 1);
+
+        const badHash = JSON.parse(JSON.stringify(manifest));
+        badHash.forecasts[0].sha256 = '0'.repeat(64);
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(badHash, null, 2) + '\n');
+        check('manifest hash mismatch is rejected',
+          throws(() => verifyArchiveDirectory({ archiveDir: dir }), /hash|sha256/i));
+
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(manifest, null, 2) + '\n');
+        fs.unlinkSync(path.join(dir, snapshotName));
+        check('manifest entry pointing to a missing snapshot is rejected',
+          throws(() => verifyArchiveDirectory({ archiveDir: dir }), /missing|exist|snapshot/i));
+
+        fs.writeFileSync(path.join(dir, snapshotName), snapshot);
+        const duplicate = JSON.parse(JSON.stringify(manifest));
+        duplicate.forecasts.push({ ...duplicate.forecasts[0] });
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(duplicate, null, 2) + '\n');
+        check('duplicate manifest forecast ids are rejected',
+          throws(() => verifyArchiveDirectory({ archiveDir: dir }), /duplicate/i));
+
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(manifest, null, 2) + '\n');
+        const malformed = JSON.parse(JSON.stringify(baseArchive));
+        malformed.leagues.NBA[0].projection.accounting.fgm = 99;
+        const malformedBytes = JSON.stringify(malformed, null, 2) + '\n';
+        fs.writeFileSync(path.join(dir, snapshotName), malformedBytes);
+        const malformedManifest = JSON.parse(JSON.stringify(manifest));
+        malformedManifest.forecasts[0].sha256 = crypto.createHash('sha256').update(malformedBytes).digest('hex');
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(malformedManifest, null, 2) + '\n');
+        check('malformed archived projection accounting is rejected',
+          throws(() => verifyArchiveDirectory({ archiveDir: dir }), /fgm|fga|account/i));
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    if (typeof validateAppendOnlyChanges === 'function') {
+      check('append-only verifier allows a newly added snapshot',
+        !throws(() => validateAppendOnlyChanges([
+          'A\tscripts/data/forecast-archive/new.json',
+          'M\tscripts/data/forecast-archive/index.json',
+        ])));
+      check('append-only verifier rejects modification of an existing snapshot',
+        throws(() => validateAppendOnlyChanges([
+          'M\tscripts/data/forecast-archive/old.json',
+        ]), /append|immutable|modify|existing/i));
+      check('append-only verifier rejects deletion of an existing snapshot',
+        throws(() => validateAppendOnlyChanges([
+          'D\tscripts/data/forecast-archive/old.json',
+        ]), /append|immutable|delete|existing/i));
+      check('append-only verifier rejects rename of an existing snapshot',
+        throws(() => validateAppendOnlyChanges([
+          'R100\tscripts/data/forecast-archive/old.json\tscripts/data/forecast-archive/new.json',
+        ]), /append|immutable|rename|existing/i));
+    }
   }
 
 }
