@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { actualLine, historyBefore, prevSeason } from './projection.mjs';
 
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
@@ -111,4 +112,83 @@ export function validateArchive(archive) {
   }
 
   return { projected, abstained, byLeague };
+}
+
+
+const BASELINE_FIELDS = ['mpg', 'pts', 'reb', 'oreb', 'dreb', 'ast', 'stl', 'blk', 'tov', 'pf', 'fga', 'fg3a', 'fta', 'fgm', 'fg3m', 'ftm'];
+
+export function nbaBaselines(D, pid, targetSeason) {
+  const league = D?.nba;
+  if (!league?.seasons || typeof league.teamGames !== 'function') {
+    throw new Error('NBA baseline calculation requires prepared NBA season history.');
+  }
+  const hist = historyBefore(league, Number(pid), targetSeason);
+  const last = hist.find(Boolean);
+  if (!last) return { repeat: null, avg3: null, evidence: { seasons: [] } };
+
+  const idx = hist.indexOf(last);
+  const repeat = actualLine(last);
+  const lastSeason = prevSeason(targetSeason, idx + 1);
+  repeat.gp = Math.min(1, last.gp / league.teamGames(lastSeason, last.team)) * 82;
+
+  const weights = [5, 4, 3];
+  const lines = hist.map((row) => row ? actualLine(row) : null);
+  const den = hist.reduce((sum, row, i) => sum + (row ? weights[i] * row.gp : 0), 0);
+  const avg3 = {};
+  for (const key of BASELINE_FIELDS) {
+    let sum = 0;
+    hist.forEach((row, i) => {
+      if (row) sum += weights[i] * row.gp * lines[i][key];
+    });
+    avg3[key] = sum / den;
+  }
+
+  const weightedTotal = (key) => hist.reduce((sum, row, i) =>
+    sum + (row ? weights[i] * row[key] : 0), 0);
+  avg3.fgPct = weightedTotal('fga') > 0 ? weightedTotal('fgm') / weightedTotal('fga') : null;
+  avg3.fg3Pct = weightedTotal('fg3a') > 0 ? weightedTotal('fg3m') / weightedTotal('fg3a') : null;
+  avg3.ftPct = weightedTotal('fta') > 0 ? weightedTotal('ftm') / weightedTotal('fta') : null;
+
+  let weightedShare = 0;
+  let weightSum = 0;
+  hist.forEach((row, i) => {
+    if (!row) return;
+    weightedShare += weights[i] * Math.min(1, row.gp / league.teamGames(prevSeason(targetSeason, i + 1), row.team));
+    weightSum += weights[i];
+  });
+  avg3.gp = (weightedShare / weightSum) * 82;
+
+  return {
+    repeat,
+    avg3,
+    evidence: {
+      method: 'pre-existing-backtest-baselines',
+      weights,
+      seasons: hist.map((row, i) => row ? {
+        season: row.season || prevSeason(targetSeason, i + 1),
+        team: row.team,
+        gp: row.gp,
+        weight: weights[i],
+      } : null).filter(Boolean),
+    },
+  };
+}
+
+export function gleagueBaseline(D, pid, targetSeason, games) {
+  const league = D?.gleague;
+  if (!league?.seasons) throw new Error('G League baseline calculation requires prepared G League season history.');
+  const hist = historyBefore(league, Number(pid), targetSeason);
+  const last = hist.find(Boolean);
+  if (!last) return { repeat: null, evidence: { seasons: [] } };
+  const repeat = actualLine(last);
+  return {
+    repeat,
+    evidence: {
+      method: 'pre-existing-repeat-baseline',
+      games,
+      season: last.season || prevSeason(targetSeason, hist.indexOf(last) + 1),
+      team: last.team,
+      gp: last.gp,
+    },
+  };
 }
