@@ -10,6 +10,28 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
  * Effective minutes = MPG when playing * expected fraction of games played.
  * Lower-certainty roles can move further. This is accounting, not fitted predictive skill.
  */
+export function reconciliationBudget(rows, { rosterPlayers = rows?.length || 0, fullBudget = 240 } = {}) {
+  if (!Array.isArray(rows)) throw new Error('Minute reconciliation rows are required.');
+  if (!Number.isInteger(rosterPlayers) || rosterPlayers < rows.length) {
+    throw new Error('Roster player count cannot be smaller than projected-player coverage.');
+  }
+  const modeled = rows.reduce((sum, r) => {
+    if (!Number.isFinite(r?.mpg) || !Number.isFinite(r?.share) || r.mpg < 0 || r.share < 0) {
+      throw new Error('Minute reconciliation budget requires finite non-negative MPG and availability share.');
+    }
+    return sum + r.mpg * r.share;
+  }, 0);
+  const unprojectedRosterPlayers = rosterPlayers - rows.length;
+  const requestedBudget = unprojectedRosterPlayers > 0 ? Math.min(fullBudget, modeled) : fullBudget;
+  return {
+    fullBudget,
+    requestedBudget,
+    unprojectedRosterPlayers,
+    unmodeledReserve: Math.max(0, fullBudget - requestedBudget),
+    modeledBeforeReconciliation: modeled,
+  };
+}
+
 export function reconcileMinutes(rows, budget = 240) {
   const items = rows.map(r => ({ r, base: r.mpg * r.share, lo: r.share,
     hi: 40 * r.share, mobility: 1 + 2 / (1 + (r.pr?.baseMin || 0) / 800) }));
