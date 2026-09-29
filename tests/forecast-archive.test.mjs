@@ -38,7 +38,7 @@ const throws = (fn, pattern) => {
 if (importError) {
   check('forecast archive module exists', false, importError.message);
 } else {
-  const { sha256, projectionIdentity, extractArchivedPlayer, validateArchive, nbaBaselines, gleagueBaseline } = mod;
+  const { sha256, projectionIdentity, extractArchivedPlayer, validateArchive, nbaBaselines, gleagueBaseline, deriveCohorts, scoreArchive } = mod;
 
   check('sha256 is deterministic',
     sha256('abc') === crypto.createHash('sha256').update('abc').digest('hex'));
@@ -409,6 +409,170 @@ if (importError) {
     }
   }
 
+
+
+  check('forecast scoring interfaces are exported',
+    typeof deriveCohorts === 'function' && typeof scoreArchive === 'function');
+
+  if (typeof deriveCohorts === 'function' && typeof scoreArchive === 'function') {
+    const scoreRowA = {
+      ...archived,
+      identity: 'NBA:1001',
+      playerId: 'nba-1001',
+      nbaPersonId: 1001,
+      name: 'Score A',
+      status: 'same',
+      basis: 'multi-year-history',
+      age: 22,
+      projection: {
+        ...archived.projection,
+        gp: 70,
+        mpg: 30,
+        pts: 22.1,
+        fgPct: 0.50,
+        fg3Pct: 0.40,
+        ftPct: 0.80,
+        why: { ...archived.projection.why, minutes: { last: 26, projected: 30 } },
+      },
+      baselines: {
+        repeat: { gp: 68, mpg: 29, pts: 19.1, fgPct: 0.48, fg3Pct: 0.36, ftPct: 0.78 },
+        avg3: { gp: 66, mpg: 28, pts: 21.1, fgPct: 0.49, fg3Pct: 0.37, ftPct: 0.79 },
+      },
+    };
+    const scoreRowB = {
+      ...archived,
+      identity: 'NBA:1002',
+      playerId: 'nba-1002',
+      nbaPersonId: 1002,
+      name: 'Score B',
+      status: 'new',
+      basis: 'older-history-fallback',
+      age: 34,
+      projection: {
+        ...archived.projection,
+        gp: 50,
+        mpg: 20,
+        pts: 12,
+        fgPct: 0.44,
+        fg3Pct: 0.31,
+        ftPct: 0.70,
+        why: { ...archived.projection.why, minutes: { last: 12, projected: 20 } },
+      },
+      baselines: {
+        repeat: null,
+        avg3: { gp: 45, mpg: 18, pts: 18, fgPct: 0.46, fg3Pct: 0.33, ftPct: 0.72 },
+      },
+    };
+    const glRow = {
+      ...archived,
+      identity: 'GLEAGUE:2001',
+      league: 'GLEAGUE',
+      playerId: 'gl-2001',
+      nbaPersonId: 2001,
+      name: 'Score GL',
+      status: 'gleague',
+      basis: 'multi-year-history',
+      age: 24,
+      projection: { ...archived.projection, gp: 30, mpg: 25, pts: 10 },
+      baselines: { repeat: { gp: 28, mpg: 24, pts: 9 } },
+    };
+    const scoreFixture = {
+      schemaVersion: 1,
+      forecastId: 'score-fixture',
+      season: '2026-27',
+      forecastType: 'preseason-full-season',
+      leagues: { NBA: [scoreRowA, scoreRowB], GLEAGUE: [glRow] },
+    };
+    const finalActuals = {
+      season: '2026-27',
+      asOf: '2027-04-15',
+      status: 'final',
+      leagues: {
+        NBA: [
+          {
+            nbaPersonId: 1001, gp: 10, mpg: 31, pts: 20.1, reb: 6, ast: 5, stl: 1, blk: 0.5, tov: 2, fg3m: 1.5,
+            fgPct: 0.45, fg3Pct: 0.35, ftPct: 0.75, fga: 11, fg3a: 4, fta: 6,
+          },
+          {
+            nbaPersonId: 1002, gp: 5, mpg: 19, pts: 16, reb: 5, ast: 4, stl: 0.8, blk: 0.3, tov: 1.8, fg3m: 1,
+            fgPct: null, fg3Pct: 0.30, ftPct: 0.70, fga: 30, fg3a: 5, fta: 8,
+          },
+        ],
+        GLEAGUE: [
+          {
+            nbaPersonId: 2001, gp: 25, mpg: 26, pts: 12, reb: 5, ast: 3, stl: 1, blk: 0.4, tov: 2, fg3m: 1.2,
+            fgPct: 0.48, fg3Pct: 0.36, ftPct: 0.76, fga: 12, fg3a: 5, fta: 4,
+          },
+        ],
+      },
+    };
+    const scored = scoreArchive(scoreFixture, finalActuals);
+    const nbaPts = scored.leagues.NBA.overall.model.pts;
+    check('model scoring reports exact MAE RMSE and signed bias',
+      nbaPts.available === true
+        && nbaPts.n === 2
+        && Math.abs(nbaPts.mae - 3) < 1e-12
+        && Math.abs(nbaPts.rmse - Math.sqrt(10)) < 1e-12
+        && Math.abs(nbaPts.bias - (-1)) < 1e-12);
+
+    const repeatPts = scored.leagues.NBA.overall.paired.repeat.pts;
+    check('repeat comparison uses the exact same paired player sample',
+      repeatPts.n === 1
+        && Math.abs(repeatPts.model.mae - 2) < 1e-12
+        && Math.abs(repeatPts.baseline.mae - 1) < 1e-12);
+
+    const avg3Pts = scored.leagues.NBA.overall.paired.avg3.pts;
+    check('avg3 comparison uses the exact same paired player sample',
+      avg3Pts.n === 2
+        && Math.abs(avg3Pts.model.mae - 3) < 1e-12
+        && Math.abs(avg3Pts.baseline.mae - 1.5) < 1e-12);
+
+    check('coverage and unavailable baselines are separate from model error',
+      scored.leagues.NBA.coverage.projected === 2
+        && scored.leagues.NBA.coverage.matchedActuals === 2
+        && scored.leagues.NBA.coverage.baselineAvailable.repeat === 1
+        && scored.leagues.NBA.coverage.baselineAvailable.avg3 === 2);
+
+    check('percentage eligibility uses actual attempt thresholds without removing other metrics',
+      scored.leagues.NBA.overall.model.pts.n === 2
+        && scored.leagues.NBA.overall.model.fgPct.n === 1
+        && scored.leagues.NBA.overall.model.ftPct.n === 1
+        && scored.leagues.NBA.overall.model.fg3Pct.available === false
+        && scored.leagues.NBA.overall.model.fg3Pct.n === 0);
+
+    check('NBA and G League scoring remain separate',
+      scored.leagues.NBA.overall.model.pts.n === 2
+        && scored.leagues.GLEAGUE.overall.model.pts.n === 1
+        && !('combined' in scored.leagues));
+
+    check('season mismatch fails closed',
+      throws(() => scoreArchive(scoreFixture, { ...finalActuals, season: '2027-28' }), /season/i));
+
+    const interimActuals = { ...finalActuals, status: 'interim', asOf: '2026-12-15' };
+    check('interim actuals require explicit interim mode',
+      throws(() => scoreArchive(scoreFixture, interimActuals), /interim/i));
+    const interimScore = scoreArchive(scoreFixture, interimActuals, { interim: true });
+    check('interim scoring omits GP accuracy and preserves its cutoff label',
+      interimScore.actuals.status === 'interim'
+        && interimScore.actuals.asOf === '2026-12-15'
+        && !('gp' in interimScore.leagues.NBA.overall.model));
+
+    const cohortsA = deriveCohorts(scoreRowA);
+    const cohortsB = deriveCohorts(scoreRowB);
+    check('cohorts are frozen from archived pre-outcome fields',
+      cohortsA.includes('recent-history-veteran')
+        && cohortsA.includes('same-team')
+        && cohortsA.includes('age-23-and-under')
+        && cohortsA.includes('prior-high-minutes')
+        && cohortsB.includes('older-history-returner')
+        && cohortsB.includes('new-team')
+        && cohortsB.includes('age-33-and-over')
+        && cohortsB.includes('prior-lower-minutes'));
+
+    check('rookie and unsigned cohorts are explicit',
+      deriveCohorts({ status: 'rookie', basis: 'rookie-cohort-fallback', age: 20, projection: { why: { minutes: { last: null } } } }).includes('rookie')
+        && deriveCohorts({ status: 'unsigned', basis: 'multi-year-history', age: 28, projection: { why: { minutes: { last: 10 } } } }).includes('unsigned-at-forecast'));
+  }
 
   const canonicalSnapshotPath = path.join('scripts', 'data', 'forecast-archive', '2026-27-preseason-2026-09-29-e718284.json');
   if (fs.existsSync(canonicalSnapshotPath)) {
