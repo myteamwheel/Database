@@ -89,7 +89,7 @@ test('reload published data swaps only a validated bundle and preserves URL/filt
   await expect(page.locator('#searchInput')).toHaveValue('Jokic');
   await expect(page.locator('#wsPlayerSel')).toHaveValue(String(target.playerId));
 
-  await page.click('#reloadPublishedBtn');
+  await page.click('#reloadDataBtn');
   await expect(page.locator('#reloadStatus')).toContainText(/reloaded|published/i);
   expect(await page.evaluate(() => DATA.publicationTestMarker)).toBe('reloaded');
   expect(page.url()).toBe(beforeSearch);
@@ -105,8 +105,8 @@ test('failed publication validation leaves the currently loaded DATA untouched',
   await page.waitForSelector('#tableBody tr td');
   expect(await page.evaluate(() => DATA.publicationTestMarker || null)).toBeNull();
 
-  await page.click('#reloadPublishedBtn');
-  await expect(page.locator('#refreshStatusMessage')).toContainText(/failed|invalid|hash/i);
+  await page.click('#reloadDataBtn');
+  await expect(page.locator('#reloadStatus')).toContainText(/failed|invalid|hash/i);
   expect(await page.evaluate(() => DATA.publicationTestMarker || null)).toBeNull();
 });
 
