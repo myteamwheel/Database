@@ -61,7 +61,9 @@
     "test:publication": "node tests/publication.test.mjs",
     "refresh:owner": "node scripts/owner-refresh.mjs",
     "test:owner-refresh": "node tests/owner-refresh.test.mjs",
-    "verify:publication": "node scripts/verify-publication-status.mjs"
+    "verify:publication": "node scripts/verify-publication-status.mjs",
+    "test:cross-tabs": "node tests/cross-tab-consistency.test.mjs",
+    "audit:cross-tabs": "node scripts/audit-cross-tab-consistency.mjs"
   },
   "engines": {
     "node": ">=20"
