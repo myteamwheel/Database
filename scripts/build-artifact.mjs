@@ -97,6 +97,9 @@ ${body}
 <script type="application/octet-stream" id="db-gz">${payload64}</script>
 ${historyPayload64 ? `<script type="application/octet-stream" id="history-db-gz">${historyPayload64}</script>` : ''}
 <script>
+${standaloneLoader}
+</script>
+<script>
 ${app}
 </script>
 <script>
