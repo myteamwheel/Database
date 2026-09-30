@@ -1,0 +1,28 @@
+name: Refresh publication development tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/refresh.mjs'
+      - 'scripts/lib/publication.mjs'
+      - 'scripts/owner-refresh.mjs'
+      - 'scripts/publish-data-status.mjs'
+      - 'tests/refresh.test.mjs'
+      - 'tests/publication.test.mjs'
+      - 'public/data-status.json'
+      - 'app.js'
+      - 'index.html'
+      - 'package.json'
+      - '.github/workflows/refresh-publication-dev.yml'
+
+jobs:
+  refresh-publication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node tests/refresh.test.mjs
