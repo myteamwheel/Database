@@ -38,7 +38,7 @@ const statusFor = (bytes, id='initial') => ({
   publishedAt:'2026-09-29T23:55:00Z',
   dataSha256:hash(bytes),
   lastSuccessfulPublication:{ publicationId:id, publishedAt:'2026-09-29T23:55:00Z' },
-  sources:{
+  sourceDomains:{
     officialStats:{ status:'ok', checkedAt:'2026-09-29T23:50:00Z', fetchedAt:'2026-09-29T23:50:00Z', asOf:baseData.season,
       changeSummary:{added:1,removed:0,changed:3,retainedSources:0,unavailableSources:0}, limitation:null },
     rosterProjectionInputs:{ status:'ok', checkedAt:'2026-09-29T23:45:00Z', fetchedAt:'2026-09-29T23:45:00Z', asOf:'2026-09-29', limitation:null },
@@ -59,13 +59,13 @@ async function routePublication(page, { reloadBytes = null, badReloadHash = fals
   const reloadText = reloadBytes || raw;
   await page.route('**/public/data.json*', async (route) => {
     const url = route.request().url();
-    if (url.includes('refresh=')) {
+    if (/[?&]v=/.test(url)) {
       await route.fulfill({status:200,contentType:'application/json',body:reloadText});
     } else await route.continue();
   });
   await page.route('**/public/data-status.json*', async (route) => {
     const url = route.request().url();
-    const isReload = url.includes('refresh=');
+    const isReload = /[?&]v=/.test(url);
     const bytes = isReload ? reloadText : raw;
     const status = statusFor(bytes, isReload ? 'reloaded' : 'initial');
     if (isReload && badReloadHash) status.dataSha256 = '0'.repeat(64);
@@ -83,14 +83,14 @@ test('reload published data swaps only a validated bundle and preserves URL/filt
   const url = `${origin}/index.html?q=Jokic&mode=player&player=${encodeURIComponent(target.playerId)}`;
   await page.goto(url);
   await page.waitForSelector('#tableBody tr td');
-  await expect(page.locator('#reloadPublishedBtn')).toBeVisible();
+  await expect(page.locator('#reloadDataBtn')).toBeVisible();
   await expect(page.locator('#dataStatusBtn')).toBeVisible();
   const beforeSearch = page.url();
   await expect(page.locator('#searchInput')).toHaveValue('Jokic');
   await expect(page.locator('#wsPlayerSel')).toHaveValue(String(target.playerId));
 
   await page.click('#reloadPublishedBtn');
-  await expect(page.locator('#refreshStatusMessage')).toContainText(/reloaded|published/i);
+  await expect(page.locator('#reloadStatus')).toContainText(/reloaded|published/i);
   expect(await page.evaluate(() => DATA.publicationTestMarker)).toBe('reloaded');
   expect(page.url()).toBe(beforeSearch);
   await expect(page.locator('#searchInput')).toHaveValue('Jokic');
@@ -121,6 +121,6 @@ test('data status dialog reports every source independently and labels unsupport
     expect(text).toContain(needle);
   }
   expect(text.match(/Not configured/gi)?.length || 0).toBeGreaterThanOrEqual(3);
-  expect(text).toContain('Latest successful publication');
+  expect(text).toMatch(/Latest successfully published data|Latest successful publication/i);
   expect(text).toMatch(/1 added.*3 changed|3 changed.*1 added/i);
 });
