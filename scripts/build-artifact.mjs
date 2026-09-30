@@ -66,22 +66,17 @@ const historyGzPath = path.join(ROOT, 'public/history-games.json.gz');
 const historyPayload64 = fs.existsSync(historyGzPath) ? fs.readFileSync(historyGzPath).toString('base64') : '';
 const css = escapeNonAscii(R('styles.css'), 'html');
 
-const standaloneLoader = `const payload=document.getElementById('db-gz').textContent.trim();
-    if(typeof DecompressionStream!=='function') throw new Error('Standalone file requires a modern browser with DecompressionStream support');
-    const bytes=Uint8Array.from(atob(payload),c=>c.charCodeAt(0));
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    DATA=rehydrate(JSON.parse(await new Response(stream).text())); window.DATA=DATA;`;
+const statusJson = escapeNonAscii(JSON.stringify(dataStatus), 'js');
+const standaloneLoader = `window.DATA_STATUS=${statusJson};
+window.__STANDALONE_DATA_LOADER=async()=>{
+  const payload=document.getElementById('db-gz').textContent.trim();
+  if(typeof DecompressionStream!=='function') throw new Error('Standalone file requires a modern browser with DecompressionStream support');
+  const bytes=Uint8Array.from(atob(payload),c=>c.charCodeAt(0));
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return {data:JSON.parse(await new Response(stream).text()),status:window.DATA_STATUS};
+};`;
 
-const app = escapeNonAscii(
-  R('app.js').replace(
-    "const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();",
-    standaloneLoader
-  ),
-  'js'
-);
-if (app.includes("fetch('./public/data.json'")) throw new Error('data-loading patch did not apply');
-if (!app.includes("document.getElementById('db-gz')")) throw new Error('standalone compressed-loader patch did not apply');
-
+const app = escapeNonAscii(R('app.js'), 'js');
 const workspace = escapeNonAscii(R('workspace.js'), 'js');
 const body = escapeNonAscii(
   R('index.html')
