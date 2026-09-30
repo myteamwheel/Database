@@ -60,6 +60,11 @@ jobs:
       - name: Audit UI preset schema
         run: node scripts/audit-presets.mjs
 
+      - name: Verify cross-tab identity, timeframe and Team Fit consistency
+        run: |
+          npm run test:cross-tabs
+          npm run audit:cross-tabs
+
       - name: Verify TULIP metadata against recomputed diagnostics
         run: |
           node scripts/tulip-verify.mjs
