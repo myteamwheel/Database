@@ -1,0 +1,27 @@
+name: Cross-tab consistency development tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/cross-tab-consistency.mjs'
+      - 'scripts/audit-cross-tab-consistency.mjs'
+      - 'tests/cross-tab-consistency.test.mjs'
+      - 'scripts/build-v3.mjs'
+      - 'workspace.js'
+      - 'package.json'
+      - '.github/workflows/cross-tab-consistency-dev.yml'
+      - '.github/workflows/audit-player-database.yml'
+
+concurrency:
+  group: cross-tab-consistency-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node tests/cross-tab-consistency.test.mjs
