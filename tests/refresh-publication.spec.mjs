@@ -82,7 +82,7 @@ test('reload published data swaps only a validated bundle and preserves URL/filt
 
   const url = `${origin}/index.html?q=Jokic&mode=player&player=${encodeURIComponent(target.playerId)}`;
   await page.goto(url);
-  await page.waitForSelector('#tableBody tr td');
+  await expect(page.locator('#wsPlayerSel')).toBeVisible({ timeout: 60000 });
   await expect(page.locator('#reloadDataBtn')).toBeVisible();
   await expect(page.locator('#dataStatusBtn')).toBeVisible();
   const beforeSearch = page.url();
