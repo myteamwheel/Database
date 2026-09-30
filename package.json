@@ -24,7 +24,7 @@
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run test:tulipbeta && npm run test:tulipbeta:diagnostics && npm run test:tulipcapacity && npm run test:projections && npm run test:forecast-archive && npm run verify:forecast-archive && npm run test:comps && npm run test:refresh && npm run tulip:verify && npm run tulip:backtest && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
+    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run test:tulipbeta && npm run test:tulipbeta:diagnostics && npm run test:tulipcapacity && npm run test:projections && npm run test:forecast-archive && npm run verify:forecast-archive && npm run test:comps && npm run test:refresh && npm run test:publication && npm run test:owner-refresh && npm run verify:publication && npm run tulip:verify && npm run tulip:backtest && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
     "test:browser": "playwright test",
     "audit:presets": "node scripts/audit-presets.mjs",
     "diagnostics": "node scripts/diagnostics.mjs",
@@ -60,7 +60,8 @@
     "publish:status": "node scripts/publish-data-status.mjs",
     "test:publication": "node tests/publication.test.mjs",
     "refresh:owner": "node scripts/owner-refresh.mjs",
-    "test:owner-refresh": "node tests/owner-refresh.test.mjs"
+    "test:owner-refresh": "node tests/owner-refresh.test.mjs",
+    "verify:publication": "node scripts/verify-publication-status.mjs"
   },
   "engines": {
     "node": ">=20"
