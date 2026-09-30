@@ -1,0 +1,22 @@
+name: Value semantics development test
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'tests/value-semantics.test.mjs'
+      - '.github/workflows/value-semantics-dev.yml'
+
+concurrency:
+  group: value-semantics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semantics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: node tests/value-semantics.test.mjs
