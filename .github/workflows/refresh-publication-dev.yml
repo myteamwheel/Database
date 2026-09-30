@@ -20,6 +20,10 @@ on:
       - 'package.json'
       - '.github/workflows/refresh-publication-dev.yml'
 
+concurrency:
+  group: refresh-publication-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   refresh-publication:
     runs-on: ubuntu-latest
