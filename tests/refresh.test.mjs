@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { refreshSources } from '../scripts/lib/refresh.mjs';
+import { refreshSources, diffResultTables, archiveSeasonSnapshot } from '../scripts/lib/refresh.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'database-refresh-test-'));
 const outDir = path.join(root, 'source');
@@ -42,9 +42,41 @@ try {
   assert.equal(mixed.retained, 1);
   assert.equal(JSON.parse(fs.readFileSync(path.join(outDir, '_refresh-manifest.json'), 'utf8')).sources[1].status, 'retained');
 
+  const diffNone = diffResultTables(table(100), table(100), spec());
+  assert.deepEqual(diffNone, { previousRows: 1, nextRows: 1, added: 0, removed: 0, changed: 0, addedIds: [], removedIds: [], changedIds: [] });
+
+  const changedTable = table(125);
+  const diffChanged = diffResultTables(table(100), changedTable, spec());
+  assert.equal(diffChanged.changed, 1);
+  assert.deepEqual(diffChanged.changedIds, ['1']);
+
+  const added = { resultSets: { headers: ['PLAYER_ID','GP','MIN','PTS','FGM','FGA'], rowSet: [[1,10,300,100,40,80],[2,2,30,10,4,8]] } };
+  const diffAdded = diffResultTables(table(100), added, spec());
+  assert.equal(diffAdded.added, 1);
+  assert.deepEqual(diffAdded.addedIds, ['2']);
+  const diffRemoved = diffResultTables(added, table(100), spec());
+  assert.equal(diffRemoved.removed, 1);
+  assert.deepEqual(diffRemoved.removedIds, ['2']);
+
+  const manifestAfterChange = JSON.parse(fs.readFileSync(path.join(outDir, '_refresh-manifest.json'), 'utf8'));
+  assert.equal(manifestAfterChange.sources[0].changeSummary.changed, 1);
+
   await assert.rejects(refreshSources({ jobs: [spec()], outDir, season: '2026-27', seasonType: 'Regular Season',
     leagueId: '00', fetchImpl: fetchFor({ base_totals: table() }), pauseMs: 0 }), /Season rollover/);
-  console.log('refresh source tests passed: valid promotion, no-change, fail-closed retention, optional-source retention, rollover guard');
+
+  const archiveRoot = path.join(root, 'archive');
+  const rolled = archiveSeasonSnapshot({ outDir, archiveRoot, nextSeason: '2026-27' });
+  assert.equal(rolled.rolledOver, true);
+  assert.equal(rolled.previousSeason, '2025-26');
+  assert.equal(rolled.nextSeason, '2026-27');
+  assert.ok(fs.existsSync(path.join(rolled.archiveDir, '_refresh-manifest.json')));
+  assert.ok(!fs.existsSync(path.join(outDir, '_refresh-manifest.json')));
+  assert.ok(fs.existsSync(outDir));
+  await assert.rejects(Promise.resolve().then(() => archiveSeasonSnapshot({
+    outDir: rolled.archiveDir, archiveRoot, nextSeason: '2026-27'
+  })), /already exists|destination/i);
+
+  console.log('refresh source tests passed: valid promotion, source diffs, fail-closed retention, optional retention, and rollover archive');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
