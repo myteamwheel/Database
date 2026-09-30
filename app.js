@@ -238,6 +238,15 @@ const get = (p, key) => {
   }
   return p[key] ?? null;
 };
+const VALUE_MEANINGS = [
+  ['0', '0 is a real numeric value. It is never used as shorthand for missing, unavailable, or abstained.'],
+  ['—', '— means missing or unavailable. It is not zero and is excluded from numeric ranking/calculation.'],
+  ['N/A', 'N/A means not applicable: the metric does not meaningfully apply to this player/context.'],
+  ['Estimate', 'Estimate means a model or translation output, not an observed stat.'],
+  ['Fallback', 'Fallback means lower-specificity evidence was used because the preferred evidence was unavailable.'],
+  ['Small sample', 'Small sample means the value exists but rests on limited evidence and should be read with extra caution.'],
+];
+
 const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = v => finite(v) ? `${(Number(v)*100).toFixed(1)}%` : '—';
@@ -479,11 +488,11 @@ const BASE_COLS = {
   'p36n.fg3Pct':{label:'3P% NBA',type:'pct',help:'WHAT (G League only): projected 3P% against NBA competition. PLAIN: how his shooting efficiency should hold up a level up. FORMULA: his own 3P% PLUS the median DIFFERENCE observed among dual-league players (TS -5.8pts, 3P -2.3pts, eFG -3.0pts). A difference is used rather than a ratio because multiplying a percentage distorts badly near the tails.'},
   'p36.efg':{label:'eFG% (own)',type:'pct',help:'WHAT: eFG% in his own league. PLAIN: shooting efficiency as actually recorded. FORMULA: unchanged from the season line \u2014 rates do not scale with minutes.'},
   'p36n.efg':{label:'eFG% NBA',type:'pct',help:'WHAT (G League only): projected eFG% against NBA competition. PLAIN: how his shooting efficiency should hold up a level up. FORMULA: his own eFG% PLUS the median DIFFERENCE observed among dual-league players (TS -5.8pts, 3P -2.3pts, eFG -3.0pts). A difference is used rather than a ratio because multiplying a percentage distorts badly near the tails.'},
-  reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
+  reliabilityWeight:{label:'Reliability',type:'1',help:'WHAT: effective evidence weight behind this player’s own season line in the shrinkage model (max about 84). PLAIN: higher means more of the estimate comes from the player’s own sample rather than league/position priors. NOTE: this is evidence weight, NOT probability, confidence of correctness, or player quality.'},
   'tulip.leagueDelta':{label:'Role Value',type:'signed2',help:'WHAT: role-expansion VALUE (not a minutes recommendation, and not the same thing as Projected Role MPG) against a MEDIAN league rotation slot, at the player’s target minutes. PLAIN: how much the team would gain per 100 possessions by giving him a bigger role, compared with a typical rotation player rather than with his own weakest team-mate. FORMULA: projected on-court impact at the target minutes (from comparable players at that workload) MINUS the league-median rotation-slot impact. The league reference is used because the team-referenced version correlates -0.91 with whoever would be displaced and only +0.18 with the candidate, so it mostly measures the team-mate, not the player. Blank means TULIP abstained — too few comparables, or he already plays too many minutes for expansion to be a question. Blank is NOT zero and always sorts last.'},
   'tulip.neutralDelta':{label:'Role Value neutral',type:'signed2',help:'Same projection measured against a median team-mate rather than the weakest one. Displacing the weakest player flatters expansion by construction, so this is the fairer read.'},
   'tulip.projectedImpact':{label:'Role Value proj',type:'signed2',help:'Projected on-court impact at the target minutes, from comparable players'},
-  'tulip.support':{label:'Role Value support',type:'int',help:'Evidence support score behind the projection (0-100)'},
+  'tulip.support':{label:'Role Value support',type:'int',help:'WHAT: evidence support score behind the role projection (0-100). PLAIN: how much usable comparable evidence supports the scenario. NOTE: this is support strength, NOT a probability that the recommendation or projection is correct.'},
   'tulip.tier':{label:'Evidence tier',type:'text',help:'Evidence tier A-D. D means the projection rests entirely on comparable players.'},
   'tulip.verdict':{label:'Role verdict',type:'text',help:'EXPAND ROLE / HOLD, from the rotation comparison'},
   'tulip.targetMpg':{label:'Role target MPG',type:'1',help:'Minutes level the projection was evaluated at'},
@@ -1011,6 +1020,10 @@ function openStatGuide(){
     statGuideDlg.className = 'modal wide';
     statGuideDlg.innerHTML = `<div class="modal-sticky-head"><div><h2>Stat guide</h2>
       <p class="sg-count"></p></div><button class="modal-x" type="button" data-sg="close" aria-label="Close stat guide">×</button></div>
+      <section class="ws-card wide" aria-label="Value meanings"><h3>Value meanings</h3>
+        <div class="metric-list">${VALUE_MEANINGS.map(([label, meaning]) =>
+          `<div class="metric-definition"><strong>${esc(label)}</strong><span>${esc(meaning)}</span></div>`).join('')}</div>
+      </section>
       <input class="stat-guide-search" data-sg="search" type="search" aria-label="Search stats" placeholder="Search stats, e.g. TULIP, true shooting, readiness\u2026" />
       <div class="stat-guide-list" data-sg="list"></div>
       <div class="modal-actions"><button class="button" data-sg="close">Close</button></div>`;
