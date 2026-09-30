@@ -1,0 +1,50 @@
+name: Refresh publication development tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/refresh.mjs'
+      - 'scripts/lib/publication.mjs'
+      - 'scripts/owner-refresh.mjs'
+      - 'scripts/publish-data-status.mjs'
+      - 'scripts/verify-publication-status.mjs'
+      - 'scripts/build-artifact.mjs'
+      - 'tests/refresh.test.mjs'
+      - 'tests/publication.test.mjs'
+      - 'tests/owner-refresh.test.mjs'
+      - 'tests/app.spec.mjs'
+      - 'tests/refresh-publication.spec.mjs'
+      - 'public/data-status.json'
+      - 'app.js'
+      - 'index.html'
+      - 'package.json'
+      - '.github/workflows/refresh-publication-dev.yml'
+
+concurrency:
+  group: refresh-publication-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-publication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: |
+          node tests/refresh.test.mjs
+          node tests/publication.test.mjs
+          node tests/owner-refresh.test.mjs
+          node --check app.js
+          npm run publish:status
+          npm run verify:publication
+          npm run build:standalone
+      - name: Install Playwright
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify reload/status UI
+        run: npx playwright test tests/refresh-publication.spec.mjs

@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let DATA = null;
+let DATA_STATUS = window.DATA_STATUS || null;
 let league = 'NBA';
 let sortKey = 'grade';
 let sortDir = -1;
@@ -246,6 +247,132 @@ const signed = (v,d=1) => finite(v) ? (Number(v)>0?'+':'')+Number(v).toFixed(d) 
 const median = vals => { const a=vals.filter(finite).map(Number).sort((x,y)=>x-y); if(!a.length)return null; const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; };
 /** Strip diacritics so "Jokic" finds "Jokić" and "Doncic" finds "Dončić". */
 const fold = s => String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+
+const PUBLICATION_DOMAIN_LABELS = {
+  officialStats: 'Official stats',
+  rosterProjectionInputs: 'Roster / projection inputs',
+  transactions: 'Transactions',
+  injuries: 'Injuries',
+  news: 'News',
+  basketballReferenceSnapshot: 'Basketball-Reference snapshot',
+};
+const statusText = s => String(s || 'unavailable').replaceAll('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+const dateTime = v => {
+  if (!v) return 'Unavailable';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+};
+async function sha256Text(text) {
+  if (!globalThis.crypto?.subtle) return null;
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+async function validatePublishedPair(status, dataText, data) {
+  if (!status || status.schemaVersion !== 1 || !status.publicationId || !status.publishedAt) throw new Error('publication status is invalid');
+  if (!data || status.season !== data.season) throw new Error('publication status season does not match data');
+  if (!/^[0-9a-f]{64}$/.test(String(status.dataSha256 || ''))) throw new Error('publication status data hash is invalid');
+  if (dataText != null) {
+    const digest = await sha256Text(dataText);
+    if (digest && digest !== status.dataSha256) throw new Error('published data hash does not match publication status');
+  }
+  return true;
+}
+async function loadPublishedSnapshot(cacheBust = '') {
+  if (window.__STANDALONE_DATA_LOADER) {
+    const loaded = await window.__STANDALONE_DATA_LOADER();
+    await validatePublishedPair(loaded.status, null, loaded.data);
+    return loaded;
+  }
+  const suffix = cacheBust ? '?v=' + encodeURIComponent(cacheBust) : '';
+  const pair = await Promise.all([
+    fetch('./public/data.json' + suffix, { cache: 'no-store' }),
+    fetch('./public/data-status.json' + suffix, { cache: 'no-store' }),
+  ]);
+  const dataResponse = pair[0], statusResponse = pair[1];
+  if (!dataResponse.ok) throw new Error('data.json returned ' + dataResponse.status);
+  if (!statusResponse.ok) throw new Error('data-status.json returned ' + statusResponse.status);
+  const dataText = await dataResponse.text();
+  const data = JSON.parse(dataText);
+  const status = await statusResponse.json();
+  await validatePublishedPair(status, dataText, data);
+  return { data, status };
+}
+function updatePublishedHeader() {
+  if (!DATA) return;
+  $('nbaCount').textContent = DATA.counts.NBA.toLocaleString();
+  $('gCount').textContent = DATA.counts.GLEAGUE.toLocaleString();
+  const ro = (DATA.counts.rosterOnlyNBA || 0) + (DATA.counts.rosterOnlyGLEAGUE || 0);
+  const rosterAsOf = DATA.projectionMeta?.rostersAsOf;
+  const buildDate = new Date(DATA.generatedAt).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+  const published = DATA_STATUS?.publishedAt ? ' Latest successful publication ' + dateTime(DATA_STATUS.publishedAt) + '.' : '';
+  $('sourceLine').textContent = 'Official NBA and G League stats: ' + DATA.counts.records.toLocaleString()
+    + ' player seasons for ' + DATA.counts.uniquePeople.toLocaleString() + ' players'
+    + (ro ? ', plus ' + ro + ' rostered who never played' : '') + '. ' + DATA.season
+    + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.' + published;
+  $('seasonEyebrow').textContent = DATA.seasonType;
+}
+function openDataStatus() {
+  const s = DATA_STATUS;
+  if (!s) {
+    $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Publication status unavailable</h2><p>The player database remains usable, but this build does not include source-status metadata.</p>';
+    $('dataStatusDialog').showModal();
+    return;
+  }
+  const rows = Object.entries(PUBLICATION_DOMAIN_LABELS).map(([key, label]) => {
+    const d = s.sourceDomains?.[key] || {};
+    return '<div class="metric-definition"><strong>' + esc(label) + ' — ' + esc(statusText(d.status)) + '</strong>'
+      + '<span>Fetched: ' + esc(dateTime(d.fetchedAt)) + '. Checked: ' + esc(dateTime(d.checkedAt)) + '.'
+      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
+  }).join('');
+  const ch = s.changes?.officialStats || {};
+  $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Latest successfully published data</h2>'
+    + '<p><strong>Publication:</strong> ' + esc(s.publicationId) + ' · ' + esc(dateTime(s.publishedAt)) + '</p>'
+    + '<p><strong>Latest official-stat change record:</strong> ' + Number(ch.added || 0) + ' added, '
+    + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
+    + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'
+    + '<div class="metric-list">' + rows + '</div>'
+    + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>';
+  $('dataStatusDialog').showModal();
+}
+function captureReloadState() {
+  const ids = ['searchInput','rosterScope','teamFilter','positionFilter','viewPreset','minGp','minMpg','sortField','sortOrder',
+    'teamMode','countryFilter','minMin','minGrade','minReliability','rowLimit','labCohort'];
+  const controls = {};
+  for (const id of ids) if ($(id)) controls[id] = $(id).value;
+  for (const id of ['bothOnly','includeRosterOnly','allowMixedScope']) if ($(id)) controls[id] = $(id).checked;
+  return { controls, league, sortKey, sortDir, compared:[...compared], labConfig:JSON.parse(JSON.stringify(labConfig)), labCohort };
+}
+function restoreReloadState(snapshot) {
+  league = snapshot.league; sortKey = snapshot.sortKey; sortDir = snapshot.sortDir;
+  document.querySelectorAll('.league-tab').forEach((b) => b.classList.toggle('active', b.dataset.league === league));
+  populateSelectors(); fillMetricSelects();
+  for (const [id, value] of Object.entries(snapshot.controls || {})) {
+    const el = $(id); if (!el) continue;
+    if (el.type === 'checkbox') el.checked = !!value;
+    else if (el.tagName !== 'SELECT' || [...el.options].some(o => o.value === String(value))) el.value = String(value);
+  }
+  compared = new Set(snapshot.compared.filter(id => currentPlayers().some(p => String(p.playerId) === String(id))));
+  labConfig = snapshot.labConfig; labCohort = snapshot.labCohort;
+}
+async function reloadPublishedData() {
+  const button = $('reloadDataBtn'), note = $('reloadStatus');
+  const previousData = DATA, previousStatus = DATA_STATUS, snapshot = captureReloadState();
+  button.disabled = true; note.textContent = 'Checking published data…';
+  try {
+    const loaded = await loadPublishedSnapshot(String(Date.now()));
+    const nextData = rehydrate(loaded.data);
+    DATA = nextData; DATA_STATUS = loaded.status; window.DATA = DATA; window.DATA_STATUS = DATA_STATUS;
+    restoreReloadState(snapshot);
+    updatePublishedHeader(); render(); window.__wsRefresh?.(); writeUrlState('replace');
+    note.textContent = 'Published data reloaded.';
+  } catch (error) {
+    DATA = previousData; DATA_STATUS = previousStatus; window.DATA = DATA; window.DATA_STATUS = DATA_STATUS;
+    note.textContent = 'Reload failed; current data kept. ' + error.message;
+  } finally { button.disabled = false; }
+}
+window.__reloadPublishedData = reloadPublishedData;
 
 const SRC_LABEL = {off:'Official',oadv:'Official Adv',omisc:'Official Misc',oscore:'Official Scoring',
   ousage:'Official Usage',odef:'Official Def',obio:'Bio',bref:'Basketball-Reference',hustle:'Hustle',
@@ -2029,6 +2156,8 @@ function bind(){
   $('sortOrder').addEventListener('change',()=>{sortDir=Number($('sortOrder').value)||-1;render();writeUrlState('push');});
   $('resetBtn').onclick=()=>{reset();writeUrlState('push');};$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=()=>{applyLab();writeUrlState('push');};
   $('catalogBtn').onclick=openFieldCatalog;
+  $('dataStatusBtn').onclick=openDataStatus;
+  $('reloadDataBtn').onclick=reloadPublishedData;
   $('statGuideBtn').onclick=openStatGuide;
   // "?" opens the guide from anywhere, unless the user is typing in a field.
   document.addEventListener('keydown',(e)=>{
@@ -2065,17 +2194,11 @@ window.addEventListener('popstate',()=>{
 
 async function init(){
   try{
-    const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
-    DATA=rehydrate(DATA);
+    const loaded=await loadPublishedSnapshot();
+    DATA=rehydrate(loaded.data); DATA_STATUS=loaded.status || DATA_STATUS;
     // `let DATA` at script scope is NOT a window property, so workspace.js could not see it.
-    window.DATA=DATA;
-    $('nbaCount').textContent=DATA.counts.NBA.toLocaleString();$('gCount').textContent=DATA.counts.GLEAGUE.toLocaleString();
-    const ro=(DATA.counts.rosterOnlyNBA||0)+(DATA.counts.rosterOnlyGLEAGUE||0);
-    const rosterAsOf=DATA.projectionMeta?.rostersAsOf;
-    const buildDate=new Date(DATA.generatedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-    $('sourceLine').textContent=`Official NBA and G League stats: ${DATA.counts.records.toLocaleString()} player seasons for ${DATA.counts.uniquePeople.toLocaleString()} players`
-      +(ro?`, plus ${ro} rostered who never played`:'')+`. ${DATA.season} stats; NBA roster snapshot ${rosterAsOf||'date unavailable'}; site built ${buildDate}.`;
-    $('seasonEyebrow').textContent=DATA.seasonType;
+    window.DATA=DATA; window.DATA_STATUS=DATA_STATUS;
+    updatePublishedHeader();
     populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();
     // Links from other pages (History Lab) can open the projections directly.

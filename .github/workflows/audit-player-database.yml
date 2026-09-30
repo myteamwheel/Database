@@ -50,6 +50,13 @@ jobs:
       - name: Audit rebuilt player data
         run: node scripts/audit-v3.mjs
 
+      - name: Verify refresh and publication contracts
+        run: |
+          npm run test:refresh
+          npm run test:publication
+          npm run test:owner-refresh
+          npm run verify:publication
+
       - name: Audit UI preset schema
         run: node scripts/audit-presets.mjs
 

@@ -17,3 +17,6 @@ scripts/data/history/*/
 # The tracked product-facing subset is player_history_product.json.
 scripts/data/history/player_season_summary.json
 scripts/data/history/espn_cache/
+
+# Local owner-refresh run records are operational logs, not published source data.
+scripts/data/refresh-runs/

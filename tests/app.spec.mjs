@@ -25,6 +25,56 @@ const setCheck = (page, id, v) => page.$eval(id, (e, val) => {
   e.checked = val; e.dispatchEvent(new Event('change'));
 }, v);
 
+test.describe('published data reload + source status', () => {
+  test('status distinguishes configured snapshots from unsupported source domains', async ({ page }) => {
+    const errors = await open(page);
+    await expect(page.locator('#reloadDataBtn')).toBeVisible();
+    await expect(page.locator('#dataStatusBtn')).toBeVisible();
+    const state = await page.evaluate(() => ({
+      publicationId: window.DATA_STATUS?.publicationId,
+      stats: window.DATA_STATUS?.sourceDomains?.officialStats?.status,
+      tx: window.DATA_STATUS?.sourceDomains?.transactions?.status,
+      injuries: window.DATA_STATUS?.sourceDomains?.injuries?.status,
+      news: window.DATA_STATUS?.sourceDomains?.news?.status,
+    }));
+    expect(state.publicationId).toBeTruthy();
+    expect(state.stats).toBeTruthy();
+    expect(state.tx).toBe('not-configured');
+    expect(state.injuries).toBe('not-configured');
+    expect(state.news).toBe('not-configured');
+    await page.click('#dataStatusBtn');
+    const txt = await page.locator('#dataStatusDialog').innerText();
+    expect(txt).toContain('Official stats');
+    expect(txt).toContain('Transactions');
+    expect(txt).toContain('Injuries');
+    expect(txt).toContain('News');
+    expect(txt.toLowerCase()).toContain('not configured');
+    expect(errors).toEqual([]);
+  });
+
+  test('reload keeps the active search and only swaps data after a valid published pair', async ({ page }) => {
+    const errors = await open(page);
+    await page.fill('#searchInput', 'James');
+    await page.waitForTimeout(250);
+    const before = await page.evaluate(() => ({
+      search: document.querySelector('#searchInput').value,
+      count: document.querySelector('#resultCount').textContent,
+      publicationId: window.DATA_STATUS?.publicationId,
+    }));
+    await page.click('#reloadDataBtn');
+    await expect(page.locator('#reloadStatus')).toContainText(/reloaded|current/i);
+    const after = await page.evaluate(() => ({
+      search: document.querySelector('#searchInput').value,
+      count: document.querySelector('#resultCount').textContent,
+      publicationId: window.DATA_STATUS?.publicationId,
+    }));
+    expect(after.search).toBe(before.search);
+    expect(after.count).toBe(before.count);
+    expect(after.publicationId).toBe(before.publicationId);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('data + load', () => {
   test('both leagues load with the complete field set', async ({ page }) => {
     const errors = await open(page);

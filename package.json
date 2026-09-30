@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-v3.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-player-comps.mjs && node scripts/build-artifact.mjs",
+    "build": "node scripts/build-v3.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-player-comps.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
     "build:projections": "node scripts/build-projections.mjs",
     "fit:projections": "node scripts/fit-projections.mjs",
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
@@ -19,12 +19,12 @@
     "fetch:stints": "node scripts/fetch-stints.mjs",
     "fetch:bios": "node scripts/fetch-player-bios.mjs",
     "fetch": "npm run fetch:nba && npm run fetch:gleague && npm run fetch:showcase && npm run fetch:stints && npm run fetch:splits",
-    "refresh": "npm run fetch && npm run fetch:projection-inputs && npm run build:data && npm run fetch:bios && npm run fetch:birthdates && npm run build && npm run audit && npm run verify:artifact",
+    "refresh": "npm run refresh:owner",
     "fetch:splits": "node scripts/fetch-splits.mjs",
     "fetch:birthdates": "node scripts/fetch-birthdates.mjs",
     "verify:artifact": "node scripts/verify-artifact.mjs",
     "k-sensitivity": "node scripts/k-sensitivity.mjs",
-    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run test:tulipbeta && npm run test:tulipbeta:diagnostics && npm run test:tulipcapacity && npm run test:projections && npm run test:forecast-archive && npm run verify:forecast-archive && npm run test:comps && npm run test:refresh && npm run tulip:verify && npm run tulip:backtest && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
+    "verify": "npm run audit && npm run test:tooltips && npm run audit:presets && npm run test:tulipbeta && npm run test:tulipbeta:diagnostics && npm run test:tulipcapacity && npm run test:projections && npm run test:forecast-archive && npm run verify:forecast-archive && npm run test:comps && npm run test:refresh && npm run test:publication && npm run test:owner-refresh && npm run verify:publication && npm run tulip:verify && npm run tulip:backtest && npm run test:history && npm run test:starter && npm run verify:artifact && npm run test:browser",
     "test:browser": "playwright test",
     "audit:presets": "node scripts/audit-presets.mjs",
     "diagnostics": "node scripts/diagnostics.mjs",
@@ -56,7 +56,12 @@
     "test:forecast-archive": "node tests/forecast-archive.test.mjs",
     "verify:forecast-archive": "node scripts/verify-forecast-archive.mjs",
     "evaluate:projection-context": "node scripts/fit-projections.mjs context",
-    "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs"
+    "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs",
+    "publish:status": "node scripts/publish-data-status.mjs",
+    "test:publication": "node tests/publication.test.mjs",
+    "refresh:owner": "node scripts/owner-refresh.mjs",
+    "test:owner-refresh": "node tests/owner-refresh.test.mjs",
+    "verify:publication": "node scripts/verify-publication-status.mjs"
   },
   "engines": {
     "node": ">=20"

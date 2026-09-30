@@ -28,7 +28,10 @@
       <div class="page-title">
         <div class="crumbs" id="crumbs">NBA &rsaquo; 2025-26 &rsaquo; Player stats</div>
         <h1 id="pageTitle">2025-26 NBA Player Stats</h1>
-        <p class="page-meta"><span id="seasonEyebrow"></span> <span id="sourceLine">Loading official NBA and G League statistics...</span></p>
+        <p class="page-meta"><span id="seasonEyebrow"></span> <span id="sourceLine">Loading official NBA and G League statistics...</span>
+          <button class="text-button" id="reloadDataBtn" type="button">Reload published data</button>
+          <button class="text-button" id="dataStatusBtn" type="button">Data status</button>
+          <span class="tiny" id="reloadStatus" role="status" aria-live="polite"></span></p>
       </div>
       <section class="league-tabs" aria-label="League selector">
         <button class="league-tab active" data-league="NBA">NBA <span id="nbaCount"></span></button>
@@ -176,6 +179,7 @@
 
   <dialog id="catalogDialog" class="modal wide"><div id="catalogDialogBody"></div><button class="button" data-close="catalogDialog">Close</button></dialog>
   <dialog id="metricDialog" class="modal"><div id="metricDialogBody"></div><button class="button" data-close="metricDialog">Close</button></dialog>
+  <dialog id="dataStatusDialog" class="modal wide"><div id="dataStatusBody"></div><button class="button" data-close="dataStatusDialog">Close</button></dialog>
   <dialog id="playerDialog" class="modal wide"><div id="playerDialogBody"></div><button class="button" data-close="playerDialog">Close</button></dialog>
   <dialog id="compareDialog" class="modal wide"><div id="compareDialogBody"></div><button class="button" data-close="compareDialog">Close</button></dialog>
   <dialog id="projMethodDialog" class="modal wide"><div id="projMethodBody"></div><button class="button" data-close="projMethodDialog">Close</button></dialog>
@@ -190,7 +194,7 @@
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js?v=20260928-roster-scope"></script>
+  <script src="app.js?v=20260929-refresh-status"></script>
   <script src="workspace.js?v=20260928-roster-scope"></script>
 </body>
 </html>
