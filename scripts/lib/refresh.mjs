@@ -11,6 +11,54 @@ export function resultTable(json) {
   if (rs.rowSet.some((r) => !Array.isArray(r) || r.length !== rs.headers.length)) throw new Error('Malformed source row');
   return rs;
 }
+
+export function diffResultTables(previousJson, nextJson, spec = {}) {
+  const next = resultTable(nextJson);
+  const previous = previousJson ? resultTable(previousJson) : { headers: next.headers, rowSet: [] };
+  const idName = spec.id || 'PLAYER_ID';
+  const prevId = previous.headers.indexOf(idName);
+  const nextId = next.headers.indexOf(idName);
+  if (prevId < 0 || nextId < 0) throw new Error(`Cannot diff source without ${idName}`);
+
+  const rowObject = (headers, row) => Object.fromEntries(headers.map((h, i) => [h, row[i]]));
+  const prev = new Map(previous.rowSet.map((row) => [String(row[prevId]), rowObject(previous.headers, row)]));
+  const cur = new Map(next.rowSet.map((row) => [String(row[nextId]), rowObject(next.headers, row)]));
+  const addedIds = [...cur.keys()].filter((id) => !prev.has(id)).sort();
+  const removedIds = [...prev.keys()].filter((id) => !cur.has(id)).sort();
+  const changedIds = [...cur.keys()].filter((id) => prev.has(id)
+    && JSON.stringify(prev.get(id)) !== JSON.stringify(cur.get(id))).sort();
+  return {
+    previousRows: previous.rowSet.length,
+    nextRows: next.rowSet.length,
+    added: addedIds.length,
+    removed: removedIds.length,
+    changed: changedIds.length,
+    addedIds,
+    removedIds,
+    changedIds,
+  };
+}
+
+export function archiveSeasonSnapshot({ outDir, archiveRoot, nextSeason }) {
+  if (!/^\d{4}-\d{2}$/.test(String(nextSeason || ''))) throw new Error('Invalid next season');
+  const manifestPath = path.join(outDir, '_refresh-manifest.json');
+  if (!fs.existsSync(manifestPath)) return { rolledOver: false, previousSeason: null, nextSeason };
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const previousSeason = manifest?.season;
+  if (!previousSeason || previousSeason === nextSeason) {
+    return { rolledOver: false, previousSeason: previousSeason || null, nextSeason };
+  }
+  const archiveDir = path.join(archiveRoot, previousSeason, path.basename(outDir));
+  if (fs.existsSync(archiveDir)) throw new Error(`Season rollover destination already exists: ${archiveDir}`);
+  if (path.resolve(archiveDir).startsWith(path.resolve(outDir) + path.sep)) {
+    throw new Error('Season rollover destination cannot be inside the live source directory');
+  }
+  fs.mkdirSync(path.dirname(archiveDir), { recursive: true });
+  fs.renameSync(outDir, archiveDir);
+  fs.mkdirSync(outDir, { recursive: true });
+  return { rolledOver: true, previousSeason, nextSeason, archiveDir };
+}
+
 export function validateSource(json, spec, previous = null) {
   const table = resultTable(json);
   for (const column of spec.columns || []) if (!table.headers.includes(column)) throw new Error(`Missing ${column}`);
@@ -64,11 +112,13 @@ export async function refreshSources({ jobs, outDir, season, seasonType, leagueI
     const old = fs.existsSync(destination) ? fs.readFileSync(destination, 'utf8') : null;
     const prior = previousManifest?.sources?.find((s) => s.name === job.name);
     try {
-      const json = await fetchImpl(job.url), table = validateSource(json, job, old ? JSON.parse(old) : null);
+      const json = await fetchImpl(job.url), previousJson = old ? JSON.parse(old) : null;
+      const table = validateSource(json, job, previousJson);
       const bytes = JSON.stringify(json), hash = sha256(bytes), changed = !old || sha256(old) !== hash;
+      const changeSummary = diffResultTables(previousJson, json, job);
       staged.push({ destination, bytes, changed, old });
       sources.push({ name: job.name, url: job.url, required: !!job.required, status: 'ok', rows: table.rowSet.length,
-        sha256: hash, checkedAt: now, fetchedAt: changed ? now : prior?.fetchedAt || now, changed });
+        sha256: hash, checkedAt: now, fetchedAt: changed ? now : prior?.fetchedAt || now, changed, changeSummary });
     } catch (error) {
       sources.push({ name: job.name, url: job.url, required: !!job.required, status: old ? 'retained' : 'unavailable',
         checkedAt: now, fetchedAt: prior?.fetchedAt || null, sha256: old ? sha256(old) : null, reason: error.message });
