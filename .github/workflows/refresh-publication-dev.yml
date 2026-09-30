@@ -10,6 +10,7 @@ on:
       - 'tests/refresh.test.mjs'
       - 'tests/publication.test.mjs'
       - 'tests/owner-refresh.test.mjs'
+      - 'tests/refresh-publication.spec.mjs'
       - 'public/data-status.json'
       - 'app.js'
       - 'index.html'
@@ -30,3 +31,9 @@ jobs:
           node tests/refresh.test.mjs
           node tests/publication.test.mjs
           node tests/owner-refresh.test.mjs
+      - name: Install Playwright
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify reload/status UI
+        run: npx playwright test tests/refresh-publication.spec.mjs
