@@ -58,7 +58,9 @@
     "evaluate:projection-context": "node scripts/fit-projections.mjs context",
     "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs",
     "publish:status": "node scripts/publish-data-status.mjs",
-    "test:publication": "node tests/publication.test.mjs"
+    "test:publication": "node tests/publication.test.mjs",
+    "refresh:owner": "node scripts/owner-refresh.mjs",
+    "test:owner-refresh": "node tests/owner-refresh.test.mjs"
   },
   "engines": {
     "node": ">=20"
