@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sha256, validateArchive } from './lib/forecast-archive.mjs';
 
@@ -39,7 +40,56 @@ function safeSnapshotPath(archiveDir, relativePath) {
   if (!(resolved === resolvedDir || resolved.startsWith(resolvedDir + path.sep))) {
     throw new Error(`Forecast snapshot escapes archive directory: ${relativePath}`);
   }
+  if (fs.existsSync(resolved)) {
+    const realDir = fs.realpathSync(archiveDir);
+    const realResolved = fs.realpathSync(resolved);
+    if (!(realResolved === realDir || realResolved.startsWith(realDir + path.sep))) {
+      throw new Error(`Forecast snapshot escapes archive directory through a symlink: ${relativePath}`);
+    }
+  }
   return resolved;
+}
+
+function readManifest(archiveDir) {
+  const manifestPath = path.join(archiveDir, 'index.json');
+  if (!fs.existsSync(manifestPath)) throw new Error(`Forecast archive manifest is missing: ${manifestPath}`);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.forecasts)) {
+    throw new Error('Forecast archive manifest schema is invalid.');
+  }
+  const ids = new Set(), paths = new Set();
+  for (const entry of manifest.forecasts) {
+    if (!entry?.forecastId || !entry?.path) throw new Error('Forecast archive manifest entry is incomplete.');
+    if (ids.has(entry.forecastId)) throw new Error(`Duplicate forecast id in manifest: ${entry.forecastId}`);
+    if (paths.has(entry.path)) throw new Error(`Duplicate forecast snapshot path in manifest: ${entry.path}`);
+    ids.add(entry.forecastId);
+    paths.add(entry.path);
+  }
+  return manifest;
+}
+
+export function validateForecastSnapshot(archive) {
+  validateArchiveProvenance(archive);
+  const summary = validateArchive(archive);
+  validateSourceProvenance(archive, summary);
+  return summary;
+}
+
+export function readVerifiedForecast({ archiveDir = DEFAULT_ARCHIVE_DIR, forecastId = null, snapshotPath = null } = {}) {
+  const manifest = readManifest(archiveDir);
+  const entry = snapshotPath
+    ? manifest.forecasts?.find((item) => item.path === snapshotPath)
+    : manifest.forecasts?.find((item) => item.forecastId === forecastId);
+  if (!entry) throw new Error('Forecast archive entry was not found in the manifest.');
+  const resolved = safeSnapshotPath(archiveDir, entry.path);
+  const stat = fs.lstatSync(resolved);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Forecast archive snapshot is not a regular file: ${entry.path}`);
+  const bytes = fs.readFileSync(resolved);
+  if (sha256(bytes) !== entry.sha256) throw new Error(`Forecast archive snapshot hash/SHA256 mismatch: ${entry.path}`);
+  const archive = JSON.parse(bytes.toString('utf8'));
+  const summary = validateForecastSnapshot(archive);
+  validateManifestEntry(entry, archive, summary, bytes);
+  return { archive, bytes, entry, path: resolved };
 }
 
 
@@ -150,17 +200,11 @@ function validateManifestEntry(entry, archive, summary, bytes) {
 }
 
 export function verifyArchiveDirectory({ archiveDir = DEFAULT_ARCHIVE_DIR } = {}) {
-  const manifestPath = path.join(archiveDir, 'index.json');
-  if (!fs.existsSync(manifestPath)) throw new Error(`Forecast archive manifest is missing: ${manifestPath}`);
-
   let manifest;
   try {
-    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest = readManifest(archiveDir);
   } catch (err) {
     throw new Error(`Forecast archive manifest is not valid JSON: ${err.message}`);
-  }
-  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.forecasts)) {
-    throw new Error('Forecast archive manifest schema is invalid.');
   }
 
   const ids = new Set();
@@ -179,6 +223,10 @@ export function verifyArchiveDirectory({ archiveDir = DEFAULT_ARCHIVE_DIR } = {}
     const snapshotPath = safeSnapshotPath(archiveDir, entry.path);
     if (!fs.existsSync(snapshotPath)) {
       throw new Error(`Forecast archive snapshot is missing: ${entry.path}`);
+    }
+    const snapshotStat = fs.lstatSync(snapshotPath);
+    if (!snapshotStat.isFile() || snapshotStat.isSymbolicLink()) {
+      throw new Error(`Forecast archive snapshot is not a regular file: ${entry.path}`);
     }
     const bytes = fs.readFileSync(snapshotPath);
     if (entry.sha256 !== sha256(bytes)) {
@@ -199,7 +247,22 @@ export function verifyArchiveDirectory({ archiveDir = DEFAULT_ARCHIVE_DIR } = {}
     abstained += summary.abstained;
   }
 
+  const listed = new Set(manifest.forecasts.map((entry) => entry.path));
+  const orphans = fs.readdirSync(archiveDir)
+    .filter((name) => name.endsWith('.json') && name !== 'index.json' && !listed.has(name));
+  if (orphans.length) throw new Error(`Forecast archive contains unindexed snapshot(s): ${orphans.join(', ')}`);
+
   return { forecasts: manifest.forecasts.length, projected, abstained };
+}
+
+export function validateManifestExtension(previous, next) {
+  if (!Array.isArray(previous?.forecasts) || !Array.isArray(next?.forecasts)) throw new Error('Malformed archive manifest.');
+  const nextEntries = new Map(next.forecasts.map(entry => [entry.forecastId,entry]));
+  for (const entry of previous.forecasts) {
+    if (!nextEntries.has(entry.forecastId)) throw new Error(`Existing forecast removed from manifest: ${entry.forecastId}`);
+    if (!isDeepStrictEqual(entry,nextEntries.get(entry.forecastId))) throw new Error(`Existing forecast manifest entry modified: ${entry.forecastId}`);
+  }
+  return true;
 }
 
 export function validateAppendOnlyChanges(changes) {
@@ -255,6 +318,12 @@ export function verifyForecastArchive({ baseRef = null, archiveDir = DEFAULT_ARC
       throw new Error(`Unable to compare forecast archive with base ref ${baseRef}: ${err.stderr?.toString?.() || err.message}`);
     }
     validateAppendOnlyChanges(diff);
+    const tracked = execFileSync('git',['ls-tree','--name-only',baseRef,'--',INDEX_PATH],{cwd:ROOT,encoding:'utf8'}).trim();
+    if (tracked) {
+      const previous = JSON.parse(execFileSync('git',['show',`${baseRef}:${INDEX_PATH}`],{cwd:ROOT,encoding:'utf8'}));
+      const next = JSON.parse(fs.readFileSync(path.join(archiveDir,'index.json'),'utf8'));
+      validateManifestExtension(previous,next);
+    }
   }
   return summary;
 }

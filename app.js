@@ -273,14 +273,17 @@ const dateTime = v => {
   return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
 };
 async function sha256Text(text) {
-  if (!globalThis.crypto?.subtle) return null;
+  if (!globalThis.crypto?.subtle) throw new Error('hash verification is unavailable in this browser');
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 async function validatePublishedPair(status, dataText, data) {
+  data = rehydrate(data);
   if (!status || status.schemaVersion !== 1 || !status.publicationId || !status.publishedAt) throw new Error('publication status is invalid');
+  if (Number.isNaN(Date.parse(status.publishedAt)) || Object.keys(PUBLICATION_DOMAIN_LABELS).some(key => !status.sourceDomains?.[key])) throw new Error('publication source status is incomplete');
   if (!data || status.season !== data.season) throw new Error('publication status season does not match data');
+  if (!data.counts || !data.leagues || !['NBA','GLEAGUE'].every(key => Array.isArray(data.leagues[key]))) throw new Error('published data structure is invalid');
   if (!/^[0-9a-f]{64}$/.test(String(status.dataSha256 || ''))) throw new Error('publication status data hash is invalid');
   if (dataText != null) {
     const digest = await sha256Text(dataText);
@@ -290,6 +293,7 @@ async function validatePublishedPair(status, dataText, data) {
 }
 async function loadPublishedSnapshot(cacheBust = '') {
   if (window.__STANDALONE_DATA_LOADER) {
+    if (cacheBust) throw new Error('offline snapshot cannot reload published data; open the live website');
     const loaded = await window.__STANDALONE_DATA_LOADER();
     await validatePublishedPair(loaded.status, null, loaded.data);
     return loaded;
@@ -310,15 +314,19 @@ async function loadPublishedSnapshot(cacheBust = '') {
 }
 function updatePublishedHeader() {
   if (!DATA) return;
+  if (window.__STANDALONE_DATA_LOADER) {
+    $('reloadDataBtn').disabled = true;
+    $('reloadStatus').textContent = 'Offline snapshot — open the live website for updated data.';
+  }
   $('nbaCount').textContent = DATA.counts.NBA.toLocaleString();
   $('gCount').textContent = DATA.counts.GLEAGUE.toLocaleString();
   const ro = (DATA.counts.rosterOnlyNBA || 0) + (DATA.counts.rosterOnlyGLEAGUE || 0);
   const rosterAsOf = DATA.projectionMeta?.rostersAsOf;
   const buildDate = new Date(DATA.generatedAt).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
-  const published = DATA_STATUS?.publishedAt ? ' Latest successful publication ' + dateTime(DATA_STATUS.publishedAt) + '.' : '';
+  const published = DATA_STATUS?.publishedAt ? ' Snapshot prepared ' + dateTime(DATA_STATUS.publishedAt) + '.' : '';
   $('sourceLine').textContent = 'Official NBA and G League stats: ' + DATA.counts.records.toLocaleString()
     + ' player seasons for ' + DATA.counts.uniquePeople.toLocaleString() + ' players'
-    + (ro ? ', plus ' + ro + ' rostered who never played' : '') + '. ' + DATA.season
+    + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
     + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.' + published;
   $('seasonEyebrow').textContent = DATA.seasonType;
 }
@@ -336,8 +344,8 @@ function openDataStatus() {
       + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
   }).join('');
   const ch = s.changes?.officialStats || {};
-  $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Latest successfully published data</h2>'
-    + '<p><strong>Publication:</strong> ' + esc(s.publicationId) + ' · ' + esc(dateTime(s.publishedAt)) + '</p>'
+  $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Loaded data snapshot</h2>'
+    + '<p><strong>Snapshot:</strong> ' + esc(s.publicationId) + ' · prepared ' + esc(dateTime(s.publishedAt)) + '. This is a build timestamp, not confirmation of deployment or a live source refresh.</p>'
     + '<p><strong>Latest official-stat change record:</strong> ' + Number(ch.added || 0) + ' added, '
     + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
     + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'

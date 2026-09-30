@@ -11,6 +11,8 @@
 // remain available as descriptive metrics, but never as grade ingredients.
 import { round } from './sources.mjs';
 
+export const GRADE_MODEL_VERSION = '3.4';
+
 const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 

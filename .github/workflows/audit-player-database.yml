@@ -93,6 +93,7 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           npm run test:projections
+          npm run test:review
           node tests/forecast-timeframes.test.mjs
           node tests/projection-validation.test.mjs
           node tests/projection-context-reconciliation.test.mjs

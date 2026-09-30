@@ -4,7 +4,11 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {
+  COVERAGE_STATES,
+  MODEL_OUTPUTS,
   buildPublicationStatus,
+  deriveCoverageStates,
+  deriveModelProvenance,
   deriveSourceDomains,
   validatePublicationStatus,
   writePublicationStatus,
@@ -14,6 +18,16 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publication-test-'));
 try {
   fs.mkdirSync(path.join(root, 'scripts/data/official_nba'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts/data/projection'), { recursive: true });
+  for (const spec of Object.values(MODEL_OUTPUTS)) {
+    for (const relativePath of spec.codeFiles) {
+      const full = path.join(root, relativePath);
+      fs.mkdirSync(path.dirname(full), { recursive:true });
+      if (!fs.existsSync(full)) fs.writeFileSync(full, `// fixture ${relativePath}\n`);
+    }
+  }
+  fs.writeFileSync(path.join(root, 'PROJECTION_2026_27.json'), JSON.stringify({ id:'PROJECTION_2026_27' }));
+  fs.writeFileSync(path.join(root, 'scripts/data/projection/inputs.json'), JSON.stringify({ fetchedAt:'2026-09-26T04:28:41.551Z' }));
+
   fs.writeFileSync(path.join(root, 'scripts/data/official_nba/_refresh-manifest.json'), JSON.stringify({
     version: 1,
     season: '2025-26',
@@ -32,7 +46,29 @@ try {
     generatedAt:'2026-09-20T10:00:00Z', source:'Basketball-Reference snapshot'
   }));
 
-  const publicData = { season:'2025-26', generatedAt:'2026-09-29T23:00:00Z', counts:{NBA:600,GLEAGUE:570} };
+  const publicData = {
+    season:'2025-26', generatedAt:'2026-09-29T23:00:00Z', counts:{NBA:3,GLEAGUE:1},
+    gradeModel:{ version:'3.4' },
+    projectionMeta:{ id:'PROJECTION_2026_27', contextVersion:'context-1', inputsSha256:'c'.repeat(16), rosterSha256:'d'.repeat(64), rostersAsOf:'2026-09-26' },
+    tulipMeta:{ version:'TULIP Evidence v0.1' },
+    tulipBetaMeta:{ config:{ version:'tulip-beta-support-v2' }, baselineSeason:'2025-26', rostersAsOf:'2026-09-26' },
+    tulipCapacityMeta:{ version:'projected-role-v1', cardSha256:'e'.repeat(64), frozenAt:'2026-09-20', buildInputMode:'preserved_verified_frozen_output' },
+    analysis:{ playerCompsMeta:{ version:'4.1.0', nbaHistory:'2009-10 through 2025-26', gleagueHistory:'2014-15 through 2025-26' } },
+    provenance:{ buildCommit:'abc1234', gradeModelVersion:'3.4', sources:[
+      { file:'official_nba/base_totals.json', sha256:'1'.repeat(16) },
+      { file:'official_gleague_regular/base_totals.json', sha256:'2'.repeat(16) },
+    ] },
+    leagues: {
+      NBA: [
+        { appeared:true, currentRoster:true, gp:10, minutes:300, proj:{ basis:'multi-year-history' } },
+        { appeared:false, currentRoster:true, gp:0, minutes:0, proj:{ basis:'rookie-cohort-fallback', why:{ rookie:{ peers:40 } } } },
+        { appeared:false, currentRoster:true, gp:0, minutes:0, proj:{ abstain:true, reason:'insufficient evidence' } },
+      ],
+      GLEAGUE: [
+        { appeared:true, currentRoster:false, gp:8, minutes:200, proj:{ basis:'multi-year-history' } },
+      ],
+    },
+  };
   const bytes = JSON.stringify(publicData);
 
   const domains = deriveSourceDomains({ root, publicData });
@@ -47,10 +83,44 @@ try {
     assert.equal(domains[key].fetchedAt, null);
   }
 
+
+  const modelProvenance = deriveModelProvenance({ root, publicData });
+  assert.equal(modelProvenance.schemaVersion, 1);
+  assert.equal(modelProvenance.outputs.performanceGrades.modelVersion, '3.4');
+  assert.equal(modelProvenance.outputs.projections.modelVersion, 'PROJECTION_2026_27+context-1');
+  assert.equal(modelProvenance.outputs.tulipEvidence.modelVersion, 'TULIP Evidence v0.1');
+  assert.equal(modelProvenance.outputs.tulipBeta.modelVersion, 'tulip-beta-support-v2');
+  assert.equal(modelProvenance.outputs.projectedRoleMpg.modelVersion, 'projected-role-v1');
+  assert.equal(modelProvenance.outputs.playerComparisons.modelVersion, '4.1.0');
+  assert.match(modelProvenance.outputs.teamFit.modelVersion, /^code-sha256:[0-9a-f]{64}$/);
+  assert.match(modelProvenance.outputs.crossLeague.modelVersion, /^code-sha256:[0-9a-f]{64}$/);
+  const conflictingGradeVersion = JSON.parse(JSON.stringify(publicData));
+  conflictingGradeVersion.provenance.gradeModelVersion = '3.3';
+  assert.throws(() => deriveModelProvenance({ root, publicData: conflictingGradeVersion }), /grade model version mismatch/i);
+  for (const item of Object.values(modelProvenance.outputs)) {
+    assert.match(item.codeVersionSha256, /^[0-9a-f]{64}$/);
+    assert.ok(item.codeFiles.every((file) => /^[0-9a-f]{64}$/.test(file.sha256)));
+    assert.ok(item.inputVersion && typeof item.inputVersion === 'object');
+  }
+
+  const coverage = deriveCoverageStates({ publicData, sourceDomains: domains });
+  assert.deepEqual(coverage.allowedStates, [...COVERAGE_STATES]);
+  assert.equal(coverage.sourceDomains.officialStats.state, 'partial');
+  assert.equal(coverage.sourceDomains.rosterProjectionInputs.state, 'complete');
+  assert.equal(coverage.sourceDomains.basketballReferenceSnapshot.state, 'fallback');
+  assert.equal(coverage.sourceDomains.transactions.state, 'unavailable');
+  assert.equal(coverage.leagues.NBA.state, 'partial');
+  assert.deepEqual(coverage.leagues.NBA.seasonData.counts, { complete:1, partial:2, fallback:0, unavailable:0 });
+  assert.deepEqual(coverage.leagues.NBA.projections.counts, { complete:1, partial:0, fallback:1, unavailable:1 });
+  assert.equal(coverage.leagues.GLEAGUE.state, 'complete');
+  assert.deepEqual(coverage.leagues.GLEAGUE.seasonData.counts, { complete:1, partial:0, fallback:0, unavailable:0 });
+  assert.deepEqual(coverage.leagues.GLEAGUE.projections.counts, { complete:1, partial:0, fallback:0, unavailable:0 });
+
   const status = buildPublicationStatus({
     publicData,
     publicDataBytes: bytes,
     sourceDomains: domains,
+    modelProvenance,
     previousStatus: { publicationId:'old', publishedAt:'2026-09-28T23:00:00Z', dataSha256:'b'.repeat(64) },
     publishedAt:'2026-09-29T23:05:00Z',
   });
@@ -60,12 +130,14 @@ try {
   assert.equal(status.changes.officialStats.added, 1);
   assert.equal(status.changes.officialStats.changed, 3);
   assert.equal(status.changes.officialStats.retainedSources, 1);
+  assert.deepEqual(status.coverage, coverage);
+  assert.deepEqual(status.modelProvenance, modelProvenance);
   assert.equal(status.forecastAdjustmentPolicy.transactions, 'not-applied-unless-verified-structured-input');
   assert.equal(status.forecastAdjustmentPolicy.injuries, 'not-applied-unless-verified-structured-input');
   assert.equal(status.forecastAdjustmentPolicy.news, 'not-applied-unless-verified-structured-input');
-  assert.equal(validatePublicationStatus(status, { publicData, publicDataBytes: bytes }), true);
+  assert.equal(validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), true);
   const rebuiltSame = buildPublicationStatus({
-    publicData, publicDataBytes: bytes, sourceDomains: domains, previousStatus: status, publishedAt:'2026-09-29T23:05:00Z'
+    publicData, publicDataBytes: bytes, sourceDomains: domains, modelProvenance, previousStatus: status, publishedAt:'2026-09-29T23:05:00Z'
   });
   assert.deepEqual(rebuiltSame, status);
 
@@ -81,8 +153,22 @@ try {
 
   assert.throws(() => validatePublicationStatus({ ...status, dataSha256:'0'.repeat(64) }, { publicData, publicDataBytes: bytes }), /hash|sha/i);
   assert.throws(() => validatePublicationStatus({ ...status, season:'2024-25' }, { publicData, publicDataBytes: bytes }), /season/i);
+  const invalidState = JSON.parse(JSON.stringify(status));
+  invalidState.coverage.leagues.NBA.state = 'mostly';
+  assert.throws(() => validatePublicationStatus(invalidState, { publicData, publicDataBytes: bytes }), /coverage/i);
+  const mismatchedSource = JSON.parse(JSON.stringify(status));
+  mismatchedSource.coverage.sourceDomains.transactions.state = 'complete';
+  assert.throws(() => validatePublicationStatus(mismatchedSource), /coverage/i);
 
-  console.log('publication tests passed: source domains, explicit unsupported sources, changes, atomic status, hash/season validation');
+  const staleCounts = JSON.parse(JSON.stringify(status));
+  staleCounts.coverage.leagues.NBA.projections.counts.complete += 1;
+  assert.throws(() => validatePublicationStatus(staleCounts, { publicData, publicDataBytes: bytes }), /coverage/i);
+  const gradeFile = path.join(root, MODEL_OUTPUTS.performanceGrades.codeFiles[0]);
+  fs.appendFileSync(gradeFile, '// implementation changed\n');
+  assert.throws(() => validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), /model provenance|implementation|stale/i);
+
+
+  console.log('publication tests passed: source domains, normalized coverage states, model/code/input provenance, stale implementation rejection, changes, atomic status, hash/season validation');
 } finally {
   fs.rmSync(root, { recursive:true, force:true });
 }

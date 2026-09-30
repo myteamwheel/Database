@@ -53,6 +53,11 @@ function validateProjectedRow(row) {
       throw new Error(`${row.identity}: projection field ${key} is not finite.`);
     }
   }
+  for (const key of ['gp', 'mpg', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov', 'fg3m']) {
+    if (!Number.isFinite(p[key]) || p[key] < 0) {
+      throw new Error(`${row.identity}: projection field ${key} must be a finite non-negative number.`);
+    }
+  }
 
   const a = p.accounting;
   if (!a || typeof a !== 'object') throw new Error(`${row.identity}: projection accounting is required.`);
@@ -227,6 +232,7 @@ export function deriveCohorts(player) {
 
 function eligibleMetric(metric, actual, interim) {
   if (metric === 'gp' && interim) return false;
+  if (metric !== 'gp' && !(actual?.gp > 0)) return false;
   if (!Number.isFinite(actual?.[metric])) return false;
   const rule = PCT_ATTEMPTS[metric];
   if (!rule) return true;
@@ -294,6 +300,13 @@ function actualIdentityMap(league, rows) {
   const map = new Map();
   for (const row of rows) {
     const identity = projectionIdentity(league, row);
+    if (!Number.isInteger(row.gp) || row.gp < 0) throw new Error(`${league}: actual GP/games must be a non-negative integer.`);
+    for (const metric of SCORE_METRICS) {
+      if (row[metric] == null) continue;
+      if (!Number.isFinite(row[metric]) || row[metric] < 0 || (metric in PCT_ATTEMPTS && row[metric] > 1)) {
+        throw new Error(`${league}: invalid actual ${metric}.`);
+      }
+    }
     if (map.has(identity)) throw new Error(`${league}: duplicate actual-results identity ${identity}.`);
     map.set(identity, row);
   }
@@ -312,6 +325,9 @@ export function scoreArchive(archive, actuals, { interim = false } = {}) {
   }
   if (!actuals?.asOf || Number.isNaN(Date.parse(actuals.asOf))) {
     throw new Error('Actual-results input requires a valid asOf date.');
+  }
+  if (archive.publishedAt && Date.parse(actuals.asOf) < Date.parse(archive.publishedAt)) {
+    throw new Error('Actual results cannot precede forecast publication.');
   }
   if (!['final', 'interim'].includes(actuals?.status)) {
     throw new Error('Actual-results status must be final or interim.');

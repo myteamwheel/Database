@@ -90,7 +90,7 @@ test('reload published data swaps only a validated bundle and preserves URL/filt
   await expect(page.locator('#wsPlayerSel')).toHaveValue(String(target.playerId));
 
   await page.click('#reloadDataBtn');
-  await expect(page.locator('#reloadStatus')).toContainText(/reloaded|published/i);
+  await expect(page.locator('#reloadStatus')).toHaveText('Published data reloaded.');
   expect(await page.evaluate(() => DATA.publicationTestMarker)).toBe('reloaded');
   expect(page.url()).toBe(beforeSearch);
   await expect(page.locator('#searchInput')).toHaveValue('Jokic');
@@ -121,6 +121,42 @@ test('data status dialog reports every source independently and labels unsupport
     expect(text).toContain(needle);
   }
   expect(text.match(/Not configured/gi)?.length || 0).toBeGreaterThanOrEqual(3);
-  expect(text).toMatch(/Latest successfully published data|Latest successful publication/i);
+  expect(text).toMatch(/Loaded data snapshot/i);
   expect(text).toMatch(/1 added.*3 changed|3 changed.*1 added/i);
+});
+
+test('reload rejects malformed data even when its hash matches', async ({page}) => {
+  await routePublication(page,{reloadBytes:JSON.stringify({...baseData,counts:null})});
+  await page.goto(`${origin}/index.html`);
+  await page.waitForSelector('#tableBody tr td');
+  const before=await page.locator('#tableBody').innerText();
+  await page.click('#reloadDataBtn');
+  await expect(page.locator('#reloadStatus')).toContainText(/failed/i);
+  expect(await page.locator('#tableBody').innerText()).toBe(before);
+  expect(await page.evaluate(()=>!!DATA.counts)).toBe(true);
+});
+
+test('reload fails closed when hash verification is unavailable', async ({page}) => {
+  await routePublication(page);
+  await page.goto(`${origin}/index.html`);
+  await page.waitForSelector('#tableBody tr td');
+  await page.evaluate(()=>Object.defineProperty(globalThis.crypto,'subtle',{value:undefined,configurable:true}));
+  await page.click('#reloadDataBtn');
+  await expect(page.locator('#reloadStatus')).toContainText(/failed.*hash verification/i);
+});
+
+test('offline snapshot does not promise a network reload', async ({page}) => {
+  await routePublication(page);
+  await page.goto(`${origin}/index.html`);
+  await page.waitForSelector('#tableBody tr td');
+  await page.evaluate(()=>{ window.__STANDALONE_DATA_LOADER=async()=>({data:DATA,status:DATA_STATUS}); updatePublishedHeader(); });
+  await expect(page.locator('#reloadDataBtn')).toBeDisabled();
+  await expect(page.locator('#reloadStatus')).toContainText(/offline snapshot/i);
+});
+
+test('generated standalone snapshot loads its packed data and disables reload', async ({page}) => {
+  await page.goto(`${origin}/public/standalone.html`);
+  await page.waitForSelector('#tableBody tr td');
+  await expect(page.locator('#reloadDataBtn')).toBeDisabled();
+  await expect(page.locator('#reloadStatus')).toContainText(/offline snapshot/i);
 });

@@ -2,9 +2,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { scoreArchive } from './lib/forecast-archive.mjs';
+import { readVerifiedForecast } from './verify-forecast-archive.mjs';
+import crypto from 'node:crypto';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ARCHIVE_DIR = path.join(ROOT, 'scripts/data/forecast-archive');
+
+function canonicalTarget(target) {
+  const suffix = [];
+  let cursor = path.resolve(target);
+  while (!fs.existsSync(cursor)) {
+    const parent = path.dirname(cursor);
+    if (parent === cursor) throw new Error(`Cannot resolve output path: ${target}`);
+    suffix.unshift(path.basename(cursor));
+    cursor = parent;
+  }
+  return path.join(fs.realpathSync(cursor), ...suffix);
+}
 
 function deepSort(value) {
   if (Array.isArray(value)) return value.map(deepSort);
@@ -22,7 +36,7 @@ export function resolveArchivePath(value, archiveDir = DEFAULT_ARCHIVE_DIR) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const entry = manifest?.forecasts?.find((item) => item.forecastId === value);
   if (!entry) throw new Error(`Forecast archive id ${value} was not found.`);
-  const resolved = path.join(archiveDir, entry.path);
+  const resolved = path.resolve(archiveDir, entry.path);
   if (!fs.existsSync(resolved)) throw new Error(`Forecast archive file for ${value} is missing: ${resolved}`);
   return resolved;
 }
@@ -33,13 +47,30 @@ export function scoreForecastFile({ archive, actual, interim = false, out = null
   const actualPath = path.resolve(actual);
   if (!fs.existsSync(actualPath)) throw new Error(`Actual-results file not found: ${actualPath}`);
 
-  const forecast = JSON.parse(fs.readFileSync(archivePath, 'utf8'));
-  const actuals = JSON.parse(fs.readFileSync(actualPath, 'utf8'));
-  const report = deepSort(scoreArchive(forecast, actuals, { interim }));
+  const verified = readVerifiedForecast({ archiveDir, snapshotPath: path.relative(archiveDir, archivePath) });
+  const forecast = verified.archive;
+  const actualBytes = fs.readFileSync(actualPath);
+  const actuals = JSON.parse(actualBytes.toString('utf8'));
+  const report = deepSort({
+    ...scoreArchive(forecast, actuals, { interim }),
+    provenance: {
+      archiveSha256: crypto.createHash('sha256').update(verified.bytes).digest('hex'),
+      actualSha256: crypto.createHash('sha256').update(actualBytes).digest('hex'),
+    },
+  });
   const bytes = JSON.stringify(report, null, 2) + '\n';
   if (out) {
-    fs.writeFileSync(path.resolve(out), bytes);
-    return { report, outputPath: path.resolve(out), bytes };
+    const outputPath = path.resolve(out);
+    const archiveRoot = fs.realpathSync(archiveDir);
+    const canonicalOutput = canonicalTarget(outputPath);
+    const canonicalActual = fs.realpathSync(actualPath);
+    const relativeToArchive = path.relative(archiveRoot, canonicalOutput);
+    if ((!relativeToArchive.startsWith('..') && !path.isAbsolute(relativeToArchive)) || canonicalOutput === canonicalActual) {
+      throw new Error('Scoring report output must not overwrite the archive, manifest or actual-results input.');
+    }
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, bytes, { flag: 'wx' });
+    return { report, outputPath, bytes };
   }
   return { report, outputPath: null, bytes };
 }

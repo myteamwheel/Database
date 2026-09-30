@@ -72,14 +72,13 @@ export function scoreCapacity(f, { card, training, inSeason = false }) {
   const missing = REQUIRED.filter((k) => !Number.isFinite(f[k]));
   if (missing.length) return { abstain: true, reason: 'missing_required_workload_inputs', missing };
 
-  // Attribute defaults, exactly as the card specifies.
+  // Attribute defaults, exactly as the card specifies. Keep a trace so later output changes can
+  // distinguish a measured attribute from a model default.
+  const attrDefaults = { age: 26, heightIn: 78, weight: 210, draftPick: 61, undrafted: 1 };
+  const defaultsUsed = Object.keys(attrDefaults).filter((k) => !Number.isFinite(f[k]));
   const withDefaults = {
     ...f,
-    age: Number.isFinite(f.age) ? f.age : 26,
-    heightIn: Number.isFinite(f.heightIn) ? f.heightIn : 78,
-    weight: Number.isFinite(f.weight) ? f.weight : 210,
-    draftPick: Number.isFinite(f.draftPick) ? f.draftPick : 61,
-    undrafted: Number.isFinite(f.undrafted) ? f.undrafted : 1,
+    ...Object.fromEntries(Object.entries(attrDefaults).map(([k, v]) => [k, Number.isFinite(f[k]) ? f[k] : v])),
   };
   for (const k of ['aGsPer36', 'aTs', 'aFgaPer36', 'aAstPer36', 'aRebPer36', 'aPfPer36']) {
     if (!Number.isFinite(withDefaults[k])) return { abstain: true, reason: 'missing_required_production_inputs', missing: [k] };
@@ -87,9 +86,14 @@ export function scoreCapacity(f, { card, training, inSeason = false }) {
 
   // z-score with the FROZEN training mean/sd, then apply frozen coefficients.
   let capacity = M.intercept;
+  const terms = [];
   for (const k of FE) {
     const s = M.standardization[k];
-    capacity += M.coefficients[k] * (((withDefaults[k] ?? 0) - s.mean) / s.sd);
+    const z = ((withDefaults[k] ?? 0) - s.mean) / s.sd;
+    const contribution = M.coefficients[k] * z;
+    capacity += contribution;
+    terms.push({ feature: k, input: round3(withDefaults[k]), z: round3(z),
+      coefficient: round3(M.coefficients[k]), contribution: round3(contribution) });
   }
 
   const q = M.residualQuantiles;
@@ -115,9 +119,16 @@ export function scoreCapacity(f, { card, training, inSeason = false }) {
       : `${grade} · ${support} comparable transitions`,
     scope: inSeason ? 'in_season_unvalidated' : 'offseason_acquisition',
     scopeLabel: inSeason ? 'Not validated for in-season trades' : 'Validated: Offseason acquisition',
+    why: {
+      intercept: round3(M.intercept),
+      topDrivers: [...terms].sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)
+        || a.feature.localeCompare(b.feature)).slice(0, 6),
+      defaultsUsed,
+    },
   };
 }
 const round1 = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
+const round3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
 
 /**
  * Build V1 features from a player's chronological game rows on his current (Team A) season, plus

@@ -1,0 +1,27 @@
+name: Material player-output explanation tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/material-change-explanations.mjs'
+      - 'scripts/explain-material-changes.mjs'
+      - 'scripts/lib/tulip-capacity-v1.mjs'
+      - 'tests/material-change-explanations.test.mjs'
+      - 'docs/MATERIAL_CHANGE_EXPLANATIONS.md'
+      - 'docs/MODEL_REBUILD_CHECKLIST.md'
+      - 'package.json'
+      - '.github/workflows/material-change-explanations-dev.yml'
+
+jobs:
+  material-change-explanations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Run focused explanation checks
+        run: |
+          node --check scripts/lib/material-change-explanations.mjs
+          node --check scripts/explain-material-changes.mjs
+          node tests/material-change-explanations.test.mjs

@@ -10,6 +10,7 @@ import {
   nbaBaselines,
   gleagueBaseline,
 } from './lib/forecast-archive.mjs';
+import { verifyArchiveDirectory, validateForecastSnapshot } from './verify-forecast-archive.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ARCHIVE_DIR = path.join(ROOT, 'scripts/data/forecast-archive');
@@ -187,44 +188,55 @@ function manifestEntry(archive, relativePath, snapshotBytes) {
 }
 
 export function writeArchiveFiles(archive, { archiveDir = DEFAULT_ARCHIVE_DIR } = {}) {
-  validateArchive(archive);
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(String(archive?.forecastId || '')) || archive.forecastId.toLowerCase() === 'index') {
+    throw new Error('Forecast ID must be a safe, non-reserved filename.');
+  }
+  validateForecastSnapshot(archive);
   fs.mkdirSync(archiveDir, { recursive: true });
+  const lockPath = path.join(archiveDir, '.archive-write.lock');
+  let lockFd;
+  try { lockFd = fs.openSync(lockPath, 'wx'); } catch { throw new Error(`Forecast archive writer is locked: ${lockPath}`); }
 
   const snapshotName = `${archive.forecastId}.json`;
   const snapshotPath = path.join(archiveDir, snapshotName);
   const manifestPath = path.join(archiveDir, 'index.json');
-  if (fs.existsSync(snapshotPath)) throw new Error(`Forecast archive ${archive.forecastId} already exists; snapshots are append-only.`);
-
-  let manifest = { schemaVersion: 1, forecasts: [] };
-  if (fs.existsSync(manifestPath)) {
-    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    if (!Array.isArray(manifest.forecasts)) throw new Error('Forecast archive manifest is malformed.');
-  }
-  if (manifest.forecasts.some((entry) => entry.forecastId === archive.forecastId)) {
-    throw new Error(`Duplicate forecast id ${archive.forecastId} already exists in manifest.`);
-  }
-
-  const snapshotBytes = Buffer.from(JSON.stringify(archive, null, 2) + '\n');
-  const relativePath = snapshotName;
-  manifest.forecasts.push(manifestEntry(archive, relativePath, snapshotBytes));
-  manifest.forecasts.sort((a, b) =>
-    String(a.publishedAt).localeCompare(String(b.publishedAt)) || String(a.forecastId).localeCompare(String(b.forecastId)));
-  const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2) + '\n');
-
   const nonce = `${process.pid}-${Date.now()}`;
   const snapshotTmp = `${snapshotPath}.tmp-${nonce}`;
   const manifestTmp = `${manifestPath}.tmp-${nonce}`;
+  let installedSnapshot = false;
+  let manifestCommitted = false;
   try {
+    const existing = fs.readdirSync(archiveDir).filter((name) => name !== '.archive-write.lock');
+    if (existing.length) verifyArchiveDirectory({ archiveDir });
+    if (fs.existsSync(snapshotPath)) throw new Error(`Forecast archive ${archive.forecastId} already exists; snapshots are append-only.`);
+
+    let manifest = { schemaVersion: 1, forecasts: [] };
+    if (fs.existsSync(manifestPath)) manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    if (manifest.forecasts.some((entry) => entry.forecastId === archive.forecastId)) {
+      throw new Error(`Duplicate forecast id ${archive.forecastId} already exists in manifest.`);
+    }
+
+    const snapshotBytes = Buffer.from(JSON.stringify(archive, null, 2) + '\n');
+    manifest.forecasts.push(manifestEntry(archive, snapshotName, snapshotBytes));
+    manifest.forecasts.sort((a, b) =>
+      String(a.publishedAt).localeCompare(String(b.publishedAt)) || String(a.forecastId).localeCompare(String(b.forecastId)));
+    const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2) + '\n');
+
     fs.writeFileSync(snapshotTmp, snapshotBytes);
     fs.writeFileSync(manifestTmp, manifestBytes);
-    fs.renameSync(snapshotTmp, snapshotPath);
+    fs.linkSync(snapshotTmp, snapshotPath);
+    fs.unlinkSync(snapshotTmp);
+    installedSnapshot = true;
     fs.renameSync(manifestTmp, manifestPath);
+    manifestCommitted = true;
+    return { snapshotPath, manifestPath };
   } finally {
     if (fs.existsSync(snapshotTmp)) fs.rmSync(snapshotTmp, { force: true });
     if (fs.existsSync(manifestTmp)) fs.rmSync(manifestTmp, { force: true });
+    if (installedSnapshot && !manifestCommitted && fs.existsSync(snapshotPath)) fs.rmSync(snapshotPath, { force: true });
+    try { fs.closeSync(lockFd); } catch {}
+    try { fs.unlinkSync(lockPath); } catch {}
   }
-
-  return { snapshotPath, manifestPath };
 }
 
 function optionalGitFile(ref, filePath) {
@@ -260,6 +272,7 @@ export function captureForecast({
   const data = JSON.parse(rawData.toString('utf8'));
   const card = JSON.parse(rawCard.toString('utf8'));
 
+  if (!dryRun && !publishedAt) throw new Error('A new forecast capture requires explicit --published-at.');
   const archive = buildArchive({
     data,
     card,

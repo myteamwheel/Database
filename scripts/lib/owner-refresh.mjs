@@ -10,12 +10,12 @@ export function ownerRefreshStages({ season = SUPPORTED_BUILD_SEASON } = {}) {
   }
   return [
     { id:'fetch-official', command:'npm', args:['run','fetch'] },
-    { id:'fetch-projection-inputs', command:'npm', args:['run','fetch:projection-inputs'] },
+    // Training inputs are hash-pinned to the fitted model card. Refreshing them
+    // is a separate, explicitly validated model refit, not routine ingestion.
     { id:'fetch-bios', command:'npm', args:['run','fetch:bios'] },
     { id:'fetch-birthdates', command:'npm', args:['run','fetch:birthdates'] },
     { id:'build', command:'npm', args:['run','build'] },
     { id:'verify', command:'npm', args:['run','verify'] },
-    { id:'publish-status', command:'npm', args:['run','publish:status'] },
   ];
 }
 
@@ -52,6 +52,10 @@ export async function runOwnerRefresh({
 } = {}) {
   if (!root) throw new Error('Owner refresh root is required.');
   const stages = ownerRefreshStages({ season });
+  const artifacts = ['public/data.json', 'public/data-status.json', 'public/standalone.html'].map((file) => {
+    const filename = path.join(root, file);
+    return { filename, bytes: fs.existsSync(filename) ? fs.readFileSync(filename) : null };
+  });
   const runner = runStage || defaultStageRunner(root, { REFRESH_SEASON: season });
   const startedAt = now();
   const record = {
@@ -85,6 +89,12 @@ export async function runOwnerRefresh({
     };
     record.stages.push(stageRecord);
     if (result.code !== 0) {
+      // Do not leave a failed build available for accidental publication. Raw
+      // input caches remain available for diagnosis; public artifacts roll back.
+      for (const { filename, bytes } of artifacts) {
+        if (bytes === null) fs.rmSync(filename, { force:true });
+        else fs.writeFileSync(filename, bytes);
+      }
       record.state='failed';
       record.finishedAt=now();
       record.failure={ stage:stage.id, reason:stageRecord.stderr || stageRecord.stdout || `exit ${result.code}` };

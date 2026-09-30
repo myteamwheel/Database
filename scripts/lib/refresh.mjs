@@ -20,7 +20,7 @@ export function diffResultTables(previousJson, nextJson, spec = {}) {
   const nextId = next.headers.indexOf(idName);
   if (prevId < 0 || nextId < 0) throw new Error(`Cannot diff source without ${idName}`);
 
-  const rowObject = (headers, row) => Object.fromEntries(headers.map((h, i) => [h, row[i]]));
+  const rowObject = (headers, row) => Object.fromEntries(headers.map((h, i) => [h, row[i]]).sort(([a],[b]) => a.localeCompare(b)));
   const prev = new Map(previous.rowSet.map((row) => [String(row[prevId]), rowObject(previous.headers, row)]));
   const cur = new Map(next.rowSet.map((row) => [String(row[nextId]), rowObject(next.headers, row)]));
   const addedIds = [...cur.keys()].filter((id) => !prev.has(id)).sort();

@@ -75,5 +75,12 @@ check('projected remaining player games cannot exceed remaining team games',
 check('negative totals are rejected',
   throws(() => combineForecastTimeframes({season:'2026-27',asOf:'2026-11-01',scheduledGames:82,actual:{...actual,totals:{...actual.totals,pts:-1}},remaining}), /negative|pts/i));
 
-console.log(`\n${fail ? 'FAILED' : 'ALL PASS'} · ${pass} passed${fail ? `, ${fail} failed` : ''}`);
+const combine = (overrides={}) => combineForecastTimeframes({season:'2026-27',asOf:'2026-12-01',scheduledGames:82,actual,remaining,...overrides});
+let fractional; try { fractional=combine({remaining:{...remaining,gp:49.5}}); } catch {}
+check('expected remaining games may be fractional', fractional?.fullSeason.gp===67.5);
+check('zero actual games cannot have positive totals', throws(()=>combine({actual:{...actual,gp:0}}), /zero|games/i));
+check('actual points must reconcile with makes', throws(()=>combine({actual:{...actual,totals:{...actual.totals,pts:999}}}), /points|pts/i));
+check('three attempts cannot exceed all attempts', throws(()=>combine({actual:{...actual,totals:{...actual.totals,fg3a:300}}}), /attempt|3pa/i));
+check('two-point makes cannot exceed two-point attempts', throws(()=>combine({actual:{...actual,totals:{...actual.totals,fg3a:250}}}), /two.point/i));
+console.log(`${fail?'FAILED':'ALL PASS'} · timeframes: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

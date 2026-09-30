@@ -14,7 +14,7 @@ import { loadOfficial, byId, resolveName, num, round } from './lib/sources.mjs';
 import { combineHalves } from './lib/combine.mjs';
 import { computeCustom, cohortRanks } from './lib/metrics.mjs';
 import { buildGrade, dependencyTree, effectiveConceptWeights, INGREDIENTS, MIN_COVERAGE,
-         COMPONENT_WEIGHTS, GRADE_ANCHORS, MAGNITUDE_ANCHORS, K_FACTOR } from './lib/grades.mjs';
+         COMPONENT_WEIGHTS, GRADE_ANCHORS, MAGNITUDE_ANCHORS, GRADE_MODEL_VERSION, K_FACTOR } from './lib/grades.mjs';
 import { buildStints, positionFamily } from './lib/roster.mjs';
 import { buildSplits, loadRoster, ageAt, OPENING_NIGHT, FEB_FIRST } from './lib/splits.mjs';
 import { buildCatalog, TOP_LEVEL_CATALOG } from './lib/catalog.mjs';
@@ -903,7 +903,7 @@ const out = {
   metricDefinitions,
   modelNotes,
   gradeModel: {
-    version: '3.1',
+    version: GRADE_MODEL_VERSION,
     scale: '0.0000-9.9999 affine stretch of a minutes-shrunk weighted-percentile composite',
     componentWeights: COMPONENT_WEIGHTS,
     dependencyTree: dependencyTree(),
@@ -1049,7 +1049,7 @@ const out = {
         GLEAGUE: Object.keys(brefBuild.sourceAudit?.GLEAGUE || {}),
       },
     },
-    gradeModelVersion: '3.3',
+    gradeModelVersion: GRADE_MODEL_VERSION,
     generatedAt: GENERATED_AT,
     ageReferenceDates: { openingNight: OPENING_NIGHT, febFirst: FEB_FIRST },
     sources: provenance(),

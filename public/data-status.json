@@ -1,0 +1,784 @@
+{
+  "schemaVersion": 1,
+  "publicationId": "2025-26-20260930203244-25a5ebe0176d",
+  "season": "2025-26",
+  "publishedAt": "2026-09-30T20:32:44.564Z",
+  "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+  "dataSha256": "25a5ebe0176d91d1f4b84805e2146b9b80f11677eeba5b6e050ee6538bed1a7b",
+  "previousSuccessfulPublication": {
+    "publicationId": "2025-26-20260929235016-9859bcfa49ef",
+    "publishedAt": "2026-09-29T23:50:16.069Z",
+    "dataSha256": "9859bcfa49efef3c8c222c3249abe1b768bc2db0f5532f9e6a5436aaa5d67f9f"
+  },
+  "sourceDomains": {
+    "officialStats": {
+      "status": "tracked-snapshot",
+      "checkedAt": null,
+      "fetchedAt": null,
+      "asOf": "2025-26",
+      "manifests": 0,
+      "changeSummary": {
+        "added": 0,
+        "removed": 0,
+        "changed": 0,
+        "retainedSources": 0,
+        "unavailableSources": 0
+      },
+      "limitation": "Tracked official-stat files predate per-source refresh manifests; exact fetch time and row-level change history are unavailable."
+    },
+    "rosterProjectionInputs": {
+      "status": "ok",
+      "checkedAt": "2026-09-26T04:28:41.551Z",
+      "fetchedAt": "2026-09-26T04:28:41.551Z",
+      "asOf": "2026-09-26",
+      "sha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
+      "limitation": null
+    },
+    "transactions": {
+      "status": "not-configured",
+      "checkedAt": null,
+      "fetchedAt": null,
+      "asOf": null,
+      "limitation": "No verified transaction feed is configured. Roster snapshots are not presented as a transaction history."
+    },
+    "injuries": {
+      "status": "not-configured",
+      "checkedAt": null,
+      "fetchedAt": null,
+      "asOf": null,
+      "limitation": "No verified injury/medical-status feed is configured. The model does not infer current clearance."
+    },
+    "news": {
+      "status": "not-configured",
+      "checkedAt": null,
+      "fetchedAt": null,
+      "asOf": null,
+      "limitation": "No verified news ingestion is configured. Headlines do not silently alter forecasts."
+    },
+    "basketballReferenceSnapshot": {
+      "status": "snapshot",
+      "checkedAt": "2026-08-17T03:33:54.604Z",
+      "fetchedAt": "2026-08-17T03:33:54.604Z",
+      "asOf": "2025-26",
+      "limitation": "Static second-source snapshot; it is not refreshed by the official-stats reload."
+    }
+  },
+  "coverage": {
+    "schemaVersion": 1,
+    "allowedStates": [
+      "complete",
+      "partial",
+      "fallback",
+      "unavailable"
+    ],
+    "sourceDomains": {
+      "officialStats": {
+        "state": "partial",
+        "rawStatus": "tracked-snapshot"
+      },
+      "rosterProjectionInputs": {
+        "state": "complete",
+        "rawStatus": "ok"
+      },
+      "transactions": {
+        "state": "unavailable",
+        "rawStatus": "not-configured"
+      },
+      "injuries": {
+        "state": "unavailable",
+        "rawStatus": "not-configured"
+      },
+      "news": {
+        "state": "unavailable",
+        "rawStatus": "not-configured"
+      },
+      "basketballReferenceSnapshot": {
+        "state": "fallback",
+        "rawStatus": "snapshot"
+      }
+    },
+    "leagues": {
+      "NBA": {
+        "state": "partial",
+        "rows": 705,
+        "seasonData": {
+          "state": "partial",
+          "counts": {
+            "complete": 582,
+            "partial": 123,
+            "fallback": 0,
+            "unavailable": 0
+          }
+        },
+        "projections": {
+          "state": "partial",
+          "counts": {
+            "complete": 597,
+            "partial": 0,
+            "fallback": 107,
+            "unavailable": 1
+          }
+        }
+      },
+      "GLEAGUE": {
+        "state": "partial",
+        "rows": 564,
+        "seasonData": {
+          "state": "partial",
+          "counts": {
+            "complete": 561,
+            "partial": 3,
+            "fallback": 0,
+            "unavailable": 0
+          }
+        },
+        "projections": {
+          "state": "partial",
+          "counts": {
+            "complete": 562,
+            "partial": 0,
+            "fallback": 1,
+            "unavailable": 1
+          }
+        }
+      }
+    }
+  },
+  "modelProvenance": {
+    "schemaVersion": 1,
+    "buildCommit": "869ab3c",
+    "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f",
+    "outputs": {
+      "performanceGrades": {
+        "label": "Performance grades and custom metrics",
+        "modelVersion": "3.4",
+        "semanticVersion": "3.4",
+        "codeVersionSha256": "df80beeecafedcc4b7282938532e2231561b5d3e2cd5269f72c4864782b8aabd",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/grades.mjs",
+            "sha256": "64acbd095960b5047a2191dc32f062d29a55c42ab0ef8af4d4250b340b1f401e"
+          },
+          {
+            "path": "scripts/lib/metrics.mjs",
+            "sha256": "fa27917884eca4f90cd8a6489251796c41259dcd66c0a1d84710dfade9d71ede"
+          },
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "398953df50c0d768c80e75f501095d98615c286df902dc75717ef3ef392f57ec"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f"
+        },
+        "source": "2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields"
+      },
+      "projections": {
+        "label": "2026-27 player projections",
+        "modelVersion": "PROJECTION_2026_27+context-1",
+        "semanticVersion": "PROJECTION_2026_27+context-1",
+        "codeVersionSha256": "ce1512758ddeb616cb0832d3af2c4992078c4677cec8d4631876cb5489f83c9f",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/projection.mjs",
+            "sha256": "d078f0b5cbd639be53215e3f7a334f63c3a6acfa4c22b29ac46e57a5514105e5"
+          },
+          {
+            "path": "scripts/lib/projection-context.mjs",
+            "sha256": "a029f381542f19aede50e8f3c06aa4f8a7d1804038ce9d158c2bca19394cf850"
+          },
+          {
+            "path": "scripts/build-projections.mjs",
+            "sha256": "05d9f6613ce90bdbea058c54a7daa19187e51e1e1638aed46887529c8526b901"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f",
+          "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
+          "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
+          "publishedInputsSha256": "d6591b7be506ab23",
+          "rosterSha256": "af0b30ae22cf0adafb6b19faecaa4f605702c1b7a13769ad3ee9ff87d92c579b",
+          "rostersAsOf": "2026-09-26"
+        },
+        "source": "Frozen projection inputs/model card plus the published current-roster context"
+      },
+      "tulipEvidence": {
+        "label": "TULIP role evidence",
+        "modelVersion": "TULIP Evidence v0.1",
+        "semanticVersion": "TULIP Evidence v0.1",
+        "codeVersionSha256": "1588061c386dd40f9f8ae7ad1fca2c23c0f4ac1284f5081a448affc4b4572fdf",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "398953df50c0d768c80e75f501095d98615c286df902dc75717ef3ef392f57ec"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f"
+        },
+        "source": "Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable"
+      },
+      "tulipBeta": {
+        "label": "TULIP Beta recommended-minute allocator",
+        "modelVersion": "tulip-beta-support-v2",
+        "semanticVersion": "tulip-beta-support-v2",
+        "codeVersionSha256": "2701a1c61e40171d3bc564c5f475b1814485ddc1d36fe3dc5a21282c701470fd",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "398953df50c0d768c80e75f501095d98615c286df902dc75717ef3ef392f57ec"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f",
+          "baselineSeason": "2025-26",
+          "rostersAsOf": "2026-09-26",
+          "rosterSha256": "af0b30ae22cf0adafb6b19faecaa4f605702c1b7a13769ad3ee9ff87d92c579b"
+        },
+        "source": "2025-26 player value/workload evidence grouped by the published 2026-27 roster snapshot"
+      },
+      "projectedRoleMpg": {
+        "label": "Projected Role MPG",
+        "modelVersion": "TULIP_CAPACITY_V1",
+        "semanticVersion": "TULIP_CAPACITY_V1",
+        "codeVersionSha256": "9570edfd5f550f1d9f300adcac6f3e6b38984ec2e694441f65ccc20e92b767cc",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "398953df50c0d768c80e75f501095d98615c286df902dc75717ef3ef392f57ec"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f",
+          "cardSha256": "96cb2f34c6cd06c3",
+          "frozenAt": "2026-08-21T01:24:50.909Z",
+          "buildInputMode": "preserved_verified_frozen_output"
+        },
+        "source": "Frozen historical offseason-move role model and its preserved/recomputed source cache, explicitly not a physical-capacity estimate"
+      },
+      "playerComparisons": {
+        "label": "Historical player comparisons",
+        "modelVersion": "4.1.0",
+        "semanticVersion": "4.1.0",
+        "codeVersionSha256": "df7ab3bcf8dedd272086775b8467b22e39d5d55865fb4206b1c38629194f9bfa",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/comparison-profiles.mjs",
+            "sha256": "0e94f7f89c1855f463ece36730970b43eb47b61588a87723f196c71f0f81ca87"
+          },
+          {
+            "path": "scripts/build-player-comps.mjs",
+            "sha256": "4c6d730ad15d44ef0f96fa432bc206e6f2d64d53e7cdfa743b225fc8b7b45bf7"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f",
+          "nbaHistory": "2009-10 through 2025-26",
+          "gleagueHistory": "2014-15 through 2025-26"
+        },
+        "source": "Same-league historical profiles, official combine measurements where present, and published player-season evidence"
+      },
+      "teamFit": {
+        "label": "Skill profiles, similarity, archetypes and Team Fit",
+        "modelVersion": "code-sha256:0305ce018a7254dcde8ad307e19695596937f1d0953b460a8a2ce1d642448861",
+        "semanticVersion": null,
+        "codeVersionSha256": "0305ce018a7254dcde8ad307e19695596937f1d0953b460a8a2ce1d642448861",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/analysis.mjs",
+            "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "398953df50c0d768c80e75f501095d98615c286df902dc75717ef3ef392f57ec"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f"
+        },
+        "source": "Published same-league player rows and minutes-weighted roster need profiles"
+      },
+      "crossLeague": {
+        "label": "G League/NBA readiness and translation models",
+        "modelVersion": "code-sha256:22f8d1e56aa862712a171c9286a3ffa4125d2f72c5984795e68f89378a9ca8f1",
+        "semanticVersion": null,
+        "codeVersionSha256": "22f8d1e56aa862712a171c9286a3ffa4125d2f72c5984795e68f89378a9ca8f1",
+        "codeFiles": [
+          {
+            "path": "scripts/lib/crossleague.mjs",
+            "sha256": "574044488d46609e3c333afe4abff1464ff5499e9ddef40d67619bfa4ef19bb8"
+          },
+          {
+            "path": "scripts/build-crossleague.mjs",
+            "sha256": "21446e59fd1f41c933c04eafd90016f8c477079fb459f944b809f2b593484a20"
+          }
+        ],
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-09-30T20:32:44.564Z",
+          "sourceManifestSha256": "11e5b4429bec2da6516774e98f38def060c27a3da18ec2925bd492ba9233b79f"
+        },
+        "source": "Same-season dual-league player sample with explicitly reported sample thresholds and held-out limitations"
+      }
+    }
+  },
+  "evidenceClaims": {
+    "schemaVersion": 1,
+    "policy": "Predictive accuracy may be labeled supported only when a chronological as-of evaluation names the exact shipped model version and evaluates the full shipped model scope.",
+    "outputs": {
+      "performanceGrades": {
+        "modelVersion": "3.4",
+        "evidenceStatus": "descriptive",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "boundary": "Within-league descriptive performance grades are not forecasts and carry no predictive-accuracy claim."
+      },
+      "projections": {
+        "modelVersion": "PROJECTION_2026_27+context-1",
+        "evidenceStatus": "not-established",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "evidence": {
+          "legacyBacktest": {
+            "evidenceStatus": "measured-limited",
+            "season": "2025-26",
+            "n": 476,
+            "mae": {
+              "mpg": {
+                "model": 4.1999,
+                "repeat": 4.9277,
+                "avg3": 5.0849
+              },
+              "gp": {
+                "model": 15.8292,
+                "repeat": 18.0735,
+                "avg3": 17.6806
+              },
+              "pts": {
+                "model": 2.5113,
+                "repeat": 2.9128,
+                "avg3": 2.9639
+              },
+              "reb": {
+                "model": 0.8892,
+                "repeat": 1.0389,
+                "avg3": 1.0376
+              },
+              "ast": {
+                "model": 0.6501,
+                "repeat": 0.7417,
+                "avg3": 0.7792
+              },
+              "stl": {
+                "model": 0.2144,
+                "repeat": 0.2474,
+                "avg3": 0.2292
+              },
+              "blk": {
+                "model": 0.15,
+                "repeat": 0.1796,
+                "avg3": 0.1724
+              },
+              "tov": {
+                "model": 0.3319,
+                "repeat": 0.3961,
+                "avg3": 0.3908
+              },
+              "fg3m": {
+                "model": 0.3651,
+                "repeat": 0.3759,
+                "avg3": 0.3809
+              },
+              "fgPct": {
+                "model": 0.031,
+                "repeat": 0.0397,
+                "avg3": 0.0372
+              },
+              "fg3Pct": {
+                "model": 0.033,
+                "repeat": 0.0479,
+                "avg3": 0.0415
+              },
+              "ftPct": {
+                "model": 0.0411,
+                "repeat": 0.059,
+                "avg3": 0.0495
+              }
+            },
+            "gainVsBaselines": {
+              "mpg": {
+                "vsRepeat": {
+                  "gain": 0.7278,
+                  "lo": 0.3885,
+                  "hi": 0.9848
+                },
+                "vsAvg3": {
+                  "gain": 0.8849,
+                  "lo": 0.6181,
+                  "hi": 1.1061
+                }
+              },
+              "gp": {
+                "vsRepeat": {
+                  "gain": 2.2443,
+                  "lo": 1.3486,
+                  "hi": 3.479
+                },
+                "vsAvg3": {
+                  "gain": 1.8514,
+                  "lo": 1.083,
+                  "hi": 2.6524
+                }
+              },
+              "pts": {
+                "vsRepeat": {
+                  "gain": 0.4015,
+                  "lo": 0.2852,
+                  "hi": 0.5516
+                },
+                "vsAvg3": {
+                  "gain": 0.4526,
+                  "lo": 0.3295,
+                  "hi": 0.604
+                }
+              },
+              "reb": {
+                "vsRepeat": {
+                  "gain": 0.1497,
+                  "lo": 0.0807,
+                  "hi": 0.1904
+                },
+                "vsAvg3": {
+                  "gain": 0.1484,
+                  "lo": 0.0928,
+                  "hi": 0.1904
+                }
+              },
+              "ast": {
+                "vsRepeat": {
+                  "gain": 0.0916,
+                  "lo": 0.0502,
+                  "hi": 0.1242
+                },
+                "vsAvg3": {
+                  "gain": 0.1291,
+                  "lo": 0.0952,
+                  "hi": 0.1661
+                }
+              },
+              "stl": {
+                "vsRepeat": {
+                  "gain": 0.033,
+                  "lo": 0.0188,
+                  "hi": 0.043
+                },
+                "vsAvg3": {
+                  "gain": 0.0148,
+                  "lo": 0.0067,
+                  "hi": 0.0259
+                }
+              },
+              "blk": {
+                "vsRepeat": {
+                  "gain": 0.0296,
+                  "lo": 0.0187,
+                  "hi": 0.042
+                },
+                "vsAvg3": {
+                  "gain": 0.0224,
+                  "lo": 0.0128,
+                  "hi": 0.0333
+                }
+              },
+              "tov": {
+                "vsRepeat": {
+                  "gain": 0.0642,
+                  "lo": 0.0477,
+                  "hi": 0.0853
+                },
+                "vsAvg3": {
+                  "gain": 0.0589,
+                  "lo": 0.0415,
+                  "hi": 0.0734
+                }
+              },
+              "fg3m": {
+                "vsRepeat": {
+                  "gain": 0.0108,
+                  "lo": -0.0074,
+                  "hi": 0.035
+                },
+                "vsAvg3": {
+                  "gain": 0.0158,
+                  "lo": 0,
+                  "hi": 0.0376
+                }
+              }
+            },
+            "appliesToFullShippedModel": false,
+            "boundary": "Legacy veteran projection backtest; it predates the complete current context stack and does not validate rookie, returner, injury/availability or all context behavior."
+          },
+          "minuteReconciliation": {
+            "evidenceStatus": "measured-limited",
+            "n": 459,
+            "teams": 29,
+            "maeDelta": {
+              "mpg": 0.0618,
+              "pts": -0.0241,
+              "reb": 0.0047,
+              "ast": 0.0096
+            },
+            "appliesToFullShippedModel": false,
+            "boundary": "Minute-only reconciliation check on history-eligible held-out players. Opening-roster rookie and older-history returner proxies reserve minutes but are not scored. Unsupported incomplete teams are excluded; rates, injuries and availability are held fixed."
+          }
+        },
+        "boundary": "Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations."
+      },
+      "tulipEvidence": {
+        "modelVersion": "TULIP Evidence v0.1",
+        "evidenceStatus": "experimental",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "boundary": "Observational role-expansion evidence and robustness diagnostics are not predictive validation or causal identification."
+      },
+      "tulipBeta": {
+        "modelVersion": "tulip-beta-support-v2",
+        "evidenceStatus": "experimental",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "evidence": {
+          "source": "TULIP_RESEARCH_STATUS.md",
+          "devQuasiExperiment": {
+            "seasons": "2015-16..2023-24",
+            "reducedFormPtsPerSd": -0.127,
+            "andersonRubin95": [
+              -1.756,
+              1.021
+            ],
+            "interpretation": "Frozen DEV quasi-experiment did not establish a positive win effect for BPM/box-score-based routing."
+          },
+          "exactMagnitudeValidated": false,
+          "ordinalDirectionValidatedAsWinPrescription": false,
+          "projectedRoleMpgBacktestValidatesAllocator": false,
+          "allocatorHistoricalReplay": {
+            "status": "NOT_RUN",
+            "reason": "This section does not spend the pre-registered chronological TULIP holdouts or relabel the separate Projected Role MPG backtest as allocator validation."
+          },
+          "chronologicalHoldouts": [
+            {
+              "season": "2024-25",
+              "status": "UNSPENT_IN_THIS_SECTION"
+            },
+            {
+              "season": "2025-26",
+              "status": "UNSPENT_IN_THIS_SECTION"
+            }
+          ]
+        },
+        "boundary": "Pre-registered causal testing on 2015-16..2023-24 did NOT establish that either the play-more/play-less direction or the exact MPG deltas improve winning (reduced form -0.127 pts/SD, Anderson-Rubin 95% CI [-1.756, 1.021]). Treat as decision support, not a validated coaching prescription."
+      },
+      "projectedRoleMpg": {
+        "modelVersion": "TULIP_CAPACITY_V1",
+        "evidenceStatus": "measured-limited",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "evidence": {
+          "evidenceGrade": {
+            "basis": "count of TRAINING transitions with Team A season MPG within +/-3 of the candidate",
+            "thresholds": {
+              "A": ">=300",
+              "B": ">=150",
+              "C": ">=60",
+              "D": "<60"
+            },
+            "status": "CONVENIENCE LABEL, NOT A STATISTICAL GUARANTEE. The cutoffs were chosen for readability and have not been separately validated. The raw support count is always shown alongside.",
+            "inSeasonOverride": "Incremental TULIP evidence: Unproven — season-MPG baseline recommended"
+          },
+          "benchmarks": {
+            "groupedByPlayer": {
+              "tFirst10": {
+                "teamASeasonMpg": 5.209,
+                "tulip": 5.05,
+                "maeGain": 0.159,
+                "ci95": [
+                  0.068,
+                  0.24
+                ],
+                "dR2": 0.0229
+              },
+              "t6to15": {
+                "teamASeasonMpg": 5.183,
+                "tulip": 5.072,
+                "maeGain": 0.111,
+                "ci95": [
+                  0.035,
+                  0.201
+                ],
+                "dR2": 0.0255
+              },
+              "tRest": {
+                "teamASeasonMpg": 4.938,
+                "tulip": 4.729,
+                "maeGain": 0.209,
+                "ci95": [
+                  0.109,
+                  0.281
+                ],
+                "dR2": 0.0374
+              }
+            },
+            "chronologicalHoldout2024_25": {
+              "teamASeasonMpg": 5.522,
+              "tulip": 5.357,
+              "naiveRecent10": 6.233,
+              "n": 155
+            },
+            "matchedPairsOnTeamASeasonMpg": {
+              "pairs": 73052,
+              "baseline": "51.0% [50.4, 51.6]",
+              "tulip": "54.7% [53.4, 56.5]",
+              "gapGE3": "61.4% (n=15187)",
+              "gapGE5": "68.1% (n=2518)"
+            },
+            "byMoveType": {
+              "offseason": {
+                "n": 970,
+                "base": 5.087,
+                "tulip": 4.964,
+                "gain": 0.122,
+                "ci95": [
+                  0.035,
+                  0.221
+                ],
+                "verdict": "VALIDATED"
+              },
+              "inSeason": {
+                "n": 500,
+                "base": 4.938,
+                "tulip": 4.898,
+                "gain": 0.04,
+                "ci95": [
+                  -0.075,
+                  0.188
+                ],
+                "verdict": "NOT ESTABLISHED"
+              }
+            }
+          }
+        },
+        "boundary": "This is a frozen role/workload projection with its own limited evidence; it is not physical capacity and its evidence does not validate TULIP Beta or the 2026-27 stat projection."
+      },
+      "playerComparisons": {
+        "modelVersion": "4.1.0",
+        "evidenceStatus": "descriptive",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
+      },
+      "teamFit": {
+        "modelVersion": "code-sha256:0305ce018a7254dcde8ad307e19695596937f1d0953b460a8a2ce1d642448861",
+        "evidenceStatus": "descriptive",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "boundary": "Team Fit describes how a player profile addresses current roster needs; it is not a forecast of team wins or player performance."
+      },
+      "crossLeague": {
+        "modelVersion": "code-sha256:22f8d1e56aa862712a171c9286a3ffa4125d2f72c5984795e68f89378a9ca8f1",
+        "evidenceStatus": "measured-limited",
+        "predictiveAccuracyClaim": {
+          "supported": false,
+          "evaluationModelVersion": null,
+          "chronologicalAsOf": false,
+          "fullShippedModel": false
+        },
+        "evidence": {
+          "readinessTrainingSize": 85,
+          "readinessLeaveOneOutAuc": 0.652,
+          "translationCrossoverSample": 85
+        },
+        "boundary": "Readiness/translation evidence comes from selected same-season dual-league samples; it does not establish NBA-career probability or general out-of-sample career accuracy."
+      }
+    }
+  },
+  "changes": {
+    "officialStats": {
+      "added": 0,
+      "removed": 0,
+      "changed": 0,
+      "retainedSources": 0,
+      "unavailableSources": 0
+    }
+  },
+  "forecastAdjustmentPolicy": {
+    "transactions": "not-applied-unless-verified-structured-input",
+    "injuries": "not-applied-unless-verified-structured-input",
+    "news": "not-applied-unless-verified-structured-input",
+    "note": "Unconfigured or ambiguous external information does not silently rewrite forecasts."
+  }
+}

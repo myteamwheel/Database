@@ -9,8 +9,10 @@ on:
       - 'scripts/lib/projection-context.mjs'
       - 'scripts/build-projections.mjs'
       - 'scripts/fit-projections.mjs'
+      - 'scripts/projection-sensitivity.mjs'
       - 'tests/forecast-timeframes.test.mjs'
       - 'tests/projection.test.mjs'
+      - 'tests/projection-sensitivity.test.mjs'
       - 'tests/projection-validation.test.mjs'
       - 'tests/projection-context-reconciliation.test.mjs'
       - 'PROJECTION_2026_27.json'
@@ -41,3 +43,4 @@ jobs:
           node tests/projection-context-reconciliation.test.mjs
           npm run evaluate:projection-context
           npm run test:projections
+          npm run test:projection-sensitivity

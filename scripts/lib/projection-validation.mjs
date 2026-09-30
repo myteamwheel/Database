@@ -22,10 +22,13 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
   if (a.fgm > a.fga + tolerance) fail('FGM exceeds FGA');
   if (a.fg3m > a.fg3a + tolerance) fail('FG3M/3PM exceeds FG3A/3PA');
   if (a.fg3m > a.fgm + tolerance) fail('FG3M/3PM exceeds FGM');
+  if (a.fg3a > a.fga + tolerance) fail('FG3A/3PA exceeds all field-goal attempts');
+  if (a.fgm-a.fg3m > a.fga-a.fg3a + tolerance) fail('Two-point makes exceed two-point attempts');
   if (a.ftm > a.fta + tolerance) fail('FTM exceeds FTA');
   if (!near(a.reb,a.oreb+a.dreb,tolerance)) fail('REB must equal OREB + DREB');
 
   const ftValue = finite(a.ftValue) ? a.ftValue : 1;
+  if (ftValue <= 0) fail('Free throw value must be positive');
   const pts = 2*(a.fgm-a.fg3m)+3*a.fg3m+a.ftm*ftValue;
   if (!near(a.pts,pts,tolerance)) fail('PTS/points accounting mismatch');
 
@@ -46,6 +49,11 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
   } else if (!near(proj.ts,expectedTs,1e-3 + tolerance)) fail('true shooting/TS does not derive from accounting');
 
   if (finite(a.gp) && (a.gp < 0 || a.gp > games + tolerance)) fail('accounting GP exceeds league schedule or is invalid');
+  if (!near(a.gp,proj.gp,tolerance)) fail('Accounting GP must equal published GP');
+  for (const k of ['mpg','pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
+    // Published rates are rounded to one decimal; accounting preserves precision.
+    if (!near(proj[k],a[k],0.050001)) fail(`Published ${k} disagrees with accounting`);
+  }
   if (a.totals && typeof a.totals === 'object') {
     const accountingGp = finite(a.gp) ? a.gp : proj.gp;
     for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {

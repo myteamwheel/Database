@@ -23,6 +23,11 @@ const INPUTS = path.join(ROOT, 'scripts/data/projection/inputs.json');
 
 const T = '2026-27', LAST = '2025-26';
 
+export function projectionRoleLabel(mpg) {
+  if (!Number.isFinite(mpg)) throw new Error('Projection role requires finite MPG.');
+  return mpg >= 28 ? 'core rotation' : mpg >= 18 ? 'regular rotation' : mpg >= 10 ? 'reserve rotation' : 'limited role';
+}
+
 /**
  * Compute every player's projection into `data` (mutated in place) and return the counts.
  * Pure given its arguments, so the test suite can rebuild in memory and compare.
@@ -179,7 +184,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         season: T, team: r.team, status: r.status, age: pr.age,
         modelVersion: `${card.id}+${CONTEXT_VERSION}`, timeframe: 'preseason-full-season',
         basis: r.rookie ? 'rookie-cohort-fallback' : r.historicalFallback ? 'older-history-fallback' : 'multi-year-history',
-        role: line.mpg >= 28 ? 'core rotation' : line.mpg >= 18 ? 'regular rotation' : line.mpg >= 10 ? 'reserve rotation' : 'limited role',
+        role: projectionRoleLabel(line.mpg),
         effectiveMpg: r3(line.mpg * r.share),
         usage: r3((r.rateFinal.fga + 0.44 * r.rateFinal.fta + r.rateFinal.tov) / (ctx.priors.playsPer100 * 5)),
         uncertainty: { method: 'legacy-veteran-residuals', calibratedForContextVersion: false,
@@ -195,7 +200,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         dPts: r1(line.pts - (p.pts ?? NaN)), dReb: r1(line.reb - (p.reb ?? NaN)), dAst: r1(line.ast - (p.ast ?? NaN)),
         dMpg: r1(line.mpg - (p.mpg ?? NaN)),
         why: {
-          rookie: r.rookie?.evidence || null,
+          rookie: r.rookie?.evidence ? { ...r.rookie.evidence, effectivePeers:r9(r.rookie.evidence.effectivePeers) } : null,
           seasons: seasonsUsed,
           possessions: Math.round(pr.basePoss),
           // Share of each rate that comes from the player's own record rather than the position norm.

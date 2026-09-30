@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildPublicationStatus, deriveSourceDomains, writePublicationStatus } from './lib/publication.mjs';
+import { buildPublicationStatus, deriveModelProvenance, deriveSourceDomains, writePublicationStatus } from './lib/publication.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataPath = path.join(ROOT, 'public/data.json');
@@ -12,6 +12,7 @@ const publicDataBytes = fs.readFileSync(dataPath);
 const publicData = JSON.parse(publicDataBytes.toString('utf8'));
 const previousStatus = fs.existsSync(statusPath) ? JSON.parse(fs.readFileSync(statusPath, 'utf8')) : null;
 const sourceDomains = deriveSourceDomains({ root: ROOT, publicData });
+const modelProvenance = deriveModelProvenance({ root: ROOT, publicData });
 const publishedAt = process.env.PUBLICATION_PUBLISHED_AT
   || process.env.BUILD_GENERATED_AT
   || publicData.generatedAt;
@@ -21,6 +22,7 @@ const status = buildPublicationStatus({
   publicData,
   publicDataBytes,
   sourceDomains,
+  modelProvenance,
   previousStatus,
   publishedAt,
 });
@@ -31,6 +33,10 @@ console.log(JSON.stringify({
   publishedAt: status.publishedAt,
   dataSha256: status.dataSha256,
   officialStats: status.sourceDomains.officialStats.status,
+  nbaCoverage: status.coverage.leagues.NBA.state,
+  gLeagueCoverage: status.coverage.leagues.GLEAGUE.state,
+  models: Object.fromEntries(Object.entries(status.modelProvenance.outputs).map(([key,value]) => [key,value.modelVersion])),
+  projectionAccuracyEvidence: status.evidenceClaims.outputs.projections.evidenceStatus,
   transactions: status.sourceDomains.transactions.status,
   injuries: status.sourceDomains.injuries.status,
   news: status.sourceDomains.news.status,

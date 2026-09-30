@@ -33,6 +33,8 @@ jobs:
         run: |
           npm run fit:projections
           npm run build:projections
+          npm run publish:status
+          npm run verify:publication
           npm run build:standalone
           node tests/forecast-timeframes.test.mjs
           node tests/projection-validation.test.mjs
@@ -43,7 +45,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add PROJECTION_2026_27.json public/data.json public/standalone.html
+          git add PROJECTION_2026_27.json public/data.json public/data-status.json public/standalone.html
           if git diff --cached --quiet; then
             echo 'Projection review artifacts already current.'
             exit 0

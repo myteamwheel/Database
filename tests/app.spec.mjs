@@ -52,7 +52,7 @@ test.describe('published data reload + source status', () => {
     expect(errors).toEqual([]);
   });
 
-  test('reload keeps the active search and only swaps data after a valid published pair', async ({ page }) => {
+  test('offline snapshot preserves search and clearly disables network reload', async ({ page }) => {
     const errors = await open(page);
     await page.fill('#searchInput', 'James');
     await page.waitForTimeout(250);
@@ -61,8 +61,8 @@ test.describe('published data reload + source status', () => {
       count: document.querySelector('#resultCount').textContent,
       publicationId: window.DATA_STATUS?.publicationId,
     }));
-    await page.click('#reloadDataBtn');
-    await expect(page.locator('#reloadStatus')).toContainText(/reloaded|current/i);
+    await expect(page.locator('#reloadDataBtn')).toBeDisabled();
+    await expect(page.locator('#reloadStatus')).toContainText(/offline snapshot/i);
     const after = await page.evaluate(() => ({
       search: document.querySelector('#searchInput').value,
       count: document.querySelector('#resultCount').textContent,

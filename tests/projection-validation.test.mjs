@@ -38,5 +38,9 @@ check('totals must equal per-game accounting times GP', throws(()=>validateProje
 check('GP cannot exceed league schedule', throws(()=>validateProjectionAccounting({...make(),gp:83,accounting:{...make().accounting,gp:83}}, {league:'NBA',scheduledGames:82}), /gp|games/i));
 check('MPG cannot exceed league bound', throws(()=>validateProjectionAccounting({...make(),mpg:49,accounting:{...make().accounting,mpg:49}}, {league:'NBA',scheduledGames:82}), /mpg|minutes/i));
 
-console.log(`\n${fail?'FAILED':'ALL PASS'} · ${pass} passed${fail?`, ${fail} failed`:''}`);
+check('headline points must match accounting', throws(()=>validateProjectionAccounting({...make(),pts:100}), /published|headline|pts/i));
+check('accounting games must match published games', throws(()=>validateProjectionAccounting({...make(),gp:60}), /gp|games/i));
+check('three attempts cannot exceed all attempts', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fg3a:20}}), /attempt|3pa|fg3a/i));
+check('two-point makes cannot exceed two-point attempts', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fg3a:15}}), /two.point|2pm/i));
+console.log(`${fail?'FAILED':'ALL PASS'} · accounting: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
