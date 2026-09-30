@@ -122,11 +122,11 @@ export function buildPublicationStatus({ publicData, publicDataBytes, sourceDoma
     publishedAt,
     buildGeneratedAt: publicData.generatedAt || null,
     dataSha256,
-    previousSuccessfulPublication: previousStatus?.publicationId ? {
+    previousSuccessfulPublication: previousStatus?.publicationId && previousStatus.publicationId !== publicationId ? {
       publicationId: previousStatus.publicationId,
       publishedAt: previousStatus.publishedAt,
       dataSha256: previousStatus.dataSha256,
-    } : null,
+    } : (previousStatus?.publicationId === publicationId ? previousStatus.previousSuccessfulPublication || null : null),
     sourceDomains,
     changes: { officialStats: officialChanges },
     forecastAdjustmentPolicy: {
