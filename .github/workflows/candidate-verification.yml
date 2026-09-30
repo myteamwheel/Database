@@ -27,8 +27,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "BUILD_GENERATED_AT=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
-          echo "BUILD_COMMIT=$GITHUB_SHA" >> "$GITHUB_ENV"
+          # The runner preserves committed artifact provenance for reproducible rebuilds.
+          # Its report separately records the exact code commit being verified.
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "CANDIDATE_ARCHIVE_BASE_REF=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
           else
