@@ -13,6 +13,9 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 const data = JSON.parse(R('public/data.json'));
+const statusPath = path.join(ROOT, 'public/data-status.json');
+if (!fs.existsSync(statusPath)) throw new Error('public/data-status.json is missing; run npm run publish:status before building the artifact');
+const dataStatus = JSON.parse(R('public/data-status.json'));
 const NESTED = ['stats', 'custom', 'components', 'teams'];
 
 /** Sentinel for "this key was not present", distinct from a present null value. */
