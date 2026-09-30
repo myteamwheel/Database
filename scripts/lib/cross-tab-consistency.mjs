@@ -78,7 +78,8 @@ export function auditCrossTabConsistency(data) {
       const expectedMembers = rows.filter((p) => {
         if (!p.appeared || !p.skillProfile) return false;
         if (league === 'NBA') return p.currentTeam === team;
-        return (p.teams || []).some((x) => x.team === team) || p.team === team;
+        const assignments = (p.teams || []).length ? p.teams.map((x) => x.team) : [p.team];
+        return assignments.includes(team);
       });
       const row = {
         league,
