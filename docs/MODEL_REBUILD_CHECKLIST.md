@@ -4,7 +4,7 @@ Updated 2026-09-30 after the regular-ChatGPT change review and final local relea
 
 ## State and rules
 
-- Review branch: `review/chatgpt-20260929`, based on PR #21 `869ab3c`. Corrections are local and the complete `npm run verify` suite passes; commit, exact-head candidate verification, CI and deployment remain.
+- Review branch: `review/chatgpt-20260929`, remote `codex/reviewed-release-20260930`, [PR #22](https://github.com/myteamwheel/Database/pull/22). Implementation/artifacts committed through `492e943`; clean exact-head local gate passed all 34 stages and 85/85 browser tests. Current-head CI and deployment remain.
 - Canonical review stack: #14 → #16 → #18 → #19 → #20 → #21. #15 is an overlapping draft; #17 is an alternative allocator with a failing full audit. Neither is approved for inclusion.
 - Previously verified live app: `e718284`. Passing CI on a review PR does not mean it is live.
 - Checked means the entire stated feature standard has supporting evidence. Partial implementation is not completion. Historical evidence and fresh review evidence are distinguished below.
@@ -38,7 +38,7 @@ Updated 2026-09-30 after the regular-ChatGPT change review and final local relea
 - [ ] **Formula/source provenance — IMPLEMENTED LOCALLY; CANDIDATE VERIFICATION REMAINS.** Major output families now have a formula/source map and deterministic implementation/input fingerprints; the Grade Model version is normalized to `3.4`.
 - [ ] **Evidence/accuracy claims — IMPLEMENTED LOCALLY; CANDIDATE VERIFICATION REMAINS.** Claims bind to exact model versions and distinguish measured, limited, descriptive, experimental, not-established and unavailable evidence. Overall accuracy for the exact shipped projection stack remains not established.
 - [ ] **Material-output explanations — IMPLEMENTED LOCALLY; CANDIDATE VERIFICATION REMAINS.** A deterministic artifact comparison requires player-level drivers, explicit version/config boundaries or a labeled legacy-trace limitation for material changes.
-- [ ] **Full candidate verification — RUNNER AND LOCAL PREREQUISITES VERIFIED; EXACT-HEAD RUN REMAINS.** The 34-stage runner covers history, build, accounting, source failure, projections, archive, comparisons, TULIP, consistency, artifacts, material changes, syntax and browser checks without live ingestion. Its reproducible build provenance no longer creates an impossible self-referential dirty artifact. **Complete when:** it passes on the accumulated candidate commit with matching generated artifacts.
+- [x] **Full candidate verification — EXACT-HEAD LOCALLY VERIFIED at `492e943`.** All 34 stages passed with clean generated artifacts, zero skips, 85/85 browser tests and 10/10 material changes explained. Covers history, build, accounting, source failure, projections, archive, comparisons, TULIP, consistency, artifacts, material changes, syntax and browser checks without live ingestion. CI/publication remain separate gates below.
 - [ ] New review corrections receive CI on their exact committed head.
 - [ ] Candidate is deliberately merged/published and verified live.
 - [ ] Final release report separates implemented, verified, data-limited and unfinished items.

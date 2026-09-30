@@ -1,6 +1,6 @@
 # Regular-ChatGPT changes — review ledger
 
-Review dated 2026-09-30. **Local corrections and final local verification are complete; not yet merged or deployed.**
+Review dated 2026-09-30. **Corrections committed/pushed in PR #22; clean exact-head local gate passed at `492e943`; CI pending, not yet merged or deployed.**
 The user subsequently authorized commit, exact-head verification, CI and deployment after all gates pass.
 
 ## What was actually found
@@ -16,7 +16,7 @@ The regular-ChatGPT work is an open PR stack, not six published releases:
 | #20 | eafcc7f | Useful identity/team/timeframe/Team Fit consistency audit; not proof of all UI flows or model accuracy |
 | #21 | 869ab3c | Useful score/missing-value explanations; not a full data-semantics audit |
 
-All six had successful recorded-head CI checks when inspected. That evidence applies to those heads, not these uncommitted corrections. Relevant full audit runs: 36640401164, 36644588423, 36647422303, 36650945367, 36652435706, 36653538707.
+All six had successful recorded-head CI checks when inspected. That evidence applies to those heads, not automatically to the new release corrections. Relevant full audit runs: 36640401164, 36644588423, 36647422303, 36650945367, 36652435706, 36653538707. The new release is https://github.com/myteamwheel/Database/pull/22.
 
 Alternative #15 (971a269) overlaps the archive work and is not included. Alternative #17 (b05bf5e) adds coarse positional transfer and diminishing-priority heuristics, but its full audit failed (36646563655); do not replace #18 with it just because its focused tests passed. It needs separate reconciliation and evidence. Neither draft was deleted, closed or merged. Old #9 is a temporary starter-acceptance execution branch, not a release feature.
 
@@ -78,7 +78,7 @@ Final local verification (2026-09-30):
 
 ## Resume boundary
 
-First read the checklist and handoff, inspect actual git/PR state, and preserve this review's local changes. The next authorized action is commit, exact-head candidate verification/CI and deployment only if green. Never apply both competing archive/allocator drafts wholesale.
+First read the checklist and handoff and inspect actual git/PR state. The clean local candidate gate passed all 34 stages at `492e943` (85/85 browser tests, 10/10 material changes explained, clean artifacts). Next: inspect PR #22 current-head CI, fix genuine failures, and deploy only if green. Never apply both competing archive/allocator drafts wholesale.
 
 ## Portable review patch
 
