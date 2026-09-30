@@ -16,7 +16,7 @@ Release `e718284` is deployed to GitHub Pages. Its canonical Ubuntu rebuild, exa
 - [ ] **6. Projection presentation — PARTIAL.** Central points remain primary; ranges and build rationale are collapsible and ranges state their calibration limits. **Done when:** accessible range/details, table, profile and export values agree and rendered behavior is verified.
 - [x] **7. Holistic comps vs. style ingredients — IMPLEMENTED; CI/LIVE VERIFIED.** Separate holistic overall matches from independent trait references; optimized nonnegative blend shares sum to 100%, while individualized prose describes broad tendencies. **Done when:** references, shares, semantics and responsive rendering are verified, with no claim that style means equal talent or complete defense. CI tests 75 browser cases; deployed Jokić spot check verified concise summary plus separate dated multi-year evidence cards.
 - [ ] **8. Stable reference identities — PARTIAL.** Added a fixed highest-exposure three-year reference window and pooled makes/attempts; single-year overall references can remain but are flagged as limited, while style traits require multi-year evidence. **Done when:** every exposed reference period and its supporting evidence are audited and reproducible.
-- [ ] **9. Refresh and publication — PARTIAL.** Official statistical imports now validate schema/player IDs/accounting, stage required responses, retain prior snapshots on failure and reject silent season rollover. There is no protected owner-triggered website refresh, roster/transaction, injury/news feed or schedule; static Pages cannot safely hold an owner credential. **Done when:** a secure ingestion/rebuild/publish path with source timestamps, changelog/progress, corrections/duplicates, rollover, rollback and success/failure demonstrations exists.
+- [ ] **9. Refresh and publication — CORE PIPELINE IMPLEMENTED + VERIFIED; EXTERNAL SOURCE/SCHEDULER GAPS REMAIN.** `npm run refresh` is now an owner/local fail-closed orchestration path: source ingestion → rebuild → full verification → publication-status generation, with no git commit/push side effect. Official source imports validate schema/IDs/accounting, reject duplicates, retain prior valid snapshots on failure, record row-level add/remove/change summaries, and expose a tested season-snapshot rollover helper. The public site can only reload the latest successfully published `data.json` + hash-bound `data-status.json`; it preserves filter/player state and leaves the current in-memory dataset untouched if validation fails. The status dialog reports official stats, roster/projection inputs and the static Basketball-Reference snapshot independently, while transactions, injuries and news are explicitly `not-configured` and never silently rewrite forecasts. **Still outstanding/data-limited:** no verified transactions/injuries/news feeds, no hosted/self-hosted scheduler has been activated, the production builder still targets 2025-26 so a 2026-27 rollover cannot be activated yet, live public “refresh running” state is unavailable on static Pages, and rollback to an earlier deployed publication remains a manual Git revert rather than an automated owner command.
 - [ ] **10. Missed-season veterans — PARTIAL.** Older-history projection and comp fallbacks now keep historical evidence distinct from current-season stats; return-to-play is not predicted. **Done when:** established players remain searchable with dated useful history and explicit gaps/fallback status.
 - [ ] **11. Cross-tab consistency — IN PROGRESS.** Existing preset audit passes; identity/team/timeframe consistency and Team Fit needs remain to be checked. **Done when:** rookie, traded, unsigned, returner and dual-league cases reconcile across Database, Player, Compare, Scatter, Comps, Team Fit, Role Value, TULIP, Projections and History Lab.
 - [ ] **12. Score/missing-data meanings — PARTIAL.** Revised copy distinguishes TULIP support from probability, historical estimates from current stats, comparison blend shares from traits and fallback/range limitations. **Done when:** every score/column consistently distinguishes zero, missing, N/A, estimate, fallback and small sample.
@@ -33,7 +33,7 @@ Release `e718284` is deployed to GitHub Pages. Its canonical Ubuntu rebuild, exa
 - [ ] Formula docs identify code, source, model and input versions.
 - [ ] Evidence separates measured improvements, UI changes and experiments.
 - [ ] Material output changes have player-level explanations.
-- [ ] Failed refreshes preserve last-valid public data.
+- [x] Failed/partial refreshes preserve last-valid source/public data; public reload validation failures keep the currently displayed dataset.
 - [ ] Independent calculations, historical checks, validation and rendered tests pass.
 - [x] Verified artifact is published and checked on the live site (release `e718284`, workflow deploy #97).
 - [ ] Final report separates verified / corrected and verified / data-limited / outstanding items.
@@ -45,7 +45,7 @@ Release `e718284` is deployed to GitHub Pages. Its canonical Ubuntu rebuild, exa
 - TULIP currently has 33 players at +7 MPG or more and 12 at +10 or more. Those larger movements all exceed direct workload evidence and are labeled LOW support; they are not validated win-maximizing recommendations.
 - The legacy veteran projection backtest does not validate new context-1 minute reconciliation or rookie fallbacks. Displayed residual ranges are inherited and explicitly uncalibrated for these changes.
 - `test:tooltips` attempted 13 cases, but Chromium failed at launch (`bootstrap_check_in ... Permission denied`) before interacting with the site. Browser/live verification remains outstanding.
-- Refresh unit checks use synthetic payloads; no live source pull was run. Current script scope does not include official transactions, verified contracts, injuries or news, and GitHub Actions cannot reach the current stats source.
+- Refresh/publication verification now covers source schema/accounting + duplicate rejection, row-level change summaries, optional-source retention, season-snapshot rollover, atomic hash-bound publication status, deterministic repeated status builds, owner-stage failure before deployment, public state-preserving reload, bad-hash rejection, and independent source-status display. No live source pull was run in GitHub Actions because the current stats source is not reachable there; transactions, verified contracts, injuries and news remain explicitly unconfigured.
 - Deployment verified: GitHub Pages workflow #97 succeeded for `e718284`; a live spot-check confirmed Ben Simmons has no invented player comp, projection point estimates are central with low/high ranges absent from the main table, and Jokić’s concise style summary is separated from its dated multi-year evidence cards.
 
 - Forecast archive milestone verified on branch `forecast-archive-validation`: canonical snapshot `2026-27-preseason-2026-09-29-e718284` exactly matches release `e718284`; manifest SHA-256 pins its bytes; append-only verification rejects modification/deletion/rename of prior snapshots; model-vs-baseline scoring uses paired eligible samples and reports coverage separately.
@@ -82,3 +82,25 @@ Verified engineering and evidence status in this section:
 
 
 - PR #18 artifact-integrity follow-up: the TULIP artifact-sync workflow now runs the full repository build before committing `public/data.json` and `public/standalone.html`, so projection metadata, cross-league enrichment and comparison products cannot be stripped by a TULIP-only rebuild. The sync gate also runs TULIP diagnostics, projection tests and lossless-artifact verification before committing.
+
+
+### Refresh / publication review — PR #19
+
+Implemented and focused-CI verified in this section:
+- Source refresh manifests now record added, removed and changed player IDs/counts. Corrections therefore appear as changed rows rather than being silently indistinguishable from a fresh fetch.
+- Required-source failures remain fail-closed; optional-source failures retain the prior valid snapshot and are labeled.
+- A season-snapshot rollover helper archives the previous source directory and refuses ambiguous/duplicate rollover destinations.
+- A deterministic, SHA-256-bound `public/data-status.json` publication contract separates official stats, roster/projection inputs, transactions, injuries, news and the Basketball-Reference snapshot.
+- Transactions, injuries and news are deliberately `not-configured`; no timestamp or forecast adjustment is fabricated for them.
+- `npm run refresh` now points at the owner/local orchestration pipeline. It records stage progress/failure locally, runs no git commit/push command, and does not reach the explicit publish-status stage after a verification failure.
+- The public **Reload published data** action fetches only the latest published data/status pair, validates season/hash before swapping in memory, preserves current search/filter/player state and keeps the prior dataset on failure.
+- The public **Data status** dialog exposes latest successful publication metadata, per-domain freshness/limitations and the most recent official-stat change counts.
+- GitHub-hosted CI verifies tracked snapshots and generated artifacts but does not pretend to ingest stats.nba.com. Rebuild/deploy workflows now require a verified publication-status artifact.
+- Focused HTTP Playwright tests passed for successful state-preserving reload, failed-hash retention and independent source-status labeling.
+
+Remaining limitations for this item:
+- The static site cannot truthfully display a live local/self-hosted owner refresh as “running” without an external hosted status channel.
+- No verified transaction, injury or news source is configured.
+- No recurring self-hosted scheduler is activated.
+- The database builder remains 2025-26-specific; the tested rollover mechanism is ready, but activating the next season requires updating the builder/source configuration first.
+- The last valid deployed publication is preserved by static committed artifacts/Git history, but an explicit automated rollback command has not been added.
