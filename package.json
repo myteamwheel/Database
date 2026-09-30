@@ -56,7 +56,9 @@
     "test:forecast-archive": "node tests/forecast-archive.test.mjs",
     "verify:forecast-archive": "node scripts/verify-forecast-archive.mjs",
     "evaluate:projection-context": "node scripts/fit-projections.mjs context",
-    "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs"
+    "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs",
+    "publish:status": "node scripts/publish-data-status.mjs",
+    "test:publication": "node tests/publication.test.mjs"
   },
   "engines": {
     "node": ">=20"
