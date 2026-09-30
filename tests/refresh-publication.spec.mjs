@@ -26,7 +26,7 @@ test.beforeAll(async () => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
 });
-test.afterAll(async () => { if (server) await new Promise((resolve) => server.close(resolve)); });
+test.afterAll(async () => { if (server) { server.closeAllConnections?.(); await new Promise((resolve) => server.close(resolve)); } });
 
 const raw = fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8');
 const baseData = JSON.parse(raw);
