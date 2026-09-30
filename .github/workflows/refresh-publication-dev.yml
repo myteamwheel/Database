@@ -9,6 +9,7 @@ on:
       - 'scripts/publish-data-status.mjs'
       - 'tests/refresh.test.mjs'
       - 'tests/publication.test.mjs'
+      - 'tests/owner-refresh.test.mjs'
       - 'public/data-status.json'
       - 'app.js'
       - 'index.html'
@@ -28,3 +29,4 @@ jobs:
       - run: |
           node tests/refresh.test.mjs
           node tests/publication.test.mjs
+          node tests/owner-refresh.test.mjs
