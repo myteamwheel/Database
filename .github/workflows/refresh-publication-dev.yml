@@ -25,4 +25,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - run: node tests/refresh.test.mjs
+      - run: |
+          node tests/refresh.test.mjs
+          node tests/publication.test.mjs
