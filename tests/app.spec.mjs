@@ -712,6 +712,22 @@ test.describe('analysis workspace', () => {
   });
 
 
+  test('glossary defines zero, missing, N/A, estimate, fallback and small-sample meanings', async ({ page }) => {
+    const errors = await open(page);
+    await page.click('#statGuideBtn');
+    await page.waitForTimeout(250);
+    const txt = await page.$eval('dialog[open]', (e) => e.textContent);
+    for (const phrase of [
+      '0 is a real numeric value',
+      '— means missing or unavailable',
+      'N/A means not applicable',
+      'Estimate means a model or translation output',
+      'Fallback means lower-specificity evidence',
+      'Small sample means the value exists but rests on limited evidence',
+    ]) expect(txt).toContain(phrase);
+    expect(errors).toEqual([]);
+  });
+
   test('team fit is bounded, explained, and separate from quality', async ({ page }) => {
     const errors = await open(page);
     await mode(page, 'teamfit');
