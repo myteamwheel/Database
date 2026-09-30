@@ -64,6 +64,10 @@ try {
   assert.equal(status.forecastAdjustmentPolicy.injuries, 'not-applied-unless-verified-structured-input');
   assert.equal(status.forecastAdjustmentPolicy.news, 'not-applied-unless-verified-structured-input');
   assert.equal(validatePublicationStatus(status, { publicData, publicDataBytes: bytes }), true);
+  const rebuiltSame = buildPublicationStatus({
+    publicData, publicDataBytes: bytes, sourceDomains: domains, previousStatus: status, publishedAt:'2026-09-29T23:05:00Z'
+  });
+  assert.deepEqual(rebuiltSame, status);
 
   const out = path.join(root, 'public/data-status.json');
   fs.mkdirSync(path.dirname(out), { recursive:true });
