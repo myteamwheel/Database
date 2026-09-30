@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-v3.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-player-comps.mjs && node scripts/build-artifact.mjs",
+    "build": "node scripts/build-v3.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-player-comps.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
     "build:projections": "node scripts/build-projections.mjs",
     "fit:projections": "node scripts/fit-projections.mjs",
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
