@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T22:02:13.802Z",
+  "generatedAt": "2026-10-01T22:33:31.174Z",
   "season": "2025-26",
   "accepted": true,
   "mode": "current-season-crosswalk-validated",
@@ -137,7 +137,7 @@
   "starterAssignments": {
     "path": "scripts/data/history/starter_assignments_2025-26.json",
     "bytes": 3761504,
-    "sha256": "7d6ee0d8fd3c6ed9ccf6bd9a916456cdf1a3d31497ffd2d3166edc6d31d5325c",
+    "sha256": "e7f8ba0cd52d39259df74d0f9a1a1eb27c886cac1718744187b34321f83cf8ae",
     "teamGames": 2630,
     "starterEdges": 13150
   }
