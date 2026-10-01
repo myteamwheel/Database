@@ -124,6 +124,21 @@ function clone(x) { return JSON.parse(JSON.stringify(x)); }
   assert.equal(validateMaterialChangeReport(report), true, 'a role-label threshold crossing must carry its exact MPG driver');
 }
 
+{
+  const before = dataset(basePlayer(9, 'Newly Rostered'));
+  const after = clone(before);
+  before.leagues.NBA[0].currentTeam = null;
+  before.leagues.NBA[0].currentRoster = false;
+  delete before.leagues.NBA[0].tulipBeta;
+  after.leagues.NBA[0].currentTeam = 'AAA';
+  after.leagues.NBA[0].currentRoster = true;
+  after.leagues.NBA[0].tulipBeta = { abstain:true, status:'BETA', reason:'insufficient_minutes' };
+  const report = buildMaterialChangeReport(before, after);
+  const change = report.changes.find((x) => x.family === 'tulip-beta');
+  assert.equal(change.explanation.status, 'explained');
+  assert.ok(change.explanation.drivers.some((d) => d.label === 'currentTeam'));
+}
+
 console.log('material change explanation tests passed');
 
 {

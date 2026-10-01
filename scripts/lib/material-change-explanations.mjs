@@ -140,6 +140,8 @@ function tulipBetaChange(beforeRow, afterRow, beforeData, afterData) {
   }
   if (!outputs.length) return null;
   const drivers = [];
+  pushDriver(drivers, 'currentTeam', beforeRow?.currentTeam, afterRow?.currentTeam);
+  pushDriver(drivers, 'currentRoster', beforeRow?.currentRoster, afterRow?.currentRoster);
   for (const field of ['currentMpg','shrunkBpm','valueGap','valueGapSd','rawSignalDelta','supportedCeiling','evidenceFactor','constrainedDelta','rosterBalanceFactor']) {
     pushDriver(drivers, `tulipBeta.${field}`, before?.[field], after?.[field]);
   }
