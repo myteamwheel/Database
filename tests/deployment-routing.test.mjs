@@ -9,6 +9,9 @@ assert.ok(!paths(rebuild).includes("'public/**'"),'Generated artifacts must not 
 assert.ok(rebuild.indexOf('npm run build')<rebuild.indexOf('git push origin'),'Build before publishing');
 assert.ok(rebuild.indexOf('node scripts/verify-artifact.mjs')<rebuild.indexOf('git push origin'),'Verify artifacts before publishing');
 assert.ok(rebuild.indexOf('git push origin')<rebuild.indexOf('gh workflow run deploy-pages.yml'),'Dispatch deploy only after successful artifact push');
+assert.ok(rebuild.includes('for attempt in 1 2 3'),'Bounded retry for advancement during upload');
+assert.ok(rebuild.includes('if [ "$pushed" != true ]'),'Exhausted retries must fail before deploy');
+assert.ok(!/git push[^\n]*(?:--force|\s-f\b)/.test(rebuild),'Never force away concurrent evidence');
 assert.ok(deploy.includes('npm run verify:publication'),'Reject stale or mismatched publication');
 assert.ok(deploy.includes('cancel-in-progress: false'),'Do not cancel active Pages deployments');
 console.log('Deployment routing passed: source/card edits rebuild first; no output rebuild recursion; exact publication gate retained; final artifact deploy explicitly dispatched');
