@@ -65,9 +65,9 @@ export function validateSource(json, spec, previous = null) {
   if (spec.required && table.rowSet.length === 0) throw new Error('Required source unexpectedly empty');
   const id = table.headers.indexOf(spec.id || 'PLAYER_ID');
   if (id >= 0) {
-    const values = table.rowSet.map((r) => r[id]);
-    if (values.some((x) => !Number.isFinite(Number(x)) || Number(x) <= 0)) throw new Error('Missing/invalid player ID');
-    if (new Set(values.map(String)).size !== values.length) throw new Error('Duplicate player ID');
+    const values = table.rowSet.map((r) => typeof r[id]==='number'?r[id]:typeof r[id]==='string'&&/^[1-9][0-9]*$/.test(r[id])?Number(r[id]):NaN);
+    if (values.some((x) => !Number.isSafeInteger(x) || x <= 0)) throw new Error('Missing/invalid player ID');
+    if (new Set(values).size !== values.length) throw new Error('Duplicate player ID');
   }
   // Row-count change is deliberately not a failure condition: at season start, statistics can
   // legitimately go from a full season to a small live sample. Schema, IDs and accounting below

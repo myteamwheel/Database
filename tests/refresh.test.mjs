@@ -36,6 +36,15 @@ try {
     leagueId: '00', fetchImpl: fetchFor({ base_totals: new Error('network down') }), pauseMs: 0 }), /previous snapshot preserved/);
   assert.equal(fs.readFileSync(path.join(outDir, 'base_totals.json'), 'utf8'), saved);
 
+  for(const id of [true,false,[1],{id:1},1.5,'01','1e0',0,Number.MAX_SAFE_INTEGER+1]) {
+    const invalid=table();invalid.resultSets.rowSet[0][0]=id;
+    await assert.rejects(refreshSources({jobs:[spec()],outDir,season:'2025-26',seasonType:'Regular Season',leagueId:'00',fetchImpl:fetchFor({base_totals:invalid}),pauseMs:0}),/player ID/);
+    assert.equal(fs.readFileSync(path.join(outDir,'base_totals.json'),'utf8'),saved);
+  }
+  const duplicate=table();duplicate.resultSets.rowSet.push(['1',10,300,100,40,80]);
+  await assert.rejects(refreshSources({jobs:[spec()],outDir,season:'2025-26',seasonType:'Regular Season',leagueId:'00',fetchImpl:fetchFor({base_totals:duplicate}),pauseMs:0}),/Duplicate player ID/);
+  assert.equal(fs.readFileSync(path.join(outDir,'base_totals.json'),'utf8'),saved);
+
   const mixed = await refreshSources({ jobs: [spec(), spec('advanced', false)], outDir, season: '2025-26', seasonType: 'Regular Season',
     leagueId: '00', fetchImpl: fetchFor({ base_totals: table(120), advanced: new Error('optional endpoint down') }), pauseMs: 0 });
   assert.equal(mixed.changed, 1);
