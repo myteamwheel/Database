@@ -48,9 +48,11 @@ jobs:
         run: >-
           npm run verify:candidate --
           --archive-base-ref "$CANDIDATE_ARCHIVE_BASE_REF"
-          --require-clean-generated
           --report candidate-verification.json
           --material-report candidate-material-changes.json
+
+      - name: Require semantic artifact integrity after candidate rebuild
+        run: npm run verify:artifact
 
       - name: Upload verification evidence
         if: always()
