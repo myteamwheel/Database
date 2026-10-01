@@ -42,5 +42,18 @@ check('headline points must match accounting', throws(()=>validateProjectionAcco
 check('accounting games must match published games', throws(()=>validateProjectionAccounting({...make(),gp:60}), /gp|games/i));
 check('three attempts cannot exceed all attempts', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fg3a:20}}), /attempt|3pa|fg3a/i));
 check('two-point makes cannot exceed two-point attempts', throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,fg3a:15}}), /two.point|2pm/i));
+for (const totals of [undefined,null,[],{},'missing']) {
+  check(`missing/malformed season totals rejected: ${JSON.stringify(totals)}`, throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,totals}}), /total/i));
+}
+for (const ftValue of [undefined,null,NaN,Infinity,'1',true,0,4]) {
+  check(`invalid explicit free throw value rejected: ${String(ftValue)}`, throws(()=>validateProjectionAccounting({...make(),accounting:{...make().accounting,ftValue}}), /free throw/i));
+}
+check('NBA cannot use a G League trip value', throws(()=>validateProjectionAccounting(make(1.67)), /NBA free throw/i));
+check('negative accounting minutes cannot hide behind rounded zero', throws(()=>validateProjectionAccounting({...make(),mpg:0,accounting:{...make().accounting,mpg:-.01}}), /accounting.*minutes/i));
+check('unknown league cannot inherit NBA assumptions', throws(()=>validateProjectionAccounting(make(),{league:'OTHER'}), /league/i));
+for (const tolerance of [NaN,Infinity,-1,'0.1']) {
+  check(`invalid tolerance rejected: ${String(tolerance)}`, throws(()=>validateProjectionAccounting(make(),{tolerance}), /tolerance/i));
+}
+check('fractional schedule is rejected', throws(()=>validateProjectionAccounting(make(),{scheduledGames:82.5}), /scheduled games/i));
 console.log(`${fail?'FAILED':'ALL PASS'} · accounting: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
