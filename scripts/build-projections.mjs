@@ -16,6 +16,7 @@ import {
 } from './lib/projection.mjs';
 import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
+import { validateProjectionAccounting } from './lib/projection-validation.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public/data.json');
@@ -242,6 +243,13 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
             leaguePace: r1(ctx.priors.pace), rosterBalance: r3(r.factors.rosterBalance) },
         },
       };
+      // Refuse invalid/missing accounting before any projection payload is written.
+      // This is a production build gate, not just a test of the last published file.
+      try {
+        validateProjectionAccounting(p.proj, { league: isNba ? 'NBA' : 'GLEAGUE', scheduledGames: games });
+      } catch (err) {
+        throw new Error(`${p.name} (${p.playerId}): ${err.message}`, { cause: err });
+      }
     }
     return { scored: rows.length, abstained: players.length - rows.length,
       rookieFallbacks: rows.filter(r => r.rookie).length,

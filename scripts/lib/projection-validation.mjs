@@ -6,15 +6,18 @@ const near = (a,b,t=DEFAULT_TOL) => finite(a) && finite(b) && Math.abs(a-b) <= t
 function fail(msg){ throw new Error(msg); }
 
 export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=null,tolerance=DEFAULT_TOL}={}) {
+  if (!['NBA','GLEAGUE'].includes(league)) fail('Unsupported projection league');
+  if (!finite(tolerance) || tolerance < 0) fail('Accounting tolerance must be finite and non-negative');
   if (!proj || typeof proj !== 'object') fail('projection is required');
   const a = proj.accounting;
   if (!a || typeof a !== 'object') fail('projection accounting is required');
 
   const games = scheduledGames ?? (league === 'NBA' ? 82 : league === 'GLEAGUE' ? 50 : null);
-  if (!Number.isFinite(games) || games <= 0) fail('scheduled games must be positive');
+  if (!Number.isInteger(games) || games <= 0) fail('scheduled games must be a positive integer');
   if (!(finite(proj.gp) && proj.gp >= 0 && proj.gp <= games + tolerance)) fail('GP exceeds league schedule or is invalid');
   const maxMpg = league === 'NBA' ? 42 : 44;
   if (!(finite(proj.mpg) && proj.mpg >= 0 && proj.mpg <= maxMpg + tolerance)) fail('MPG/minutes outside league bound');
+  if (!(finite(a.mpg) && a.mpg >= 0 && a.mpg <= maxMpg + tolerance)) fail('Accounting MPG/minutes outside league bound');
 
   for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
     if (!finite(a[k]) || a[k] < -tolerance) fail(`accounting ${k} is invalid`);
@@ -27,8 +30,11 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
   if (a.ftm > a.fta + tolerance) fail('FTM exceeds FTA');
   if (!near(a.reb,a.oreb+a.dreb,tolerance)) fail('REB must equal OREB + DREB');
 
-  const ftValue = finite(a.ftValue) ? a.ftValue : 1;
-  if (ftValue <= 0) fail('Free throw value must be positive');
+  const ftValue = a.ftValue;
+  // NBA attempts are always worth one point. G League pooled trip values can
+  // differ, but must be explicitly supplied rather than silently defaulted.
+  if (!finite(ftValue) || ftValue < 1 || ftValue > 3) fail('Free throw value must be explicit and between one and three');
+  if (league === 'NBA' && ftValue !== 1) fail('NBA free throw value must equal one');
   const pts = 2*(a.fgm-a.fg3m)+3*a.fg3m+a.ftm*ftValue;
   if (!near(a.pts,pts,tolerance)) fail('PTS/points accounting mismatch');
 
@@ -54,7 +60,8 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
     // Published rates are rounded to one decimal; accounting preserves precision.
     if (!near(proj[k],a[k],0.050001)) fail(`Published ${k} disagrees with accounting`);
   }
-  if (a.totals && typeof a.totals === 'object') {
+  if (!a.totals || typeof a.totals !== 'object' || Array.isArray(a.totals)) fail('Season accounting totals are required');
+  {
     const accountingGp = finite(a.gp) ? a.gp : proj.gp;
     for (const k of ['pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
       if (!finite(a.totals[k])) fail(`total ${k} is invalid`);

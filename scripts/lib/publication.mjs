@@ -15,7 +15,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   projections: Object.freeze({
     label: '2026-27 player projections',
-    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/build-projections.mjs'],
+    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/lib/projection-validation.mjs','scripts/build-projections.mjs'],
     source: 'Frozen projection inputs/model card plus the published current-roster context',
   }),
   tulipEvidence: Object.freeze({

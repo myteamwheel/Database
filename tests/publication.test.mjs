@@ -146,6 +146,12 @@ try {
   assert.equal(status.forecastAdjustmentPolicy.injuries, 'not-applied-unless-verified-structured-input');
   assert.equal(status.forecastAdjustmentPolicy.news, 'not-applied-unless-verified-structured-input');
   assert.equal(validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), true);
+  const validatorPath = path.join(root, 'scripts/lib/projection-validation.mjs');
+  assert.ok(modelProvenance.outputs.projections.codeFiles.some(file => file.path === 'scripts/lib/projection-validation.mjs'));
+  const validatorBytes = fs.readFileSync(validatorPath);
+  fs.appendFileSync(validatorPath, '// changed accounting gate\n');
+  assert.throws(() => validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), /provenance|implementation|code/i);
+  fs.writeFileSync(validatorPath, validatorBytes);
   const rebuiltSame = buildPublicationStatus({
     publicData, publicDataBytes: bytes, sourceDomains: domains, modelProvenance, previousStatus: status, publishedAt:'2026-09-29T23:05:00Z'
   });
