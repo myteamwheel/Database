@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261001175946-1b0ec30f157a",
+  "publicationId": "2025-26-20261001183139-f4aaa63d6bcf",
   "season": "2025-26",
-  "publishedAt": "2026-10-01T17:59:46-04:00",
-  "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-  "dataSha256": "1b0ec30f157a729e24360b6d78f19467a143a4cead025aab18f628466f4974f3",
+  "publishedAt": "2026-10-01T18:31:39-04:00",
+  "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+  "dataSha256": "f4aaa63d6bcf106e156891f6e7cc0d77c9d8185e048811249636ddaaa7d5ba2b",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261001174247-2704ce1d7a81",
-    "publishedAt": "2026-10-01T17:42:47-04:00",
-    "dataSha256": "2704ce1d7a81ceab0a452138cc70dd6972b9e1e53cfe66a0cd37e1c8e5b47c65"
+    "publicationId": "2025-26-20261001175946-1b0ec30f157a",
+    "publishedAt": "2026-10-01T17:59:46-04:00",
+    "dataSha256": "1b0ec30f157a729e24360b6d78f19467a143a4cead025aab18f628466f4974f3"
   },
   "sourceDomains": {
     "officialStats": {
@@ -158,40 +158,103 @@
   },
   "modelProvenance": {
     "schemaVersion": 1,
-    "buildCommit": "223c03b",
-    "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6",
+    "buildCommit": "c80ff93",
+    "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
+    "dependencyAudit": {
+      "policy": "transitive-static-esm-v1",
+      "nodeMajor": "24",
+      "codeFiles": [
+        {
+          "path": "scripts/lib/model-dependencies.mjs",
+          "sha256": "fc46d73a79fe6688faa6ac2fac61292aa1903787c4bebf2d90e9ef791e3957e4"
+        },
+        {
+          "path": "scripts/model-code-dependencies.mjs",
+          "sha256": "68fffd50d97a8f8fdb60b51535f9b60b2aaf83a298a34df00c2a1985d983bec9"
+        }
+      ]
+    },
     "outputs": {
       "performanceGrades": {
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "a4082e63bbc78c38ad780d207436b678830ce5d5fd7c1078ac47968174da83f2",
+        "codeVersionSha256": "7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
         "codeFiles": [
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+          },
+          {
+            "path": "scripts/lib/analysis.mjs",
+            "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/lib/catalog.mjs",
+            "sha256": "093cbf5ca4b944a8baeacaca6ab1d46f792a578aca867943738cab8273306e79"
+          },
+          {
+            "path": "scripts/lib/combine.mjs",
+            "sha256": "baceeb3fb058376d97d345870a0d6979e9be36b4965efa87b9143d1136a79e3c"
+          },
           {
             "path": "scripts/lib/grades.mjs",
             "sha256": "b199e23ae49ea25a74049f53c9fdce2273b9d0163a9d6effabe5ce0df197b77a"
+          },
+          {
+            "path": "scripts/lib/history.mjs",
+            "sha256": "a6a6d7daf4ccfdb799d0e75ad1189569d7748736b9a6e554779dd267da09dd3c"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
           },
           {
             "path": "scripts/lib/metrics.mjs",
             "sha256": "a7bcca413e26f5633ec2973e0c3303251651e6b46c0d542268e95c2ef05f3891"
           },
           {
-            "path": "scripts/lib/sources.mjs",
-            "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
-          },
-          {
             "path": "scripts/lib/roster.mjs",
             "sha256": "582ec4fbfed61b420765b9c437f39cc90af8cab7488890d966f929ccaa3cc350"
           },
           {
-            "path": "scripts/build-v3.mjs",
-            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+            "path": "scripts/lib/sources.mjs",
+            "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
+          },
+          {
+            "path": "scripts/lib/splits.mjs",
+            "sha256": "53f08c5d91b04483eaff2701fa6bf52389ad8f48ee31cd5f05109e3f5004be1f"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
           }
         ],
+        "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6"
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa"
         },
         "source": "2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields"
       },
@@ -199,11 +262,15 @@
         "label": "2026-27 player projections",
         "modelVersion": "PROJECTION_2026_27+context-1",
         "semanticVersion": "PROJECTION_2026_27+context-1",
-        "codeVersionSha256": "c6e30e5dd6452216b9c1dfd81f66d5311cb13214e39cd5fd609e0ad98d85f62d",
+        "codeVersionSha256": "4bca5a5d250141f5a2f571c76719fc8637e18a8cb4eb189a3607cf732c603063",
         "codeFiles": [
           {
-            "path": "scripts/lib/projection.mjs",
-            "sha256": "d078f0b5cbd639be53215e3f7a334f63c3a6acfa4c22b29ac46e57a5514105e5"
+            "path": "scripts/build-projections.mjs",
+            "sha256": "af8bf45851dd11c1efde7533ed07782126d01868b7cdb05f777b4c4548c7cd4f"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
           },
           {
             "path": "scripts/lib/projection-context.mjs",
@@ -214,14 +281,15 @@
             "sha256": "1db8fce8ae3a0f82fdefb19d9ef7b6869a63419dcf1779abaa1e03c08dbdfda3"
           },
           {
-            "path": "scripts/build-projections.mjs",
-            "sha256": "af8bf45851dd11c1efde7533ed07782126d01868b7cdb05f777b4c4548c7cd4f"
+            "path": "scripts/lib/projection.mjs",
+            "sha256": "d078f0b5cbd639be53215e3f7a334f63c3a6acfa4c22b29ac46e57a5514105e5"
           }
         ],
+        "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6",
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
           "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
           "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
           "publishedInputsSha256": "d6591b7be506ab23",
@@ -234,119 +302,39 @@
         "label": "TULIP role evidence",
         "modelVersion": "TULIP Evidence v0.1",
         "semanticVersion": "TULIP Evidence v0.1",
-        "codeVersionSha256": "eaf3ac00982ae60965e1e6cafe36e95707ca5571fecc153b4f940215afc781fc",
+        "codeVersionSha256": "7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
         "codeFiles": [
-          {
-            "path": "scripts/lib/tulip.mjs",
-            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
-          },
-          {
-            "path": "scripts/lib/tulip-diagnostics.mjs",
-            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
-          },
           {
             "path": "scripts/build-v3.mjs",
             "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
-          }
-        ],
-        "inputVersion": {
-          "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6"
-        },
-        "source": "Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable"
-      },
-      "tulipBeta": {
-        "label": "TULIP Beta recommended-minute allocator",
-        "modelVersion": "tulip-beta-support-v2",
-        "semanticVersion": "tulip-beta-support-v2",
-        "codeVersionSha256": "4e68d8ef406c049f076aea930e4b1e9af39c079e1a1f077073e725d22e8e33c9",
-        "codeFiles": [
-          {
-            "path": "scripts/lib/tulip-beta.mjs",
-            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
           },
-          {
-            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
-            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
-          },
-          {
-            "path": "scripts/build-v3.mjs",
-            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
-          }
-        ],
-        "inputVersion": {
-          "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6",
-          "baselineSeason": "2025-26",
-          "rostersAsOf": "2026-10-01",
-          "rosterSha256": "d03b8182655f978aefa13b562a923c22f164ad3bf5d344396880efa2ac36a332"
-        },
-        "source": "2025-26 player value/workload evidence grouped by the published 2026-27 roster snapshot"
-      },
-      "projectedRoleMpg": {
-        "label": "Projected Role MPG",
-        "modelVersion": "TULIP_CAPACITY_V1",
-        "semanticVersion": "TULIP_CAPACITY_V1",
-        "codeVersionSha256": "b78b3c6ae55b7d934f5c806a26afb3fbe487c631a5e7b19b35108bf5095683b5",
-        "codeFiles": [
-          {
-            "path": "scripts/lib/tulip-capacity-v1.mjs",
-            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
-          },
-          {
-            "path": "scripts/lib/tulip-capacity-build.mjs",
-            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
-          },
-          {
-            "path": "scripts/build-v3.mjs",
-            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
-          }
-        ],
-        "inputVersion": {
-          "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6",
-          "cardSha256": "96cb2f34c6cd06c3",
-          "frozenAt": "2026-08-21T01:24:50.909Z",
-          "buildInputMode": "preserved_verified_frozen_output"
-        },
-        "source": "Frozen historical offseason-move role model and its preserved/recomputed source cache, explicitly not a physical-capacity estimate"
-      },
-      "playerComparisons": {
-        "label": "Historical player comparisons",
-        "modelVersion": "4.1.1",
-        "semanticVersion": "4.1.1",
-        "codeVersionSha256": "44acf83e0eb84e3195ccb090ab9a239025dfa8b79fefa8cc7da223ae0a454625",
-        "codeFiles": [
-          {
-            "path": "scripts/lib/comparison-profiles.mjs",
-            "sha256": "c2f47ca95e70090a8207ee3281322078499dc25f4efad9c38d3c70bc7b44dd5a"
-          },
-          {
-            "path": "scripts/build-player-comps.mjs",
-            "sha256": "fe19a79a65e712eeaaf6658999a0b72c2552556c0b314cea5da8be4aa1574575"
-          }
-        ],
-        "inputVersion": {
-          "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6",
-          "nbaHistory": "2009-10 through 2025-26",
-          "gleagueHistory": "2014-15 through 2025-26"
-        },
-        "source": "Same-league historical profiles, official combine measurements where present, and published player-season evidence"
-      },
-      "teamFit": {
-        "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:f561b7d4764c44e1cd1f639ad22aba4358274db54456acae5589c2503fa044a9",
-        "semanticVersion": null,
-        "codeVersionSha256": "f561b7d4764c44e1cd1f639ad22aba4358274db54456acae5589c2503fa044a9",
-        "codeFiles": [
           {
             "path": "scripts/lib/analysis.mjs",
             "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/lib/catalog.mjs",
+            "sha256": "093cbf5ca4b944a8baeacaca6ab1d46f792a578aca867943738cab8273306e79"
+          },
+          {
+            "path": "scripts/lib/combine.mjs",
+            "sha256": "baceeb3fb058376d97d345870a0d6979e9be36b4965efa87b9143d1136a79e3c"
+          },
+          {
+            "path": "scripts/lib/grades.mjs",
+            "sha256": "b199e23ae49ea25a74049f53c9fdce2273b9d0163a9d6effabe5ce0df197b77a"
+          },
+          {
+            "path": "scripts/lib/history.mjs",
+            "sha256": "a6a6d7daf4ccfdb799d0e75ad1189569d7748736b9a6e554779dd267da09dd3c"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
+          },
+          {
+            "path": "scripts/lib/metrics.mjs",
+            "sha256": "a7bcca413e26f5633ec2973e0c3303251651e6b46c0d542268e95c2ef05f3891"
           },
           {
             "path": "scripts/lib/roster.mjs",
@@ -357,36 +345,348 @@
             "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
           },
           {
-            "path": "scripts/build-v3.mjs",
-            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+            "path": "scripts/lib/splits.mjs",
+            "sha256": "53f08c5d91b04483eaff2701fa6bf52389ad8f48ee31cd5f05109e3f5004be1f"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
           }
         ],
+        "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6"
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa"
+        },
+        "source": "Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable"
+      },
+      "tulipBeta": {
+        "label": "TULIP Beta recommended-minute allocator",
+        "modelVersion": "tulip-beta-support-v2",
+        "semanticVersion": "tulip-beta-support-v2",
+        "codeVersionSha256": "7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
+        "codeFiles": [
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+          },
+          {
+            "path": "scripts/lib/analysis.mjs",
+            "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/lib/catalog.mjs",
+            "sha256": "093cbf5ca4b944a8baeacaca6ab1d46f792a578aca867943738cab8273306e79"
+          },
+          {
+            "path": "scripts/lib/combine.mjs",
+            "sha256": "baceeb3fb058376d97d345870a0d6979e9be36b4965efa87b9143d1136a79e3c"
+          },
+          {
+            "path": "scripts/lib/grades.mjs",
+            "sha256": "b199e23ae49ea25a74049f53c9fdce2273b9d0163a9d6effabe5ce0df197b77a"
+          },
+          {
+            "path": "scripts/lib/history.mjs",
+            "sha256": "a6a6d7daf4ccfdb799d0e75ad1189569d7748736b9a6e554779dd267da09dd3c"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
+          },
+          {
+            "path": "scripts/lib/metrics.mjs",
+            "sha256": "a7bcca413e26f5633ec2973e0c3303251651e6b46c0d542268e95c2ef05f3891"
+          },
+          {
+            "path": "scripts/lib/roster.mjs",
+            "sha256": "582ec4fbfed61b420765b9c437f39cc90af8cab7488890d966f929ccaa3cc350"
+          },
+          {
+            "path": "scripts/lib/sources.mjs",
+            "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
+          },
+          {
+            "path": "scripts/lib/splits.mjs",
+            "sha256": "53f08c5d91b04483eaff2701fa6bf52389ad8f48ee31cd5f05109e3f5004be1f"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
+          }
+        ],
+        "dependencyPolicy": "transitive-static-esm-v1",
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
+          "baselineSeason": "2025-26",
+          "rostersAsOf": "2026-10-01",
+          "rosterSha256": "d03b8182655f978aefa13b562a923c22f164ad3bf5d344396880efa2ac36a332"
+        },
+        "source": "2025-26 player value/workload evidence grouped by the published 2026-27 roster snapshot"
+      },
+      "projectedRoleMpg": {
+        "label": "Projected Role MPG",
+        "modelVersion": "TULIP_CAPACITY_V1",
+        "semanticVersion": "TULIP_CAPACITY_V1",
+        "codeVersionSha256": "7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
+        "codeFiles": [
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+          },
+          {
+            "path": "scripts/lib/analysis.mjs",
+            "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/lib/catalog.mjs",
+            "sha256": "093cbf5ca4b944a8baeacaca6ab1d46f792a578aca867943738cab8273306e79"
+          },
+          {
+            "path": "scripts/lib/combine.mjs",
+            "sha256": "baceeb3fb058376d97d345870a0d6979e9be36b4965efa87b9143d1136a79e3c"
+          },
+          {
+            "path": "scripts/lib/grades.mjs",
+            "sha256": "b199e23ae49ea25a74049f53c9fdce2273b9d0163a9d6effabe5ce0df197b77a"
+          },
+          {
+            "path": "scripts/lib/history.mjs",
+            "sha256": "a6a6d7daf4ccfdb799d0e75ad1189569d7748736b9a6e554779dd267da09dd3c"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
+          },
+          {
+            "path": "scripts/lib/metrics.mjs",
+            "sha256": "a7bcca413e26f5633ec2973e0c3303251651e6b46c0d542268e95c2ef05f3891"
+          },
+          {
+            "path": "scripts/lib/roster.mjs",
+            "sha256": "582ec4fbfed61b420765b9c437f39cc90af8cab7488890d966f929ccaa3cc350"
+          },
+          {
+            "path": "scripts/lib/sources.mjs",
+            "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
+          },
+          {
+            "path": "scripts/lib/splits.mjs",
+            "sha256": "53f08c5d91b04483eaff2701fa6bf52389ad8f48ee31cd5f05109e3f5004be1f"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
+          }
+        ],
+        "dependencyPolicy": "transitive-static-esm-v1",
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
+          "cardSha256": "96cb2f34c6cd06c3",
+          "frozenAt": "2026-08-21T01:24:50.909Z",
+          "buildInputMode": "preserved_verified_frozen_output"
+        },
+        "source": "Frozen historical offseason-move role model and its preserved/recomputed source cache, explicitly not a physical-capacity estimate"
+      },
+      "playerComparisons": {
+        "label": "Historical player comparisons",
+        "modelVersion": "4.1.1",
+        "semanticVersion": "4.1.1",
+        "codeVersionSha256": "7835db857110547e2c12bdade35350c7adf30a6bda59faa663a025b56384d8dc",
+        "codeFiles": [
+          {
+            "path": "scripts/build-player-comps.mjs",
+            "sha256": "fe19a79a65e712eeaaf6658999a0b72c2552556c0b314cea5da8be4aa1574575"
+          },
+          {
+            "path": "scripts/lib/comparison-profiles.mjs",
+            "sha256": "c2f47ca95e70090a8207ee3281322078499dc25f4efad9c38d3c70bc7b44dd5a"
+          }
+        ],
+        "dependencyPolicy": "transitive-static-esm-v1",
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
+          "nbaHistory": "2009-10 through 2025-26",
+          "gleagueHistory": "2014-15 through 2025-26"
+        },
+        "source": "Same-league historical profiles, official combine measurements where present, and published player-season evidence"
+      },
+      "teamFit": {
+        "label": "Skill profiles, similarity, archetypes and Team Fit",
+        "modelVersion": "code-sha256:7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
+        "semanticVersion": null,
+        "codeVersionSha256": "7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
+        "codeFiles": [
+          {
+            "path": "scripts/build-v3.mjs",
+            "sha256": "222fc2393449fc880bb15c02dcd16a00a30d6c56c87fe0ef77f7ac04c042d5d8"
+          },
+          {
+            "path": "scripts/lib/analysis.mjs",
+            "sha256": "4f8a95750d1e7b396abd9b04a305a745b1f70f9fc43f9be1d347180a34925132"
+          },
+          {
+            "path": "scripts/lib/catalog.mjs",
+            "sha256": "093cbf5ca4b944a8baeacaca6ab1d46f792a578aca867943738cab8273306e79"
+          },
+          {
+            "path": "scripts/lib/combine.mjs",
+            "sha256": "baceeb3fb058376d97d345870a0d6979e9be36b4965efa87b9143d1136a79e3c"
+          },
+          {
+            "path": "scripts/lib/grades.mjs",
+            "sha256": "b199e23ae49ea25a74049f53c9fdce2273b9d0163a9d6effabe5ce0df197b77a"
+          },
+          {
+            "path": "scripts/lib/history.mjs",
+            "sha256": "a6a6d7daf4ccfdb799d0e75ad1189569d7748736b9a6e554779dd267da09dd3c"
+          },
+          {
+            "path": "scripts/lib/live-roster.mjs",
+            "sha256": "bfffed6564e97e67d635e0289c1d8532bf6df2435ea7691f216d4dc0676c3425"
+          },
+          {
+            "path": "scripts/lib/metrics.mjs",
+            "sha256": "a7bcca413e26f5633ec2973e0c3303251651e6b46c0d542268e95c2ef05f3891"
+          },
+          {
+            "path": "scripts/lib/roster.mjs",
+            "sha256": "582ec4fbfed61b420765b9c437f39cc90af8cab7488890d966f929ccaa3cc350"
+          },
+          {
+            "path": "scripts/lib/sources.mjs",
+            "sha256": "cde70c9a13cfe11cdcb894d659c74f7d052042d62b9d177c61ce7a6584196070"
+          },
+          {
+            "path": "scripts/lib/splits.mjs",
+            "sha256": "53f08c5d91b04483eaff2701fa6bf52389ad8f48ee31cd5f05109e3f5004be1f"
+          },
+          {
+            "path": "scripts/lib/tulip-beta-diagnostics.mjs",
+            "sha256": "57bbbc023796eccdb219fc4ecfbd9dbcab55dd035e969003eaf99bd08f94553d"
+          },
+          {
+            "path": "scripts/lib/tulip-beta.mjs",
+            "sha256": "44131d935fa65078b6fb5d5605ae9aeff97cade5e2ada95d732c6459b4af4b51"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-build.mjs",
+            "sha256": "2f2bdd2adfd3bb273ea21e940f263cfb0bc67b055c5770dbfd7206bac2bb6ef8"
+          },
+          {
+            "path": "scripts/lib/tulip-capacity-v1.mjs",
+            "sha256": "60d0ed4f440a0564e42cf2980f321d7a141813b6f97ba3c4d390bb064d7d1d46"
+          },
+          {
+            "path": "scripts/lib/tulip-diagnostics.mjs",
+            "sha256": "84ebf9e1242a3bf19ee13a4fb73cb99967ae3cb6fb264fc9d5515ba32b3622b8"
+          },
+          {
+            "path": "scripts/lib/tulip.mjs",
+            "sha256": "5444b020612b730e5ccfb6e1c1bf5e3cd0069a6ff4456d9e61f7ca693cd3b07e"
+          }
+        ],
+        "dependencyPolicy": "transitive-static-esm-v1",
+        "inputVersion": {
+          "season": "2025-26",
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa",
+          "rosterSha256": "d03b8182655f978aefa13b562a923c22f164ad3bf5d344396880efa2ac36a332",
+          "rostersAsOf": "2026-10-01"
         },
         "source": "Published same-league player rows and minutes-weighted roster need profiles"
       },
       "crossLeague": {
         "label": "G League/NBA readiness and translation models",
-        "modelVersion": "code-sha256:eaf435c2d4d9e946bc14d563bc42e811d239e1cf838eae769444b7e0c2cf4c1b",
+        "modelVersion": "code-sha256:4939e023b041e5655aba3625b1c71215c3246a2a73dc03e77efb4c5113eed98d",
         "semanticVersion": null,
-        "codeVersionSha256": "eaf435c2d4d9e946bc14d563bc42e811d239e1cf838eae769444b7e0c2cf4c1b",
+        "codeVersionSha256": "4939e023b041e5655aba3625b1c71215c3246a2a73dc03e77efb4c5113eed98d",
         "codeFiles": [
+          {
+            "path": "scripts/build-crossleague.mjs",
+            "sha256": "21446e59fd1f41c933c04eafd90016f8c477079fb459f944b809f2b593484a20"
+          },
           {
             "path": "scripts/lib/crossleague.mjs",
             "sha256": "00f9f1d4eae99538cb82c6dcb289e02cfd9616a5ffaf4d2c370e0eca47422e97"
           },
           {
-            "path": "scripts/build-crossleague.mjs",
-            "sha256": "21446e59fd1f41c933c04eafd90016f8c477079fb459f944b809f2b593484a20"
+            "path": "scripts/lib/minutes-response.mjs",
+            "sha256": "5eba1ea26f12036e147cdc0006d8bb1cab508f1cd1286eb09d31f7d63477ef9e"
           }
         ],
+        "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-10-01T17:59:46-04:00",
-          "sourceManifestSha256": "09ec64bc1618281d160d6c16fc6bbd73bd23390ad27bea6623eccf910f28feb6"
+          "buildGeneratedAt": "2026-10-01T18:31:39-04:00",
+          "sourceManifestSha256": "397871882a9d02bdaf4e0b0147cd929c01dbe06bec6fc3d59ebc320cb57ed0fa"
         },
         "source": "Same-season dual-league player sample with explicitly reported sample thresholds and held-out limitations"
       }
@@ -770,7 +1070,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:f561b7d4764c44e1cd1f639ad22aba4358274db54456acae5589c2503fa044a9",
+        "modelVersion": "code-sha256:7bc0474fae86d15e3569cac5b2660eadbdfa4705a29859a89110124c8db50f59",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,
@@ -781,7 +1081,7 @@
         "boundary": "Team Fit describes how a player profile addresses current roster needs; it is not a forecast of team wins or player performance."
       },
       "crossLeague": {
-        "modelVersion": "code-sha256:eaf435c2d4d9e946bc14d563bc42e811d239e1cf838eae769444b7e0c2cf4c1b",
+        "modelVersion": "code-sha256:4939e023b041e5655aba3625b1c71215c3246a2a73dc03e77efb4c5113eed98d",
         "evidenceStatus": "measured-limited",
         "predictiveAccuracyClaim": {
           "supported": false,
