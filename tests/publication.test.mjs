@@ -20,6 +20,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publication-test-'));
 try {
   fs.mkdirSync(path.join(root, 'scripts/data/official_nba'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts/data/projection'), { recursive: true });
+  fs.writeFileSync(path.join(root,'index.html'),'<html>interface defaults fixture</html>');
   for(const relative of DEPENDENCY_AUDIT_FILES){const full=path.join(root,relative);fs.mkdirSync(path.dirname(full),{recursive:true});fs.copyFileSync(new URL(`../${relative}`,import.meta.url),full);}
   for (const spec of Object.values(MODEL_OUTPUTS)) {
     for (const relativePath of spec.codeFiles) {
@@ -176,7 +177,7 @@ try {
   fs.appendFileSync(nestedPath,'// changed deeply imported formula\n');
   assert.throws(()=>validatePublicationStatus(nestedStatus,{publicData,publicDataBytes:bytes,root}),/provenance|implementation|code/i);
   fs.writeFileSync(gradesPath,originalGrades);fs.unlinkSync(nestedPath);
-  for (const relative of ['scripts/lib/sources.mjs','scripts/lib/roster.mjs',...DEPENDENCY_AUDIT_FILES]) {
+  for (const relative of ['scripts/lib/sources.mjs','scripts/lib/roster.mjs','app.js','workspace.js','index.html',...DEPENDENCY_AUDIT_FILES]) {
     const full=path.join(root,relative), originalBytes=fs.readFileSync(full);
     fs.appendFileSync(full,'// changed shared numeric or stint identity semantics\n');
     assert.throws(()=>validatePublicationStatus(status,{publicData,publicDataBytes:bytes,root}),/provenance|implementation|code/i);

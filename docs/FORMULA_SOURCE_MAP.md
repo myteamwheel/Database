@@ -30,6 +30,8 @@ If an implementation file changes without regenerating publication status, verif
 
 ## Exact parameter and policy inventory
 
+Browser-calculated outputs are also covered: `app.js` (including `percentileMap/applyLab`, normalization, scope and CSV policies) is an audited entry in the performance and Team Fit families; `workspace.js` is bound with Team Fit for interactive similarity/profile displays. Both families hash `index.html` for default controls. Custom-score configuration is user-selected rather than fitted: up to four weighted within-cohort percentiles, shared ranks for ties, flipped percentiles for negative weights, excluded missing ingredients with weight renormalization, and explicit consent for mixed season scopes. Its selected fields/weights, league, ranking cohort and filter state are preserved in the URL. These runtime choices must accompany a reproduction; the publication hash alone cannot identify a user's custom score.
+
 The following locations hold the authoritative coefficients/configuration and executable policies. They are version-bound by the dependency closure, source manifest and model-card inputs, rather than duplicated as numbers in this document where they could become stale.
 
 | Family | Exact weights/configuration | Defaults, caps and missingness policy |

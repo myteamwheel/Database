@@ -13,7 +13,7 @@ const COVERAGE_SET = new Set(COVERAGE_STATES);
 export const MODEL_OUTPUTS = Object.freeze({
   performanceGrades: Object.freeze({
     label: 'Performance grades and custom metrics',
-    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs'],
+    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs','app.js'],
     source: '2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields',
   }),
   projections: Object.freeze({
@@ -43,7 +43,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   teamFit: Object.freeze({
     label: 'Skill profiles, similarity, archetypes and Team Fit',
-    codeFiles: ['scripts/lib/analysis.mjs','scripts/lib/roster.mjs','scripts/lib/sources.mjs','scripts/build-v3.mjs'],
+    codeFiles: ['scripts/lib/analysis.mjs','scripts/lib/roster.mjs','scripts/lib/sources.mjs','scripts/build-v3.mjs','app.js','workspace.js'],
     source: 'Published same-league player rows and minutes-weighted roster need profiles',
   }),
   crossLeague: Object.freeze({
@@ -129,6 +129,13 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     ...common,
     rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
     rostersAsOf: publicData?.projectionMeta?.rostersAsOf || null,
+    interfaceDefaultsSha256: fileSha256(root,'index.html'),
+    interactiveConfiguration: 'Selected league, player, fields, weights, ranking cohort, filters and mixed-scope permission are user inputs preserved in the browser URL; not fitted model parameters.',
+  };
+  if (key === 'performanceGrades') return {
+    ...common,
+    interfaceDefaultsSha256:fileSha256(root,'index.html'),
+    interactiveConfiguration:'Custom score uses up to four user-selected fields and weights, tied within-cohort percentiles, missing-ingredient renormalization and explicit mixed-scope consent; configuration and cohort/filter state are preserved in the browser URL.',
   };
   if (key === 'projectedRoleMpg') return {
     ...common,
