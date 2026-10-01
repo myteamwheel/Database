@@ -31,6 +31,7 @@ try {
   }
   fs.writeFileSync(path.join(root, 'PROJECTION_2026_27.json'), JSON.stringify({ id:'PROJECTION_2026_27' }));
   fs.writeFileSync(path.join(root, 'scripts/data/projection/inputs.json'), JSON.stringify({ fetchedAt:'2026-09-26T04:28:41.551Z' }));
+  fs.writeFileSync(path.join(root, 'scripts/data/birthdates.json'), JSON.stringify({1:{birthdate:'2002-12-10'}}));
 
   fs.writeFileSync(path.join(root, 'scripts/data/official_nba/_refresh-manifest.json'), JSON.stringify({
     version: 1,
@@ -112,6 +113,13 @@ try {
   assert.equal(modelProvenance.schemaVersion, 1);
   assert.equal(modelProvenance.outputs.performanceGrades.modelVersion, '3.4');
   assert.equal(modelProvenance.outputs.projections.modelVersion, 'PROJECTION_2026_27+context-1');
+  assert.match(modelProvenance.outputs.projections.inputVersion.birthdatesSha256,/^[0-9a-f]{64}$/);
+  const datesFile=path.join(root,'scripts/data/birthdates.json'), oldDates=fs.readFileSync(datesFile);
+  fs.writeFileSync(datesFile,JSON.stringify({1:{birthdate:'2002-12-11'}}));
+  const changedDates=deriveModelProvenance({root,publicData});
+  assert.notEqual(changedDates.outputs.projections.inputVersion.birthdatesSha256,modelProvenance.outputs.projections.inputVersion.birthdatesSha256);
+  assert.equal(changedDates.outputs.projections.codeSha256,modelProvenance.outputs.projections.codeSha256);
+  fs.writeFileSync(datesFile,oldDates);
   assert.equal(modelProvenance.outputs.tulipEvidence.modelVersion, 'TULIP Evidence v0.1');
   assert.equal(modelProvenance.outputs.tulipBeta.modelVersion, 'tulip-beta-support-v2');
   assert.equal(modelProvenance.outputs.projectedRoleMpg.modelVersion, 'projected-role-v1');

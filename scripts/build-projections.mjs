@@ -14,7 +14,7 @@ import {
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
-import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
+import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, rookieAgeAtReference, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
 import { validateProjectionAccounting } from './lib/projection-validation.mjs';
 
@@ -109,7 +109,15 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
       const team26 = isNba ? D.rosters2627.get(pid) || null : null;
       const rookie = isNba && team26 && !hist.some(Boolean)
         && (bio?.fromYear >= 2026 || bio?.draftYear === 2026)
-        ? rookieProjection(bio, Number.isFinite(p.age) ? p.age : null, rookies, ctx.priors) : null;
+        ? rookieProjection(bio, rookieAgeAtReference(p.birthdate, T), rookies, ctx.priors) : null;
+      if (rookie) rookie.evidence.ageReference = {
+        date: `${Number(T.slice(0, 4)) + 1}-02-01`,
+        source: Number.isFinite(rookie.pr.age) ? 'published-official-birthdate' : 'unavailable',
+        birthdate: Number.isFinite(rookie.pr.age) ? p.birthdate.slice(0, 10) : null,
+        historicalPeers: 'Official source season AGE; exact reference-date equivalence is not independently established.',
+      };
+      if (rookie) rookie.evidence.coverage.entryAge.source = Number.isFinite(rookie.pr.age)
+        ? 'Official birthdate; whole-year age at forecast-season February 1' : null;
       if (!hist.some(Boolean) && !rookie) {
         p.proj = { abstain: true, team: team26, reason: isNba
           ? 'No NBA minutes in 2023-24, 2024-25 or 2025-26 to project from.'
@@ -304,7 +312,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     rookieEvaluation: evaluateRookieFallback(D, LAST),
     rookieInputCoverage: nba.rookieCoverage,
     contextReconciliation: bt.nba.contextReconciliation || null,
-    contextValidation: 'Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations.',
+    contextValidation: `Accounting and sensitivity tested; legacy veteran backtest below does not validate ${CONTEXT_VERSION}. Rookie retrospective check omits target age without archived preseason bios and does not validate the live DOB-age correction.`,
     inputsSha256: inputsSha.slice(0, 16),
     counts: { nba, gleague },
     params: {

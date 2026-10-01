@@ -2,8 +2,24 @@
 // versioned: its historical accuracy must not be attributed to these new rules.
 import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeatures, dot, MIN_FEATURES, GP_FEATURES, ageInSeason } from './projection.mjs';
 
-export const CONTEXT_VERSION = 'context-1';
+export const CONTEXT_VERSION = 'context-2-rookie-age';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** Explicit model convention, not today's age or a stale previous-season AGE field.
+ * The historical cohort retains the official source's season-age values; its exact
+ * reference-date convention is not independently established. Never infer a missing DOB.
+ */
+export function rookieAgeAtReference(birthdate, season) {
+  if (typeof season !== 'string' || !/^\d{4}-\d{2}$/.test(season)) throw new Error('Invalid rookie forecast season');
+  const start = Number(season.slice(0, 4));
+  if (season.slice(5) !== String(start + 1).slice(-2)) throw new Error('Invalid rookie forecast season');
+  if (typeof birthdate !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T00:00:00(?:\.000)?Z?)?$/.test(birthdate)) return null;
+  const day = birthdate.slice(0, 10), d = new Date(day + 'T00:00:00Z');
+  if (!Number.isFinite(d.valueOf()) || d.toISOString().slice(0, 10) !== day) return null;
+  const referenceYear = start + 1;
+  const age = referenceYear - d.getUTCFullYear() - (d.getUTCMonth() > 1 || (d.getUTCMonth() === 1 && d.getUTCDate() > 1) ? 1 : 0);
+  return age >= 16 && age <= 60 ? age : null;
+}
 
 
 /** Decide how much of the 240-minute team budget may be allocated without inventing
