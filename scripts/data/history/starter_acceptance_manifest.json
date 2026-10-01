@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T19:57:40.633Z",
-  "sourceCommit": "886b0d314054993bc856ce5a75a872d70bc875c2",
+  "generatedAt": "2026-10-01T21:17:16.960Z",
+  "sourceCommit": "e372330cc87ccd7f48226a6ac92b8068a8c6875a",
   "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
   "allAccepted": false,
   "results": [
@@ -13,7 +13,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "7dc0629a585819ea3756bb364d1f7eff52070690068874a5b8f824c44b1664c0",
+      "evidenceSha256": "05ca5a586cc966a712c5fac7ee50cf810e2c01b5e50531407d04b9983ee9bc89",
       "logPresent": true,
       "logSha256": "c3a4ccecbccc2be165dd39c66b34901267a621d3e0e98af4f5f5d4fde85c0f3c",
       "logTail": [
@@ -28,7 +28,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "9972235fca95409c10f22d99185a3020be91b10ac467c6edca9dc70f5b087091",
+      "evidenceSha256": "a0abdd4b5e64815b795536a5cbf4d793b2157bb7926d337ea9b65ebe1c2084e1",
       "logPresent": true,
       "logSha256": "c9c02232b40bd75f18c6f88a6d11ed6a91baf95a35a5dd2f69351d336f68757d",
       "logTail": [
@@ -43,7 +43,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "1952a675aa849f94795dd3f0b48cf02b83eaee40fa1ffa16fd9f1c87ec8e9c72",
+      "evidenceSha256": "953888c4c91efecaeb8656aed3a60f85d8964701b56d4181779925559fda15a4",
       "logPresent": true,
       "logSha256": "066a33353d82f198b466872a13b065ae1ef370598b092c839f7f196fad9cbce8",
       "logTail": [
@@ -58,7 +58,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "d8104127dfb67b55f3bd7c47c2041a0fb441a3a1a893abdb15466ab602309930",
+      "evidenceSha256": "806f833da924ec336f52263b3c49884418d7cf2ba824cf460b6b257b84362298",
       "logPresent": true,
       "logSha256": "ddb476b88131862fad5b165413a1956b57d68188f66b23b9deb34af70f770f9f",
       "logTail": [
@@ -73,7 +73,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "41f4b2b4a7de3f164f5ad536dda3a59f070038631233ceba317fe255cc3e90e5",
+      "evidenceSha256": "b31a2fd4f5188df36e40316da8be1c1f7cfdd1fc88a72738a2e33d413b02acb8",
       "logPresent": true,
       "logSha256": "7e1ea80e73c83814ebcc4784ef25f54f7c901140c6c1dabd2f7e63d5d6d0046c",
       "logTail": [
@@ -88,7 +88,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "8be2ccf777598ad55379690fd9b6031734ecf411f6f7a5ed7265625fa8a12452",
+      "evidenceSha256": "c87d4373bab34fdf53e41d963a20f14d6b454f11cf15ffc6e0e3da9c81015431",
       "logPresent": true,
       "logSha256": "53a89808429a10130777753d709213e0b41e08e7124e4f6a1edc94b5cf84e4c4",
       "logTail": [
@@ -103,7 +103,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "2acad7bd95c4167d2aaa66ef66984450846c21b09a9610334ec1bf285333bc0a",
+      "evidenceSha256": "9f342fe306cf1a52bb1bc655441b493a977facf55155e42675160912adfa55d2",
       "logPresent": true,
       "logSha256": "946a78c5f69abc354a786302ec2059fa08422a37263fa6ec854927e8b993fb14",
       "logTail": [
@@ -118,7 +118,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "63887535dde5dbac93387154f7172550f41f92e5ab8804061b5db937761e06ec",
+      "evidenceSha256": "2bbb3b42fb045b3e92962c1c7746109eeef8fbd08c07e2f914db6a3502d48512",
       "logPresent": true,
       "logSha256": "3fb02baa2528b5029f743ed413af2245a0380829d311c0b140735e803bcb8d2e",
       "logTail": [
@@ -133,7 +133,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "5dd48e1e9362a11d6c8285335baec4dc7cf042caa8119eb8e8da2563d8947adb",
+      "evidenceSha256": "8789fc5a2cd31f21615becaee7da10c9c71a4ad041fa143ba4ff17e6e0726618",
       "logPresent": true,
       "logSha256": "c122332e7375ea732e355b9a8f168538b34ee885822aa4ed9429d279d9b4a553",
       "logTail": [
@@ -148,7 +148,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "fc42647b35d3235cc46a6925fb27e1d526de85ac270887923f84aec8f0d9d387",
+      "evidenceSha256": "b7d3b6276050ce7eb0c2de857c2b88b9d141d7a3b45bb8d1d04a889762b01efa",
       "logPresent": true,
       "logSha256": "ef7468ccd059d6be4c2fd15e1d7bf0dca1540d389711beee6817b52e0e4660ab",
       "logTail": [
@@ -163,7 +163,7 @@
       "teamGames": 2630,
       "starterEdges": 13150,
       "perPlayerStartMismatches": 0,
-      "evidenceSha256": "5e1e0f21542990c18284f3116ad26a8062dd484878b811f860ab739267e5b867",
+      "evidenceSha256": "b79144b0c51fdd3356252afa6698465085f6d658e64da40e462d3e9ec88a2688",
       "logPresent": true,
       "logSha256": "b52831af9939ee191880e8882a79368a21f3c0b6ad161458c91fc3e7858b6076",
       "logTail": [
