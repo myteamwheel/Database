@@ -6,14 +6,14 @@
 //
 // v3.1 rebuild, after an audit found the model rewarded small samples and leaked concepts
 // across components. See COMPONENT_INGREDIENTS and the notes on each fix below.
-import { round } from './sources.mjs';
+import { round, num } from './sources.mjs';
 
-const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+const fin = (v) => num(v) !== null;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /** Percentile (0-100) within the supplied array, ties averaged. */
 export function percentiles(values) {
-  const idx = values.map((v, i) => ({ v, i })).filter((x) => fin(x.v));
+  const idx = values.map((v, i) => ({ v: num(v), i })).filter((x) => fin(x.v));
   idx.sort((a, b) => a.v - b.v);
   const out = new Array(values.length).fill(null);
   let i = 0;
@@ -44,7 +44,7 @@ function quantile(sorted, q) {
  * stops that, and it is the same correction the grade already applies.
  */
 export function stabilize(values, minutes, K) {
-  const present = values.map((v, i) => ({ v, m: minutes[i] || 0, i })).filter((x) => fin(x.v));
+  const present = values.map((v, i) => ({ v: num(v), m: num(minutes[i]) || 0, i })).filter((x) => fin(x.v));
   if (!present.length) return values.map(() => null);
   const sorted = present.map((x) => x.v).sort((a, b) => a - b);
   const lo = quantile(sorted, 0.01), hi = quantile(sorted, 0.99);
@@ -54,7 +54,7 @@ export function stabilize(values, minutes, K) {
     : present.reduce((a, x) => a + x.v, 0) / present.length;
   return values.map((v, i) => {
     if (!fin(v)) return null;
-    const m = minutes[i] || 0;
+    const m = num(minutes[i]) || 0;
     return (m * clamp(v, lo, hi) + K * mean) / (m + K);
   });
 }
@@ -118,7 +118,8 @@ export function referenceCurve(xs, ys, weights, { bins = 8, minWeight = 0 } = {}
 /** Normalized per-36 / rate view every downstream formula reads. */
 export function normalize(o) {
   const t = o.totals, adv = o.advanced, ex = o.exact;
-  const min = t.MIN || 0, gp = t.GP || 0;
+  for (const key of ['MIN','GP']) if (t[key] != null && (num(t[key]) === null || num(t[key]) < 0)) throw new Error(`Invalid official ${key} exposure`);
+  const min = num(t.MIN) || 0, gp = num(t.GP) || 0;
   const p36 = (v) => (min > 0 && fin(v) ? (Number(v) * 36) / min : null);
   const fromPerGame36 = (v) => (min > 0 && gp > 0 && fin(v) ? (Number(v) * gp * 36) / min : null);
 

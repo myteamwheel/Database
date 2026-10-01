@@ -71,6 +71,11 @@ export function resolveName(s) {
   return NAME_ALIASES.get(k) || k;
 }
 
-export const num = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+export const num = (v) => {
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  if (typeof v === 'string' && !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(v.trim())) return null;
+  const parsed = Number(v);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 export const safeDiv = (a, b) => (num(a) === null || !num(b) ? null : num(a) / num(b));
 export const round = (v, d = 3) => (v === null || !Number.isFinite(v) ? null : Number(v.toFixed(d)));

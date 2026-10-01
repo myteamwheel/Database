@@ -9,7 +9,7 @@
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
     "fetch:combine": "node scripts/fetch-combine-anthro.mjs",
     "test:projections": "node tests/projection.test.mjs && npm run test:accounting",
-    "test:accounting": "node tests/independent-accounting.test.mjs && node tests/precise-exposure.test.mjs",
+    "test:accounting": "node tests/independent-accounting.test.mjs && node tests/precise-exposure.test.mjs && node tests/model-number-semantics.test.mjs && node tests/stint-identity.test.mjs",
     "test:comps": "node tests/player-comps.test.mjs && node tests/comparison-reference-audit.test.mjs",
     "build:data": "node scripts/build-v3.mjs",
     "build:standalone": "node scripts/build-artifact.mjs",

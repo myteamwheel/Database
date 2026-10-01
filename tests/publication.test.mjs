@@ -163,6 +163,12 @@ try {
   fs.appendFileSync(validatorPath, '// changed accounting gate\n');
   assert.throws(() => validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), /provenance|implementation|code/i);
   fs.writeFileSync(validatorPath, validatorBytes);
+  for (const relative of ['scripts/lib/sources.mjs','scripts/lib/roster.mjs']) {
+    const full=path.join(root,relative), originalBytes=fs.readFileSync(full);
+    fs.appendFileSync(full,'// changed shared numeric or stint identity semantics\n');
+    assert.throws(()=>validatePublicationStatus(status,{publicData,publicDataBytes:bytes,root}),/provenance|implementation|code/i);
+    fs.writeFileSync(full,originalBytes);
+  }
   const rebuiltSame = buildPublicationStatus({
     publicData, publicDataBytes: bytes, sourceDomains: domains, modelProvenance, previousStatus: status, publishedAt:'2026-09-29T23:05:00Z'
   });
