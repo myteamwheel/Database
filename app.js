@@ -1199,10 +1199,7 @@ function teamScoped(p,team,mode){
   // Raw source fields are season-scoped with no stint equivalent.
   q.stats={};
   // Nested objects are season scoped too; never retain them on a stint line.
-  q.per36={};
-  for(const k of ['pts','reb','ast','stl','blk']) {
-    q.per36[k]=finite(q[k])&&q.mpg>0?Number(q[k])*36/q.mpg:null;
-  }
+  q.per36={...(stint.per36||{})};
   q.per36.fg3Pct=q.fg3Pct;
   q.per36Nba=null; q.tulip=null; q.tulipBeta=null; q.tulipCapacity=null;
   q.optimal=null; q.proj=null; q.magnitudeGrade=null; q.magnitudeRaw=null;

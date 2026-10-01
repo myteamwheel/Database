@@ -105,6 +105,9 @@ export function buildStints(halves) {
         // the same column change meaning when team-only mode was toggled.
         plusMinus: s.GP ? Math.round((s.PLUS_MINUS / s.GP) * 10) / 10 : null,
         plusMinusTotal: s.PLUS_MINUS,
+        // Retain precise source exposure for scoped per-36 views. Displayed
+        // per-game lines and MPG above are rounded and cannot be denominators.
+        per36: Object.fromEntries(Object.entries({pts:'PTS',reb:'REB',oreb:'OREB',dreb:'DREB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fg3:'FG3M',fga:'FGA',fg3a:'FG3A',fta:'FTA',pf:'PF'}).map(([key,raw])=>[key,s.MIN>0?Math.round(s[raw]*36/s.MIN*10)/10:null])),
         halves: s.halves,
       }))
       .sort((a, b) => b.min - a.min);   // most-used team first

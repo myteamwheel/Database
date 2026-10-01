@@ -47,7 +47,7 @@ for(const [league,files] of [['NBA',[['stints_nba.json','regular']]],['GLEAGUE',
       const teams=expected.get(String(r.PLAYER_ID));
       if(!teams.has(r.QUERIED_TEAM_ID)) teams.set(r.QUERIED_TEAM_ID,{totals:{},halves:{}});
       const x=teams.get(r.QUERIED_TEAM_ID); x.halves[label]=r.GP;
-      for(const field of ['GP','MIN','PTS','REB','AST','STL','BLK','FGM','FGA','FG3M','FG3A','FTM','FTA','PLUS_MINUS']) x.totals[field]=(x.totals[field]||0)+(r[field]||0);
+      for(const field of ['GP','MIN','PTS','REB','OREB','DREB','AST','STL','BLK','TOV','PF','FGM','FGA','FG3M','FG3A','FTM','FTA','PLUS_MINUS']) x.totals[field]=(x.totals[field]||0)+(r[field]||0);
     }
   }
   const round=(v,n)=>Math.round(v*10**n)/10**n || 0; // JSON canonicalizes negative zero.
@@ -61,6 +61,7 @@ for(const [league,files] of [['NBA',[['stints_nba.json','regular']]],['GLEAGUE',
       for(const [display,raw] of [['mpg','MIN'],['pts','PTS'],['reb','REB'],['ast','AST'],['stl','STL'],['blk','BLK'],['plusMinus','PLUS_MINUS']]) assert.equal(s[display],t.GP?round(t[raw]/t.GP,1):null,`${p.name}/${s.team}/${display}`);
       for(const [display,makes,attempts] of [['fgPct','FGM','FGA'],['fg3Pct','FG3M','FG3A'],['ftPct','FTM','FTA']]) assert.equal(s[display],t[attempts]?round(t[makes]/t[attempts],3):null);
       assert.equal(s.plusMinusTotal,t.PLUS_MINUS); checked++;
+      for(const [key,raw]of Object.entries({pts:'PTS',reb:'REB',oreb:'OREB',dreb:'DREB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fg3:'FG3M',fga:'FGA',fg3a:'FG3A',fta:'FTA',pf:'PF'}))assert.equal(s.per36[key],t.MIN>0?round(t[raw]*36/t.MIN,1):null,`${p.name}/${s.team}: precise scoped ${key}`);
     }
   }
 }
