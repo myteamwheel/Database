@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 const PAGE = 'file://' + fileURLToPath(new URL('../public/standalone.html', import.meta.url));
 test.beforeEach(async ({ page }) => {
   await page.goto(PAGE);
@@ -12,7 +13,9 @@ test('stint per36 uses only the selected stint and does not leak season models',
     const q=teamScoped(p,'CLE','only');
     return {pts:get(q,'p36.pts'),three:get(q,'p36.fg3Pct'),mpg:q.mpg,seasonModel:get(q,'tb.tulip')};
   });
-  expect(result.pts).toBeCloseTo(20.5*36/33.8,6);
+  const raw=JSON.parse(fs.readFileSync(new URL('../scripts/data/stints_nba.json',import.meta.url))).find(r=>r.PLAYER_ID===201935&&r.QUERIED_TEAM_ID===1610612739);
+  expect(raw).toBeTruthy();
+  expect(result.pts).toBe(Math.round(raw.PTS*36/raw.MIN*10)/10);
   expect(result.three).toBe(0.435);
   expect(result.seasonModel).toBeNull();
 });
