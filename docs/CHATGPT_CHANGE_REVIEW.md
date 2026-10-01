@@ -1,6 +1,6 @@
 # Regular-ChatGPT changes — review ledger
 
-Review dated 2026-09-30. **Corrections committed/pushed in PR #22; clean exact-head local gate passed at `492e943`; CI pending, not yet merged or deployed.**
+Review dated 2026-09-30; release verified 2026-10-01. **PR #22 merged after all 19 checks passed; Pages deployed and live assets were checked.**
 The user subsequently authorized commit, exact-head verification, CI and deployment after all gates pass.
 
 ## What was actually found
@@ -63,13 +63,13 @@ Final local verification (2026-09-30):
 - Review suite also passes context reconciliation (9 checks), score/missing semantics and cross-tab consistency (705 NBA, 564 G League, 30 teams, 221 dual-league identities). These counts measure coverage, not independent verification of real-world roster truth.
 - Generated-data comparison with the PR head found only 63 rounded rookie effective-peer metadata fields and one roughly 3e-14 change in Chicago modeled-demand metadata. No predicted player stat changed.
 - JavaScript syntax and diff whitespace checks passed. Frozen training inputs, model card and original archive are unchanged.
-- Final read-only GitHub recheck: all eight PR heads remain unchanged/open; issue discussion comments are empty, as were inline review comments.
-- No fresh full ingestion, no secure owner-trigger service, no new deployment and no claim of greater forecasting accuracy.
+- At the pre-release review, all eight prior PR heads were unchanged/open and their discussion and inline review comments were empty. PR #22 subsequently merged and deployed.
+- No fresh full ingestion or secure owner-trigger service was added; no greater forecasting accuracy is claimed.
 
-## Still not release-approved / follow-up
+## Follow-up after release
 
-- Candidate needs final CI on its own committed SHA and deliberate release verification. Old CI badges cannot approve modified local code.
-- Forecast capture/scoring follow-up safeguards are implemented locally (exclusive lock, fail-closed install, explicit write-time publication, verified manifest/hash reads, safe non-overwriting reports and report source hashes), with focused tests passing. They still need final whole-branch review, commit and exact-head CI; do not infer immutability alone authenticates the actual-results source.
+- PR #22 passed all 19 checks at its final code commit, merged, and deployed. The live site served byte-identical index, scripts and status files from the generated artifact commit.
+- Forecast capture/scoring safeguards (exclusive lock, fail-closed install, explicit write-time publication, verified manifest/hash reads, safe non-overwriting reports and report source hashes) are published and tested. Immutability alone does not authenticate an actual-results source.
 - Failed owner-run rollback is not an atomic transaction across all raw sources and does not protect against power loss/process termination.
 - The status schema retains legacy field names for compatibility. The UI now says snapshot prepared, but a future schema revision should distinguish build, publication and verified deployment explicitly.
 - Raw roster/projection provenance is not a verified live transaction feed. Rookie production, current contracts/injuries/news, scheduling and next-season ingestion remain unfinished.
@@ -78,7 +78,7 @@ Final local verification (2026-09-30):
 
 ## Resume boundary
 
-First read the checklist and handoff and inspect actual git/PR state. The clean local candidate gate passed all 34 stages at `492e943` (85/85 browser tests, 10/10 material changes explained, clean artifacts). Next: inspect PR #22 current-head CI, fix genuine failures, and deploy only if green. Never apply both competing archive/allocator drafts wholesale.
+First read the checklist and handoff and inspect actual production state. PR #22 is released. Continue only with the partial model/data standards in the checklist, and do not apply either older source patch or both competing archive/allocator drafts wholesale.
 
 ## Portable review patch
 

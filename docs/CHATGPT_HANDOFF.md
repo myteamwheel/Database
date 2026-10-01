@@ -1,6 +1,6 @@
 # Website handoff — read this before continuing
 
-Updated 2026-09-30. **Corrections committed and pushed in PR #22. Clean exact-head candidate verification passed; CI and deployment are pending.**
+Updated 2026-10-01. **PR #22 merged; all 19 PR checks passed; Pages deployed and live assets were verified.**
 
 ## Latest release checkpoint (supersedes historical local-only notes)
 
@@ -8,9 +8,9 @@ Updated 2026-09-30. **Corrections committed and pushed in PR #22. Clean exact-he
 - Remote branch: `codex/reviewed-release-20260930`; local branch: `review/chatgpt-20260929`.
 - Implementation commit `8b84c5604c98f35f021a3991d902716c47784c44`; synchronized artifact/CI commit `492e94393697c80ad84ad79b991f0024d9ba9aa6`.
 - At `492e943`, `npm run verify:candidate -- --archive-base-ref 869ab3c97aae898872c6eca469bcc89f70b14cb1 --require-clean-generated` passed all 34 stages, 85/85 browser tests, zero skipped stages, no generated/unexpected working-tree changes, and 10/10 explained material player changes. Report finished 2026-09-30T21:19:03Z.
-- CI for PR #22 is pending. Do not merge until current-head checks pass; inspect any newer commits before continuing. Production has not been changed by this checkpoint.
+- PR #22 passed all 19 checks at `db2e518` and merged as `2f28d555`. Artifact rebuild `1f5c06f9` passed and [deployed through Pages](https://github.com/myteamwheel/Database/actions/runs/36801784697). Live index, scripts and status matched the committed payload byte for byte; Player Comps, Projections and TULIP Team Allocation opened without console errors. Production later advanced to `c4821b7` through workflow and evidence-only commits; website bytes were unchanged.
 - Twenty-one grouped corrections are recorded in the review ledger. The original 18 feature standards remain honestly partial where data/model work is missing.
-- Old transfer ZIPs/source patches are historical, not the current release state. Prefer these documents on the PR branch and inspect actual GitHub history before applying anything.
+- Old transfer ZIPs/source patches are historical. Continue from the production branch and inspect actual GitHub history before applying anything.
 
 ## Current instruction / stop boundary
 
@@ -20,7 +20,7 @@ The user reviewed the checkpoint and authorized the release path. Finish release
 
 - Repository: https://github.com/myteamwheel/Database
 - Live site: https://myteamwheel.github.io/Database/index.html
-- Production/default branch: `v3-official-data`, fetched tip `14723f5` (documentation added after previously verified app release `e718284`).
+- Production/default branch: `v3-official-data`, verified tip `c4821b7` after the release and starter evidence update.
 - Main checkout: `/Users/bretttulip/Documents/Codex/2026-09-27/i-need-you-to-go-through/work/Database`.
 - Review checkout: `/Users/bretttulip/Documents/Codex/2026-09-27/i-need-you-to-go-through/work/Database-review`, branch `review/chatgpt-20260929`, based on PR #21 head `869ab3c`.
 - Master checklist: `docs/MODEL_REBUILD_CHECKLIST.md` in the review checkout (rewritten with all 18 standards and honest partial statuses).
@@ -28,7 +28,7 @@ The user reviewed the checkpoint and authorized the release path. Finish release
 
 ## Review stack found on GitHub
 
-These PRs are **open**, stacked rather than merged. Exact-head CI success was checked for the six canonical PRs; that does not approve the new local corrections.
+The following PRs were stacked when reviewed; their commits were incorporated into merged PR #22. The older individual PR pages may still appear open but should not be merged again.
 
 | PR | Branch / head | Base | Scope |
 |---|---|---|---|
@@ -70,7 +70,7 @@ Before every work session, and after every completed section:
 
 ## This review’s progress
 
-The review checkout contains 21 grouped implementation corrections, regression tests, rebuilt artifacts, the corrected checklist and review report, committed and pushed in PR #22. Source caches were hydrated only for tests, and incidental tracked provenance was restored. Do not restart this review or reapply its patch without checking the working tree.
+The production branch contains 21 grouped implementation corrections, regression tests, rebuilt artifacts, the corrected checklist and review report from merged PR #22. Source caches were hydrated only for tests, and incidental tracked provenance was restored. Do not restart this review or reapply its patch.
 
 - [x] Located relevant regular-ChatGPT chats and all eight new PRs.
 - [x] Fetched branches and established actual stack order.
@@ -82,8 +82,8 @@ The review checkout contains 21 grouped implementation corrections, regression t
 - [x] Added six release-blocker corrections from an independent read-only review with regression tests.
 - [x] Ran one clean complete `npm run verify`, including all 85 browser cases.
 - [x] Commit/push the accumulated candidate and pass the 34-stage exact-head local gate at `492e943`.
-- [ ] Obtain passing current-head CI evidence for PR #22.
-- [ ] Publish and spot-check the live site.
+- [x] All 19 PR #22 checks passed at `db2e518`.
+- [x] Pages deployed website payload `1f5c06f9`; live navigation and asset hashes were spot-checked.
 
 ## Current verification/recovery details
 
@@ -92,11 +92,9 @@ The review checkout contains 21 grouped implementation corrections, regression t
 - Full clean browser run: 85/85 passed as part of `npm run verify` on the corrected local candidate.
 - Broad Node suites passed across `/tmp/review-node-full.log` and `/tmp/review-node-resumed.log` after restoring the immutable history cache. Restored the incidental tracked provenance change from hydration. No raw live ingestion was performed.
 - Generated projection changes are metadata precision only: 63 rounded rookie effective-peer fields and one roughly 3e-14 modeled-demand difference. Predicted player stats, immutable archive, training inputs and model card were not changed.
-- Archive writer concurrency, existing-archive validation, verified scoring inputs, realpath confinement, scoreable-row completeness and material missingness transitions now have passing regression coverage. Do not mark #17's whole completion standard checked until exact-head CI and release integration pass.
-- The implementation is available remotely on PR #22. Regular ChatGPT must inspect that branch and its actual CI/merge state; old attachments are not authoritative.
+- Archive writer concurrency, existing-archive validation, verified scoring inputs, realpath confinement, scoreable-row completeness and material missingness transitions have passing regression, PR and release evidence. This establishes the archive infrastructure; future prediction accuracy still awaits outcomes.
+- The implementation is on production. Regular ChatGPT must inspect the current branch and its actual CI/deployment state; old attachments are not authoritative.
 
-## Transfer package
+## Continuation
 
-Upload `CHATGPT_REVIEW_HANDOFF.zip` from this task directory to regular ChatGPT. It includes this handoff, the full 18-item checklist, the review ledger, and `REVIEW_SOURCE.patch`. The source patch targets PR #21 head `869ab3c97aae898872c6eca469bcc89f70b14cb1` and excludes regenerated public artifacts. Those must be rebuilt after an authorized application. This review checkout already contains the patch; do not apply it again here.
-
-If the chat cannot inspect GitHub or apply patches, it must label suggestions NOT APPLIED and return a precise patch/change ledger. It cannot truthfully promise autonomous continuation or deployment without those capabilities. The next Codex session must inspect this local checkout and current GitHub heads before acting.
+Use the production branch and the authoritative checklist. Older transfer ZIPs and source patches predate the release and must not be applied again. If another chat cannot inspect GitHub or apply patches, it must label suggestions NOT APPLIED and return a precise change ledger.
