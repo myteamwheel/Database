@@ -16,17 +16,7 @@ on:
   push:
     branches: [main, v3-official-data]
     paths:
-      - 'index.html'
-      - 'history-lab.html'
-      - 'history-lab.js'
-      - 'app.js'
-      - 'workspace.js'
-      - 'styles.css'
       - 'public/**'
-      - 'scripts/**'
-      - '!scripts/data/forecast-archive/**'
-      - 'tests/**'
-      - 'PROJECTION_2026_27.json'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 

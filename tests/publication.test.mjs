@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { parseTransactions } from '../scripts/lib/transactions.mjs';
 import {
   COVERAGE_STATES,
   MODEL_OUTPUTS,
@@ -78,6 +79,16 @@ try {
   assert.equal(domains.rosterProjectionInputs.status, 'ok');
   assert.equal(domains.rosterProjectionInputs.fetchedAt, '2026-09-26T04:28:41.551Z');
   fs.mkdirSync(path.join(root, 'scripts/data/live'), { recursive:true });
+  const transactionSnapshot = parseTransactions({NBA_Player_Movement:{rows:Array.from({length:1000},(_,i)=>({
+    PLAYER_ID:i+1,TEAM_ID:1610612752,Transaction_Type:'Signing',TRANSACTION_DATE:'2026-09-30T00:00:00',TRANSACTION_DESCRIPTION:'Official signing fixture',
+  }))}},{fetchedAt:'2026-10-01T12:00:00Z'});
+  const transactionFile = path.join(root,'scripts/data/live/transactions.json');
+  fs.writeFileSync(transactionFile,JSON.stringify(transactionSnapshot));
+  assert.throws(()=>deriveSourceDomains({root,publicData}),/transaction context is stale/);
+  const transactionPublicData={...publicData,transactionMeta:{sourceRawSha256:transactionSnapshot.rawSha256,fetchedAt:transactionSnapshot.fetchedAt}};
+  assert.equal(deriveSourceDomains({root,publicData:transactionPublicData}).transactions.status,'tracked-snapshot');
+  assert.throws(()=>deriveSourceDomains({root,publicData:{...transactionPublicData,transactionMeta:{...transactionPublicData.transactionMeta,fetchedAt:'2026-09-01'}}}),/stale/);
+  fs.rmSync(transactionFile);
   fs.writeFileSync(path.join(root, 'scripts/data/live/roster.json'), JSON.stringify({
     source:'stats.nba.com/stats/playerindex', season:'2026-27', fetchedAt:'2026-09-30T12:00:00Z',
   }));

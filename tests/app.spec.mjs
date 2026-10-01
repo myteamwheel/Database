@@ -39,7 +39,8 @@ test.describe('published data reload + source status', () => {
     }));
     expect(state.publicationId).toBeTruthy();
     expect(state.stats).toBeTruthy();
-    expect(state.tx).toBe('not-configured');
+    const transactionFile = path.join(ROOT, 'scripts/data/live/transactions.json');
+    expect(state.tx).toBe(fs.existsSync(transactionFile) ? 'tracked-snapshot' : 'not-configured');
     expect(state.injuries).toBe('not-configured');
     expect(state.news).toBe('not-configured');
     await page.click('#dataStatusBtn');
