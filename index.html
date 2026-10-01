@@ -6,7 +6,7 @@
   <meta name="description" content="2025-26 NBA and NBA G League player stats, rankings and 2026-27 projections" />
   <title>Pro Basketball Database: 2025-26 Player Stats and 2026-27 Projections</title>
   <!-- Versioned URLs make a Pages deploy immediately pick up the matching UI assets. -->
-  <link rel="stylesheet" href="styles.css?v=20260928-roster-scope" />
+  <link rel="stylesheet" href="styles.css?v=20261001-projection-presentation" />
 </head>
 <body>
   <header class="site-header">
@@ -42,10 +42,10 @@
     <nav class="mode-nav" id="modeNav" aria-label="Analysis tools"></nav>
 
     <section class="db-only proj-note" id="projNote" hidden>
-      <p><b>Projected per-game stats for the 2026-27 regular season.</b> Each line blends a player's last
-      three seasons, adjusts for age, development, minutes and games, and <span id="projScope">uses his 2026-27 team's roster
-      and pace</span>. Rosters as of <span id="projRosterDate">September 2026</span>.
+      <p><b>Projected per-game stats for the 2026-27 regular season, conditional on playing.</b> Veteran estimates blend up to three seasons; rookies and players returning after a gap use labeled fallbacks. The model adjusts for age, minutes and availability, and <span id="projScope">uses his 2026-27 team's roster
+      and pace</span>. <span id="projRosterContext">NBA roster snapshot: <span id="projRosterDate">September 2026</span>.</span>
       <button class="text-button" id="projMethodBtn" type="button">How the projections work</button></p>
+      <p class="tiny">GP is expected season games, not games per appearance. Estimates and CSV use the same precision; blank estimates are not zero. Open a player for expandable reference ranges and assumptions.</p>
     </section>
 
     <section class="db-only control-panel" aria-label="Filters">
@@ -194,7 +194,7 @@
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js?v=20260929-refresh-status"></script>
-  <script src="workspace.js?v=20260928-roster-scope"></script>
+  <script src="app.js?v=20261001-projection-presentation"></script>
+  <script src="workspace.js?v=20261001-projection-presentation"></script>
 </body>
 </html>
