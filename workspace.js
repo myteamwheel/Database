@@ -88,6 +88,9 @@
   /* ------------------------------------------------- shared UI fragments */
   // An old season team is history, not a current roster claim. Never fall back to it here.
   const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.team || '—');
+  const teamContext = (p) => p?.league === 'NBA'
+    ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster')
+    : `${window.DATA?.season || '2025-26'} G League team: ${p?.team || '—'}`;
   const rosterLabel = (p) => p?.currentRoster && !p.appeared
     ? `${teamOf(p)} · current roster, no 2025-26 NBA stats`
     : teamOf(p);
@@ -278,7 +281,8 @@
     <div class="ws-head">
       <div>${playerPicker('wsPlayerSel', p.playerId, 'Player')}</div>
       <div class="ws-title"><h2>${esc(p.name)}</h2>
-        <p class="tiny">${esc(p.leagueLabel)} · ${esc(teamOf(p))} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')} · ${p.gp} games · ${num(p.mpg)} mpg</p></div>
+        <p class="tiny">${esc(p.leagueLabel)} · ${esc(teamContext(p))} · ${esc(p.position || '—')} · ${p.ageOpeningNight ?? p.age ?? '—'} yrs · ${esc(p.height || '—')}</p>
+        <p class="tiny">${esc(window.DATA?.season || '2025-26')} actuals: ${p.gp} games · ${num(p.mpg)} mpg</p></div>
     </div>
 
     <div class="ws-grid">
@@ -529,7 +533,7 @@
     return `<h2>Compare — 2025–26 actuals</h2>
       ${cross ? '<p class="tiny"><b>Cross-league comparison.</b> Each league is graded against its own population, so grades are not on a shared scale.</p>' : ''}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>
-        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamOf(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
+        ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamContext(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
         <tbody>${metrics.filter((k) => ps.some((p) => fin(valueOf(p, k)))).map((k) => {
           const b = best(k);
           return `<tr><td class="left">${esc(window.__wsLabel(k))}</td>${ps.map((p) => {
@@ -591,7 +595,10 @@
       : '<span class="tiny">No Database filters are active.</span>';
     $('scClearFilters').disabled = activeFilters.length === 0;
     $('scData').innerHTML = `<table><thead><tr><th>Player</th><th>${esc(window.__wsLabel(state.scatterX))}</th><th>${esc(window.__wsLabel(state.scatterY))}</th></tr></thead><tbody>${pts.map(q=>`<tr><td>${esc(q.p.name)}</td><td>${window.__wsFmt(q.x,state.scatterX)}</td><td>${window.__wsFmt(q.y,state.scatterY)}</td></tr>`).join('')}</tbody></table>`;
-    if (pts.length < 2) { $('scStats').textContent = 'Not enough data for these axes.'; return; }
+    if (pts.length < 2) {
+      $('scStats').textContent = `n = ${pts.length} · At least two measured players are needed for this chart. ${list.length - pts.length} missing-coordinate rows excluded.`;
+      return;
+    }
 
     const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
     const mean = (a) => a.reduce((m, v) => m + v, 0) / a.length;
@@ -889,7 +896,7 @@
       ${fin(set.targetMinutes) && set.targetMinutes < 300 ? '<p class="comp-outlier-note">Small sample: fewer than 300 minutes. Treat the blend as provisional; a few games can substantially change these rates.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
-          <p>${esc(teamOf(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
+          <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
         <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
@@ -940,7 +947,7 @@
     const fitTable = (list) => `<div class="table-wrap"><table class="compare-table"><thead><tr>
       <th class="left">Player</th><th>Grade</th><th>Fit</th><th class="left">Why</th></tr></thead><tbody>${list.map(fitRow).join('')}</tbody></table></div>`;
     const topFits = (t.topFits || []).slice(0, 10);
-    const remainingFits = (t.topFits || []).slice(10, 30);
+    const remainingFits = (t.topFits || []).slice(10);
     return `<h2>Team fit — ${esc(t.team)}</h2>
       <div class="ws-controls"><label>Team<select id="tfTeam">
         ${names.map((n) => `<option value="${esc(n)}"${n === t.team ? ' selected' : ''}>${esc(n)}</option>`).join('')}
@@ -950,8 +957,8 @@
         ${needs.map(([, v]) => bar(v.label, v.need)).join('')}</section>
       <details class="ws-disclosure"><summary>Roster strengths <span class="tiny">minutes-weighted percentile</span></summary><div class="ws-disclosure-body">
         ${needs.slice().reverse().map(([, v]) => bar(v.label, v.strength)).join('')}</div></details>
-      <h3>All-player fit results</h3>
-      <p class="tiny">Fit is <b>not</b> player quality or an acquisition recommendation. This is an all-player ranking: current or prior team members are retained and clearly tagged. A dash in “Why” means no individual strength crossed the display threshold; the score still uses every measured need.</p>
+      <h3>Top ${(t.topFits || []).length} measured fit results</h3>
+      <p class="tiny">Fit is <b>not</b> player quality or an acquisition recommendation. These are the highest-ranked measured profiles from the league-wide search, not a list of every player. Current or prior team members are retained and clearly tagged. A dash in “Why” means no individual strength crossed the display threshold; the score still uses every measured need.</p>
       ${fitTable(topFits)}
       ${remainingFits.length ? `<details class="ws-disclosure"><summary>Show ${remainingFits.length} more fit results</summary><div class="ws-disclosure-body">${fitTable(remainingFits)}</div></details>` : ''}`;
   }
@@ -973,6 +980,17 @@
     if (!p) return '<p class="loading">No Role Value data for this league.</p>';
     state.tulipPlayer = p.playerId;
     const t = p.tulip;
+    if (!t?.card) {
+      return `<section class="role-unavailable">
+        <div class="ws-head"><div>${playerPicker('tuPlayer', p.playerId, 'Candidate')}</div>
+          <div class="ws-title"><h2>${esc(p.name)}</h2><p class="tiny">${esc(p.leagueLabel)} · ${esc(teamContext(p))} · ${esc(p.position || '—')}</p></div></div>
+        <div class="ws-card wide"><div class="eyebrow">ROLE VALUE UNAVAILABLE</div>
+          <h3>No Role Value estimate</h3>
+          <p>The published dataset has no Role Value estimate for this player. This is unavailable—not a zero score or a recommendation to play fewer minutes.</p>
+          <p class="tiny">Current roster membership and a statistical projection do not establish enough role-change evidence. Select another player to explore an available estimate.</p>
+        </div>
+      </section>`;
+    }
     const target = state.tulipTarget ?? t.defaultTarget;
     const card = t.card;
     const isDefault = Math.abs(target - card.targetMpg) < 0.001;
@@ -991,7 +1009,7 @@
           <select id="tuTarget">${scenarios.map((f) =>
             `<option value="${f.mpg}"${f.mpg === target ? ' selected' : ''}>${f.mpg} MPG${f.abstain ? ' — no evidence' : ''}</option>`).join('')}</select>
         </label>
-        <div class="ws-card"><div class="k">Current role</div><div class="v">${num(p.mpg)}<span class="tiny"> mpg · ${p.gp} g</span></div></div>
+        <div class="ws-card"><div class="k">${esc(window.DATA?.season || '2025-26')} baseline role</div><div class="v">${num(p.mpg)}<span class="tiny"> mpg · ${p.gp} g</span></div></div>
         <div class="ws-card"><div class="k">Change</div><div class="v">${target > p.mpg ? '+' : ''}${num(target - p.mpg)}<span class="tiny"> mpg</span></div></div>
       </div>`;
 
