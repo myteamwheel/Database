@@ -67,6 +67,23 @@ async function open(page) {
 }
 
 test.describe('2026-27 projections', () => {
+  test('rookie ages explain cohort matching rather than claim veteran aging effects',async({page})=>{
+    const errors=await open(page);
+    const rookies=source.leagues.NBA.filter(p=>p.proj?.basis==='rookie-cohort-fallback');
+    const known=rookies.find(p=>p.proj.age!==null),unknown=rookies.find(p=>p.proj.age===null);
+    expect(known).toBeTruthy();expect(unknown).toBeTruthy();
+    for(const p of [known,unknown]){
+      await page.evaluate(id=>openPlayer(id),p.playerId);
+      const detail=page.locator('#playerDialogBody .proj-card .proj-why');
+      await detail.locator('summary').click();
+      await expect(detail).toContainText('Age for cohort matching');
+      await expect(detail).not.toContainText('from how players his age changed');
+      if(p===known){await expect(detail).toContainText(`${p.proj.age} on February 1, 2027`);await expect(detail).toContainText('not a separate aging or development boost');}
+      else await expect(detail).toContainText('age is omitted rather than guessed');
+      await page.keyboard.press('Escape');
+    }
+    expect(errors).toEqual([]);
+  });
   test('every returning veteran has a dated gap explanation and no invented latest-season minutes', async ({page}) => {
     const errors=await open(page);
     let checked=0;
