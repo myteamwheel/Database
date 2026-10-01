@@ -43,7 +43,7 @@ const priorPublishedPath = path.join(ROOT, 'public/data.json');
 let priorPublished = null;
 if (fs.existsSync(priorPublishedPath)) {
   try { priorPublished = JSON.parse(fs.readFileSync(priorPublishedPath, 'utf8')); }
-  catch { priorPublished = null; }
+  catch (error) { throw new Error('Published data cannot be read safely; refusing to discard frozen model outputs. Resolve the artifact before rebuilding.', { cause: error }); }
 }
 const priorCapacityById = new Map((priorPublished?.leagues?.NBA || [])
   .filter((r) => r?.tulipCapacity)
