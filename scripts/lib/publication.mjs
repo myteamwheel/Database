@@ -115,6 +115,7 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     ...common,
     modelCardSha256: fileSha256(root, 'PROJECTION_2026_27.json'),
     projectionInputsSha256: fileSha256(root, 'scripts/data/projection/inputs.json'),
+    birthdatesSha256: fileSha256(root, 'scripts/data/birthdates.json'),
     publishedInputsSha256: publicData?.projectionMeta?.inputsSha256 || null,
     rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
     rostersAsOf: publicData?.projectionMeta?.rostersAsOf || null,

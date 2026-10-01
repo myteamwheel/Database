@@ -2,8 +2,24 @@
 // versioned: its historical accuracy must not be attributed to these new rules.
 import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeatures, dot, MIN_FEATURES, GP_FEATURES, ageInSeason } from './projection.mjs';
 
-export const CONTEXT_VERSION = 'context-1';
+export const CONTEXT_VERSION = 'context-2-rookie-age';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** Explicit model convention, not today's age or a stale previous-season AGE field.
+ * Live historical peers use the same DOB/reference convention. The legacy retrospective
+ * evaluation has no archived preseason DOB input and still omits target age.
+ */
+export function rookieAgeAtReference(birthdate, season) {
+  if (typeof season !== 'string' || !/^\d{4}-\d{2}$/.test(season)) throw new Error('Invalid rookie forecast season');
+  const start = Number(season.slice(0, 4));
+  if (season.slice(5) !== String(start + 1).slice(-2)) throw new Error('Invalid rookie forecast season');
+  if (typeof birthdate !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T00:00:00(?:\.000)?Z?)?$/.test(birthdate)) return null;
+  const day = birthdate.slice(0, 10), d = new Date(day + 'T00:00:00Z');
+  if (!Number.isFinite(d.valueOf()) || d.toISOString().slice(0, 10) !== day) return null;
+  const referenceYear = start + 1;
+  const age = referenceYear - d.getUTCFullYear() - (d.getUTCMonth() > 1 || (d.getUTCMonth() === 1 && d.getUTCDate() > 1) ? 1 : 0);
+  return age >= 16 && age <= 60 ? age : null;
+}
 
 
 /** Decide how much of the 240-minute team budget may be allocated without inventing
@@ -152,7 +168,7 @@ export function evaluateMinuteReconciliation(rows, { budget = 240, totalOpeningT
  * outcomes enter the cohort. Drafted players with zero first-year minutes remain in the
  * opportunity sample when the index contains them; historical index omissions remain a bias.
  */
-export function rookieCohort(D, targetSeason) {
+export function rookieCohort(D, targetSeason, { birthdates = null } = {}) {
   const end = seasonStart(targetSeason), entries = [];
   const priors = new Map();
   for (const [season, map] of D.nba.seasons) if (seasonStart(season) < end) {
@@ -167,7 +183,8 @@ export function rookieCohort(D, targetSeason) {
     // Do not treat missing/undrafted index dates as a zero-minute rookie observation.
     if (!row && !(b.draftYear === y && b.draftNumber > 0)) continue;
     const games = D.nba.teamGames(season, row?.team);
-    entries.push({ pid, bio: b, season, row, age: row?.age ?? null,
+    entries.push({ pid, bio: b, season, row, age: birthdates === null ? row?.age ?? null
+      : rookieAgeAtReference(birthdates[String(pid)]?.birthdate, season),
       share: row ? clamp(row.gp / games, 0, 1) : 0,
       effectiveMpg: row ? row.min / games : 0,
       prior: priors.get(season).at(b.big), leaguePace: priors.get(season).pace });
@@ -220,7 +237,8 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
   }
   const evidence = { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
     draftPick: pick === 61 ? null : pick, position: bio.position, age,
-    peers: candidates.length, effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
+    peers: candidates.length, knownAgePeers: candidates.filter(x => Number.isFinite(x.age)).length,
+    effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
     seasons: [...new Set(candidates.map(x => x.season))].sort(),
     note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' };
   evidence.coverage = rookieInputCoverage(evidence);

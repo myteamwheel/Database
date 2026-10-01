@@ -14,7 +14,7 @@ import {
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
-import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
+import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, rookieAgeAtReference, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
 import { validateProjectionAccounting } from './lib/projection-validation.mjs';
 
@@ -34,7 +34,8 @@ export function projectionRoleLabel(mpg) {
  * Compute every player's projection into `data` (mutated in place) and return the counts.
  * Pure given its arguments, so the test suite can rebuild in memory and compare.
  */
-export function buildProjections(data, rawInputs, card, { roster = null } = {}) {
+export function buildProjections(data, rawInputs, card, { roster = null, birthdates = {} } = {}) {
+  if (!birthdates || typeof birthdates !== 'object' || Array.isArray(birthdates)) throw new Error('Projection birthdate cache must be an object');
   const inputsSha = crypto.createHash('sha256').update(rawInputs).digest('hex');
   if (card.builtFrom.sha256 !== inputsSha) {
     throw new Error(`inputs.json (${inputsSha.slice(0, 12)}) is not the file the card was fitted on (${card.builtFrom.sha256.slice(0, 12)}). Refit with scripts/fit-projections.mjs.`);
@@ -43,7 +44,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
   // A live roster is context, not a mutation of the frozen training dataset/card.
   if (roster) inputs.rosters2627 = roster;
   const D = prepare(inputs);
-  const rookies = rookieCohort(D, T);
+  const rookies = rookieCohort(D, T, { birthdates });
   const teamBudgets = {};
   // V8's libm can differ by a few ulps across macOS and Linux. Snap values that are only
   // machine-noise away from a half-step before rounding, so the committed artifact rebuilds
@@ -109,7 +110,15 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
       const team26 = isNba ? D.rosters2627.get(pid) || null : null;
       const rookie = isNba && team26 && !hist.some(Boolean)
         && (bio?.fromYear >= 2026 || bio?.draftYear === 2026)
-        ? rookieProjection(bio, Number.isFinite(p.age) ? p.age : null, rookies, ctx.priors) : null;
+        ? rookieProjection(bio, rookieAgeAtReference(p.birthdate, T), rookies, ctx.priors) : null;
+      if (rookie) rookie.evidence.ageReference = {
+        date: `${Number(T.slice(0, 4)) + 1}-02-01`,
+        source: Number.isFinite(rookie.pr.age) ? 'published-official-birthdate' : 'unavailable',
+        birthdate: Number.isFinite(rookie.pr.age) ? p.birthdate.slice(0, 10) : null,
+        historicalPeers: 'Known official birthdates use February 1 of each entry season; unknown peer ages omit the age-distance term.',
+      };
+      if (rookie) rookie.evidence.coverage.entryAge.source = Number.isFinite(rookie.pr.age)
+        ? 'Official birthdate; whole-year age at forecast-season February 1' : null;
       if (!hist.some(Boolean) && !rookie) {
         p.proj = { abstain: true, team: team26, reason: isNba
           ? 'No NBA minutes in 2023-24, 2024-25 or 2025-26 to project from.'
@@ -304,7 +313,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
     rookieEvaluation: evaluateRookieFallback(D, LAST),
     rookieInputCoverage: nba.rookieCoverage,
     contextReconciliation: bt.nba.contextReconciliation || null,
-    contextValidation: 'Accounting and sensitivity tested; legacy veteran backtest below does not validate the context-1 changes. Rookie check has retrospective-index limitations.',
+    contextValidation: `Accounting and sensitivity tested; legacy veteran backtest below does not validate ${CONTEXT_VERSION}. Rookie retrospective check omits target age without archived preseason bios and does not validate the live DOB-age correction.`,
     inputsSha256: inputsSha.slice(0, 16),
     counts: { nba, gleague },
     params: {
@@ -328,7 +337,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const livePath = path.join(ROOT, 'scripts/data/live/roster.json');
   const roster = fs.existsSync(livePath)
     ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(livePath, 'utf8'))) : null;
-  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster });
+  const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/data/birthdates.json'), 'utf8'));
+  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster, birthdates });
   fs.writeFileSync(DATA, JSON.stringify(data));
   console.log(`2026-27 projections: NBA ${nba.scored} projected (${nba.moved} on new teams, ${nba.unsigned} not on a roster), ${nba.abstained} without recent NBA minutes`);
   console.log(`  G League ${gleague.scored} projected, ${gleague.abstained} without recent G League minutes`);

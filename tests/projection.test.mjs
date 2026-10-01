@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
-import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
+import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage, rookieAgeAtReference, rookieCohort } from '../scripts/lib/projection-context.mjs';
 import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
 import { verifyLiveRosterSnapshot } from '../scripts/lib/live-roster.mjs';
 
@@ -14,6 +14,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
 const card = JSON.parse(fs.readFileSync(path.join(ROOT, 'PROJECTION_2026_27.json'), 'utf8'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
+const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/birthdates.json'),'utf8'));
 const liveRosterPath = path.join(ROOT, 'scripts/data/live/roster.json');
 const roster = fs.existsSync(liveRosterPath)
   ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(liveRosterPath, 'utf8'))) : null;
@@ -24,6 +25,29 @@ const check = (name, ok, detail = '') => {
   if (ok) { pass++; console.log(`  ok   ${name}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ' :: ' + detail : ''}`); }
 };
 
+check('rookie age uses forecast-season February 1, not current or previous-season age',
+  rookieAgeAtReference('2002-12-10T00:00:00','2026-27') === 24
+  && rookieAgeAtReference('2003-02-01','2026-27') === 24
+  && rookieAgeAtReference('2003-02-02','2026-27') === 23
+  && rookieAgeAtReference('2004-02-29T00:00:00.000Z','2026-27') === 22
+  && rookieAgeAtReference('2002-12-10','2025-26') === 23);
+check('rookie age rejects missing, malformed, impossible and implausible birthdates',
+  [null,undefined,'',true,{},'2003-02-29','2001-13-01','2020-01-01','1900-01-01','2000-01-01T12:00:00Z'].every(x => rookieAgeAtReference(x,'2026-27') === null));
+let invalidSeasonRejected=false;
+try { rookieAgeAtReference('2000-01-01','2026-28'); } catch { invalidSeasonRejected=true; }
+check('rookie age rejects inconsistent season identifiers',invalidSeasonRejected);
+const peerCohort=rookieCohort(prepare(JSON.parse(rawInputs)), '2026-27', {birthdates});
+let checkedPeerAges=0;
+check('all historical rookie peers use the same independently reconstructed DOB reference',
+  peerCohort.every(peer=>{
+    const dob=birthdates[String(peer.pid)]?.birthdate;
+    if (!dob) return peer.age===null;
+    const [year,month,day]=dob.slice(0,10).split('-').map(Number);
+    const age=Number(peer.season.slice(0,4))+1-year-(month>2 || (month===2 && day>1) ? 1 : 0);
+    checkedPeerAges++;
+    return peer.age===(age>=16&&age<=60 ? age : null);
+  }) && checkedPeerAges>500,`${checkedPeerAges} known peer ages`);
+
 // 1. The card was fitted on exactly the committed inputs.
 check('card matches the committed inputs file',
   card.builtFrom.sha256 === crypto.createHash('sha256').update(rawInputs).digest('hex'));
@@ -31,7 +55,9 @@ check('card matches the committed inputs file',
 // 2. Rebuilding from inputs + card reproduces every committed projection, value for value.
 {
   const copy = JSON.parse(JSON.stringify(data));
-  buildProjections(copy, rawInputs, card, { roster });
+  // Poison unanchored source AGE fields: neither known nor unknown rookie age may use them.
+  for (const p of copy.leagues.NBA) if (p.proj?.basis === 'rookie-cohort-fallback') p.age=99;
+  buildProjections(copy, rawInputs, card, { roster, birthdates });
   rebuiltData = copy;
   let diff = 0, first = '';
   const examples = [];
@@ -237,6 +263,23 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       && summary.currentInjuryClearance.available === 0);
 
   const rookies = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'rookie-cohort-fallback');
+  // Independent calendar oracle: derive from raw published DOB components, never the
+  // production age helper or stale player AGE. Non-vacuous known/unknown populations.
+  const known = rookies.filter(p => typeof p.birthdate === 'string');
+  const unknown = rookies.filter(p => !p.birthdate);
+  check('all known rookie birthdates enter cohort matching at the stated reference date',
+    known.length > 0 && known.every(p => {
+      const [year,month,day]=p.birthdate.slice(0,10).split('-').map(Number);
+      const expected=2027-year-(month>2 || (month===2 && day>1) ? 1 : 0);
+      return p.proj.age===expected && p.proj.why.rookie.age===expected
+        && p.proj.why.rookie.coverage.entryAge.available===true
+        && p.proj.why.rookie.ageReference.date==='2027-02-01'
+        && p.proj.why.rookie.ageReference.birthdate===p.birthdate.slice(0,10);
+    }),`${known.length} known birthdates`);
+  check('unknown rookie ages remain unavailable rather than copied from an unrelated AGE field',
+    unknown.length > 0 && unknown.every(p => p.proj.age===null
+      && p.proj.why.rookie.coverage.entryAge.available===false
+      && p.proj.why.rookie.ageReference.source==='unavailable'),`${unknown.length} unknown birthdates`);
   check('published rookie fallbacks carry the machine-readable coverage block',
     rookies.length > 0 && rookies.every((p) => p.proj.why?.rookie?.coverage
       && p.proj.why.rookie.coverage.preNbaProduction.available === false
