@@ -178,7 +178,7 @@ function rehydrate(d) {
 }
 
 /** 2026-27 roster situation, as shown in the Status column. */
-const PROJ_STATUS = { same: 'Returning', new: 'New team', unsigned: 'No NBA roster', 'nba-roster': 'On NBA roster', gleague: 'G League' };
+const PROJ_STATUS = { same: 'Returning', new: 'New team', rookie: 'Rookie estimate', historical: 'Historical fallback', unsigned: 'No NBA roster', 'nba-roster': 'On NBA roster', gleague: 'G League' };
 
 const get = (p, key) => {
   // Never render an old 2025-26 team as if it were the player's present NBA team. Historical
@@ -203,12 +203,13 @@ const get = (p, key) => {
     return c[key.slice(3)] ?? null;
   }
   if (key.startsWith('proj.')) {
-    // 2026-27 projection. A player with no recent minutes has no projection: null, never 0.
+    // Roster identity and observed points remain known even when the model declines a forecast.
     const c = p.proj;
-    if (!c || c.abstain === true) return null;
     const sub = key.slice(5);
-    if (sub === 'status') return PROJ_STATUS[c.status] ?? null;
+    if (sub === 'team') return p.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (c?.team ?? p.team ?? null);
+    if (sub === 'status') return !c || c.abstain ? 'No estimate' : (PROJ_STATUS[c.status] ?? null);
     if (sub === 'lastPts') return p.pts ?? null;
+    if (!c || c.abstain === true) return null;
     return c[sub] ?? null;
   }
   if (key.startsWith('tc.')) {
@@ -441,10 +442,10 @@ const BASE_COLS = {
   'tc.interval50High':{label:'Range high',type:'1',help:'Upper bound of the 50% likely range for Projected Role MPG, from the frozen V1 residual distribution. The range is about 8.7 MPG wide \u2014 individual predictions are not precise.'},
   'tc.evidence':{label:'Evidence',type:'int',help:'WHAT: the number of historical cross-team transitions with a similar Team A season MPG (within 3 MPG) behind this prediction. PLAIN: how much comparable history supports it. The letter grade shown in the player detail (A \u2265300, B \u2265150, C \u226560, D <60) is a CONVENIENCE LABEL FOR READABILITY, NOT A STATISTICAL GUARANTEE \u2014 the cutoffs were chosen for legibility and were not separately validated, which is why the raw count is the sortable value.'},
   // 2026-27 projection (PROJECTION_2026_27): per game, regular season, conditional on playing.
-  'proj.team':{label:'Team',type:'text',help:'WHAT: the team he is on for 2026-27. PLAIN: where he plays next season, from the NBA\u0027s published 2026-27 rosters on the date shown above the table. FORMULA: stats.nba.com 2026-27 player index. A player with no 2026-27 NBA team keeps his 2025-26 team here; G League rows show the 2025-26 G League team.'},
-  'proj.status':{label:'Status',type:'text',help:'WHAT: how his 2026-27 situation compares with 2025-26. PLAIN: Returning means the same team; New team means he changed teams in the offseason; No NBA team means he is not on a published 2026-27 roster yet and the line assumes he plays; On NBA roster marks a G League player who is on a 2026-27 NBA roster. FORMULA: 2026-27 roster team compared with his last 2025-26 team.'},
+  'proj.team':{label:'Team',type:'text',help:'WHAT: current NBA roster team in the dated official snapshot, or No NBA roster if unlisted. An unsigned forecast is conditional on signing, not a claim that he still plays for his old team. G League rows show the last observed G League team, not a verified next-season assignment.'},
+  'proj.status':{label:'Status',type:'text',help:'WHAT: roster situation and forecast basis. Returning / New team compare current NBA roster with last season. Rookie estimate uses historical rookie cohorts; Historical fallback uses older NBA seasons after a gap. No NBA roster is conditional on signing. On NBA roster marks a G League player with a current NBA affiliation, not an NBA forecast. No estimate means insufficient evidence, not zero production.'},
   'proj.age':{label:'Age',type:'int',help:'WHAT: his age during the 2026-27 season, on the NBA convention (age on February 1). PLAIN: age drives the aging adjustment in every projected stat.'},
-  'proj.gp':{label:'GP',type:'int',help:'WHAT: projected games played, out of 82 (50 in the G League). PLAIN: how available he is likely to be. FORMULA: a model fitted on every NBA player-season since 2012-13 from the share of games he played in each of the last three seasons, games after the All-Star break, age, minutes and a team change, times 82. Assumes he is on a roster all season.'},
+  'proj.gp':{label:'GP',type:'1',help:'WHAT: expected season games, out of 82 (50 in the G League). Fractional games express an expectation, not a partial game. FORMULA: historical appearance-rate estimate times the season length; rookie and older-history fallbacks use their labeled priors. Assumes roster availability; injury clearance is not verified.'},
   'proj.mpg':{label:'MIN',type:'1',help:'WHAT: projected minutes per game. PLAIN: the role he is likely to have. FORMULA: a model fitted on every NBA player-season since 2012-13 from minutes in each of the last three seasons, minutes after the All-Star break, start rate, age, draft slot and experience for young players, productivity per possession, a team change, and how many minutes his 2026-27 teammates played last season.'},
   'proj.pts':{label:'PTS',type:'1',help:'WHAT: the central estimate of points per game in 2026-27. FORMULA: points from projected makes and free throws, adjusted for playing time, pace, roster-minute context and historical availability.'},
   'proj.ptsLo':{label:'PTS low',type:'1',help:'Historical reference bound from the prior veteran model residuals. It has not been calibrated for the current roster-minute reconciliation or rookie fallback.'},
@@ -1237,7 +1238,7 @@ function filteredPlayers(){
         &&(!$('bothOnly').checked||p.bothLeagues);
     })
     // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
-    .map(p=>teamScoped(p,team,teamMode))
+    .map(p=>$('viewPreset').value==='proj'?p:teamScoped(p,team,teamMode))
     .filter(p=>{
       const gradeOk=p.grade===null?(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo):p.grade>=minGrade;
       return p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
@@ -1287,6 +1288,8 @@ function renderRules(){
 /** Title, breadcrumb and section highlight follow the league and the view. */
 function updatePageHead(){
   const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj', currentRosterView=isCurrentNbaRosterView();
+  // A season-stint selector cannot rescope a preseason full-season forecast.
+  if($('teamMode')) $('teamMode').disabled=isProj;
   $('pageTitle').textContent=isProj?`2026-27 ${lg} Projections`:currentRosterView?'2026-27 NBA Current Rosters':`2025-26 ${lg} Player Stats`;
   $('crumbs').textContent=isProj
     ? `${lg} › 2026-27 › Projections`
@@ -1295,10 +1298,11 @@ function updatePageHead(){
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',(b.dataset.goto==='proj')===isProj));
   $('projNote').hidden=!isProj;
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
+  if($('projRosterContext')) $('projRosterContext').hidden=league!=='NBA';
   const scope=$('projScope');
   if(scope) scope.textContent=league==='NBA'
     ? 'uses his 2026-27 team’s roster and pace'
-    : 'uses the player’s G League assignment and G League pace context, not an NBA-affiliate forecast';
+    : 'uses his last observed G League team and G League pace context, not a verified next-season assignment or an NBA forecast';
   $('seasonEyebrow').textContent=league==='NBA'?'Regular season':'Regular season and Showcase Cup combined';
 }
 
@@ -1346,7 +1350,7 @@ function render(){
     ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
     : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
-  $('sortLabel').textContent=`· ${isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
+  $('sortLabel').textContent=`· ${$('viewPreset').value==='proj'?'2026-27 projections':isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   hideStatTip(true);   // a re-render replaces the header the panel was anchored to
   $('tableHead').innerHTML=cols.map(key=>{
@@ -1638,22 +1642,24 @@ const pctChange = (x, d=1) => finite(x) ? `${x > 0 ? '+' : ''}${(x * 100).toFixe
 
 /** The player-card section: last season beside the projection, and how the projection was built. */
 function projCard(p){
+  // A dialog opened from historical stint stats still compares full-season forecast/actuals.
+  if(p.teamScopedTo) p=currentPlayers().find(x=>x.playerId===p.playerId)||p;
   const c=p.proj;
   if(!c) return '';
   if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
     <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
-  const row=(label,last,proj,d=1)=>`<tr><td class="left">${label}</td><td>${num(last,d)}</td><td><b>${num(proj,d)}</b></td></tr>`;
-  const prow=(label,last,proj)=>`<tr><td class="left">${label}</td><td>${pct(last)}</td><td><b>${pct(proj)}</b></td></tr>`;
-  const table=`<table class="compare-table"><thead><tr><th class="left">Per game</th><th>2025-26</th><th>2026-27 estimate</th></tr></thead><tbody>
-    ${row('Games',p.gp,c.gp,0)}${row('Minutes',p.mpg,c.mpg)}${row('Points',p.pts,c.pts)}
+  const row=(label,last,proj)=>`<tr><th scope="row" class="left">${label}</th><td>${num(last)}</td><td><b>${num(proj)}</b></td></tr>`;
+  const prow=(label,last,proj)=>`<tr><th scope="row" class="left">${label}</th><td>${pct(last)}</td><td><b>${pct(proj)}</b></td></tr>`;
+  const table=`<table class="compare-table proj-estimates"><caption>Per game when playing, except season games and shooting percentages. GP is an expected count and may be fractional.</caption><thead><tr><th scope="col" class="left">Metric</th><th scope="col">2025-26 actual</th><th scope="col">2026-27 estimate</th></tr></thead><tbody>
+    ${row('Games',p.gp,c.gp)}${row('Minutes',p.mpg,c.mpg)}${row('Points',p.pts,c.pts)}
     ${row('Rebounds',p.reb,c.reb)}${row('Assists',p.ast,c.ast)}${row('Steals',p.stl,c.stl)}
     ${row('Blocks',p.blk,c.blk)}${row('Threes made',p.fg3,c.fg3m)}${row('Turnovers',p.tov,c.tov)}
     ${prow('FG%',p.fgPct,c.fgPct)}${prow('3P%',p.fg3Pct,c.fg3Pct)}${prow('FT%',p.ftPct,c.ftPct)}${prow('TS%',p.ts,c.ts)}
   </tbody></table>`;
   const ranges=`<details class="proj-ranges"><summary>Show historical reference ranges</summary><p class="tiny">These ranges use residuals from the prior veteran model. The roster-minute and rookie additions have not been calibrated against those errors, so treat these as historical context rather than calibrated odds.</p>
-    <table class="compare-table"><thead><tr><th class="left">Per game</th><th>Low reference</th><th>Estimate</th><th>High reference</th></tr></thead><tbody>
-    ${[['Games',c.gpLo,c.gp,c.gpHi,0],['Minutes',c.mpgLo,c.mpg,c.mpgHi,1],['Points',c.ptsLo,c.pts,c.ptsHi,1],['Rebounds',c.rebLo,c.reb,c.rebHi,1],['Assists',c.astLo,c.ast,c.astHi,1]].map(([l,lo,v,hi,d])=>`<tr><td class="left">${l}</td><td>${num(lo,d)}</td><td><b>${num(v,d)}</b></td><td>${num(hi,d)}</td></tr>`).join('')}
+    <table class="compare-table"><thead><tr><th scope="col" class="left">Metric</th><th scope="col">Low reference</th><th scope="col">Estimate</th><th scope="col">High reference</th></tr></thead><tbody>
+    ${[['Games',c.gpLo,c.gp,c.gpHi],['Minutes',c.mpgLo,c.mpg,c.mpgHi],['Points',c.ptsLo,c.pts,c.ptsHi],['Rebounds',c.rebLo,c.reb,c.rebHi],['Assists',c.astLo,c.ast,c.astHi]].map(([l,lo,v,hi])=>`<tr><th scope="row" class="left">${l}</th><td>${num(lo)}</td><td><b>${num(v)}</b></td><td>${num(hi)}</td></tr>`).join('')}
     </tbody></table></details>`;
 
   const items=[];
@@ -1669,10 +1675,14 @@ function projCard(p){
     const m=w.minutes, eff=m.effects||{};
     const parts=[['age',eff.age],['a new team',eff.newTeam],[`teammates' minutes`,eff.depth],['draft slot and youth',eff.draftAndYouth]]
       .filter(([,v])=>finite(v)&&Math.abs(v)>=0.1).map(([k,v])=>`${k} ${signed(v)}`);
-    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role.':c.basis==='older-history-fallback'?'Older NBA minutes are discounted after a long gap; this is a low-support return estimate.':`${num(m.last)} in ${c.basis==='older-history-fallback'?'his last active season':'2025-26'}`;
-    items.push(`<b>Minutes.</b> ${evidenceLead}${finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)} per game he plays${finite(m.teamBudgetAdjustment)&&Math.abs(m.teamBudgetAdjustment)>=0.1?`; roster-minute allocation ${signed(m.teamBudgetAdjustment)} MPG`:''}.${parts.length?` Other model adjustments: ${parts.join(', ')}.`:''}`);
+    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role':c.basis==='older-history-fallback'?`Older NBA minutes from ${esc(w.fallback?.lastObservedSeason||'his last active season')} are discounted after a long gap; this is a low-support return estimate`:`${num(m.last)} MPG in 2025-26`;
+    const recent=c.basis==='multi-year-history';
+    items.push(`<b>Minutes.</b> ${evidenceLead}${recent&&finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${recent&&finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)} per game he plays${finite(m.teamBudgetAdjustment)&&Math.abs(m.teamBudgetAdjustment)>=0.1?`; roster-minute allocation ${signed(m.teamBudgetAdjustment)} MPG`:''}.${parts.length?` Other model adjustments: ${parts.join(', ')}.`:''}`);
   }
-  if(w.games) items.push(`<b>Games.</b> Played ${Math.round((w.games.lastShare||0)*100)}% of his team's games last season; projected ${Math.round((w.games.projectedShare||0)*100)}%, or about ${Math.round(c.gp)} of ${games}.`);
+  if(w.games){
+    const observed=c.basis==='rookie-cohort-fallback'?'No prior NBA appearance record; availability uses a historical rookie prior':finite(w.games.lastShare)?`Played ${Math.round(w.games.lastShare*100)}% of his team's games in ${c.basis==='older-history-fallback'?esc(w.fallback?.lastObservedSeason||'his last active season'):'2025-26'}`:'Prior appearance rate unavailable';
+    items.push(`<b>Games.</b> ${observed}. Expected season games: ${num(c.gp)} of ${games}. This is not a medical availability assessment.`);
+  }
   if(w.team&&p.league==='NBA'&&c.status!=='unsigned'){
     const bal=w.team.rosterBalance, u=w.team.usage;
     const balText=finite(bal)&&Math.abs(bal-1)>=0.005?` His 2026-27 teammates create ${Math.abs((bal-1)*100).toFixed(1)}% ${bal<1?'fewer':'more'} shots per possession than a typical rotation, so his shot volume goes ${u>=0?'up':'down'} ${Math.abs(u*100).toFixed(1)}%.`:'';
@@ -1684,6 +1694,7 @@ function projCard(p){
   const steps=[[baselineLabel,s.last],[blendLabel,s.blended],['after age',s.aged],['with team context',s.final]].filter(([,v])=>finite(v));
   const chain=steps.length?`<div class="proj-steps"><b>Points per 100 possessions:</b> ${steps.map(([k,v])=>`<span>${num(v)} <i>${k}</i></span>`).join(' → ')}</div>`:'';
   return `<div class="proj-card"><div class="section-bar">2026-27 projection · ${esc(c.role||'projected role')}</div>
+    <p class="proj-context tiny">${esc(get(p,'proj.team'))} · ${esc(get(p,'proj.status'))}${c.basis==='rookie-cohort-fallback'?' · provisional cohort estimate; no personal NBA history':c.basis==='older-history-fallback'?' · low-support estimate from older NBA history':c.status==='unsigned'?' · conditional on signing and playing':p.league==='GLEAGUE'?' · G League forecast; team is last observed affiliation':''}.</p>
     <div class="proj-body"><div>${table}${ranges}</div>
       <details class="proj-why"><summary>How this line was built</summary><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
       <p class="tiny">Availability uses historical appearance rates. Injury clearance and contract security are not verified here.
@@ -1781,7 +1792,7 @@ function openPlayer(id){
         <div class="detail-card"><div class="k">Games played</div><div class="v">0</div></div>
       </div>
       <p class="tiny">A grade of 0 would rank this player below everyone who did play, which is a
-      different and false claim, so no grade is assigned.</p>`;
+      different and false claim, so no grade is assigned.</p>${projCard(p)}`;
     $('playerDialog').showModal();
     return;
   }
@@ -2089,6 +2100,12 @@ async function exportCsv(){
   for(const p of list){
     const row=cols.map(k=>{
       const v=get(p,k);
+      // Projection exports match visible precision; keep ordinary raw-stat exports lossless.
+      if($('viewPreset').value==='proj'&&finite(v)){
+        const type=colDef(k).type, n=toDisplayUnit(k,Number(v));
+        if(type==='int') return q(Math.round(n));
+        if(['1','signed1','pct'].includes(type)) return q(n.toFixed(1));
+      }
       return q(finite(v)?toDisplayUnit(k,Number(v)):v);
     });
     // Every row states its own scope, so a stint line can never be mistaken for a season line.
@@ -2207,6 +2224,7 @@ window.__wsFiltered=()=>filteredPlayers();
 window.__wsCompared=()=>[...compared];
 window.__wsLabel=(k)=>colDef(k).label;
 window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
+window.__wsProjCard=projCard;
 
 window.addEventListener('popstate',()=>{
   if(!DATA) return;

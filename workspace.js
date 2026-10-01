@@ -252,6 +252,12 @@
   }
 
   /* ---------------------------------------------------------- PLAYER MODE */
+  function playerProjection(p) {
+    if (!p.proj || !window.__wsProjCard) return '';
+    const headline=p.proj.abstain ? 'No estimate' : `${num(p.proj.pts)} PTS · ${num(p.proj.reb)} REB · ${num(p.proj.ast)} AST per game`;
+    return `<details class="ws-disclosure ws-projection"><summary>2026-27 projection <span class="tiny">${esc(headline)}</span></summary><div class="ws-disclosure-body">${window.__wsProjCard(p)}</div></details>`;
+  }
+
   function viewPlayer() {
     const p = byId(state.player) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
@@ -287,6 +293,8 @@
       ${cr.position ? `<div class="ws-card"><div class="k">Among ${esc(p.positionFamily)}</div><div class="v">#${cr.position.rank}</div><p class="tiny">of ${cr.position.of}</p></div>` : ''}
       ${cr.team ? `<div class="ws-card"><div class="k">2025-26 ${esc(p.seasonTeam || p.team)}</div><div class="v">#${cr.team.rank}</div><p class="tiny">of ${cr.team.of}</p></div>` : ''}
     </div>
+
+    ${playerProjection(p)}
 
     ${disclosure('Grade components and full skill profile', `<div class="ws-cols">
       <section><h3>Grade components</h3>
@@ -342,7 +350,6 @@
 
   /** A roster listing is useful, but it must never masquerade as a performance profile. */
   function viewCurrentRosterOnlyPlayer(p) {
-    const proj = p.proj && p.proj.abstain !== true ? p.proj : null;
     return `
       <div class="ws-head">
         <div>${playerPicker('wsPlayerSel', p.playerId, 'Player')}</div>
@@ -358,9 +365,8 @@
         <div class="ws-card"><div class="k">Current roster</div><div class="v">${esc(teamOf(p))}</div><p class="tiny">published current roster snapshot</p></div>
         <div class="ws-card"><div class="k">2025-26 NBA line</div><div class="v">—</div><p class="tiny">no NBA appearance; not missing a stat row</p></div>
         <div class="ws-card"><div class="k">Historical player comps</div><div class="v">N/A</div><p class="tiny">requires a usable 2025-26 NBA sample</p></div>
-        ${proj ? `<div class="ws-card"><div class="k">2026-27 projected PTS</div><div class="v">${num(proj.pts)}</div><p class="tiny">${num(proj.gp)} projected games · ${num(proj.mpg)} projected MPG</p></div>` : ''}
       </div>
-      ${proj ? `<p class="tiny">The projection is a model output, not an announced role or a guarantee. It is shown separately from the unavailable 2025-26 performance profile.</p>` : ''}`;
+      ${playerProjection(p)}`;
   }
 
   function historyBlock(p) {
