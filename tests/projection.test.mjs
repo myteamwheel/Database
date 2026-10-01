@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
-import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage, rookieAgeAtReference } from '../scripts/lib/projection-context.mjs';
+import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage, rookieAgeAtReference, rookieCohort } from '../scripts/lib/projection-context.mjs';
 import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
 import { verifyLiveRosterSnapshot } from '../scripts/lib/live-roster.mjs';
 
@@ -14,6 +14,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
 const card = JSON.parse(fs.readFileSync(path.join(ROOT, 'PROJECTION_2026_27.json'), 'utf8'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
+const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/birthdates.json'),'utf8'));
 const liveRosterPath = path.join(ROOT, 'scripts/data/live/roster.json');
 const roster = fs.existsSync(liveRosterPath)
   ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(liveRosterPath, 'utf8'))) : null;
@@ -35,6 +36,17 @@ check('rookie age rejects missing, malformed, impossible and implausible birthda
 let invalidSeasonRejected=false;
 try { rookieAgeAtReference('2000-01-01','2026-28'); } catch { invalidSeasonRejected=true; }
 check('rookie age rejects inconsistent season identifiers',invalidSeasonRejected);
+const peerCohort=rookieCohort(prepare(JSON.parse(rawInputs)), '2026-27', {birthdates});
+let checkedPeerAges=0;
+check('all historical rookie peers use the same independently reconstructed DOB reference',
+  peerCohort.every(peer=>{
+    const dob=birthdates[String(peer.pid)]?.birthdate;
+    if (!dob) return peer.age===null;
+    const [year,month,day]=dob.slice(0,10).split('-').map(Number);
+    const age=Number(peer.season.slice(0,4))+1-year-(month>2 || (month===2 && day>1) ? 1 : 0);
+    checkedPeerAges++;
+    return peer.age===(age>=16&&age<=60 ? age : null);
+  }) && checkedPeerAges>500,`${checkedPeerAges} known peer ages`);
 
 // 1. The card was fitted on exactly the committed inputs.
 check('card matches the committed inputs file',
@@ -45,7 +57,7 @@ check('card matches the committed inputs file',
   const copy = JSON.parse(JSON.stringify(data));
   // Poison unanchored source AGE fields: neither known nor unknown rookie age may use them.
   for (const p of copy.leagues.NBA) if (p.proj?.basis === 'rookie-cohort-fallback') p.age=99;
-  buildProjections(copy, rawInputs, card, { roster });
+  buildProjections(copy, rawInputs, card, { roster, birthdates });
   rebuiltData = copy;
   let diff = 0, first = '';
   const examples = [];
