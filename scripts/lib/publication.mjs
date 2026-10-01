@@ -3,9 +3,11 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { deriveEvidenceClaims, validateEvidenceClaims } from './evidence-claims.mjs';
 import { verifyTransactionSnapshot } from './transactions.mjs';
+import {modelDependencyClosure} from './model-dependencies.mjs';
 export { deriveEvidenceClaims, validateEvidenceClaims } from './evidence-claims.mjs';
 
 export const COVERAGE_STATES = Object.freeze(['complete','partial','fallback','unavailable']);
+export const DEPENDENCY_AUDIT_FILES = Object.freeze(['scripts/lib/model-dependencies.mjs','scripts/model-code-dependencies.mjs']);
 const COVERAGE_SET = new Set(COVERAGE_STATES);
 
 export const MODEL_OUTPUTS = Object.freeze({
@@ -123,6 +125,11 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     rostersAsOf: publicData?.tulipBetaMeta?.rostersAsOf || publicData?.projectionMeta?.rostersAsOf || null,
     rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
   };
+  if (key === 'teamFit') return {
+    ...common,
+    rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
+    rostersAsOf: publicData?.projectionMeta?.rostersAsOf || null,
+  };
   if (key === 'projectedRoleMpg') return {
     ...common,
     cardSha256: publicData?.tulipCapacityMeta?.cardSha256 || null,
@@ -141,9 +148,10 @@ export function deriveModelProvenance({ root, publicData }) {
   if (!root || !publicData) throw new Error('Model provenance requires the repository root and public data.');
   const sourceManifestSha256 = sourceManifestVersion(publicData);
   const outputs = {};
+  const closures=modelDependencyClosure(root,Object.fromEntries(MODEL_KEYS.map(key=>[key,MODEL_OUTPUTS[key].codeFiles])));
   for (const key of MODEL_KEYS) {
     const spec = MODEL_OUTPUTS[key];
-    const codeFiles = spec.codeFiles.map((relativePath) => ({ path:relativePath, sha256:fileSha256(root, relativePath) }));
+    const codeFiles = closures[key].map((relativePath) => ({ path:relativePath, sha256:fileSha256(root, relativePath) }));
     const codeVersionSha256 = hash(Buffer.from(JSON.stringify(codeFiles.map((x) => [x.path,x.sha256]))));
     const semanticVersion = semanticModelVersion(key, publicData);
     outputs[key] = {
@@ -152,6 +160,7 @@ export function deriveModelProvenance({ root, publicData }) {
       semanticVersion,
       codeVersionSha256,
       codeFiles,
+      dependencyPolicy:'transitive-static-esm-v1',
       inputVersion: inputVersionFor(key, publicData, root, sourceManifestSha256),
       source: spec.source,
     };
@@ -160,12 +169,15 @@ export function deriveModelProvenance({ root, publicData }) {
     schemaVersion: 1,
     buildCommit: publicData?.provenance?.buildCommit || null,
     sourceManifestSha256,
+    dependencyAudit:{policy:'transitive-static-esm-v1',nodeMajor:process.versions.node.split('.')[0],codeFiles:DEPENDENCY_AUDIT_FILES.map(relativePath=>({path:relativePath,sha256:fileSha256(root,relativePath)}))},
     outputs,
   };
 }
 
 function validateModelProvenance(modelProvenance) {
   if (!modelProvenance || modelProvenance.schemaVersion !== 1) throw new Error('Publication model-provenance schema is invalid.');
+  const audit=modelProvenance.dependencyAudit;
+  if(audit?.policy!=='transitive-static-esm-v1'||!/^\d+$/.test(String(audit.nodeMajor))||Number(audit.nodeMajor)<20||!Array.isArray(audit.codeFiles)||audit.codeFiles.length!==DEPENDENCY_AUDIT_FILES.length||!DEPENDENCY_AUDIT_FILES.every(p=>audit.codeFiles.some(f=>f.path===p&&/^[0-9a-f]{64}$/.test(f.sha256))))throw new Error('Publication dependency audit provenance is incomplete.');
   if (modelProvenance.sourceManifestSha256 !== null
       && !/^[0-9a-f]{64}$/.test(String(modelProvenance.sourceManifestSha256))) {
     throw new Error('Publication model-provenance source-manifest version is invalid.');
@@ -179,7 +191,7 @@ function validateModelProvenance(modelProvenance) {
     if (!item?.label || !item?.modelVersion || !item?.source || !/^[0-9a-f]{64}$/.test(String(item.codeVersionSha256 || ''))) {
       throw new Error(`Publication model provenance is invalid for ${key}.`);
     }
-    if (!Array.isArray(item.codeFiles) || item.codeFiles.length !== MODEL_OUTPUTS[key].codeFiles.length) {
+    if (item.dependencyPolicy!=='transitive-static-esm-v1'||!Array.isArray(item.codeFiles) || new Set(item.codeFiles.map(f=>f.path)).size!==item.codeFiles.length || !MODEL_OUTPUTS[key].codeFiles.every(p=>item.codeFiles.some(f=>f.path===p))) {
       throw new Error(`Publication model provenance code files are incomplete for ${key}.`);
     }
     for (const file of item.codeFiles) {
