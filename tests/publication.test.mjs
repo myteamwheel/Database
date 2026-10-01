@@ -7,6 +7,7 @@ import { parseTransactions } from '../scripts/lib/transactions.mjs';
 import {
   COVERAGE_STATES,
   MODEL_OUTPUTS,
+  DEPENDENCY_AUDIT_FILES,
   buildPublicationStatus,
   deriveCoverageStates,
   deriveModelProvenance,
@@ -19,6 +20,7 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'publication-test-'));
 try {
   fs.mkdirSync(path.join(root, 'scripts/data/official_nba'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts/data/projection'), { recursive: true });
+  for(const relative of DEPENDENCY_AUDIT_FILES){const full=path.join(root,relative);fs.mkdirSync(path.dirname(full),{recursive:true});fs.copyFileSync(new URL(`../${relative}`,import.meta.url),full);}
   for (const spec of Object.values(MODEL_OUTPUTS)) {
     for (const relativePath of spec.codeFiles) {
       const full = path.join(root, relativePath);
@@ -114,6 +116,8 @@ try {
   assert.equal(modelProvenance.outputs.projectedRoleMpg.modelVersion, 'projected-role-v1');
   assert.equal(modelProvenance.outputs.playerComparisons.modelVersion, '4.1.0');
   assert.match(modelProvenance.outputs.teamFit.modelVersion, /^code-sha256:[0-9a-f]{64}$/);
+  assert.equal(modelProvenance.outputs.teamFit.inputVersion.rosterSha256,publicData.projectionMeta.rosterSha256);
+  assert.equal(modelProvenance.outputs.teamFit.inputVersion.rostersAsOf,publicData.projectionMeta.rostersAsOf);
   assert.match(modelProvenance.outputs.crossLeague.modelVersion, /^code-sha256:[0-9a-f]{64}$/);
   const conflictingGradeVersion = JSON.parse(JSON.stringify(publicData));
   conflictingGradeVersion.provenance.gradeModelVersion = '3.3';
@@ -163,7 +167,16 @@ try {
   fs.appendFileSync(validatorPath, '// changed accounting gate\n');
   assert.throws(() => validatePublicationStatus(status, { publicData, publicDataBytes: bytes, root }), /provenance|implementation|code/i);
   fs.writeFileSync(validatorPath, validatorBytes);
-  for (const relative of ['scripts/lib/sources.mjs','scripts/lib/roster.mjs']) {
+  const gradesPath=path.join(root,'scripts/lib/grades.mjs'),originalGrades=fs.readFileSync(gradesPath),nestedPath=path.join(root,'scripts/lib/nested-ingredient.mjs');
+  fs.writeFileSync(gradesPath,"export {value} from './nested-ingredient.mjs';\n");
+  fs.writeFileSync(nestedPath,'export const value=1;\n');
+  const nestedProvenance=deriveModelProvenance({root,publicData});
+  assert.ok(nestedProvenance.outputs.performanceGrades.codeFiles.some(f=>f.path==='scripts/lib/nested-ingredient.mjs'),'Imported helper must be fingerprinted without a manual seed-list edit');
+  const nestedStatus=buildPublicationStatus({publicData,publicDataBytes:bytes,sourceDomains:domains,modelProvenance:nestedProvenance,publishedAt:'2026-09-29T23:05:00Z'});
+  fs.appendFileSync(nestedPath,'// changed deeply imported formula\n');
+  assert.throws(()=>validatePublicationStatus(nestedStatus,{publicData,publicDataBytes:bytes,root}),/provenance|implementation|code/i);
+  fs.writeFileSync(gradesPath,originalGrades);fs.unlinkSync(nestedPath);
+  for (const relative of ['scripts/lib/sources.mjs','scripts/lib/roster.mjs',...DEPENDENCY_AUDIT_FILES]) {
     const full=path.join(root,relative), originalBytes=fs.readFileSync(full);
     fs.appendFileSync(full,'// changed shared numeric or stint identity semantics\n');
     assert.throws(()=>validatePublicationStatus(status,{publicData,publicDataBytes:bytes,root}),/provenance|implementation|code/i);

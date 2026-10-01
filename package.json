@@ -64,7 +64,7 @@
     "evaluate:projection-context": "node scripts/fit-projections.mjs context",
     "test:tulipbeta:diagnostics": "node tests/tulip-beta-diagnostics.test.mjs",
     "publish:status": "node scripts/publish-data-status.mjs",
-    "test:publication": "node tests/publication.test.mjs",
+    "test:publication": "node tests/publication.test.mjs && node tests/model-dependencies.test.mjs",
     "test:evidence-claims": "node tests/evidence-claims.test.mjs",
     "test:material-changes": "node tests/material-change-explanations.test.mjs",
     "explain:material-changes": "node scripts/explain-material-changes.mjs",
