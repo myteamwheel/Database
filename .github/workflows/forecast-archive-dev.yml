@@ -32,7 +32,6 @@ jobs:
         run: |
           npm run test:forecast-archive
           npm run verify:forecast-archive -- --base-ref "${{ github.event.pull_request.base.sha }}"
-          npm run test:projections
 
       - name: Hydrate immutable historical cache for full verify
         shell: bash
@@ -47,7 +46,11 @@ jobs:
           npm run build:history
 
       - name: Rebuild source artifact after history hydration
-        run: npm run build
+        run: |
+          npm run build
+          # Projection accounting tests compare source-derived output. Run them
+          # after rebuilding, not against a prior committed artifact snapshot.
+          npm run test:projections
 
       - name: Install Playwright dependencies
         run: |
