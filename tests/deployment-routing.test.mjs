@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read = name => fs.readFileSync(new URL(`../.github/workflows/${name}`,import.meta.url),'utf8');
+const deploy=read('deploy-pages.yml'), rebuild=read('rebuild-generated.yml');
+const paths=source=>source.split('    paths:')[1].split('  workflow_dispatch:')[0];
+assert.deepEqual([...paths(deploy).matchAll(/- '([^']+)'/g)].map(m=>m[1]),['public/**','.github/workflows/deploy-pages.yml']);
+for(const source of ['scripts/**','app.js','workspace.js','history-lab.js','history-lab.html','index.html','styles.css','package.json','package-lock.json','PROJECTION_2026_27.json']) assert.ok(paths(rebuild).includes(`'${source}'`),`${source} must rebuild before deployment`);
+assert.ok(!paths(rebuild).includes("'public/**'"),'Generated artifacts must not recurse into rebuild');
+assert.ok(rebuild.indexOf('npm run build')<rebuild.indexOf('git push origin'),'Build before publishing');
+assert.ok(rebuild.indexOf('node scripts/verify-artifact.mjs')<rebuild.indexOf('git push origin'),'Verify artifacts before publishing');
+assert.ok(rebuild.indexOf('git push origin')<rebuild.indexOf('gh workflow run deploy-pages.yml'),'Dispatch deploy only after successful artifact push');
+assert.ok(deploy.includes('npm run verify:publication'),'Reject stale or mismatched publication');
+assert.ok(deploy.includes('cancel-in-progress: false'),'Do not cancel active Pages deployments');
+console.log('Deployment routing passed: source/card edits rebuild first; no output rebuild recursion; exact publication gate retained; final artifact deploy explicitly dispatched');

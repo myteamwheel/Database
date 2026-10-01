@@ -70,7 +70,7 @@
     "test:candidate-verification": "node tests/candidate-verification.test.mjs",
     "verify:candidate": "node scripts/verify-candidate.mjs",
     "refresh:owner": "node scripts/owner-refresh.mjs",
-    "test:owner-refresh": "node tests/owner-refresh.test.mjs && node tests/live-roster.test.mjs && node tests/transactions.test.mjs && node tests/transaction-context.test.mjs",
+    "test:owner-refresh": "node tests/owner-refresh.test.mjs && node tests/live-roster.test.mjs && node tests/transactions.test.mjs && node tests/transaction-context.test.mjs && node tests/deployment-routing.test.mjs",
     "verify:publication": "node scripts/verify-publication-status.mjs",
     "test:review": "node --test tests/review-regressions.test.mjs && node tests/projection-validation.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/projection-context-reconciliation.test.mjs && node tests/value-semantics.test.mjs && npm run test:cross-tabs",
     "test:cross-tabs": "node tests/cross-tab-consistency.test.mjs && node tests/current-roster-consistency.test.mjs",

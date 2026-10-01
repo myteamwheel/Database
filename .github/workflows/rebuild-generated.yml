@@ -15,6 +15,7 @@ on:
       - 'styles.css'
       - 'package.json'
       - 'package-lock.json'
+      - 'PROJECTION_2026_27.json'
       - '.github/workflows/rebuild-generated.yml'
   workflow_dispatch:
 
