@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {officialRows,writeAtomicJson} from './lib/official-table.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const H = {
@@ -24,9 +25,9 @@ async function get(url, label, tries = 4) {
       const r = await fetch(url, { headers: H, signal: c.signal });
       clearTimeout(t);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.json();
+      const body=await r.json(); officialRows(body); return body;
     } catch (e) {
-      if (i === tries) { console.log(`    give up ${label}: ${e.message}`); return null; }
+      if (i === tries) throw new Error(`Required stint/tracking fetch failed; previous cache retained for ${label}: ${e.message}`);
       await wait(2000 * i);
     }
   }
@@ -55,10 +56,7 @@ const ptDash = (leagueId, seasonType, type) =>
   }).toString();
 
 function rows(j) {
-  if (!j) return [];
-  const rs = Array.isArray(j.resultSets) ? j.resultSets[0] : j.resultSets;
-  if (!rs || !rs.rowSet) return [];
-  return rs.rowSet.map((r) => Object.fromEntries(rs.headers.map((h, i) => [h, r[i]])));
+  return officialRows(j);
 }
 
 /** Team ids present in a league's aggregate table. */
@@ -81,6 +79,7 @@ for (const job of JOBS) {
   const all = [];
   for (const tid of teams) {
     const r = rows(await get(dash(job.league, job.seasonType, tid), `${job.out} team ${tid}`));
+    if(!r.length)throw new Error(`Empty required stint query ${job.out}/${tid}; previous cache retained`);
     // TEAM_ABBREVIATION on these rows is the player's CURRENT team, not the team queried, so
     // both of a traded player's stints come back labelled with wherever he ended up. The
     // queried id is the only reliable stint identity.
@@ -88,7 +87,7 @@ for (const job of JOBS) {
     all.push(...r);
     await wait(700);
   }
-  fs.writeFileSync(path.join(ROOT, 'scripts/data', `${job.out}.json`), JSON.stringify(all));
+  writeAtomicJson(path.join(ROOT, 'scripts/data', `${job.out}.json`), all);
   console.log(`  ${all.length} stint rows -> scripts/data/${job.out}.json`);
 }
 
@@ -97,7 +96,7 @@ fs.mkdirSync(path.join(ROOT, 'scripts/data/official_gleague_showcase'), { recurs
 for (const [name, type] of [['pt_catchshoot', 'CatchShoot'], ['pt_pullup', 'PullUpShot']]) {
   const j = await get(ptDash('20', 'Showcase', type), `showcase ${name}`);
   const n = rows(j).length;
-  if (j) fs.writeFileSync(path.join(ROOT, 'scripts/data/official_gleague_showcase', `${name}.json`), JSON.stringify(j));
+  writeAtomicJson(path.join(ROOT, 'scripts/data/official_gleague_showcase', `${name}.json`), j);
   console.log(`showcase ${name}: ${n} rows`);
   await wait(900);
 }
@@ -106,13 +105,13 @@ for (const [name, type] of [['pt_catchshoot', 'CatchShoot'], ['pt_pullup', 'Pull
 for (const [name, type] of [['pt_catchshoot_totals', 'CatchShoot'], ['pt_pullup_totals', 'PullUpShot']]) {
   const j = await get(ptDash('20', 'Regular Season', type), `regular ${name}`);
   const n = rows(j).length;
-  if (j) fs.writeFileSync(path.join(ROOT, 'scripts/data/official_gleague_regular', `${name}.json`), JSON.stringify(j));
+  writeAtomicJson(path.join(ROOT, 'scripts/data/official_gleague_regular', `${name}.json`), j);
   console.log(`regular ${name}: ${n} rows`);
   await wait(900);
 }
 for (const [name, type] of [['pt_catchshoot_totals', 'CatchShoot'], ['pt_pullup_totals', 'PullUpShot']]) {
   const j = await get(ptDash('20', 'Showcase', type), `showcase ${name}`);
-  if (j) fs.writeFileSync(path.join(ROOT, 'scripts/data/official_gleague_showcase', `${name}.json`), JSON.stringify(j));
+  writeAtomicJson(path.join(ROOT, 'scripts/data/official_gleague_showcase', `${name}.json`), j);
   await wait(900);
 }
 console.log('done');

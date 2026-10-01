@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {officialRows,writeAtomicJson} from './lib/official-table.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'scripts/data');
@@ -25,18 +26,14 @@ async function get(url, label, tries = 4) {
       const r = await fetch(url, { headers: H, signal: c.signal });
       clearTimeout(t);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.json();
+      const body=await r.json(); officialRows(body); return body;
     } catch (e) {
-      if (i === tries) { console.log(`    give up ${label}: ${e.message}`); return null; }
+      if (i === tries) throw new Error(`Required split/roster fetch failed; previous cache retained for ${label}: ${e.message}`);
       await wait(2000 * i);
     }
   }
 }
-const rows = (j) => {
-  if (!j) return [];
-  const rs = Array.isArray(j.resultSets) ? j.resultSets[0] : j.resultSets;
-  return rs && rs.rowSet ? rs.rowSet.map((r) => Object.fromEntries(rs.headers.map((h, i) => [h, r[i]]))) : [];
-};
+const rows = officialRows;
 
 const dash = (leagueId, seasonType, measure, extra) =>
   'https://stats.nba.com/stats/leaguedashplayerstats?' + new URLSearchParams({
@@ -87,7 +84,7 @@ for (const lg of LEAGUES) {
   for (const [name, extra] of SPLITS) {
     const j = await get(dash(lg.id, lg.seasonType, 'Base', extra), `${lg.dir}/${name}`);
     const r = rows(j);
-    fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(j));
+    writeAtomicJson(path.join(dir, `${name}.json`), j);
     console.log(`  ${name.padEnd(12)} ${r.length} rows`);
     provenance.push({ dataset: `${lg.dir}/${name}`, rows: r.length, fetchedAt: new Date().toISOString() });
     await wait(900);
@@ -98,7 +95,7 @@ for (const lg of LEAGUES) {
     const mj = await get(dash(lg.id, lg.seasonType, 'Base', { Month: String(m) }), `${lg.dir}/month${m}`);
     const mr = rows(mj);
     if (mr.length) {
-      fs.writeFileSync(path.join(dir, `month${m}.json`), JSON.stringify(mj));
+      writeAtomicJson(path.join(dir, `month${m}.json`), mj);
       console.log(`  ${('month' + m).padEnd(12)} ${mr.length} rows`);
       provenance.push({ dataset: `${lg.dir}/month${m}`, rows: mr.length, fetchedAt: new Date().toISOString() });
     }
@@ -107,7 +104,7 @@ for (const lg of LEAGUES) {
 
   const cj = await get(clutch(lg.id, lg.seasonType), `${lg.dir}/clutch`);
   const cr = rows(cj);
-  fs.writeFileSync(path.join(dir, 'clutch.json'), JSON.stringify(cj));
+  writeAtomicJson(path.join(dir, 'clutch.json'), cj);
   console.log(`  ${'clutch'.padEnd(12)} ${cr.length} rows`);
   provenance.push({ dataset: `${lg.dir}/clutch`, rows: cr.length, fetchedAt: new Date().toISOString() });
   await wait(900);
@@ -129,10 +126,10 @@ for (const [leagueId, dirName, sourceDir] of [
     all.push(...rows(j));
     await wait(600);
   }
-  fs.writeFileSync(path.join(OUT, `${dirName}.json`), JSON.stringify(all));
+  writeAtomicJson(path.join(OUT, `${dirName}.json`), all);
   console.log(`${dirName}: ${all.length} roster entries across ${teams.length} teams`);
   provenance.push({ dataset: dirName, rows: all.length, fetchedAt: new Date().toISOString() });
 }
 
-fs.writeFileSync(path.join(OUT, 'provenance_splits.json'), JSON.stringify(provenance, null, 1));
+writeAtomicJson(path.join(OUT, 'provenance_splits.json'), provenance);
 console.log('done');
