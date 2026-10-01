@@ -8,11 +8,15 @@ import { buildProjections } from '../scripts/build-projections.mjs';
 import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, RATE_STATS } from '../scripts/lib/projection.mjs';
 import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage } from '../scripts/lib/projection-context.mjs';
 import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
+import { verifyLiveRosterSnapshot } from '../scripts/lib/live-roster.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
 const card = JSON.parse(fs.readFileSync(path.join(ROOT, 'PROJECTION_2026_27.json'), 'utf8'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
+const liveRosterPath = path.join(ROOT, 'scripts/data/live/roster.json');
+const roster = fs.existsSync(liveRosterPath)
+  ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(liveRosterPath, 'utf8'))) : null;
 
 let pass = 0, fail = 0;
 let rebuiltData;
@@ -27,7 +31,7 @@ check('card matches the committed inputs file',
 // 2. Rebuilding from inputs + card reproduces every committed projection, value for value.
 {
   const copy = JSON.parse(JSON.stringify(data));
-  buildProjections(copy, rawInputs, card);
+  buildProjections(copy, rawInputs, card, { roster });
   rebuiltData = copy;
   let diff = 0, first = '';
   const examples = [];
@@ -151,7 +155,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const uneven = ledgers.map(([team, ledger]) => ({
     team,
     expected: ledger.allocated,
-    actual: rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && p.proj?.status !== 'unsigned')
+    actual: rebuiltData.leagues.NBA.filter(p => p.proj?.team === team && !p.proj.abstain && p.proj?.status !== 'unsigned')
       .reduce((sum, p) => sum + p.proj.effectiveMpg, 0),
   }));
   check('published effective minutes reconcile to each team ledger after rounding',

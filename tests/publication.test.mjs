@@ -77,6 +77,16 @@ try {
   assert.equal(domains.officialStats.fetchedAt, '2026-09-29T22:00:00Z');
   assert.equal(domains.rosterProjectionInputs.status, 'ok');
   assert.equal(domains.rosterProjectionInputs.fetchedAt, '2026-09-26T04:28:41.551Z');
+  fs.mkdirSync(path.join(root, 'scripts/data/live'), { recursive:true });
+  fs.writeFileSync(path.join(root, 'scripts/data/live/roster.json'), JSON.stringify({
+    source:'stats.nba.com/stats/playerindex', season:'2026-27', fetchedAt:'2026-09-30T12:00:00Z',
+  }));
+  const livePublicData = { ...publicData, projectionMeta:{ ...publicData.projectionMeta, rostersAsOf:'2026-09-30' } };
+  const withLiveRoster = deriveSourceDomains({ root, publicData: livePublicData });
+  assert.equal(withLiveRoster.rosterProjectionInputs.fetchedAt, '2026-09-30T12:00:00Z');
+  assert.equal(withLiveRoster.rosterProjectionInputs.projectionInputsFetchedAt, '2026-09-26T04:28:41.551Z');
+  assert.equal(withLiveRoster.rosterProjectionInputs.source, 'stats.nba.com/stats/playerindex');
+  fs.rmSync(path.join(root, 'scripts/data/live/roster.json'));
   assert.equal(domains.basketballReferenceSnapshot.status, 'snapshot');
   for (const key of ['transactions','injuries','news']) {
     assert.equal(domains[key].status, 'not-configured');

@@ -1641,7 +1641,7 @@ function projCard(p){
   const c=p.proj;
   if(!c) return '';
   if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
-    <p class="tiny" style="margin:8px 10px">${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
+    <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
   const row=(label,last,proj,d=1)=>`<tr><td class="left">${label}</td><td>${num(last,d)}</td><td><b>${num(proj,d)}</b></td></tr>`;
   const prow=(label,last,proj)=>`<tr><td class="left">${label}</td><td>${pct(last)}</td><td><b>${pct(proj)}</b></td></tr>`;
