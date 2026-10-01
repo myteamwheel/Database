@@ -22,6 +22,8 @@ try{
   assert.deepEqual(calls, ownerRefreshStages({season:'2025-26'}).map(x=>x.id));
   assert.equal(calls.at(-1),'verify');
   assert.ok(calls.includes('fetch-live-roster'));
+  assert.ok(calls.includes('fetch-transactions'));
+  assert.ok(calls.indexOf('fetch-transactions') < calls.indexOf('fetch-live-roster'));
   assert.ok(calls.indexOf('fetch-live-roster') < calls.indexOf('build'));
   assert.equal(calls.includes('fetch-projection-inputs'),false,'routine refresh must preserve frozen model inputs');
   assert.ok(!calls.some(x=>/git|push|commit/i.test(x)));

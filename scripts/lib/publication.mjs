@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { deriveEvidenceClaims, validateEvidenceClaims } from './evidence-claims.mjs';
+import { verifyTransactionSnapshot } from './transactions.mjs';
 export { deriveEvidenceClaims, validateEvidenceClaims } from './evidence-claims.mjs';
 
 export const COVERAGE_STATES = Object.freeze(['complete','partial','fallback','unavailable']);
@@ -244,6 +245,12 @@ export function deriveSourceDomains({ root, publicData }) {
   const liveRosterMatches = liveRoster?.fetchedAt &&
     String(liveRoster.fetchedAt).slice(0, 10) === publicData?.projectionMeta?.rostersAsOf;
   const bref = readJson(path.join(root, 'scripts/data/bref_build_v2.json'));
+  const transactionFile = 'scripts/data/live/transactions.json';
+  const transactionInput = readJson(path.join(root, transactionFile));
+  const transactions = transactionInput ? verifyTransactionSnapshot(transactionInput) : null;
+  if (transactions && (publicData?.transactionMeta?.sourceRawSha256 !== transactions.rawSha256 || publicData?.transactionMeta?.fetchedAt !== transactions.fetchedAt)) {
+    throw new Error('Published transaction context is stale; rebuild before publication.');
+  }
   return {
     officialStats: officialStatsDomain(root, publicData),
     rosterProjectionInputs: projection || liveRoster ? {
@@ -262,7 +269,12 @@ export function deriveSourceDomains({ root, publicData }) {
       status: 'unavailable', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'Projection/roster provenance file is unavailable.',
     },
-    transactions: {
+    transactions: transactions ? {
+      status:'tracked-snapshot', checkedAt:transactions.fetchedAt, fetchedAt:transactions.fetchedAt,
+      asOf:transactions.summary.latestEventDate, source:transactions.source,
+      sha256:fileSha256(root, transactionFile), ...transactions.summary,
+      limitation:'Official transaction ledger through the stated event date. Draft-consideration events are not player signings. The current official roster index remains authoritative for roster membership; transaction text does not establish medical clearance or silently alter forecasts.',
+    } : {
       status:'not-configured', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'No verified transaction feed is configured. Roster snapshots are not presented as a transaction history.',
     },

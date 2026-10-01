@@ -100,6 +100,8 @@
       <span class="pbar-t"><i style="width:${fin(v) ? Math.max(1, Math.min(100, v)) : 0}%"></i></span>
       <b>${fin(v) ? Number(v).toFixed(0) : '—'}</b>${extra}</div>`;
   const disclosure = (label, body) => `<details class="ws-disclosure"><summary>${label}</summary><div class="ws-disclosure-body">${body}</div></details>`;
+  const transactionHistory = (p) => !p.recentNbaTransactions?.length ? '' : disclosure('Recent official NBA transactions',
+    `<p class="tiny">Source ledger through ${esc(window.DATA.transactionMeta?.latestEventDate)}; fetched ${esc(window.DATA.transactionMeta?.fetchedAt?.slice(0,10))}. These events do not establish medical clearance or G League assignment status.</p><ul>${p.recentNbaTransactions.map(event => `<li><b>${esc(event.date)} · ${esc(event.type)}</b>: ${esc(event.description)}</li>`).join('')}</ul><p class="tiny">Up to three events since ${esc(window.DATA.transactionMeta?.fromDate)}. Current roster status comes from the separate official roster snapshot; these notes do not silently change statistical forecasts.</p>`);
 
   const playerPicker = (id, selected, label) =>
     `<label>${esc(label)}<select id="${id}">${
@@ -300,6 +302,8 @@
 
     ${playerProjection(p)}
 
+    ${transactionHistory(p)}
+
     ${disclosure('Grade components and full skill profile', `<div class="ws-cols">
       <section><h3>Grade components</h3>
         ${Object.entries(p.components || {}).map(([k, v]) =>
@@ -370,7 +374,8 @@
         <div class="ws-card"><div class="k">2025-26 NBA line</div><div class="v">—</div><p class="tiny">no NBA appearance; not missing a stat row</p></div>
         <div class="ws-card"><div class="k">Historical player comps</div><div class="v">N/A</div><p class="tiny">requires a usable 2025-26 NBA sample</p></div>
       </div>
-      ${playerProjection(p)}`;
+      ${playerProjection(p)}
+      ${transactionHistory(p)}`;
   }
 
   function historyBlock(p) {
