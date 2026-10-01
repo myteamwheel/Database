@@ -1,6 +1,6 @@
 // Stable historical identities and independently selected, evidence-bounded style analogies.
 // No I/O: the builder supplies actual season records and normalized matching coordinates.
-const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+const finite = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const year = (row) => Number(String(row.season).slice(0, 4));
 const sum = (rows, key) => rows.reduce((s, row) => s + Number(row.totals?.[key] || 0), 0);
 const round = (v) => Math.round(v * 10) / 10;
@@ -17,6 +17,15 @@ const ratio = (rows, numerator, denominator, minimum = 1) => {
 
 export function aggregateProfile(rows, method = 'highest-exposure-three-year-window') {
   if (!rows.length) return null;
+  const identity = `${rows[0].league}|${rows[0].playerId}`;
+  const seen = new Set();
+  for (const row of rows) {
+    if (`${row.league}|${row.playerId}` !== identity || !/^\d{4}-\d{2}$/.test(row.season)
+      || !finite(row.minutes) || row.minutes <= 0 || !finite(row.gp) || row.gp <= 0 || seen.has(row.season)) {
+      throw new Error('Reference aggregation requires one valid row per season for the same player and league');
+    }
+    seen.add(row.season);
+  }
   rows = rows.slice().sort((a, b) => year(a) - year(b));
   const anchor = rows.slice().sort((a, b) => b.minutes - a.minutes || year(b) - year(a))[0];
   const features = {};
@@ -31,6 +40,7 @@ export function aggregateProfile(rows, method = 'highest-exposure-three-year-win
     ['ftPct', 'FTM', 'FTA', 30], ['threeRate', 'FG3A', 'FGA', 1],
     ['ftRate', 'FTA', 'FGA', 1], ['astTo', 'AST', 'TOV', 1],
   ]) features[key] = ratio(rows, num, den, minimum);
+  features.efgPct = null;
   if (rows.every((row) => ['FGA', 'FGM', 'FG3M'].every((key) => finite(row.totals?.[key]))) && sum(rows, 'FGA') > 0) {
     features.efgPct = (sum(rows, 'FGM') + 0.5 * sum(rows, 'FG3M')) / sum(rows, 'FGA');
   }
@@ -42,7 +52,8 @@ export function aggregateProfile(rows, method = 'highest-exposure-three-year-win
   const season = seasons.length === 1 ? seasons[0] : `${seasons[0]}–${seasons.at(-1)}`;
   return {
     ...anchor, season, gp, minutes, features, matchFeatures,
-    age: rows.reduce((s, row) => s + (finite(row.age) ? row.age * row.minutes : 0), 0) / minutes,
+    // Unknown ages do not count as zero-year-old seasons in the exposure denominator.
+    age: average(rows.map(row => ({ ...row, ageValue: { age: row.age } })), 'ageValue', 'age'),
     referenceProfile: {
       method, seasons, games: gp, minutes: round(minutes), seasonCount: seasons.length,
       period: season, limited: seasons.length < 2, teamBasis: 'team in highest-minute season of reference period',
@@ -53,10 +64,15 @@ export function aggregateProfile(rows, method = 'highest-exposure-three-year-win
 
 export function stableReferenceProfiles(rows, minimumMinutes = 300) {
   const byPlayer = new Map();
+  const seen = new Set();
   for (const row of rows) {
-    if (row.minutes < minimumMinutes || !/[A-Za-z]/.test(String(row.name || ''))) continue;
-    if (!byPlayer.has(row.playerId)) byPlayer.set(row.playerId, []);
-    byPlayer.get(row.playerId).push(row);
+    if (!finite(row.minutes) || row.minutes < minimumMinutes || !finite(row.gp) || row.gp <= 0 || !/[A-Za-z]/.test(String(row.name || ''))) continue;
+    const key = `${row.league}|${row.playerId}`;
+    const rowKey = `${key}|${row.season}`;
+    if (seen.has(rowKey)) throw new Error(`Duplicate reference player-season: ${rowKey}`);
+    seen.add(rowKey);
+    if (!byPlayer.has(key)) byPlayer.set(key, []);
+    byPlayer.get(key).push(row);
   }
   return [...byPlayer.values()].map((seasons) => {
     seasons.sort((a, b) => year(a) - year(b));

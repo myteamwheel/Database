@@ -775,6 +775,15 @@
       </tbody></table></div>`;
   }
 
+  function compReferenceEvidence(profile) {
+    if (!profile) return '<p class="tiny">Reference period unavailable.</p>';
+    return `${profile.limited ? '<p class="comp-reference-limited">Single-season reference · limited history</p>' : ''}
+      <details class="comp-reference-evidence"><summary>Reference evidence · ${profile.seasonCount} season${profile.seasonCount === 1 ? '' : 's'}</summary>
+        <p class="tiny">Seasons included: ${esc((profile.seasons || []).join(', '))}. ${num(profile.games, 0)} games · ${num(profile.minutes, 0)} minutes.</p>
+        <p class="tiny">Selected once for this player by playing-time exposure, before matching any target. Shooting percentages pool makes and attempts; rates are weighted by minutes. This describes a career stretch, not a whole-career average or a guaranteed peak. The team logo represents the highest-minute season in that stretch.</p>
+      </details>`;
+  }
+
   function viewSimilarity() {
     const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
@@ -801,9 +810,8 @@
     const shareById = new Map(blend.map((x) => [String(x.playerId), x]));
     const confidence = set.blendConfidence;
     const profileRead = set.profileRead || {};
-    const blueprintComponents = (Array.isArray(profileRead.components) && profileRead.components.length
-      ? profileRead.components
-      : blend.map((item) => ({ ...item, phrase: 'historical blend reference' })))
+    // No usable independent trait reference means no trait card, not a relabeled blend member.
+    const blueprintComponents = (Array.isArray(profileRead.components) ? profileRead.components : [])
       .slice().sort((a, b) => (Number(a.narrativeOrder) || 0) - (Number(b.narrativeOrder) || 0));
     const blueprintRole = (item) => (item.evidence || []).map((key) => ({
       physical: 'FRAME', role: 'ROLE', scoring: 'SCORING', defense: 'DEFENSE',
@@ -813,6 +821,7 @@
         <div class="comp-blueprint-player-top"><span>${esc(blueprintRole(item))}</span><b>TRAIT FIT ${cval(item.fit, '—')}%</b></div>
         <h4>${esc(item.name || 'Historical reference')} · ${esc(item.referencePeriod?.period || item.season || '')}</h4>
         <p>${esc(item.phrase || 'Historical blend reference')}</p>
+        ${compReferenceEvidence(item.referencePeriod)}
       </article>`).join('');
 
     const overallCards = nearestOverall.map((q, i) => `
@@ -820,6 +829,7 @@
         <span class="eyebrow">OVERALL MATCH #${i + 1}</span>
         <h4>${esc(q.name || 'Historical player')}</h4>
         <p>${esc(q.referenceProfile?.period || q.season || 'Historical profile')} · ${num(q.similarity, 1)}/100 match quality</p>
+        ${compReferenceEvidence(q.referenceProfile)}
       </article>`).join('');
 
     const heroes = shown.map((q, i) => {
@@ -832,6 +842,7 @@
         <div class="comp-hero-strength">${blendLabel}</div>
         <h3>${esc(q.name)}</h3>
         <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
+        ${compReferenceEvidence(q.referenceProfile)}
         <p class="tiny">Match quality: <b>${num(q.similarity, 1)}/100</b> · ${esc(compStrength(q.similarity))}</p>
         <div class="comp-block-pills">
           <span>Physical <b>${compBlockScore(q, 'physical')}%</b></span>
@@ -868,6 +879,7 @@
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
       <details class="comp-method-note"><summary>How historical rates are compared</summary>
+        <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${lg==='NBA'?'300':'200'} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
         <p class="tiny">Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.</p>
       </details>
       ${compPlayerSearch(p)}

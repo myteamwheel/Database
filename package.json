@@ -9,7 +9,7 @@
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
     "fetch:combine": "node scripts/fetch-combine-anthro.mjs",
     "test:projections": "node tests/projection.test.mjs",
-    "test:comps": "node tests/player-comps.test.mjs",
+    "test:comps": "node tests/player-comps.test.mjs && node tests/comparison-reference-audit.test.mjs",
     "build:data": "node scripts/build-v3.mjs",
     "build:standalone": "node scripts/build-artifact.mjs",
     "audit": "node scripts/audit-v3.mjs",

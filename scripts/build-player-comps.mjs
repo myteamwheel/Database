@@ -22,7 +22,7 @@ const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.js
 const INPUTS_PATH = path.join(ROOT, 'scripts/data/projection/inputs.json');
 const COMBINE_PATH = path.join(ROOT, 'scripts/data/combine_anthro.json');
 
-const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const n = (v) => fin(v) ? Number(v) : null;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const r1 = (v) => fin(v) ? Math.round(Number(v) * 10) / 10 : null;
@@ -783,7 +783,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsMeta = {
-  version: '4.1.0',
+  version: '4.1.1',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   nbaHistory: '2009-10 through 2025-26',

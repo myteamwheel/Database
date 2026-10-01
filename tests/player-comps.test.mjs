@@ -25,7 +25,7 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.1.0');
+assert.equal(meta.version, '4.1.1');
 assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
