@@ -10,6 +10,8 @@ for(const league of ['NBA','GLEAGUE'])test(`${league}: every per-36 table and CS
   await page.selectOption('#viewPreset','per36');
   await page.locator('.more-filters > summary').click();await page.check('#includeRosterOnly');
   await page.selectOption('#rowLimit','9999');
+  const headerKeys=await page.locator('#tableHead th').evaluateAll(headers=>headers.map(h=>h.dataset.sort));
+  expect(headerKeys).toContain('gp');expect(headerKeys).toContain('minutes');
   const rendered=await page.locator('#tableBody tr').evaluateAll(rows=>{
     const keys=[...document.querySelectorAll('#tableHead th')].map(h=>h.dataset.sort);
     return rows.map(r=>({id:r.querySelector('[data-player]').dataset.player,cells:Object.fromEntries(keys.map((k,i)=>[k,r.children[i].textContent.trim()]))}));
