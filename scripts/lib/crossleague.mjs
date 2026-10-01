@@ -253,13 +253,16 @@ export function auc(scores, labels) {
 export const PER36_STATS = ['pts', 'reb', 'oreb', 'dreb', 'ast', 'stl', 'blk', 'tov', 'pf', 'fg3'];
 
 export const per36 = (p, key) => {
-  const mins = num(p.minutes);
-  if (!fin(mins) || mins < 1 || !fin(p[key])) return null;
-  // Season totals are stored as per-game values alongside mpg, so scale from the per-game rate.
-  const perGame = num(p[key]);
-  const mpg = num(p.mpg);
-  if (!fin(mpg) || mpg <= 0) return null;
-  return (perGame / mpg) * 36;
+  const mins = p.minutes;
+  if (!Number.isFinite(mins) || mins < 1) return null;
+  const rawKey = key === 'fg3' ? 'fg3m' : key;
+  const officialTotal = p.stats?.[`off_${rawKey}`];
+  if (Number.isFinite(officialTotal)) return officialTotal * 36 / mins;
+  if (!Number.isFinite(p[key])) return null;
+  // Prefer precise exposure over the presentation-only, rounded MPG field.
+  if (Number.isFinite(p.gp) && p.gp > 0) return p[key] * p.gp * 36 / mins;
+  if (!Number.isFinite(p.mpg) || p.mpg <= 0) return null;
+  return p[key] * 36 / p.mpg;
 };
 
 /**

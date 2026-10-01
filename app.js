@@ -683,8 +683,8 @@ const PRESETS = {
   capacity:['select','viewRank','name','team','position','age','gp','tc.teamASeasonMpg','tc.capacityMpg','tc.headroom','tc.interval50Low','tc.interval50High','tc.evidence','grade'],
   tulipbeta:['select','viewRank','name','team','position','age','gp','tb.currentMpg','tb.tulip','tb.recommendedMpg','tb.confidence','tb.valueGapSd','tb.supportedCeiling','grade'],
   nbaready:['select','viewRank','name','team','position','age','gp','mpg','grade','nbaReadiness','rb.playmaking','rb.connecting','rb.defense','rb.hustle','rb.shooting'],
-  per36:['select','viewRank','name','team','position','mpg','p36.pts','p36.reb','p36.ast','p36.stl','p36.blk','p36.tov','p36.fg3','p36.ts','p36.fg3Pct'],
-  per36nba:['select','viewRank','name','team','position','mpg','p36n.pts','p36n.reb','p36n.ast','p36n.stl','p36n.blk','p36n.tov','p36n.fg3','p36n.ts','p36n.fg3Pct','nbaReadiness'],
+  per36:['select','viewRank','name','team','position','gp','minutes','mpg','p36.pts','p36.reb','p36.ast','p36.stl','p36.blk','p36.tov','p36.fg3','p36.ts','p36.fg3Pct'],
+  per36nba:['select','viewRank','name','team','position','gp','minutes','mpg','p36n.pts','p36n.reb','p36n.ast','p36n.stl','p36n.blk','p36n.tov','p36n.fg3','p36n.ts','p36n.fg3Pct','nbaReadiness'],
   tulip:['select','viewRank','name','team','position','age','gp','mpg','grade','tulip.leagueDelta','tulip.neutralDelta','tulip.projectedImpact','tulip.targetMpg','tulip.support','tulip.tier','tulip.verdict'],
   scoring:['select','viewRank','name','team','grade','pts','fg','fga','fgPct','fg3','fg3a','fg3Pct','ft','fta','ftPct','efg','ts','fg3Ar','ftr','usg','custom.selfCreatedPts36','custom.paintPts36','custom.efficiencyOverExpected'],
   shooting:['select','viewRank','name','team','grade','fga','fgPct','fg3a','fg3Pct','fg2a','fg2Pct','ftPct','efg','ts','custom.efficiencyOverExpected','custom.shotLocationValue','stats.trk_catchshoot_catch_shoot_pts','stats.trk_catchshoot_catch_shoot_fga','stats.trk_pullup_pull_up_pts','stats.trk_pullup_pull_up_fga'],
@@ -1054,6 +1054,7 @@ function openStatGuide(){
 
 function colDef(key){
   const base = BASE_COLS[key] || {label:humanize(key), type:''};
+  if (/^p36n?\./.test(key) && base.help) return { ...base, help: base.help.replace(/\(per-game [^)]+ \/ MPG\) x 36/g, '(official season stat total / precise season minutes) x 36') };
   if (base.help) return base;
   const rawHelp = COLUMN_HELP[key] || docHelp(key);
   const help = typeof rawHelp === 'string' ? rawHelp.replace(/\\u([0-9a-f]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))) : rawHelp;

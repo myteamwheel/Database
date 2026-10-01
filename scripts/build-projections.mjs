@@ -173,9 +173,11 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         [key, Number.isFinite(value) ? r9(value) : value]));
       accounting.ftValue = r9(ftV);
       const publishedGp = r1(r.games);
-      accounting.gp = publishedGp;
+      // Display GP is rounded; season totals and roster budgets must use the
+      // same precise expected-game exposure used by minute reconciliation.
+      accounting.gp = r9(r.games);
       accounting.totals = Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','tov','fga','fgm','fg3a','fg3m','fta','ftm']
-        .map((key) => [key, r9(accounting[key] * publishedGp)]));
+        .map((key) => [key, r9(accounting[key] * accounting.gp)]));
       const seasonsUsed = r.hist.map((h, i) => {
         if (!h) return null;
         const elapsed = h.season ? Math.max(1, Number(T.slice(0, 4)) - Number(h.season.slice(0, 4))) : i + 1;

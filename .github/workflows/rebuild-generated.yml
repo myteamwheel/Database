@@ -97,9 +97,21 @@ jobs:
           # changes before rebasing the artifact commit.
           git reset --hard HEAD
           git clean -fd
-          git fetch origin "${GITHUB_REF_NAME}"
-          git rebase "origin/${GITHUB_REF_NAME}"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          pushed=false
+          # The large artifact upload leaves another race after fetch/rebase.
+          # Retry only ordinary fast-forward pushes; preserve competing writes.
+          for attempt in 1 2 3; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}"
+            if git push origin HEAD:${GITHUB_REF_NAME}; then
+              pushed=true
+              break
+            fi
+          done
+          if [ "$pushed" != true ]; then
+            echo 'Branch kept advancing; artifacts were not published.' >&2
+            exit 1
+          fi
 
           # Pushes made with GITHUB_TOKEN deliberately do not trigger ordinary push workflows.
           # Dispatch Pages explicitly so the site publishes this exact audited artifact commit.

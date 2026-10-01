@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { per36 } from '../scripts/lib/crossleague.mjs';
+import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
+assert.equal(per36({minutes:100,gp:10,mpg:9.9,pts:3,stats:{off_pts:30}},'pts'),10.8);
+assert.equal(per36({minutes:100,gp:10,mpg:9.9,pts:3},'pts'),10.8);
+assert.equal(per36({minutes:100,gp:10,mpg:9.9,fg3:1,stats:{off_fg3m:10}},'fg3'),3.6);
+assert.equal(per36({minutes:0,gp:10,mpg:1,pts:3},'pts'),null);
+assert.equal(per36({minutes:100,gp:10,mpg:1,pts:true},'pts'),null);
+const data=JSON.parse(fs.readFileSync(new URL('../public/data.json',import.meta.url),'utf8'));
+const p=structuredClone(data.leagues.NBA.find(p=>p.proj&&!p.proj.abstain).proj);
+p.gp=10;p.accounting.gp=10.03;
+for(const key of Object.keys(p.accounting.totals))p.accounting.totals[key]=p.accounting[key]*p.accounting.gp;
+assert.equal(validateProjectionAccounting(p),true,'Precise expected games may differ by headline rounding');
+assert.throws(()=>validateProjectionAccounting({...p,gp:10.2}),/GP/,'Difference beyond headline rounding rejected');
+p.accounting.totals.pts=p.accounting.pts*p.gp;
+assert.throws(()=>validateProjectionAccounting(p),/total/,'Season totals must not use rounded headline games');
+console.log('Precise exposure regression passed: official per-36 totals, raw minutes, genuine zero/missing handling, precise games and season totals');
