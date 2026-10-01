@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20260930233353-6c67a5b2dd82",
+  "publicationId": "2025-26-20261001054013-dca868715ca3",
   "season": "2025-26",
-  "publishedAt": "2026-09-30T23:33:53-04:00",
-  "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-  "dataSha256": "6c67a5b2dd82c7db253242cafc4aca32e7439ed8d32c05a754fd8ae6f35821eb",
+  "publishedAt": "2026-10-01T05:40:13-04:00",
+  "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+  "dataSha256": "dca868715ca30a6d4aa3f51b6b5512a20ba27812ee7c90382fce77eff495689d",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261001021508-6d04259afc01",
-    "publishedAt": "2026-10-01T02:15:08.141Z",
-    "dataSha256": "6d04259afc0181f9ee020a81fd5b5f01d1a8c62943f25195af259078de89e40d"
+    "publicationId": "2025-26-20260930233353-6c67a5b2dd82",
+    "publishedAt": "2026-09-30T23:33:53-04:00",
+    "dataSha256": "6c67a5b2dd82c7db253242cafc4aca32e7439ed8d32c05a754fd8ae6f35821eb"
   },
   "sourceDomains": {
     "officialStats": {
@@ -149,8 +149,8 @@
   },
   "modelProvenance": {
     "schemaVersion": 1,
-    "buildCommit": "7d49fdb",
-    "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7",
+    "buildCommit": "ddbc696",
+    "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956",
     "outputs": {
       "performanceGrades": {
         "label": "Performance grades and custom metrics",
@@ -173,8 +173,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7"
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956"
         },
         "source": "2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields"
       },
@@ -199,8 +199,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7",
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956",
           "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
           "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
           "publishedInputsSha256": "d6591b7be506ab23",
@@ -230,8 +230,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7"
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956"
         },
         "source": "Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable"
       },
@@ -256,8 +256,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7",
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956",
           "baselineSeason": "2025-26",
           "rostersAsOf": "2026-10-01",
           "rosterSha256": "d03b8182655f978aefa13b562a923c22f164ad3bf5d344396880efa2ac36a332"
@@ -285,8 +285,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7",
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956",
           "cardSha256": "96cb2f34c6cd06c3",
           "frozenAt": "2026-08-21T01:24:50.909Z",
           "buildInputMode": "preserved_verified_frozen_output"
@@ -310,8 +310,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7",
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956",
           "nbaHistory": "2009-10 through 2025-26",
           "gleagueHistory": "2014-15 through 2025-26"
         },
@@ -334,8 +334,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7"
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956"
         },
         "source": "Published same-league player rows and minutes-weighted roster need profiles"
       },
@@ -356,8 +356,8 @@
         ],
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-09-30T23:33:53-04:00",
-          "sourceManifestSha256": "c60662476ca27cd91deede00b295c42e5b099ebf2882d86b648828b81403cff7"
+          "buildGeneratedAt": "2026-10-01T05:40:13-04:00",
+          "sourceManifestSha256": "2ab81cc8010f9b7c20387217bfb9334edb7104e1e550e74ff12d9cc40f370956"
         },
         "source": "Same-season dual-league player sample with explicitly reported sample thresholds and held-out limitations"
       }
