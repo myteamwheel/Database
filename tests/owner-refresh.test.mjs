@@ -25,6 +25,8 @@ try{
   assert.ok(calls.includes('fetch-transactions'));
   assert.ok(calls.indexOf('fetch-transactions') < calls.indexOf('fetch-live-roster'));
   assert.ok(calls.indexOf('fetch-live-roster') < calls.indexOf('build'));
+  assert.ok(calls.indexOf('fetch-live-roster') < calls.indexOf('fetch-bios'));
+  assert.ok(calls.indexOf('fetch-live-roster') < calls.indexOf('fetch-birthdates'));
   assert.equal(calls.includes('fetch-projection-inputs'),false,'routine refresh must preserve frozen model inputs');
   assert.ok(!calls.some(x=>/git|push|commit/i.test(x)));
   const saved=JSON.parse(fs.readFileSync(path.join(root,'scripts/data/refresh-runs/latest.json'),'utf8'));

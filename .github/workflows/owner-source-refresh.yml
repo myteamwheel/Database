@@ -1,0 +1,87 @@
+name: Owner source refresh (review before publication)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_refresh:
+        description: Fetch supported sources and prepare a review branch; this does not deploy
+        type: boolean
+        required: true
+        default: false
+
+# No token, credential or dispatch API is exposed to the public website.
+# GitHub restricts workflow dispatch to authenticated repository writers.
+permissions:
+  contents: write
+
+concurrency:
+  group: owner-source-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/v3-official-data' && inputs.confirm_refresh == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install verification dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Hydrate the immutable historical evidence cache
+        run: |
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+          npm run build:history
+          npm run verify:local-history
+      - name: Refresh supported sources and run all verification
+        # Deliberately refuse silent season rollover or a model-card refit.
+        run: npm run refresh:owner -- --season 2025-26
+      - name: Prepare a source-only review branch
+        shell: bash
+        env:
+          RUN_NUMBER: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          node -e 'const r=require("./scripts/data/refresh-runs/latest.json"); if(r.state!=="verified-ready-to-publish")process.exit(1)'
+          git add scripts/data/official_nba scripts/data/official_gleague_regular \
+            scripts/data/official_gleague_showcase scripts/data/stints_nba.json \
+            scripts/data/stints_gleague_regular.json scripts/data/stints_gleague_showcase.json \
+            scripts/data/splits_nba scripts/data/splits_gleague_regular scripts/data/splits_gleague_showcase \
+            scripts/data/provenance_splits.json scripts/data/player_bios.json \
+            scripts/data/birthdates.json scripts/data/live/roster.json scripts/data/live/transactions.json
+          if git diff --cached --quiet; then
+            echo 'No source changes. The live site has not been changed.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="refresh/owner-${RUN_NUMBER}-${RUN_ATTEMPT}"
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Refresh verified source snapshots for owner run ${RUN_NUMBER}"
+          git push origin "HEAD:refs/heads/$branch"
+          # Repository policy disables automated PR creation. Do not weaken it.
+          # A human opens this compare link; normal exact-head PR gates and the
+          # source-first production rebuild remain mandatory before publication.
+          echo "Sources verified. [Open the review pull request](https://github.com/myteamwheel/Database/compare/v3-official-data...${branch}?expand=1)." >> "$GITHUB_STEP_SUMMARY"
+          echo 'The live website is unchanged until the reviewed PR is merged and its rebuild/deployment succeed.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the refresh outcome visible
+        if: always()
+        run: |
+          if [ -f scripts/data/refresh-runs/latest.json ]; then
+            node -e 'const fs=require("node:fs"),r=require("./scripts/data/refresh-runs/latest.json");fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`\nRefresh outcome: ${r.state}. Completed stages: ${r.stages.filter(s=>s.status==="ok").length}. Failed stage: ${r.failure?.stage||"none"}.\nSupported: 2025-26 statistics, 2026-27 NBA roster, dated transactions and individual bios. Injuries/news and 2026-27 game-stat rollover are not configured.\n`)'
+          else
+            echo 'Refresh did not reach source ingestion. The live website was not changed.' >> "$GITHUB_STEP_SUMMARY"
+          fi

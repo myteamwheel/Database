@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
+const workflow=read('.github/workflows/owner-source-refresh.yml');
+assert.match(workflow,/workflow_dispatch:/);assert.doesNotMatch(workflow,/pull_request:|schedule:|\n  push:/);
+assert.match(workflow,/github.ref == 'refs\/heads\/v3-official-data' && inputs.confirm_refresh == true/);
+assert.match(workflow,/cancel-in-progress: false/);
+assert.match(workflow,/contents: write/);assert.doesNotMatch(workflow,/pull-requests: write|actions: write|id-token: write/);
+assert.match(workflow,/npm run refresh:owner -- --season 2025-26/);
+assert.ok(workflow.indexOf('verified-ready-to-publish')>workflow.indexOf('npm run refresh:owner'));
+assert.match(workflow,/git push origin "HEAD:refs\/heads\/\$branch"/);
+assert.doesNotMatch(workflow,/--force|git push.*v3-official-data|gh pr create|deploy-pages|workflow run|fit:projections/);
+const add=workflow.match(/git add ([\s\S]*?)\n          if git diff/)[1].replace(/\\\n/g,' ').trim().split(/\s+/);
+assert.equal(new Set(add).size,add.length);
+for(const p of add){assert.match(p,/^scripts\/data\//);assert.doesNotMatch(p,/history|projection|forecast-archive|\.\.\//);assert.ok(fs.existsSync(new URL('../'+p,import.meta.url)),`tracked source candidate path exists: ${p}`);}
+for(const p of ['scripts/data/live/roster.json','scripts/data/live/transactions.json','scripts/data/player_bios.json','scripts/data/birthdates.json','scripts/data/stints_gleague_showcase.json'])assert.ok(add.includes(p));
+assert.match(workflow,/compare\/v3-official-data\.\.\.\$\{branch\}\?expand=1/);
+assert.match(workflow,/The live website is unchanged/);
+const app=read('app.js');assert.match(app,/owner-source-refresh\.yml/);assert.match(app,/Run workflow and confirm/);assert.match(app,/does not immediately change the live site/);
+assert.doesNotMatch(app,/api\.github\.com\/.*dispatch|Bearer |github_pat_|ghp_/);
+assert.match(read('scripts/fetch-stints.mjs'),/seasonType: 'Showcase', dir: 'official_gleague_showcase'/);
+console.log('Owner workflow policy passed: authenticated/manual production-ref gate, confirmation, verified source-only review branch, no credential exposure/force/auto-deployment/refit and correct Showcase team inventory');

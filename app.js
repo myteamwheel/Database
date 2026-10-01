@@ -351,7 +351,11 @@ function openDataStatus() {
     + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
     + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'
     + '<div class="metric-list">' + rows + '</div>'
-    + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>';
+    + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>'
+    + '<details class="owner-refresh"><summary>Refresh sources — website owner</summary>'
+    + '<p><a id="ownerRefreshLink" href="https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml" target="_blank" rel="noopener noreferrer">Open authenticated source refresh</a></p>'
+    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources are 2025-26 statistics, the 2026-27 NBA roster, dated transactions and individual bios. Injuries, news and 2026-27 game statistics are not yet supported.</p>'
+    + '<p>The run verifies the data and creates a review branch. Open its review link, pass the release checks and merge to publish. This does not immediately change the live site, retrain models or expose account credentials.</p></details>';
   $('dataStatusDialog').showModal();
 }
 function captureReloadState() {

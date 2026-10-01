@@ -10,12 +10,12 @@ export function ownerRefreshStages({ season = SUPPORTED_BUILD_SEASON } = {}) {
   }
   return [
     { id:'fetch-official', command:'npm', args:['run','fetch'] },
+    { id:'fetch-transactions', command:'npm', args:['run','fetch:transactions'] },
+    { id:'fetch-live-roster', command:'npm', args:['run','fetch:live-roster'] },
     // Training inputs are hash-pinned to the fitted model card. Refreshing them
     // is a separate, explicitly validated model refit, not routine ingestion.
     { id:'fetch-bios', command:'npm', args:['run','fetch:bios'] },
     { id:'fetch-birthdates', command:'npm', args:['run','fetch:birthdates'] },
-    { id:'fetch-transactions', command:'npm', args:['run','fetch:transactions'] },
-    { id:'fetch-live-roster', command:'npm', args:['run','fetch:live-roster'] },
     { id:'build', command:'npm', args:['run','build'] },
     { id:'verify', command:'npm', args:['run','verify'] },
   ];

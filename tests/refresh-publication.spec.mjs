@@ -136,6 +136,22 @@ test('reload rejects malformed data even when its hash matches', async ({page}) 
   expect(await page.evaluate(()=>!!DATA.counts)).toBe(true);
 });
 
+test('source refresh is a collapsed authenticated owner action, not a public ingestion request',async({page})=>{
+  await routePublication(page);
+  await page.goto(`${origin}/index.html`);
+  await page.waitForSelector('#tableBody tr td');
+  await page.click('#dataStatusBtn');
+  const details=page.locator('#dataStatusBody details.owner-refresh');
+  await expect(details).not.toHaveAttribute('open','');
+  await details.locator('summary').click();
+  await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('href','https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml');
+  await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('rel','noopener noreferrer');
+  await expect(details).toContainText('repository write access');
+  await expect(details).toContainText('2026-27 game statistics are not yet supported');
+  await expect(details).toContainText('review branch');
+  await expect(details).toContainText('does not immediately change the live site');
+});
+
 test('reload fails closed when hash verification is unavailable', async ({page}) => {
   await routePublication(page);
   await page.goto(`${origin}/index.html`);
