@@ -22,6 +22,9 @@ function audit(payload){
       for(const [field,makes,attempts]of [['fgPct','fgm','fga'],['fg3Pct','fg3m','fg3a'],['ftPct','ftm','fta']]){
         if(p.stats[`off_${attempts}`]>0)close(p[field],p.stats[`off_${makes}`]/p.stats[`off_${attempts}`],.000501,`${label}: pooled ${field}`);
       }
+      if(p.stats.off_fga>0)close(p.efg,(p.stats.off_fgm+.5*p.stats.off_fg3m)/p.stats.off_fga,.000051,`${label}: actual eFG`);
+      const actualTsDen=2*(p.stats.off_fga+.44*p.stats.off_fta);
+      if(actualTsDen>0)close(p.ts,p.stats.off_pts/actualTsDen,.000051,`${label}: actual true shooting`);
       if(league==='NBA')close(p.stats.off_pts,2*p.stats.off_fgm+p.stats.off_fg3m+p.stats.off_ftm,0,`${label}: NBA point totals`);
       else {
         const freeThrowPoints=p.stats.off_pts-2*p.stats.off_fgm-p.stats.off_fg3m;
@@ -43,6 +46,7 @@ function audit(payload){
     close(q.mpg,a.mpg,.050001,`${label}: headline minutes`);
     for(const key of projectionRates){close(q[key],a[key],.050001,`${label}: headline ${key}`);close(a.totals[key],a[key]*a.gp,1e-5,`${label}: total ${key}`);}
     for(const [field,makes,attempts]of [['fgPct','fgm','fga'],['fg3Pct','fg3m','fg3a'],['ftPct','ftm','fta']])if(a[attempts]>0)close(q[field],a[makes]/a[attempts],.001001,`${label}: forecast ${field}`);else assert.equal(q[field],null);
+    if(a.fga+.44*a.fta>0)close(q.ts,a.pts/(2*(a.fga+.44*a.fta)),.001001,`${label}: forecast true shooting`);
   }
   for(const [team,budget]of Object.entries(payload.projectionMeta.teamBudgets)){
     const roster=payload.leagues.NBA.filter(p=>p.currentTeam===team);

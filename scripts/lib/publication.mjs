@@ -11,7 +11,7 @@ const COVERAGE_SET = new Set(COVERAGE_STATES);
 export const MODEL_OUTPUTS = Object.freeze({
   performanceGrades: Object.freeze({
     label: 'Performance grades and custom metrics',
-    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/build-v3.mjs'],
+    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs'],
     source: '2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields',
   }),
   projections: Object.freeze({
@@ -41,7 +41,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   teamFit: Object.freeze({
     label: 'Skill profiles, similarity, archetypes and Team Fit',
-    codeFiles: ['scripts/lib/analysis.mjs','scripts/build-v3.mjs'],
+    codeFiles: ['scripts/lib/analysis.mjs','scripts/lib/roster.mjs','scripts/lib/sources.mjs','scripts/build-v3.mjs'],
     source: 'Published same-league player rows and minutes-weighted roster need profiles',
   }),
   crossLeague: Object.freeze({

@@ -9,11 +9,11 @@
 // Rule now: every ingredient of the headline grade is a primitive or near-primitive statistic,
 // and NO statistic appears in more than one place across the whole model. Derived composites
 // remain available as descriptive metrics, but never as grade ingredients.
-import { round } from './sources.mjs';
+import { round, num } from './sources.mjs';
 
 export const GRADE_MODEL_VERSION = '3.4';
 
-const fin = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
+const fin = (v) => num(v) !== null;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 export const COMPONENT_WEIGHTS = {
@@ -87,7 +87,7 @@ export const MIN_COVERAGE = {
 
 /** Percentile (0-100) with ties averaged. */
 export function percentiles(values) {
-  const idx = values.map((v, i) => ({ v, i })).filter((x) => fin(x.v));
+  const idx = values.map((v, i) => ({ v: num(v), i })).filter((x) => fin(x.v));
   idx.sort((a, b) => a.v - b.v);
   const out = new Array(values.length).fill(null);
   let i = 0;
@@ -115,7 +115,7 @@ function quantile(sorted, q) {
  * 31 and 24 points survives, where a percentile only records that one is ahead of the other.
  */
 export function robustZ(values, { weights } = {}) {
-  const present = values.map((v, i) => ({ v, w: weights ? weights[i] || 0 : 1 }))
+  const present = values.map((v, i) => ({ v: num(v), w: weights ? weights[i] || 0 : 1 }))
     .filter((x) => fin(x.v));
   if (present.length < 3) return values.map(() => null);
   const sorted = present.map((x) => x.v).sort((a, b) => a - b);

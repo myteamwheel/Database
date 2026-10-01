@@ -41,7 +41,7 @@ const STINT_FIELDS = ['GP', 'W', 'L', 'MIN', 'FGM', 'FGA', 'FG3M', 'FG3A', 'FTM'
  * holds team-scoped rows; rows for the same player+team across halves are summed.
  */
 /**
- * teamId -> abbreviation, learned from players who only appeared for one team.
+ * teamId -> abbreviation, learned only when the reported and queried IDs agree.
  * Needed because the stint rows carry the player's current team abbreviation rather than the
  * team the row actually describes; only the queried team id is trustworthy.
  */
@@ -49,7 +49,11 @@ function teamAbbrevMap(halves) {
   const map = new Map();
   for (const { file } of halves) {
     for (const r of loadArray(file)) {
-      if ((r.TEAM_COUNT || 1) === 1 && r.QUERIED_TEAM_ID && r.TEAM_ABBREVIATION) {
+      // TEAM_COUNT is one inside a team-filtered response even for a traded
+      // player. It cannot establish that the returned abbreviation belongs to
+      // the queried team; the two IDs must match.
+      if (r.QUERIED_TEAM_ID && r.TEAM_ID === r.QUERIED_TEAM_ID && r.TEAM_ABBREVIATION) {
+        if (map.has(r.QUERIED_TEAM_ID) && map.get(r.QUERIED_TEAM_ID) !== r.TEAM_ABBREVIATION) throw new Error(`Conflicting official stint team identity ${r.QUERIED_TEAM_ID}`);
         map.set(r.QUERIED_TEAM_ID, r.TEAM_ABBREVIATION);
       }
     }
@@ -61,11 +65,15 @@ export function buildStints(halves) {
   const abbrev = teamAbbrevMap(halves);
   const byPlayer = new Map();
   for (const { file, label } of halves) {
+    const seen = new Set();
     for (const r of loadArray(file)) {
       const pid = r.PLAYER_ID;
       const tid = r.QUERIED_TEAM_ID ?? r.TEAM_ID;
       const team = abbrev.get(tid) || (r.QUERIED_TEAM_ID ? null : r.TEAM_ABBREVIATION);
-      if (!pid || !team) continue;
+      if (!pid || !tid || !team) throw new Error(`Unresolved official stint identity in ${file}`);
+      const key = `${pid}:${tid}`;
+      if (seen.has(key)) throw new Error(`Duplicate official stint player/query in ${file}: ${key}`);
+      seen.add(key);
       if (!byPlayer.has(pid)) byPlayer.set(pid, new Map());
       const teams = byPlayer.get(pid);
       if (!teams.has(team)) {
