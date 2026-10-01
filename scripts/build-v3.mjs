@@ -29,6 +29,7 @@ import { tulipDiagnostics } from './lib/tulip-diagnostics.mjs';
 import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-build.mjs';
 import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
 import { distributionSummary as tulipBetaDistribution, teamAllocationDiagnostics, validationStatus as tulipBetaValidationStatus } from './lib/tulip-beta-diagnostics.mjs';
+import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -56,15 +57,18 @@ const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'u
 const projectionInputsPath = path.join(ROOT, 'scripts/data/projection/inputs.json');
 const projectionInputs = fs.existsSync(projectionInputsPath)
   ? JSON.parse(fs.readFileSync(projectionInputsPath, 'utf8')) : null;
+const liveRosterPath = path.join(ROOT, 'scripts/data/live/roster.json');
+const liveRoster = fs.existsSync(liveRosterPath)
+  ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(liveRosterPath, 'utf8'))) : null;
 const compactRows = (t) => (t?.rows || []).map((row) =>
   Object.fromEntries((t.headers || []).map((h, i) => [h, row[i]])));
-const currentNbaRosterRows = compactRows(projectionInputs?.rosters2627);
+const currentNbaRosterRows = compactRows(liveRoster || projectionInputs?.rosters2627);
 const currentNbaRoster = new Map(currentNbaRosterRows
   .filter((r) => r.PERSON_ID && r.TEAM_ABBREVIATION && Number(r.ROSTER_STATUS) === 1)
   .map((r) => [Number(r.PERSON_ID), r.TEAM_ABBREVIATION]));
 const currentNbaRosterBio = new Map(currentNbaRosterRows
   .filter((r) => r.PERSON_ID && Number(r.ROSTER_STATUS) === 1).map((r) => [Number(r.PERSON_ID), r]));
-const currentRosterAsOf = projectionInputs?.fetchedAt ? String(projectionInputs.fetchedAt).slice(0, 10) : null;
+const currentRosterAsOf = (liveRoster?.fetchedAt || projectionInputs?.fetchedAt || '').slice(0, 10) || null;
 const heightInchesFromRoster = (h) => {
   const m = String(h || '').match(/^(\d+)-(\d+(?:\.\d+)?)$/);
   return m ? Number(m[1]) * 12 + Number(m[2]) : null;

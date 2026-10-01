@@ -240,16 +240,24 @@ function officialStatsDomain(root, publicData) {
 
 export function deriveSourceDomains({ root, publicData }) {
   const projection = readJson(path.join(root, 'scripts/data/projection/inputs.provenance.json'));
+  const liveRoster = readJson(path.join(root, 'scripts/data/live/roster.json'));
+  const liveRosterMatches = liveRoster?.fetchedAt &&
+    String(liveRoster.fetchedAt).slice(0, 10) === publicData?.projectionMeta?.rostersAsOf;
   const bref = readJson(path.join(root, 'scripts/data/bref_build_v2.json'));
   return {
     officialStats: officialStatsDomain(root, publicData),
-    rosterProjectionInputs: projection ? {
-      status: 'ok',
-      checkedAt: projection.fetchedAt || null,
-      fetchedAt: projection.fetchedAt || null,
-      asOf: projection.fetchedAt ? String(projection.fetchedAt).slice(0,10) : null,
-      sha256: projection.sha256 || null,
-      limitation: null,
+    rosterProjectionInputs: projection || liveRoster ? {
+      status: liveRoster && !liveRosterMatches ? 'partial' : 'ok',
+      checkedAt: liveRoster?.fetchedAt || projection?.fetchedAt || null,
+      fetchedAt: liveRoster?.fetchedAt || projection?.fetchedAt || null,
+      asOf: (liveRoster?.fetchedAt || projection?.fetchedAt || '').slice(0,10) || null,
+      sha256: liveRoster ? fileSha256(root, 'scripts/data/live/roster.json') : projection?.sha256 || null,
+      source: liveRoster?.source || 'frozen projection player index',
+      projectionInputsSha256: projection?.sha256 || null,
+      projectionInputsFetchedAt: projection?.fetchedAt || null,
+      limitation: liveRoster && !liveRosterMatches
+        ? 'The fetched roster does not match the roster date in the published projection; rebuild before publication.'
+        : liveRoster ? 'Current roster context is newer than the frozen model-training inputs; training was not silently refitted.' : null,
     } : {
       status: 'unavailable', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'Projection/roster provenance file is unavailable.',

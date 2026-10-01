@@ -15,6 +15,7 @@ import {
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
 import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
+import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public/data.json');
@@ -109,7 +110,7 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
         && (bio?.fromYear >= 2026 || bio?.draftYear === 2026)
         ? rookieProjection(bio, Number.isFinite(p.age) ? p.age : null, rookies, ctx.priors) : null;
       if (!hist.some(Boolean) && !rookie) {
-        p.proj = { abstain: true, reason: isNba
+        p.proj = { abstain: true, team: team26, reason: isNba
           ? 'No NBA minutes in 2023-24, 2024-25 or 2025-26 to project from.'
           : 'No G League minutes in 2023-24, 2024-25 or 2025-26 to project from.' };
         continue;
@@ -315,7 +316,8 @@ export function buildProjections(data, rawInputs, card, { roster = null } = {}) 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const data = JSON.parse(fs.readFileSync(DATA, 'utf8'));
   const livePath = path.join(ROOT, 'scripts/data/live/roster.json');
-  const roster = fs.existsSync(livePath) ? JSON.parse(fs.readFileSync(livePath, 'utf8')) : null;
+  const roster = fs.existsSync(livePath)
+    ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(livePath, 'utf8'))) : null;
   const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster });
   fs.writeFileSync(DATA, JSON.stringify(data));
   console.log(`2026-27 projections: NBA ${nba.scored} projected (${nba.moved} on new teams, ${nba.unsigned} not on a roster), ${nba.abstained} without recent NBA minutes`);
