@@ -6,7 +6,7 @@
   <meta name="description" content="2025-26 NBA and NBA G League player stats, rankings and 2026-27 projections" />
   <title>Pro Basketball Database: 2025-26 Player Stats and 2026-27 Projections</title>
   <!-- Versioned URLs make a Pages deploy immediately pick up the matching UI assets. -->
-  <link rel="stylesheet" href="styles.css?v=20261001-reference-evidence" />
+  <link rel="stylesheet" href="styles.css?v=20261001-value-semantics" />
 </head>
 <body>
   <header class="site-header">
@@ -188,13 +188,13 @@
     <div class="rule-grid">
       <select id="ruleMetric" aria-label="Filter rule metric"></select>
       <select id="ruleOp" aria-label="Filter rule comparison"><option value=">=">&ge;</option><option value="<=">&le;</option><option value=">">&gt;</option><option value="<">&lt;</option></select>
-      <input id="ruleValue" aria-label="Filter rule value" type="number" step="0.01" value="0" />
+      <input id="ruleValue" aria-label="Filter rule value" type="number" step="any" value="0" required />
     </div>
     <p class="tiny" id="ruleUnitHint"></p>
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js?v=20261001-projection-presentation"></script>
-  <script src="workspace.js?v=20261001-reference-evidence"></script>
+  <script src="app.js?v=20261001-value-semantics"></script>
+  <script src="workspace.js?v=20261001-value-semantics"></script>
 </body>
 </html>

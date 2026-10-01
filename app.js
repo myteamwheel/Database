@@ -248,7 +248,7 @@ const VALUE_MEANINGS = [
   ['Small sample', 'Small sample means the value exists but rests on limited evidence and should be read with extra caution.'],
 ];
 
-const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+const finite = v => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && Number.isFinite(Number(v));
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = v => finite(v) ? `${(Number(v)*100).toFixed(1)}%` : '—';
 const pctPoints = v => finite(v) ? `${Number(v).toFixed(1)}%` : '—';
@@ -724,7 +724,7 @@ const PRESET_LABELS = {overall:'Overall',proj:'2026-27 Projections',workload:'Pr
 // CORE_REGISTRY removed in v3.5 — the field catalog and the records themselves are the registry.
 
 function fmt(v,type){
-  if (type==='text') return esc(v || '—');
+  if (type==='text') return esc(v===null||v===undefined||v===''?'—':v);
   if (type==='int') return finite(v)?Math.round(Number(v)).toLocaleString():'—';
   if (type==='pct') return pct(v);
   if (type==='pctPoints') return pctPoints(v);
@@ -749,7 +749,10 @@ const isFraction = key => colDef(key).type === 'pct';
 const toDisplayUnit = (key,v) => (finite(v) && isFraction(key) ? Number(v)*100 : v);
 const fromDisplayUnit = (key,v) => (finite(v) && isFraction(key) ? Number(v)/100 : v);
 
-function gradeClass(v){return v>=8.5?'elite':v>=6.5?'strong':v>=4?'mid':'low'}
+function gradeClass(v){return !finite(v)?'':v>=8.5?'elite':v>=6.5?'strong':v>=4?'mid':'low'}
+const PERFORMANCE_ONLY = new Set(['rank','grade','rateGrade','magnitudeGrade','magnitudeRaw','gradeRaw','gradeShrunk','gradeCoverage']);
+const notApplicable = (p,key) => p.appeared===false && PERFORMANCE_ONLY.has(key);
+const formatCell = (p,key) => notApplicable(p,key)?'N/A':fmt(get(p,key),colDef(key).type);
 function currentPlayers(){return DATA?.leagues?.[league] || []}
 
 /** The current-roster view is NBA-only; G League has no equivalent published 2026-27 roster set. */
@@ -794,7 +797,7 @@ function updateRosterScopeUi(){
   note.hidden = !current;
   if (current) {
     const withoutLine = currentPlayers().filter((p) => p.currentRoster && !p.appeared).length;
-    note.innerHTML = `<b>Current NBA rosters:</b> ${rosterCount.toLocaleString()} players as of ${esc(asOf || 'the published snapshot')}, including ${withoutLine.toLocaleString()} players without a 2025-26 NBA appearance (such as rookies, new signings, or players who did not play). Their historical-stat cells are intentionally blank—not missing data.`;
+    note.innerHTML = `<b>Current NBA rosters:</b> ${rosterCount.toLocaleString()} players as of ${esc(asOf || 'the published snapshot')}, including ${withoutLine.toLocaleString()} without a 2025-26 NBA appearance. Their performance grades and ranks are N/A; unavailable statistics show —. A recorded zero remains 0.`;
   }
 }
 
@@ -1240,9 +1243,11 @@ function filteredPlayers(){
     // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
     .map(p=>$('viewPreset').value==='proj'?p:teamScoped(p,team,teamMode))
     .filter(p=>{
-      const gradeOk=p.grade===null?(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo):p.grade>=minGrade;
-      return p.gp>=minGp&&(p.mpg||0)>=minMpg&&(p.minutes||0)>=minMin&&gradeOk
-        &&(p.teamScopedTo||(p.reliabilityWeight||0)>=minRel)&&applyRules(p);
+      // Zero disables a minimum filter. A positive threshold requires an observed value.
+      const meets=(v,min)=>min<=0||(finite(v)&&Number(v)>=min);
+      const gradeOk=finite(p.grade)?p.grade>=minGrade:minGrade<=0&&(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo);
+      return meets(p.gp,minGp)&&meets(p.mpg,minMpg)&&meets(p.minutes,minMin)&&gradeOk
+        &&meets(p.reliabilityWeight,minRel)&&applyRules(p);
     });
   list.sort((a,b)=>{
     const av=sortValue(a,sortKey),bv=sortValue(b,sortKey);
@@ -1390,7 +1395,7 @@ function cell(p,key){
     } else sub=esc(p.team||'')+' · '+esc(p.position||'—');
     return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${sub}</span></td>`;
   }
-  if(key==='grade')return `<td class="grade ${gradeClass(v)}">${fmt(v,def.type)}</td>`;
+  if(key==='grade')return `<td class="grade ${gradeClass(v)}">${formatCell(p,key)}</td>`;
   if(key==='team'&&p.league==='NBA'){
     const cls=p.currentTeam?'': 'status-unsigned';
     return `<td class="${cls}">${fmt(v,def.type)}</td>`;
@@ -1404,7 +1409,7 @@ function cell(p,key){
     const cls=finite(v)&&Number(v)>0?'metric-good':finite(v)&&Number(v)<0?'metric-bad':'';
     return `<td class="${cls}">${fmt(v,def.type)}</td>`;
   }
-  return `<td class="${key==='viewRank'||key==='rank'?'rank':''}">${fmt(v,def.type)}</td>`;
+  return `<td class="${key==='viewRank'||key==='rank'?'rank':''}">${formatCell(p,key)}</td>`;
 }
 
 function updateCompare(){
@@ -1649,6 +1654,10 @@ function projCard(p){
   if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
     <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
+  const latestHistory=(w.seasons||[]).slice().sort((a,b)=>b.season.localeCompare(a.season))[0];
+  const returner=c.basis!=='rookie-cohort-fallback'&&latestHistory&&latestHistory.season<'2025-26';
+  const gap=returner?Math.max(0,2026-Number(latestHistory.season.slice(0,4))-1):0;
+  const returnerNote=returner?`<p class="proj-returner-note tiny"><b>Returning after a gap.</b> Last recorded ${p.league==='NBA'?'NBA':'G League'} season: ${esc(latestHistory.season)}. No appearances are recorded in the ${gap} intervening season${gap===1?'':'s'}. This estimate uses earlier playing history; current injury clearance and return timing are unverified.</p>`:'';
   const row=(label,last,proj)=>`<tr><th scope="row" class="left">${label}</th><td>${num(last)}</td><td><b>${num(proj)}</b></td></tr>`;
   const prow=(label,last,proj)=>`<tr><th scope="row" class="left">${label}</th><td>${pct(last)}</td><td><b>${pct(proj)}</b></td></tr>`;
   const table=`<table class="compare-table proj-estimates"><caption>Per game when playing, except season games and shooting percentages. GP is an expected count and may be fractional.</caption><thead><tr><th scope="col" class="left">Metric</th><th scope="col">2025-26 actual</th><th scope="col">2026-27 estimate</th></tr></thead><tbody>
@@ -1675,12 +1684,12 @@ function projCard(p){
     const m=w.minutes, eff=m.effects||{};
     const parts=[['age',eff.age],['a new team',eff.newTeam],[`teammates' minutes`,eff.depth],['draft slot and youth',eff.draftAndYouth]]
       .filter(([,v])=>finite(v)&&Math.abs(v)>=0.1).map(([k,v])=>`${k} ${signed(v)}`);
-    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role':c.basis==='older-history-fallback'?`Older NBA minutes from ${esc(w.fallback?.lastObservedSeason||'his last active season')} are discounted after a long gap; this is a low-support return estimate`:`${num(m.last)} MPG in 2025-26`;
+    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role':c.basis==='older-history-fallback'?`Older ${p.league==='NBA'?'NBA':'G League'} minutes from ${esc(w.fallback?.lastObservedSeason||'his last active season')} are discounted after a long gap; this is a low-support return estimate`:returner?`No recorded 2025-26 minutes; earlier history ends in ${esc(latestHistory.season)}`:`${num(m.last)} MPG in 2025-26`;
     const recent=c.basis==='multi-year-history';
     items.push(`<b>Minutes.</b> ${evidenceLead}${recent&&finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${recent&&finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)} per game he plays${finite(m.teamBudgetAdjustment)&&Math.abs(m.teamBudgetAdjustment)>=0.1?`; roster-minute allocation ${signed(m.teamBudgetAdjustment)} MPG`:''}.${parts.length?` Other model adjustments: ${parts.join(', ')}.`:''}`);
   }
   if(w.games){
-    const observed=c.basis==='rookie-cohort-fallback'?'No prior NBA appearance record; availability uses a historical rookie prior':finite(w.games.lastShare)?`Played ${Math.round(w.games.lastShare*100)}% of his team's games in ${c.basis==='older-history-fallback'?esc(w.fallback?.lastObservedSeason||'his last active season'):'2025-26'}`:'Prior appearance rate unavailable';
+    const observed=c.basis==='rookie-cohort-fallback'?'No prior NBA appearance record; availability uses a historical rookie prior':c.basis==='older-history-fallback'?`Older seasons average ${Math.round(w.games.lastShare*100)}% of team games, weighted by recency and exposure`:returner?'No appearances are recorded in 2025-26; the model combines this gap with earlier appearance history':finite(w.games.lastShare)?`Played ${Math.round(w.games.lastShare*100)}% of his team's games in 2025-26`:'Prior appearance rate unavailable';
     items.push(`<b>Games.</b> ${observed}. Expected season games: ${num(c.gp)} of ${games}. This is not a medical availability assessment.`);
   }
   if(w.team&&p.league==='NBA'&&c.status!=='unsigned'){
@@ -1695,7 +1704,7 @@ function projCard(p){
   const chain=steps.length?`<div class="proj-steps"><b>Points per 100 possessions:</b> ${steps.map(([k,v])=>`<span>${num(v)} <i>${k}</i></span>`).join(' → ')}</div>`:'';
   return `<div class="proj-card"><div class="section-bar">2026-27 projection · ${esc(c.role||'projected role')}</div>
     <p class="proj-context tiny">${esc(get(p,'proj.team'))} · ${esc(get(p,'proj.status'))}${c.basis==='rookie-cohort-fallback'?' · provisional cohort estimate; no personal NBA history':c.basis==='older-history-fallback'?' · low-support estimate from older NBA history':c.status==='unsigned'?' · conditional on signing and playing':p.league==='GLEAGUE'?' · G League forecast; team is last observed affiliation':''}.</p>
-    <div class="proj-body"><div>${table}${ranges}</div>
+    ${returnerNote}<div class="proj-body"><div>${table}${ranges}</div>
       <details class="proj-why"><summary>How this line was built</summary><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
       <p class="tiny">Availability uses historical appearance rates. Injury clearance and contract security are not verified here.
       <button class="text-button" type="button" data-proj-method>How the projections work</button></p></details></div></div>`;
@@ -1974,7 +1983,7 @@ function openCompare(){
     +`<div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${
     rows.filter(k=>ps.some(p=>{const v=get(p,k);
       // text columns (e.g. Confidence) are never "finite", so keep any non-empty value too
-      return colDef(k).type==='text' ? (v!==null&&v!==undefined&&v!=='') : finite(v);})).map(k=>`<tr><td class="left">${esc(colDef(k).label)}</td>${ps.map(p=>`<td>${fmt(get(p,k),colDef(k).type)}</td>`).join('')}</tr>`).join('')
+      return colDef(k).type==='text' ? (v!==null&&v!==undefined&&v!=='') : finite(v);})).map(k=>`<tr><td class="left">${esc(colDef(k).label)}</td>${ps.map(p=>`<td>${formatCell(p,k)}</td>`).join('')}</tr>`).join('')
   }</tbody></table></div>`;
   $('compareDialog').showModal();
 }
@@ -2100,6 +2109,7 @@ async function exportCsv(){
   for(const p of list){
     const row=cols.map(k=>{
       const v=get(p,k);
+      if(notApplicable(p,k)) return q('N/A');
       // Projection exports match visible precision; keep ordinary raw-stat exports lossless.
       if($('viewPreset').value==='proj'&&finite(v)){
         const type=colDef(k).type, n=toDisplayUnit(k,Number(v));
@@ -2213,7 +2223,7 @@ function bind(){
     const k=$('ruleMetric').value;
     $('ruleUnitHint').textContent=isFraction(k)?'Enter percentage points, e.g. 60 for 60%':'';
   };
-  $('saveRuleBtn').onclick=()=>{rules.push({key:$('ruleMetric').value,op:$('ruleOp').value,value:Number($('ruleValue').value)});$('ruleDialog').close();render();writeUrlState('push');};
+  $('saveRuleBtn').onclick=()=>{if(!$('ruleValue').reportValidity()||!finite($('ruleValue').value))return;rules.push({key:$('ruleMetric').value,op:$('ruleOp').value,value:Number($('ruleValue').value)});$('ruleDialog').close();render();writeUrlState('push');};
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 }
 
@@ -2223,6 +2233,7 @@ window.__wsRender=()=>render();
 window.__wsFiltered=()=>filteredPlayers();
 window.__wsCompared=()=>[...compared];
 window.__wsLabel=(k)=>colDef(k).label;
+window.__wsFormatCell=formatCell;
 window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
 window.__wsProjCard=projCard;
 

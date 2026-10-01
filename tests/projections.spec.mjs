@@ -67,6 +67,32 @@ async function open(page) {
 }
 
 test.describe('2026-27 projections', () => {
+  test('every returning veteran has a dated gap explanation and no invented latest-season minutes', async ({page}) => {
+    const errors=await open(page);
+    let checked=0;
+    for(const league of ['NBA','GLEAGUE']) {
+      if(league==='GLEAGUE') await page.click('.league-tab[data-league="GLEAGUE"]');
+      const returners=source.leagues[league].filter(p=>p.proj&&!p.proj.abstain&&p.proj.basis!=='rookie-cohort-fallback'&&!p.appeared);
+      for(const p of returners) {
+        const latest=p.proj.why.seasons.slice().sort((a,b)=>b.season.localeCompare(a.season))[0];
+        await page.evaluate(id=>openPlayer(id),p.playerId);
+        const card=page.locator('#playerDialogBody .proj-card');
+        await expect(card.locator('.proj-returner-note')).toContainText(`Last recorded ${league==='NBA'?'NBA':'G League'} season: ${latest.season}`);
+        await expect(card.locator('.proj-returner-note')).toContainText('current injury clearance and return timing are unverified');
+        await card.locator('.proj-why > summary').click();
+        await expect(card.locator('.proj-why')).not.toContainText('— MPG in 2025-26');
+        if(p.proj.basis==='older-history-fallback') {
+          await expect(card.locator('.proj-why')).toContainText('Older seasons average');
+          if(league==='GLEAGUE') await expect(card.locator('.proj-why')).not.toContainText('Older NBA minutes');
+        } else await expect(card.locator('.proj-why')).toContainText(`earlier history ends in ${latest.season}`);
+        await page.click('[data-close="playerDialog"]');
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+
   test('CSV export names the correct season for projections and stats', async ({ page }) => {
     await open(page);
     await page.click('.site-link[data-goto="proj"]');
