@@ -50,13 +50,26 @@ jobs:
       - name: Audit rebuilt player data
         run: node scripts/audit-v3.mjs
 
+      - name: Verify refresh and publication contracts
+        run: |
+          npm run test:refresh
+          npm run test:publication
+          npm run test:owner-refresh
+          npm run verify:publication
+
       - name: Audit UI preset schema
         run: node scripts/audit-presets.mjs
+
+      - name: Verify cross-tab identity, timeframe and Team Fit consistency
+        run: |
+          npm run test:cross-tabs
+          npm run audit:cross-tabs
 
       - name: Verify TULIP metadata against recomputed diagnostics
         run: |
           node scripts/tulip-verify.mjs
           npm run test:tulipbeta
+          npm run test:tulipbeta:diagnostics
           npm run test:tulipcapacity
 
       - name: Verify tracked historical products and strict role-feature timing
@@ -72,6 +85,26 @@ jobs:
         env:
           BUILD_COMMIT: ${{ github.sha }}
         run: npm run verify:determinism
+
+      - name: Verify frozen projections and forecast archive integrity
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          npm run test:projections
+          npm run test:review
+          node tests/forecast-timeframes.test.mjs
+          node tests/projection-validation.test.mjs
+          node tests/projection-context-reconciliation.test.mjs
+          npm run test:forecast-archive
+          if [[ "${{ github.event_name }}" == "pull_request" && -n "$PR_BASE_SHA" ]]; then
+            npm run verify:forecast-archive -- --base-ref "$PR_BASE_SHA"
+          elif [[ -n "$PUSH_BEFORE" && ! "$PUSH_BEFORE" =~ ^0+$ ]]; then
+            npm run verify:forecast-archive -- --base-ref "$PUSH_BEFORE"
+          else
+            npm run verify:forecast-archive
+          fi
 
       - name: Install Playwright
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund

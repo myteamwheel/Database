@@ -1,0 +1,58 @@
+name: Forecast archive development tests
+
+on:
+  pull_request:
+    branches: [v3-official-data]
+    paths:
+      - 'scripts/lib/forecast-archive.mjs'
+      - 'scripts/archive-forecast.mjs'
+      - 'scripts/score-forecast-archive.mjs'
+      - 'scripts/verify-forecast-archive.mjs'
+      - 'scripts/data/forecast-archive/**'
+      - 'tests/forecast-archive.test.mjs'
+      - 'package.json'
+      - '.github/workflows/forecast-archive-dev.yml'
+      - '.github/workflows/audit-player-database.yml'
+      - '.github/workflows/rebuild-generated.yml'
+      - '.github/workflows/deploy-pages.yml'
+
+jobs:
+  forecast-archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Run focused forecast archive tests
+        run: |
+          npm run test:forecast-archive
+          npm run verify:forecast-archive -- --base-ref "${{ github.event.pull_request.base.sha }}"
+          npm run test:projections
+
+      - name: Hydrate immutable historical cache for full verify
+        shell: bash
+        run: |
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+          npm run build:history
+
+      - name: Rebuild source artifact after history hydration
+        run: npm run build
+
+      - name: Install Playwright dependencies
+        run: |
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Run exact full project verification
+        run: npm run verify

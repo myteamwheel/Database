@@ -31,7 +31,7 @@ t('2 sign is consistent with the underlying value signal', () => {
   }
   assert.strictEqual(bad, 0, `${bad} players whose TULIP sign contradicts their value gap`);
 });
-t('3 Recommended = Current + TULIP within rounding', () => {
+t('3 Recommended = Baseline + TULIP within rounding', () => {
   for (const p of nba) {
     const c = p.tulipBeta; if (!c || c.abstain) continue;
     assert.ok(Math.abs((c.currentMpg + c.tulip) - c.recommendedMpg) <= 0.11,
@@ -96,7 +96,9 @@ t('11 UI exposes TULIP columns and states beta status', () => {
   assert.ok(/NOT PROBABILITY OF CORRECTNESS/.test(app), 'support-vs-probability distinction absent');
   assert.ok(/TULIP Beta recommends/.test(app), 'detail does not frame the number as a recommendation');
   assert.ok(/EXPERIMENTAL BETA|experimental beta/i.test(app), 'beta status absent from UI');
-  assert.ok(/did not establish that the exact MPG deltas maximize wins/i.test(app), 'non-validation absent from UI');
+  assert.ok(/did not establish that either the play-more\/play-less direction or the exact MPG deltas improve winning/i.test(app)
+    || /neither the play-more\/play-less direction nor the exact magnitude has been validated/i.test(app),
+    'direction-and-magnitude non-validation absent from UI');
 });
 t('12 TULIP Beta is not called Capacity, and Projected Role MPG survives separately', () => {
   assert.ok(!/label:'TULIP Capacity'/.test(app), 'TULIP Capacity label present');
@@ -196,7 +198,7 @@ t2('T2 minutes gained equals minutes surrendered per team', () => {
     assert.ok(Math.abs(g - s) <= tol, `${team}: gained ${g.toFixed(2)} vs surrendered ${s.toFixed(2)}`);
   }
 });
-t2('T3 team recommended total equals team current total', () => {
+t2('T3 team recommended total equals team baseline total', () => {
   for (const [team, arr] of Object.entries(byTeam)) {
     const cur = arr.reduce((a, p) => a + p.tulipBeta.currentMpg, 0);
     const rec = arr.reduce((a, p) => a + p.tulipBeta.recommendedMpg, 0);
@@ -214,7 +216,8 @@ t2('T4 every team has both sides of the ledger or neither', () => {
 t2('T5 team allocation view exists and states the non-validation', () => {
   assert.ok(/function openTeamAllocation/.test(app), 'openTeamAllocation missing');
   assert.ok(/MINUTES GAINED/.test(app) && /MINUTES SURRENDERED/.test(app), 'gained/surrendered ledger missing');
-  assert.ok(/have not been validated as win-maximizing/i.test(app), 'team-level non-validation wording missing');
+  assert.ok(/neither its play-more\/play-less direction nor its exact MPG magnitude has been validated as win-maximizing/i.test(app),
+    'team-level direction-and-magnitude non-validation wording missing');
   assert.ok(!/optimal rotation|proven best allocation|expected wins added/i.test(app), 'forbidden overclaiming language present');
   assert.ok(/View \$\{esc\(p\.currentTeam/.test(app), 'per-player current-team allocation link missing');
 });

@@ -5,6 +5,35 @@ import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeat
 export const CONTEXT_VERSION = 'context-1';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+
+/** Decide how much of the 240-minute team budget may be allocated without inventing
+ * minutes for roster members who have no projection. Complete rosters use the full budget.
+ * Incomplete rosters may be reconciled downward, but never upward beyond their modeled demand. */
+export function reconciliationBudget(rows, { rosterPlayers = rows?.length || 0, fullBudget = 240 } = {}) {
+  if (!Array.isArray(rows)) throw new Error('Reconciliation rows are required.');
+  if (!Number.isInteger(rosterPlayers) || rosterPlayers < rows.length) {
+    throw new Error('Roster player count cannot be smaller than projected rows.');
+  }
+  if (!Number.isFinite(fullBudget) || fullBudget <= 0) throw new Error('Full team budget must be positive.');
+  const modeledDemand = rows.reduce((s, r) => {
+    if (!Number.isFinite(r?.mpg) || !Number.isFinite(r?.share) || r.mpg < 0 || r.share < 0) {
+      throw new Error('Reconciliation budget requires finite non-negative MPG and share.');
+    }
+    return s + r.mpg * r.share;
+  }, 0);
+  const unprojectedRosterPlayers = Math.max(0, rosterPlayers - rows.length);
+  const requestedBudget = unprojectedRosterPlayers > 0 ? Math.min(fullBudget, modeledDemand) : fullBudget;
+  return {
+    fullBudget,
+    requestedBudget,
+    modeledDemand,
+    projectedPlayers: rows.length,
+    rosterPlayers,
+    unprojectedRosterPlayers,
+    unmodeledReserve: Math.max(0, fullBudget - requestedBudget),
+  };
+}
+
 /** Minimise a weighted squared adjustment subject to bounds and a team-minute budget.
  * Effective minutes = MPG when playing * expected fraction of games played.
  * Lower-certainty roles can move further. This is accounting, not fitted predictive skill.
@@ -30,6 +59,93 @@ export function reconcileMinutes(rows, budget = 240) {
   }
   return { budget, allocated: target, reserve: Math.max(0, budget - capacity),
     excessFloor: Math.max(0, floor - budget), players: rows.length };
+}
+
+
+/** Evaluate only the minute-reconciliation layer on already-projected held-out rows.
+ * Rates are held fixed; per-game box-score stats scale only with the reconciled MPG.
+ * This deliberately does not claim validation for rookies, returners, injuries or availability.
+ */
+export function evaluateMinuteReconciliation(rows, { budget = 240, totalOpeningTeams = null, excludedTeams = 0 } = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('Held-out reconciliation rows are required.');
+  const clones = rows.map((row) => {
+    if (!row?.team || !Number.isFinite(row.mpg) || !Number.isFinite(row.share)) {
+      throw new Error('Held-out reconciliation row is missing team, minutes or share.');
+    }
+    const score = row.score !== false;
+    if (score && (!row.line || !row.actual)) {
+      throw new Error('Scored held-out reconciliation row is missing line or actual.');
+    }
+    return { ...row, score, pr: { ...(row.pr || {}) },
+      line: row.line ? { ...row.line } : null,
+      actual: row.actual ? { ...row.actual } : null,
+      originalMpg: row.mpg, originalEffective: row.mpg * row.share };
+  });
+  const groups = new Map();
+  for (const row of clones) {
+    if (!groups.has(row.team)) groups.set(row.team, []);
+    groups.get(row.team).push(row);
+  }
+
+  let exact = 0;
+  let completeTeams = 0;
+  let rosterPlayers = 0;
+  for (const list of groups.values()) {
+    const sizes = list.map((r) => r.rosterSize).filter(Number.isFinite);
+    const rosterSize = sizes.length ? Math.max(...sizes) : list.length;
+    rosterPlayers += rosterSize;
+    if (rosterSize === list.length) completeTeams++;
+    const result = reconcileMinutes(list, budget);
+    if (Math.abs(result.allocated - budget) < 1e-6) exact++;
+    for (const row of list) {
+      if (!row.score) continue;
+      const ratio = row.originalMpg > 0 ? row.mpg / row.originalMpg : 1;
+      row.reconciledLine = {
+        mpg: row.mpg,
+        pts: row.line.pts * ratio,
+        reb: row.line.reb * ratio,
+        ast: row.line.ast * ratio,
+      };
+    }
+  }
+
+  const scored = clones.filter((row) => row.score);
+  if (!scored.length) throw new Error('Held-out reconciliation requires at least one scored row.');
+  const metrics = ['mpg','pts','reb','ast'];
+  const legacy = {}, reconciled = {}, delta = {};
+  for (const key of metrics) {
+    let a = 0, b = 0;
+    for (const row of scored) {
+      if (!Number.isFinite(row.line[key]) || !Number.isFinite(row.reconciledLine[key]) || !Number.isFinite(row.actual[key])) {
+        throw new Error(`Held-out reconciliation metric ${key} is not finite.`);
+      }
+      a += Math.abs(row.line[key] - row.actual[key]);
+      b += Math.abs(row.reconciledLine[key] - row.actual[key]);
+    }
+    legacy[key] = a / scored.length;
+    reconciled[key] = b / scored.length;
+    delta[key] = reconciled[key] - legacy[key];
+  }
+
+  const proxyPlayers = clones.length - scored.length;
+  return {
+    n: scored.length,
+    teams: groups.size,
+    population: 'history-eligible held-out players only',
+    teamBudgetCoverage: { exact, teams: groups.size, budget },
+    openingRosterCoverage: {
+      modeledPlayers: clones.length,
+      scoredPlayers: scored.length,
+      proxyPlayers,
+      rosterPlayers,
+      completeTeams,
+      teams: groups.size,
+      totalOpeningTeams: Number.isFinite(totalOpeningTeams) ? totalOpeningTeams : groups.size + excludedTeams,
+      excludedTeams,
+    },
+    mae: { legacy, reconciled, delta },
+    limitations: 'Minute-only reconciliation check on history-eligible held-out players. Opening-roster rookie and older-history returner proxies reserve minutes but are not scored. Unsupported incomplete teams are excluded; rates, injuries and availability are held fixed.',
+  };
 }
 
 /** Build only completed, first NBA seasons strictly before the forecast year. No target
@@ -102,12 +218,71 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
     pct[k] = clamp(norm[k] + num / (den + 2), 0.05, 0.95);
     pieces[k] = { base: pct[k], prior: norm[k], own: null, weightOnOwn: den / (den + 2), ageAdd: 0 };
   }
-  return { mpg, share, pr: { rate, pct, pieces, age, yearsIn: 1, draft: pick, basePoss: 0, baseMin: 0 },
-    evidence: { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
-      draftPick: pick === 61 ? null : pick, position: bio.position, age,
-      peers: candidates.length, effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
-      seasons: [...new Set(candidates.map(x => x.season))].sort(),
-      note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' } };
+  const evidence = { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
+    draftPick: pick === 61 ? null : pick, position: bio.position, age,
+    peers: candidates.length, effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
+    seasons: [...new Set(candidates.map(x => x.season))].sort(),
+    note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' };
+  evidence.coverage = rookieInputCoverage(evidence);
+  return { mpg, share, pr: { rate, pct, pieces, age, yearsIn: 1, draft: pick, basePoss: 0, baseMin: 0 }, evidence };
+}
+
+
+export function historicalFallbackEvidence(hist, targetSeason, weightedHistoricalExposure, reliability) {
+  const observed = (hist || []).filter((r) => r && (r.gp > 0 || r.min > 0));
+  const lastObservedSeason = observed[0]?.season || null;
+  const targetYear = seasonStart(targetSeason);
+  const lastYear = lastObservedSeason ? seasonStart(lastObservedSeason) : null;
+  const blankSeasonGapCount = Number.isFinite(lastYear) ? Math.max(0, targetYear - lastYear - 1) : null;
+  const exposure = Number.isFinite(weightedHistoricalExposure) ? Math.max(0, weightedHistoricalExposure) : 0;
+  const rel = Number.isFinite(reliability) ? clamp(reliability, 0, 1) : 0;
+  const support = !lastObservedSeason || exposure <= 0
+    ? 'unavailable'
+    : (exposure >= 20 && rel >= 0.25 ? 'low' : 'very-low');
+  return {
+    lastObservedSeason,
+    blankSeasonGapCount,
+    weightedHistoricalExposure: exposure,
+    reliability: rel,
+    support,
+    returnToPlayPredicted: false,
+    note: 'Older NBA evidence only. This fallback does not predict return-to-play, injury clearance, contract status, or current medical availability.',
+  };
+}
+
+const coverageField = (available, source, status = available ? 'available' : 'unavailable') => ({
+  available: !!available,
+  source,
+  status,
+});
+
+export function rookieInputCoverage(evidence = {}) {
+  const draft = Number.isFinite(evidence.draftPick) && evidence.draftPick > 0;
+  const position = typeof evidence.position === 'string' && evidence.position.trim().length > 0;
+  const age = Number.isFinite(evidence.age);
+  const cohort = Number.isFinite(evidence.peers) && evidence.peers > 0;
+  const preNba = evidence.preNbaStats && evidence.preNbaStats !== 'unavailable';
+  const contract = evidence.contractSecurity && evidence.contractSecurity !== 'unavailable';
+  const injury = evidence.currentInjuryClearance && evidence.currentInjuryClearance !== 'unavailable';
+  return {
+    draftSlot: coverageField(draft, 'NBA draft metadata'),
+    position: coverageField(position, 'NBA player index'),
+    entryAge: coverageField(age, 'NBA player index / projection row'),
+    historicalCohort: coverageField(cohort, 'historical NBA rookie cohort'),
+    preNbaProduction: coverageField(!!preNba, preNba ? 'verified pre-NBA input' : null),
+    contractSecurity: coverageField(!!contract, contract ? 'verified contract input' : null),
+    currentInjuryClearance: coverageField(!!injury, injury ? 'verified injury/availability input' : null),
+  };
+}
+
+export function summarizeRookieCoverage(rows = []) {
+  const keys = ['draftSlot','position','entryAge','historicalCohort','preNbaProduction','contractSecurity','currentInjuryClearance'];
+  const out = { players: rows.length };
+  for (const key of keys) {
+    const available = rows.filter((r) => r?.[key]?.available).length;
+    out[key] = { available, unavailable: rows.length - available };
+  }
+  return out;
 }
 
 /** Returner after at least three blank recent seasons: blend a no-recent-role model prior with
@@ -128,13 +303,15 @@ export function historicalRoleProjection(hist, T, bio, teamGames, rates, ctx, ro
     return { r, w, sample, mpg: r.min / r.gp, share: clamp(r.gp / teamGames(r.season || T, r.team), 0, 1) };
   });
   const exposure = entries.reduce((s, x) => s + x.w * x.sample, 0);
-  if (!exposure) return { mpg: priorMpg, share: priorShare, priorMpg, priorShare, reliability: 0, f: prior };
+  if (!exposure) return { mpg: priorMpg, share: priorShare, priorMpg, priorShare, exposure: 0, reliability: 0,
+    ...historicalFallbackEvidence(hist, T, 0, 0), f: prior };
   const oldMpg = entries.reduce((s, x) => s + x.w * x.sample * x.mpg, 0) / exposure;
   const oldShare = entries.reduce((s, x) => s + x.w * x.sample * x.share, 0) / exposure;
   const reliability = exposure / (exposure + 40);
   return { mpg: clamp(priorMpg + reliability * (oldMpg - priorMpg), 1, 40),
     share: clamp(priorShare + reliability * (oldShare - priorShare), 0.05, 0.98),
-    priorMpg, priorShare, oldMpg, oldShare, exposure, reliability, f: prior };
+    priorMpg, priorShare, oldMpg, oldShare, exposure, reliability,
+    ...historicalFallbackEvidence(hist, T, exposure, reliability), f: prior };
 }
 
 /** Independent chronological check of the fallback alone, including nonappearance outcomes.

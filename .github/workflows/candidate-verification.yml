@@ -1,0 +1,65 @@
+name: Candidate release verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-verification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Pin candidate provenance and archive base
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The runner preserves committed artifact provenance for reproducible rebuilds.
+          # Its report separately records the exact code commit being verified.
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "CANDIDATE_ARCHIVE_BASE_REF=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          else
+            echo "CANDIDATE_ARCHIVE_BASE_REF=$(git rev-parse HEAD^)" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install JavaScript dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium for full browser regression
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate candidate-verification plan
+        run: npm run test:candidate-verification
+
+      - name: Run exact-head candidate gate
+        run: >-
+          npm run verify:candidate --
+          --archive-base-ref "$CANDIDATE_ARCHIVE_BASE_REF"
+          --report candidate-verification.json
+          --material-report candidate-material-changes.json
+
+      - name: Require semantic artifact integrity after candidate rebuild
+        run: npm run verify:artifact
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-verification-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            candidate-verification.json
+            candidate-material-changes.json

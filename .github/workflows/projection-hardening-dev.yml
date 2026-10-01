@@ -1,0 +1,46 @@
+name: Projection hardening development tests
+
+on:
+  pull_request:
+    branches: [forecast-archive-validation]
+    paths:
+      - 'scripts/lib/forecast-timeframes.mjs'
+      - 'scripts/lib/projection-validation.mjs'
+      - 'scripts/lib/projection-context.mjs'
+      - 'scripts/build-projections.mjs'
+      - 'scripts/fit-projections.mjs'
+      - 'scripts/projection-sensitivity.mjs'
+      - 'tests/forecast-timeframes.test.mjs'
+      - 'tests/projection.test.mjs'
+      - 'tests/projection-sensitivity.test.mjs'
+      - 'tests/projection-validation.test.mjs'
+      - 'tests/projection-context-reconciliation.test.mjs'
+      - 'PROJECTION_2026_27.json'
+      - 'package.json'
+      - '.github/workflows/projection-hardening-dev.yml'
+      - 'docs/MODEL_REBUILD_CHECKLIST.md'
+
+jobs:
+  projection-hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Refit card and rebuild projection payload for source-contract tests
+        run: |
+          npm run fit:projections
+          npm run build:projections
+
+      - name: Run projection hardening tests
+        run: |
+          node tests/forecast-timeframes.test.mjs
+          node tests/projection-validation.test.mjs
+          node tests/projection-context-reconciliation.test.mjs
+          npm run evaluate:projection-context
+          npm run test:projections
+          npm run test:projection-sensitivity

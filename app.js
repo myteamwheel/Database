@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let DATA = null;
+let DATA_STATUS = window.DATA_STATUS || null;
 let league = 'NBA';
 let sortKey = 'grade';
 let sortDir = -1;
@@ -237,6 +238,15 @@ const get = (p, key) => {
   }
   return p[key] ?? null;
 };
+const VALUE_MEANINGS = [
+  ['0', '0 is a real numeric value. It is never used as shorthand for missing, unavailable, or abstained.'],
+  ['—', '— means missing or unavailable. It is not zero and is excluded from numeric ranking/calculation.'],
+  ['N/A', 'N/A means not applicable: the metric does not meaningfully apply to this player/context.'],
+  ['Estimate', 'Estimate means a model or translation output, not an observed stat.'],
+  ['Fallback', 'Fallback means lower-specificity evidence was used because the preferred evidence was unavailable.'],
+  ['Small sample', 'Small sample means the value exists but rests on limited evidence and should be read with extra caution.'],
+];
+
 const finite = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = v => finite(v) ? `${(Number(v)*100).toFixed(1)}%` : '—';
@@ -246,6 +256,140 @@ const signed = (v,d=1) => finite(v) ? (Number(v)>0?'+':'')+Number(v).toFixed(d) 
 const median = vals => { const a=vals.filter(finite).map(Number).sort((x,y)=>x-y); if(!a.length)return null; const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; };
 /** Strip diacritics so "Jokic" finds "Jokić" and "Doncic" finds "Dončić". */
 const fold = s => String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+
+const PUBLICATION_DOMAIN_LABELS = {
+  officialStats: 'Official stats',
+  rosterProjectionInputs: 'Roster / projection inputs',
+  transactions: 'Transactions',
+  injuries: 'Injuries',
+  news: 'News',
+  basketballReferenceSnapshot: 'Basketball-Reference snapshot',
+};
+const statusText = s => String(s || 'unavailable').replaceAll('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+const dateTime = v => {
+  if (!v) return 'Unavailable';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+};
+async function sha256Text(text) {
+  if (!globalThis.crypto?.subtle) throw new Error('hash verification is unavailable in this browser');
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+async function validatePublishedPair(status, dataText, data) {
+  data = rehydrate(data);
+  if (!status || status.schemaVersion !== 1 || !status.publicationId || !status.publishedAt) throw new Error('publication status is invalid');
+  if (Number.isNaN(Date.parse(status.publishedAt)) || Object.keys(PUBLICATION_DOMAIN_LABELS).some(key => !status.sourceDomains?.[key])) throw new Error('publication source status is incomplete');
+  if (!data || status.season !== data.season) throw new Error('publication status season does not match data');
+  if (!data.counts || !data.leagues || !['NBA','GLEAGUE'].every(key => Array.isArray(data.leagues[key]))) throw new Error('published data structure is invalid');
+  if (!/^[0-9a-f]{64}$/.test(String(status.dataSha256 || ''))) throw new Error('publication status data hash is invalid');
+  if (dataText != null) {
+    const digest = await sha256Text(dataText);
+    if (digest && digest !== status.dataSha256) throw new Error('published data hash does not match publication status');
+  }
+  return true;
+}
+async function loadPublishedSnapshot(cacheBust = '') {
+  if (window.__STANDALONE_DATA_LOADER) {
+    if (cacheBust) throw new Error('offline snapshot cannot reload published data; open the live website');
+    const loaded = await window.__STANDALONE_DATA_LOADER();
+    await validatePublishedPair(loaded.status, null, loaded.data);
+    return loaded;
+  }
+  const suffix = cacheBust ? '?v=' + encodeURIComponent(cacheBust) : '';
+  const pair = await Promise.all([
+    fetch('./public/data.json' + suffix, { cache: 'no-store' }),
+    fetch('./public/data-status.json' + suffix, { cache: 'no-store' }),
+  ]);
+  const dataResponse = pair[0], statusResponse = pair[1];
+  if (!dataResponse.ok) throw new Error('data.json returned ' + dataResponse.status);
+  if (!statusResponse.ok) throw new Error('data-status.json returned ' + statusResponse.status);
+  const dataText = await dataResponse.text();
+  const data = JSON.parse(dataText);
+  const status = await statusResponse.json();
+  await validatePublishedPair(status, dataText, data);
+  return { data, status };
+}
+function updatePublishedHeader() {
+  if (!DATA) return;
+  if (window.__STANDALONE_DATA_LOADER) {
+    $('reloadDataBtn').disabled = true;
+    $('reloadStatus').textContent = 'Offline snapshot — open the live website for updated data.';
+  }
+  $('nbaCount').textContent = DATA.counts.NBA.toLocaleString();
+  $('gCount').textContent = DATA.counts.GLEAGUE.toLocaleString();
+  const ro = (DATA.counts.rosterOnlyNBA || 0) + (DATA.counts.rosterOnlyGLEAGUE || 0);
+  const rosterAsOf = DATA.projectionMeta?.rostersAsOf;
+  const buildDate = new Date(DATA.generatedAt).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+  const published = DATA_STATUS?.publishedAt ? ' Snapshot prepared ' + dateTime(DATA_STATUS.publishedAt) + '.' : '';
+  $('sourceLine').textContent = 'Official NBA and G League stats: ' + DATA.counts.records.toLocaleString()
+    + ' player seasons for ' + DATA.counts.uniquePeople.toLocaleString() + ' players'
+    + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
+    + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.' + published;
+  $('seasonEyebrow').textContent = DATA.seasonType;
+}
+function openDataStatus() {
+  const s = DATA_STATUS;
+  if (!s) {
+    $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Publication status unavailable</h2><p>The player database remains usable, but this build does not include source-status metadata.</p>';
+    $('dataStatusDialog').showModal();
+    return;
+  }
+  const rows = Object.entries(PUBLICATION_DOMAIN_LABELS).map(([key, label]) => {
+    const d = s.sourceDomains?.[key] || {};
+    return '<div class="metric-definition"><strong>' + esc(label) + ' — ' + esc(statusText(d.status)) + '</strong>'
+      + '<span>Fetched: ' + esc(dateTime(d.fetchedAt)) + '. Checked: ' + esc(dateTime(d.checkedAt)) + '.'
+      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
+  }).join('');
+  const ch = s.changes?.officialStats || {};
+  $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Loaded data snapshot</h2>'
+    + '<p><strong>Snapshot:</strong> ' + esc(s.publicationId) + ' · prepared ' + esc(dateTime(s.publishedAt)) + '. This is a build timestamp, not confirmation of deployment or a live source refresh.</p>'
+    + '<p><strong>Latest official-stat change record:</strong> ' + Number(ch.added || 0) + ' added, '
+    + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
+    + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'
+    + '<div class="metric-list">' + rows + '</div>'
+    + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>';
+  $('dataStatusDialog').showModal();
+}
+function captureReloadState() {
+  const ids = ['searchInput','rosterScope','teamFilter','positionFilter','viewPreset','minGp','minMpg','sortField','sortOrder',
+    'teamMode','countryFilter','minMin','minGrade','minReliability','rowLimit','labCohort'];
+  const controls = {};
+  for (const id of ids) if ($(id)) controls[id] = $(id).value;
+  for (const id of ['bothOnly','includeRosterOnly','allowMixedScope']) if ($(id)) controls[id] = $(id).checked;
+  return { controls, league, sortKey, sortDir, compared:[...compared], labConfig:JSON.parse(JSON.stringify(labConfig)), labCohort };
+}
+function restoreReloadState(snapshot) {
+  league = snapshot.league; sortKey = snapshot.sortKey; sortDir = snapshot.sortDir;
+  document.querySelectorAll('.league-tab').forEach((b) => b.classList.toggle('active', b.dataset.league === league));
+  populateSelectors(); fillMetricSelects();
+  for (const [id, value] of Object.entries(snapshot.controls || {})) {
+    const el = $(id); if (!el) continue;
+    if (el.type === 'checkbox') el.checked = !!value;
+    else if (el.tagName !== 'SELECT' || [...el.options].some(o => o.value === String(value))) el.value = String(value);
+  }
+  compared = new Set(snapshot.compared.filter(id => currentPlayers().some(p => String(p.playerId) === String(id))));
+  labConfig = snapshot.labConfig; labCohort = snapshot.labCohort;
+}
+async function reloadPublishedData() {
+  const button = $('reloadDataBtn'), note = $('reloadStatus');
+  const previousData = DATA, previousStatus = DATA_STATUS, snapshot = captureReloadState();
+  button.disabled = true; note.textContent = 'Checking published data…';
+  try {
+    const loaded = await loadPublishedSnapshot(String(Date.now()));
+    const nextData = rehydrate(loaded.data);
+    DATA = nextData; DATA_STATUS = loaded.status; window.DATA = DATA; window.DATA_STATUS = DATA_STATUS;
+    restoreReloadState(snapshot);
+    updatePublishedHeader(); render(); window.__wsRefresh?.(); writeUrlState('replace');
+    note.textContent = 'Published data reloaded.';
+  } catch (error) {
+    DATA = previousData; DATA_STATUS = previousStatus; window.DATA = DATA; window.DATA_STATUS = DATA_STATUS;
+    note.textContent = 'Reload failed; current data kept. ' + error.message;
+  } finally { button.disabled = false; }
+}
+window.__reloadPublishedData = reloadPublishedData;
 
 const SRC_LABEL = {off:'Official',oadv:'Official Adv',omisc:'Official Misc',oscore:'Official Scoring',
   ousage:'Official Usage',odef:'Official Def',obio:'Bio',bref:'Basketball-Reference',hustle:'Hustle',
@@ -284,12 +428,12 @@ const BASE_COLS = {
   magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
-  'tb.tulip':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game TULIP Beta RECOMMENDS for this player, under its heuristic, if the team\u0027s objective is to maximize winning. PLAIN: does this heuristic flag him as underutilized or overutilized by his current team? A positive value means the model recommends more minutes \u2014 it is not an established finding that he is being misused. FORMULA: starts from his team-relative value \u2014 shrunk BPM minus his team\u0027s minute-weighted average BPM, in league SD units \u2014 then compressed by three constraints: (1) WORKLOAD STATE, since a +1 SD player at 12 MPG has more room than one at 34; (2) ROLE EVIDENCE, which attenuates expansion where history does not support that workload; (3) ZERO-SUM ALLOCATION, so every minute granted is sourced from a team-mate and each team\u0027s ledger conserves. EXPERIMENTAL BETA: pre-registered causal testing on 2015-16 to 2023-24 did NOT establish that these exact deltas maximize wins (reduced form -0.127 pts/SD, 95% CI [-1.756, 1.021]). The DIRECTION rests on team-relative value; the MAGNITUDE is heuristic. Treat as decision support, not a validated coaching prescription. Blank means TULIP abstained \u2014 blank is NOT zero and always sorts last.'},
-  'tb.currentMpg':{label:'Current MPG',type:'1',help:'WHAT: minutes per game he is actually playing this season \u2014 the workload TULIP is recommending a change FROM.'},
-  'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: the workload this experimental allocator suggests. PLAIN: current workload after applying the TULIP reallocation. FORMULA: Current MPG + TULIP, bounded to the feasible 0-40 MPG range. Historical workload and Role Evidence reduce confidence and attenuate positive expansion, but they are not a hard ceiling: a strong breakout signal can recommend a workload above anything the player has previously sustained.'},
+  'tb.tulip':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game TULIP Beta RECOMMENDS for this player, under its heuristic, if the team\u0027s objective is to maximize winning. PLAIN: does this heuristic flag him as underutilized or overutilized by his current team? A positive value means the model recommends more minutes \u2014 it is not an established finding that he is being misused. FORMULA: starts from his team-relative value \u2014 shrunk BPM minus his team\u0027s minute-weighted average BPM, in league SD units \u2014 then compressed by three constraints: (1) WORKLOAD STATE, since a +1 SD player at 12 MPG has more room than one at 34; (2) ROLE EVIDENCE, which attenuates expansion where history does not support that workload; (3) ZERO-SUM ALLOCATION, so every minute granted is sourced from a team-mate and each team\u0027s ledger conserves. EXPERIMENTAL BETA: pre-registered causal testing on 2015-16 to 2023-24 did NOT establish that the exact MPG deltas maximize wins (reduced form -0.127 pts/SD, 95% CI [-1.756, 1.021]). The DIRECTION is mechanically determined by team-relative value and the MAGNITUDE is heuristic. The same evidence also did not validate the play-more/play-less direction as a win-improving coaching prescription. Treat as decision support only. Blank means TULIP abstained \u2014 blank is NOT zero and always sorts last.'},
+  'tb.currentMpg':{label:'Baseline MPG',type:'1',help:'WHAT: the 2025-26 MPG baseline TULIP is recommending a change FROM. In this preseason build, players are grouped by their current 2026-27 roster, but this workload is last season\'s MPG, not current-season 2026-27 playing time.'},
+  'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: the workload this experimental allocator suggests from the 2025-26 MPG baseline. PLAIN: baseline workload after applying the TULIP reallocation. FORMULA: Baseline MPG + TULIP, bounded to the feasible 0-40 MPG range. Historical workload and Role Evidence reduce confidence and attenuate positive expansion, but they are not a hard ceiling: a strong breakout signal can recommend a workload above anything the player has previously sustained.'},
   'tb.confidence':{label:'Support',type:'text',help:'RECOMMENDATION SUPPORT; NOT PROBABILITY OF CORRECTNESS. HIGH / MEDIUM / LOW describes the strength of the DATA AND EVIDENCE behind the recommendation\u0027s inputs \u2014 sample size (minutes played), the role-evidence tier behind any expansion, and whether the recommended workload sits inside historically observed support. It does NOT mean the MPG recommendation is likely to be win-optimal. Nothing here claims "82% likely to be correct"; causal validation of the magnitude failed, so no such claim is available to make.'},
   'tb.valueGapSd':{label:'Value vs team (SD)',type:'signed2',help:'WHAT: his shrunk BPM minus his team\u0027s minute-weighted average BPM, in league standard-deviation units. PLAIN: how much better or worse he is than the average minute his team currently buys. This is the DIRECTION signal behind TULIP.'},
-  'tb.supportedCeiling':{label:'Evidence-supported MPG',type:'1',help:'WHAT: the highest workload this player has already sustained or that Role Evidence directly supports. PLAIN: where the direct workload evidence ends. FORMULA: max(Current MPG, career-high MPG from 20+ game seasons, best 40+ game sustained-season MPG, highest non-abstaining Role Evidence frontier MPG), capped at 40. This is NOT a hard TULIP cap. A recommendation may exceed it when the team-relative signal is strong, but that part is extrapolation and therefore carries weaker support/confidence.'},
+  'tb.supportedCeiling':{label:'Evidence-supported MPG',type:'1',help:'WHAT: the highest workload this player has already sustained or that Role Evidence directly supports. PLAIN: where the direct workload evidence ends. FORMULA: max(Baseline MPG, career-high MPG from 20+ game seasons, best 40+ game sustained-season MPG, highest non-abstaining Role Evidence frontier MPG), capped at 40. This is NOT a hard TULIP cap. A recommendation may exceed it when the team-relative signal is strong, but that part is extrapolation and therefore carries weaker support/confidence.'},
   'tc.capacityMpg':{label:'Projected Role MPG',type:'1',help:'WHAT: the MPG this player is likely to RECEIVE AND SUSTAIN after an offseason move to another NBA team. PLAIN: if a team signed or traded for him this offseason, what workload would he probably end up playing? THIS IS NOT A CAPACITY METRIC. It does not estimate how many minutes he could effectively handle. It predicts an observed rotation outcome, which is driven by coach preference, depth chart, roster construction, injuries, contract status and team strategy as much as by the player. A high-minute star can project LOWER than he currently plays simply because players at that workload historically regress after changing teams \u2014 that is a statement about rotations, not about the player. FORMULA: TULIP_CAPACITY_V1, a frozen linear model over his previous team\u0027s workload history (season MPG, recent-10, recent-5, trend, start rate, career games/seasons, career-high MPG), attributes (age, height, weight, draft slot) and production profile (GameScore/36, TS%, FGA/AST/REB/PF per 36). No destination-team information is used. SCOPE: validated for OFFSEASON acquisitions only; NOT validated for in-season trades. VALIDATED: on 970 offseason transitions the strongest simple baseline (previous-season MPG) has MAE 5.087 and the model has MAE 4.964 \u2014 an incremental gain of +0.122 MPG, 95% CI [0.035, 0.221]. Among two players with the same previous-season MPG it picks the one who ends up playing more 54.7% of the time versus 51.0% for the baseline, rising to 68.1% when it separates them by 5+ MPG. Real and statistically supported, but INCREMENTAL. The 50% range spans about 8.7 MPG, so use it to compare players, not as an exact forecast. Blank means the model abstained; blank is NOT zero and always sorts last. Model: TULIP_CAPACITY_V1, card-sha256:96cb2f34c6cd06c3.'},
   'tc.headroom':{label:'Proj vs Current',type:'signed1',help:'WHAT: Projected Role MPG minus his current season MPG. NOT "headroom" and NOT spare capacity \u2014 it is the difference between a projected rotation outcome and his current one. PLAIN: how much more (+) or less (-) he would probably play after an offseason move, versus now. FORMULA: Projected Role MPG - current season MPG. Positive does NOT mean he has unused capacity or that a team should play him more; it means comparable players ended up with more minutes after moving. Negative does NOT mean he is being overplayed. Blank when the model abstains.'},
   'tc.teamASeasonMpg':{label:'Current MPG',type:'1',help:'WHAT: his minutes per game this season \u2014 the workload the projection is made FROM, and the strongest simple baseline the model has to beat. PLAIN: what he actually played this year.'},
@@ -352,11 +496,11 @@ const BASE_COLS = {
   'p36n.fg3Pct':{label:'3P% NBA',type:'pct',help:'WHAT (G League only): projected 3P% against NBA competition. PLAIN: how his shooting efficiency should hold up a level up. FORMULA: his own 3P% PLUS the median DIFFERENCE observed among dual-league players (TS -5.8pts, 3P -2.3pts, eFG -3.0pts). A difference is used rather than a ratio because multiplying a percentage distorts badly near the tails.'},
   'p36.efg':{label:'eFG% (own)',type:'pct',help:'WHAT: eFG% in his own league. PLAIN: shooting efficiency as actually recorded. FORMULA: unchanged from the season line \u2014 rates do not scale with minutes.'},
   'p36n.efg':{label:'eFG% NBA',type:'pct',help:'WHAT (G League only): projected eFG% against NBA competition. PLAIN: how his shooting efficiency should hold up a level up. FORMULA: his own eFG% PLUS the median DIFFERENCE observed among dual-league players (TS -5.8pts, 3P -2.3pts, eFG -3.0pts). A difference is used rather than a ratio because multiplying a percentage distorts badly near the tails.'},
-  reliabilityWeight:{label:'Reliability',type:'1',help:'Weight this player’s own line carried in the shrinkage (max ~84)'},
+  reliabilityWeight:{label:'Reliability',type:'1',help:'WHAT: effective evidence weight behind this player’s own season line in the shrinkage model (max about 84). PLAIN: higher means more of the estimate comes from the player’s own sample rather than league/position priors. NOTE: this is evidence weight, NOT probability, confidence of correctness, or player quality.'},
   'tulip.leagueDelta':{label:'Role Value',type:'signed2',help:'WHAT: role-expansion VALUE (not a minutes recommendation, and not the same thing as Projected Role MPG) against a MEDIAN league rotation slot, at the player’s target minutes. PLAIN: how much the team would gain per 100 possessions by giving him a bigger role, compared with a typical rotation player rather than with his own weakest team-mate. FORMULA: projected on-court impact at the target minutes (from comparable players at that workload) MINUS the league-median rotation-slot impact. The league reference is used because the team-referenced version correlates -0.91 with whoever would be displaced and only +0.18 with the candidate, so it mostly measures the team-mate, not the player. Blank means TULIP abstained — too few comparables, or he already plays too many minutes for expansion to be a question. Blank is NOT zero and always sorts last.'},
   'tulip.neutralDelta':{label:'Role Value neutral',type:'signed2',help:'Same projection measured against a median team-mate rather than the weakest one. Displacing the weakest player flatters expansion by construction, so this is the fairer read.'},
   'tulip.projectedImpact':{label:'Role Value proj',type:'signed2',help:'Projected on-court impact at the target minutes, from comparable players'},
-  'tulip.support':{label:'Role Value support',type:'int',help:'Evidence support score behind the projection (0-100)'},
+  'tulip.support':{label:'Role Value support',type:'int',help:'WHAT: evidence support score behind the role projection (0-100). PLAIN: how much usable comparable evidence supports the scenario. NOTE: this is support strength, NOT a probability that the recommendation or projection is correct.'},
   'tulip.tier':{label:'Evidence tier',type:'text',help:'Evidence tier A-D. D means the projection rests entirely on comparable players.'},
   'tulip.verdict':{label:'Role verdict',type:'text',help:'EXPAND ROLE / HOLD, from the rotation comparison'},
   'tulip.targetMpg':{label:'Role target MPG',type:'1',help:'Minutes level the projection was evaluated at'},
@@ -884,6 +1028,10 @@ function openStatGuide(){
     statGuideDlg.className = 'modal wide';
     statGuideDlg.innerHTML = `<div class="modal-sticky-head"><div><h2>Stat guide</h2>
       <p class="sg-count"></p></div><button class="modal-x" type="button" data-sg="close" aria-label="Close stat guide">×</button></div>
+      <section class="ws-card wide" aria-label="Value meanings"><h3>Value meanings</h3>
+        <div class="metric-list">${VALUE_MEANINGS.map(([label, meaning]) =>
+          `<div class="metric-definition"><strong>${esc(label)}</strong><span>${esc(meaning)}</span></div>`).join('')}</div>
+      </section>
       <input class="stat-guide-search" data-sg="search" type="search" aria-label="Search stats" placeholder="Search stats, e.g. TULIP, true shooting, readiness\u2026" />
       <div class="stat-guide-list" data-sg="list"></div>
       <div class="modal-actions"><button class="button" data-sg="close">Close</button></div>`;
@@ -1323,7 +1471,7 @@ function whyTulipBlock(p,c){
     <h3>Why TULIP recommends ${signed(c.tulip)} MPG</h3>
     <div class="tulip-why-list">
       <p><b>Team-relative value:</b> ${esc(signal)} — ${signed(c.valueGapSd,2)} SD versus ${esc(team)}'s average allocated minute.</p>
-      <p><b>Current workload:</b> ${workload}</p>
+      <p><b>Baseline workload:</b> ${workload}</p>
       ${roleLine}
       <p><b>Roster effect:</b> ${roster}</p>
       <p><b>Final:</b> ${num(c.currentMpg)} &rarr; ${num(c.recommendedMpg)} MPG.</p>
@@ -1384,6 +1532,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
     return;
   }
   const curTot=baseRoster.reduce((a,p)=>a+p.tulipBeta.currentMpg,0);
+  const diag=DATA.tulipBetaMeta&&DATA.tulipBetaMeta.teamDiagnostics?DATA.tulipBetaMeta.teamDiagnostics[team]:null;
   const recTot=baseRoster.reduce((a,p)=>a+p.tulipBeta.recommendedMpg,0);
   const net=recTot-curTot;
   const gained=baseRoster.filter(p=>p.tulipBeta.tulip>0).sort((a,b)=>b.tulipBeta.tulip-a.tulipBeta.tulip);
@@ -1401,7 +1550,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
     aria-pressed="${teamAllocState.filter===value}">${label}</button>`;
   teamAllocDlg.innerHTML=`${teamAllocationHeader(`TULIP Team Allocation — ${esc(team)}`)}
     <div class="player-grid">
-      <div class="detail-card"><div class="k">Current eligible MPG</div><div class="v">${num(curTot)}</div></div>
+      <div class="detail-card"><div class="k">Baseline eligible MPG</div><div class="v">${num(curTot)}</div></div>
       <div class="detail-card"><div class="k">Recommended eligible MPG</div><div class="v">${num(recTot)}</div></div>
       <div class="detail-card"><div class="k">Net reallocation</div><div class="v">${signed(net)}</div></div>
       <div class="detail-card"><div class="k">Eligible players</div><div class="v">${baseRoster.length}</div></div>
@@ -1409,9 +1558,10 @@ function openTeamAllocation(team,{preserveState=false}={}){
     <p class="tiny">TULIP Beta reallocates a team's existing player-minute workload toward players
     favored by its team-relative performance and role evidence. Positive values gain minutes;
     negative values surrender minutes. The roster ledger is conserved. TULIP Beta is experimental and
-    its exact MPG recommendations have not been validated as win-maximizing. Net reallocation is
+    neither its play-more/play-less direction nor its exact MPG magnitude has been validated as win-maximizing. Net reallocation is
     0.0 apart from per-player rounding to one decimal. <b>This is a workload redistribution heuristic, not a playable 240-minute rotation.</b>
-    The sum combines historical individual workloads and does not enforce simultaneous availability, positions, or lineup constraints.</p>
+    The sum combines historical individual workloads. <b>Availability is not verified</b>, positional/lineup constraints are not enforced, and excluded current-roster players may exist when TULIP abstains.</p>
+    ${diag?`<p class="tiny"><b>Roster coverage:</b> ${diag.scoredPlayers}/${diag.currentRosterPlayers} current-roster players scored; ${diag.abstainedPlayers} excluded current-roster players. This is a conserved eligible-player workload ledger, not a complete 240-minute rotation.</p>`:''}
     <div class="crossover">
       <div class="eyebrow">MINUTES GAINED &nbsp;(${signed(gTot)})</div>
       <div class="raw-grid">${gained.length?gained.map(li).join(''):'<div class="raw-row"><span>none</span><b>0.0</b></div>'}</div>
@@ -1433,14 +1583,14 @@ function openTeamAllocation(team,{preserveState=false}={}){
       <label>Sort allocation table
         <select data-ta-sort aria-label="Sort allocation table">
           <option value="tulip" ${teamAllocState.sort==='tulip'?'selected':''}>TULIP</option>
-          <option value="current" ${teamAllocState.sort==='current'?'selected':''}>Current MPG</option>
+          <option value="current" ${teamAllocState.sort==='current'?'selected':''}>Baseline MPG</option>
           <option value="recommended" ${teamAllocState.sort==='recommended'?'selected':''}>Recommended MPG</option>
           <option value="support" ${teamAllocState.sort==='support'?'selected':''}>Support</option>
         </select>
       </label>
     </div>
     <div class="table-wrap"><table class="compare-table"><thead><tr>
-      <th class="left">Player</th>${[['current','tb.currentMpg','Current MPG'],['tulip','tb.tulip','TULIP'],['recommended','tb.recommendedMpg','Recommended MPG'],['support','tb.confidence','Support']]
+      <th class="left">Player</th>${[['current','tb.currentMpg','Baseline MPG'],['tulip','tb.tulip','TULIP'],['recommended','tb.recommendedMpg','Recommended MPG'],['support','tb.confidence','Support']]
         .map(([k,help,label])=>`<th class="sortable" tabindex="0" data-ta-col="${k}" data-help="${help}" aria-sort="${teamAllocState.sort===k?'descending':'none'}">${label}${teamAllocState.sort===k?' ↓':''}</th>`).join('')}<th>Role evidence</th></tr></thead>
       <tbody data-ta-roster-body>${visible.map(p=>`<tr data-ta-direction="${teamAllocationDirection(p)}">
         <td class="left"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button></td>
@@ -1702,25 +1852,25 @@ function openPlayer(id){
       &&x.tulipBeta&&!x.tulipBeta.abstain&&Math.sign(x.tulipBeta.tulip)===-Math.sign(c.tulip)&&x.tulipBeta.tulip!==0)
       .sort((a,b)=>Math.abs(b.tulipBeta.tulip)-Math.abs(a.tulipBeta.tulip)).slice(0,5);
     const dir=c.tulip>0?'sourced from':'returned to';
-    const mateRows=mates.length?`<table class="compare-table"><thead><tr><th class="left">Minutes ${esc(dir)}</th><th>Current</th><th>TULIP</th><th>Recommended</th></tr></thead><tbody>${
+    const mateRows=mates.length?`<table class="compare-table"><thead><tr><th class="left">Minutes ${esc(dir)}</th><th>Baseline</th><th>TULIP</th><th>Recommended</th></tr></thead><tbody>${
       mates.map(m=>`<tr><td class="left">${esc(m.name)}</td><td>${num(m.tulipBeta.currentMpg)}</td><td>${signed(m.tulipBeta.tulip)}</td><td>${num(m.tulipBeta.recommendedMpg)}</td></tr>`).join('')
     }</tbody></table>`:'<p class="tiny">No opposite-direction team-mates listed.</p>';
     return `<div class="crossover"><div class="eyebrow">TULIP BETA \u00b7 EXPERIMENTAL</div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">TULIP</div><div class="v">${signed(c.tulip)} MPG</div></div>
-        <div class="detail-card"><div class="k">Current MPG</div><div class="v">${num(c.currentMpg)}</div></div>
+        <div class="detail-card"><div class="k">Baseline MPG</div><div class="v">${num(c.currentMpg)}</div></div>
         <div class="detail-card"><div class="k">Recommended MPG</div><div class="v">${num(c.recommendedMpg)}</div></div>
         <div class="detail-card"><div class="k">Support</div><div class="v">${esc(c.confidence||'\u2014')}</div></div>
       </div>
       <p class="tiny"><b>What this says.</b> TULIP Beta recommends <b>${signed(c.tulip)} MPG</b> for this
       player \u2014 the heuristic flags him for ${c.tulip > 0 ? 'more' : c.tulip < 0 ? 'fewer' : 'about the same'}
-      minutes. That is a recommendation from this model, not an established fact about how he is being used.</p>
+      minutes relative to his ${esc(c.baselineLabel||'2025-26 MPG baseline')} on the current roster context. That is a recommendation from this model, not an established fact about how he is being used.</p>
       ${whyTulipBlock(p,c)}
       ${mateRows}
       <p class="tiny"><button class="button" data-teamalloc="${esc(p.currentTeam||p.team||'')}">View ${esc(p.currentTeam||p.team||'team')} TULIP Allocation</button></p>
       <p class="tiny"><b>Status: experimental beta.</b> The direction is based on team-relative player
       value; the magnitude is constrained by workload/role evidence and a zero-sum roster allocator.
-      Historical causal testing did not establish that the exact MPG deltas maximize wins, so treat
+      Historical causal testing did not establish that either the play-more/play-less direction or the exact MPG deltas improve winning, so treat
       these as decision-support estimates rather than validated coaching prescriptions. The Support
       rating above describes the strength of the evidence behind the inputs \u2014 it is NOT a
       probability that the recommendation is correct.</p></div>`;
@@ -2027,6 +2177,8 @@ function bind(){
   $('sortOrder').addEventListener('change',()=>{sortDir=Number($('sortOrder').value)||-1;render();writeUrlState('push');});
   $('resetBtn').onclick=()=>{reset();writeUrlState('push');};$('exportBtn').onclick=exportCsv;$('aboutBtn').onclick=openMetricDefinitions;$('applyLab').onclick=()=>{applyLab();writeUrlState('push');};
   $('catalogBtn').onclick=openFieldCatalog;
+  $('dataStatusBtn').onclick=openDataStatus;
+  $('reloadDataBtn').onclick=reloadPublishedData;
   $('statGuideBtn').onclick=openStatGuide;
   // "?" opens the guide from anywhere, unless the user is typing in a field.
   document.addEventListener('keydown',(e)=>{
@@ -2063,17 +2215,11 @@ window.addEventListener('popstate',()=>{
 
 async function init(){
   try{
-    const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();
-    DATA=rehydrate(DATA);
+    const loaded=await loadPublishedSnapshot();
+    DATA=rehydrate(loaded.data); DATA_STATUS=loaded.status || DATA_STATUS;
     // `let DATA` at script scope is NOT a window property, so workspace.js could not see it.
-    window.DATA=DATA;
-    $('nbaCount').textContent=DATA.counts.NBA.toLocaleString();$('gCount').textContent=DATA.counts.GLEAGUE.toLocaleString();
-    const ro=(DATA.counts.rosterOnlyNBA||0)+(DATA.counts.rosterOnlyGLEAGUE||0);
-    const rosterAsOf=DATA.projectionMeta?.rostersAsOf;
-    const buildDate=new Date(DATA.generatedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-    $('sourceLine').textContent=`Official NBA and G League stats: ${DATA.counts.records.toLocaleString()} player seasons for ${DATA.counts.uniquePeople.toLocaleString()} players`
-      +(ro?`, plus ${ro} rostered who never played`:'')+`. ${DATA.season} stats; NBA roster snapshot ${rosterAsOf||'date unavailable'}; site built ${buildDate}.`;
-    $('seasonEyebrow').textContent=DATA.seasonType;
+    window.DATA=DATA; window.DATA_STATUS=DATA_STATUS;
+    updatePublishedHeader();
     populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();
     // Links from other pages (History Lab) can open the projections directly.

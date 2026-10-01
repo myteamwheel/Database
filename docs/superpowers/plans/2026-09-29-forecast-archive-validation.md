@@ -434,3 +434,25 @@ Record that actual 2026–27 accuracy results are necessarily pending season out
 git add docs/MODEL_REBUILD_CHECKLIST.md docs/superpowers/specs/2026-09-29-forecast-archive-validation-design.md
 git commit -m "docs: verify forecast archive milestone"
 \`\`\`
+
+### Task 8: Review follow-up — fail-closed archive I/O
+
+**Files:** `scripts/archive-forecast.mjs`, `scripts/verify-forecast-archive.mjs`, `scripts/score-forecast-archive.mjs`, new `tests/forecast-archive-io.test.mjs`, `package.json`.
+
+**Interfaces:** Preserve capture/writer/scorer signatures. Add `readVerifiedForecast({ archiveDir, forecastId, snapshotPath })` returning the parsed, hash-verified snapshot. Existing `verifyArchiveDirectory` summary is unchanged.
+
+- [ ] Add real temporary-file tests for concurrent/locked writers, incomplete archives, invalid provenance, altered hashes, unsafe manifest paths, scoring output overwrites, and explicit capture dates.
+- [ ] Run `node --test tests/forecast-archive-io.test.mjs`; expect new safeguards to fail before implementation.
+- [ ] Serialize writers with an exclusive lock, verify prior evidence before appending, install snapshots without replacing existing paths, and clean up this writer's files on ordinary failure. Stale locks require manual inspection, not automatic stealing. New actual captures require explicit publication dates; dry runs may retain a labeled commit-time fallback. Preserve the already-frozen snapshot.
+- [ ] Make scoring load verified bytes through the manifest, reject symlinks/escaping paths, and create report outputs exclusively outside the archive. Add archive and actual-source hashes to report provenance.
+- [ ] Run `npm run test:forecast-archive && npm run verify:forecast-archive`; expect all checks to pass. Leave local changes available for whole-candidate review before committing.
+
+### Task 9: Review follow-up — candidate evidence and handoff
+
+**Files:** checklist, review report and handoff documents; transfer artifacts outside the repository.
+
+**Interfaces:** Consumes Task 8 safeguards and the existing review corrections; does not refit models or ingest live sources.
+
+- [ ] Run `npm run verify` with browser permissions; expect a clean full run or record exact unresolved failures without weakening acceptance criteria.
+- [ ] Obtain one fresh-context review of the whole candidate, fix important findings with regression tests, and rerun affected checks.
+- [ ] Update checklist and handoff with exact results, local/CI/live distinctions, limitations and next action. Regenerate portable patch/ZIP and verify them. Do not publish without the release gate.

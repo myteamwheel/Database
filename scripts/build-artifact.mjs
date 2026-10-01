@@ -13,6 +13,9 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 const data = JSON.parse(R('public/data.json'));
+const statusPath = path.join(ROOT, 'public/data-status.json');
+if (!fs.existsSync(statusPath)) throw new Error('public/data-status.json is missing; run npm run publish:status before building the artifact');
+const dataStatus = JSON.parse(R('public/data-status.json'));
 const NESTED = ['stats', 'custom', 'components', 'teams'];
 
 /** Sentinel for "this key was not present", distinct from a present null value. */
@@ -63,22 +66,17 @@ const historyGzPath = path.join(ROOT, 'public/history-games.json.gz');
 const historyPayload64 = fs.existsSync(historyGzPath) ? fs.readFileSync(historyGzPath).toString('base64') : '';
 const css = escapeNonAscii(R('styles.css'), 'html');
 
-const standaloneLoader = `const payload=document.getElementById('db-gz').textContent.trim();
-    if(typeof DecompressionStream!=='function') throw new Error('Standalone file requires a modern browser with DecompressionStream support');
-    const bytes=Uint8Array.from(atob(payload),c=>c.charCodeAt(0));
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    DATA=rehydrate(JSON.parse(await new Response(stream).text())); window.DATA=DATA;`;
+const statusJson = escapeNonAscii(JSON.stringify(dataStatus), 'js');
+const standaloneLoader = `window.DATA_STATUS=${statusJson};
+window.__STANDALONE_DATA_LOADER=async()=>{
+  const payload=document.getElementById('db-gz').textContent.trim();
+  if(typeof DecompressionStream!=='function') throw new Error('Standalone file requires a modern browser with DecompressionStream support');
+  const bytes=Uint8Array.from(atob(payload),c=>c.charCodeAt(0));
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return {data:JSON.parse(await new Response(stream).text()),status:window.DATA_STATUS};
+};`;
 
-const app = escapeNonAscii(
-  R('app.js').replace(
-    "const r=await fetch('./public/data.json',{cache:'no-cache'}); if(!r.ok)throw new Error(`data.json returned ${r.status}`); DATA=await r.json();",
-    standaloneLoader
-  ),
-  'js'
-);
-if (app.includes("fetch('./public/data.json'")) throw new Error('data-loading patch did not apply');
-if (!app.includes("document.getElementById('db-gz')")) throw new Error('standalone compressed-loader patch did not apply');
-
+const app = escapeNonAscii(R('app.js'), 'js');
 const workspace = escapeNonAscii(R('workspace.js'), 'js');
 const body = escapeNonAscii(
   R('index.html')
@@ -98,6 +96,9 @@ ${css}
 ${body}
 <script type="application/octet-stream" id="db-gz">${payload64}</script>
 ${historyPayload64 ? `<script type="application/octet-stream" id="history-db-gz">${historyPayload64}</script>` : ''}
+<script>
+${standaloneLoader}
+</script>
 <script>
 ${app}
 </script>

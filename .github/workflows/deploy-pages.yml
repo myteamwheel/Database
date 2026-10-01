@@ -24,6 +24,7 @@ on:
       - 'styles.css'
       - 'public/**'
       - 'scripts/**'
+      - '!scripts/data/forecast-archive/**'
       - 'tests/**'
       - 'PROJECTION_2026_27.json'
       - '.github/workflows/deploy-pages.yml'
@@ -62,6 +63,9 @@ jobs:
           npm run test:projections
           npm run test:comps
           npm run test:refresh
+          npm run test:publication
+          npm run test:owner-refresh
+          npm run verify:publication
           npm run test:tulipbeta
           npm run test:tulipcapacity
           npm run build:standalone
@@ -75,6 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f public/data.json || { echo "public/data.json missing — run npm run build"; exit 1; }
+          test -f public/data-status.json || { echo "public/data-status.json missing — run npm run build"; exit 1; }
           test -f index.html || { echo "index.html missing"; exit 1; }
           # Assert against the REAL shape (d.leagues.NBA / d.leagues.GLEAGUE). An earlier version
           # guessed d.nba / d.players.nba, found nothing, and failed every deploy — the guard was
