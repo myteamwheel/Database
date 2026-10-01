@@ -253,5 +253,9 @@ jobs:
             echo 'Acceptance evidence is unchanged.'
           else
             git commit -m "Record exhaustive starter gate results for ${GITHUB_SHA::12}"
+            # The artifact rebuild can advance this branch while the season matrix runs.
+            # Replay the evidence-only commit on the new tip before publishing it.
+            git fetch origin v3-official-data
+            git rebase origin/v3-official-data
             git push origin HEAD:v3-official-data
           fi
