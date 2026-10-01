@@ -2,13 +2,20 @@ const REQUIRED_COLUMNS = ['PERSON_ID', 'PLAYER_FIRST_NAME', 'PLAYER_LAST_NAME', 
   'TEAM_ABBREVIATION', 'POSITION', 'HEIGHT', 'WEIGHT', 'COUNTRY', 'DRAFT_YEAR',
   'DRAFT_ROUND', 'DRAFT_NUMBER', 'ROSTER_STATUS', 'FROM_YEAR', 'TO_YEAR'];
 const NBA_TEAMS = new Set('ATL BOS BKN CHA CHI CLE DAL DEN DET GSW HOU IND LAC LAL MEM MIA MIL MIN NOP NYK OKC ORL PHI PHX POR SAC SAS TOR UTA WAS'.split(' '));
+const canonicalInteger = value => {
+  if (typeof value !== 'number' && !(typeof value === 'string' && /^(?:0|[1-9][0-9]*)$/.test(value))) return null;
+  const parsed=Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+};
 
 export function parseLiveRoster(payload, { season, fetchedAt, minRows = 400, requiredSeason = '2026-27' } = {}) {
   if (season !== requiredSeason) throw new Error(`Roster season must be ${requiredSeason}.`);
+  if (!Number.isSafeInteger(minRows) || minRows < 1) throw new Error('Roster minimum row count must be a positive integer.');
   if (!fetchedAt || !Number.isFinite(Date.parse(fetchedAt))) throw new Error('Roster fetch time is invalid.');
   const table = payload?.resultSets?.[0] || payload?.resultSet;
   const sourceHeaders = table?.headers;
   if (!Array.isArray(sourceHeaders) || !Array.isArray(table?.rowSet)) throw new Error('Roster response has no player index table.');
+  if (sourceHeaders.some(h=>typeof h!=='string'||!h) || new Set(sourceHeaders).size!==sourceHeaders.length) throw new Error('Roster response has invalid or duplicate columns.');
   const positions = REQUIRED_COLUMNS.map((column) => sourceHeaders.indexOf(column));
   if (positions.some((position) => position < 0)) throw new Error('Roster response is missing required columns.');
   const rows = [];
@@ -18,14 +25,19 @@ export function parseLiveRoster(payload, { season, fetchedAt, minRows = 400, req
   const statusPos = sourceHeaders.indexOf('ROSTER_STATUS');
   for (const source of table.rowSet) {
     if (!Array.isArray(source) || source.length !== sourceHeaders.length) throw new Error('Roster row has invalid width.');
-    if (Number(source[statusPos]) !== 1) continue;
-    const id = Number(source[idPos]);
+    const status=canonicalInteger(source[statusPos]);
+    if (status !== 0 && status !== 1) throw new Error('Roster row has invalid roster status.');
+    if (status === 0) continue;
+    const id = canonicalInteger(source[idPos]);
     const team = source[teamPos];
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Roster row has invalid player ID.');
     if (!NBA_TEAMS.has(team)) throw new Error(`Roster row has invalid team ${team}.`);
     if (seen.has(id)) throw new Error(`Roster has duplicate active player ID ${id}.`);
     seen.add(id);
-    rows.push(positions.map((position) => source[position]));
+    const normalized=positions.map((position)=>source[position]);
+    normalized[REQUIRED_COLUMNS.indexOf('PERSON_ID')]=id;
+    normalized[REQUIRED_COLUMNS.indexOf('ROSTER_STATUS')]=1;
+    rows.push(normalized);
   }
   if (rows.length < minRows) throw new Error(`Roster has too few active players (${rows.length}; minimum ${minRows}).`);
   return { season, fetchedAt, source: 'stats.nba.com/stats/playerindex', headers: REQUIRED_COLUMNS, rows };
