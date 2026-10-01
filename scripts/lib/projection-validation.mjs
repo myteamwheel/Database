@@ -55,7 +55,7 @@ export function validateProjectionAccounting(proj,{league='NBA',scheduledGames=n
   } else if (!near(proj.ts,expectedTs,1e-3 + tolerance)) fail('true shooting/TS does not derive from accounting');
 
   if (finite(a.gp) && (a.gp < 0 || a.gp > games + tolerance)) fail('accounting GP exceeds league schedule or is invalid');
-  if (!near(a.gp,proj.gp,tolerance)) fail('Accounting GP must equal published GP');
+  if (!near(a.gp,proj.gp,0.050001)) fail('Accounting GP disagrees with rounded published GP');
   for (const k of ['mpg','pts','reb','oreb','dreb','ast','stl','blk','tov','fgm','fga','fg3m','fg3a','ftm','fta']) {
     // Published rates are rounded to one decimal; accounting preserves precision.
     if (!near(proj[k],a[k],0.050001)) fail(`Published ${k} disagrees with accounting`);
