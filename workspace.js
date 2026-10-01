@@ -2,7 +2,7 @@
    Database | Player | Compare | Scatter | Player Comps | Team Fit are real tools, not presets. */
 (() => {
   const $ = (id) => document.getElementById(id);
-  const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+  const fin = (v) => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) && Number.isFinite(Number(v));
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = (v, d = 1) => (fin(v) ? Number(v).toFixed(d) : '—');
   /** Grades are capped at 9.9999; rounding to 2dp would print 10.00, which the scale cannot reach. */
@@ -535,12 +535,12 @@
           return `<tr><td class="left">${esc(window.__wsLabel(k))}</td>${ps.map((p) => {
             const v = valueOf(p, k);
             const win = fin(v) && b !== null && Number(v) === b;
-            return `<td class="${win ? 'winner' : ''}">${window.__wsFmt(v, k)}</td>`;
+            return `<td class="${win ? 'winner' : ''}">${window.__wsFormatCell(p, k)}</td>`;
           }).join('')}</tr>`;
         }).join('')}</tbody></table></div>
       <h3>Skill profile</h3>
       ${Object.keys(ps[0].skillProfile || {}).map((axis) => `<div class="cmp-axis"><span class="pbar-l">${esc(axis.replace(/([a-z])([A-Z])/g, '$1 $2'))}</span>
-        ${ps.map((p) => `<span class="pbar-t" title="${esc(p.name)}"><i style="width:${p.skillProfile?.[axis] ?? 0}%"></i></span>`).join('')}</div>`).join('')}
+        ${ps.map((p) => fin(p.skillProfile?.[axis])?`<span class="pbar-t" title="${esc(p.name)}"><i style="width:${p.skillProfile[axis]}%"></i></span>`:`<span class="tiny" title="${esc(p.name)}: unavailable">—</span>`).join('')}</div>`).join('')}
       <p class="tiny">Bars are within-league percentiles, in the order the players appear above.</p>
       ${historyCompareBlock(ps)}`;
   }

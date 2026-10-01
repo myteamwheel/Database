@@ -246,7 +246,7 @@ export function historicalFallbackEvidence(hist, targetSeason, weightedHistorica
     reliability: rel,
     support,
     returnToPlayPredicted: false,
-    note: 'Older NBA evidence only. This fallback does not predict return-to-play, injury clearance, contract status, or current medical availability.',
+    note: 'Older league evidence only. This fallback does not predict return-to-play, injury clearance, contract status, or current medical availability.',
   };
 }
 

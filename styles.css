@@ -244,6 +244,7 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 .proj-ranges summary:focus-visible,.proj-why summary:focus-visible{outline:2px solid var(--link);outline-offset:2px}
 .proj-ranges .tiny{max-width:75ch}
 .proj-why{align-self:start}
+.proj-returner-note{padding:10px;border-left:3px solid #b77a12;background:#fff6dc;color:#694800}
 .comp-reference-evidence{margin-top:8px;text-align:left;font-size:12px}
 .comp-reference-evidence summary{cursor:pointer;color:var(--link);padding:6px 0;font-weight:600}
 .comp-reference-evidence summary:focus-visible{outline:2px solid var(--link);outline-offset:2px}
