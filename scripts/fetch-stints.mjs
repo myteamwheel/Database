@@ -70,7 +70,7 @@ function teamIdsFrom(dir) {
 const JOBS = [
   { league: '00', seasonType: 'Regular Season', dir: 'official_nba', out: 'stints_nba' },
   { league: '20', seasonType: 'Regular Season', dir: 'official_gleague_regular', out: 'stints_gleague_regular' },
-  { league: '20', seasonType: 'Showcase', dir: 'official_gleague_regular', out: 'stints_gleague_showcase' },
+  { league: '20', seasonType: 'Showcase', dir: 'official_gleague_showcase', out: 'stints_gleague_showcase' },
 ];
 
 for (const job of JOBS) {
