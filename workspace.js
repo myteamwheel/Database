@@ -1363,10 +1363,16 @@
       if (e.key === 'Enter') { e.preventDefault(); chooseCompPlayer(e.target.value, true); }
       if (e.key === 'Escape') hideCompSuggestions();
     });
-    on('simSearch', 'blur', () => window.setTimeout(() => {
-      const box = $('simSuggestions');
-      if (!box?.contains(document.activeElement)) hideCompSuggestions();
-    }, 120));
+    on('simSearch', 'blur', (e) => {
+      const blurredInput = e.currentTarget;
+      window.setTimeout(() => {
+        // Selecting a suggestion re-renders the whole search panel. A blur timer from the old
+        // input must never hide suggestions opened on the newly rendered input.
+        if (blurredInput !== $('simSearch')) return;
+        const box = $('simSuggestions');
+        if (!box?.contains(document.activeElement)) hideCompSuggestions();
+      }, 120);
+    });
     on('simSuggestions', 'focusout', (e) => {
       if (!e.currentTarget.contains(e.relatedTarget) && e.relatedTarget !== $('simSearch')) hideCompSuggestions();
     });
