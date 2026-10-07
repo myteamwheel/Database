@@ -967,6 +967,7 @@
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
       ${isTargeted && set.sourceTeam ? ' Source: ' + esc(set.sourceTeam) + '.' : ''}
+      ${isTargeted ? ' Source type: ' + (set.sourceMode === 'pre-nba' ? 'pre-NBA production' : 'G League production') + '.' : ''}
       ${isTargeted && set.sourceConfidence ? ' Source confidence: ' + esc(set.sourceConfidence) + '.' : ''}
       ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
       ${isTargeted ? '<p class="tiny comp-source-rule"><b>Source rule:</b> NBA statistics are not target inputs for this comparison, and the target player is excluded from the NBA reference pool.</p>' : ''}
