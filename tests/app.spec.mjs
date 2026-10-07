@@ -713,6 +713,51 @@ test.describe('analysis workspace', () => {
   });
 
 
+
+  test('requested Nets targets override ordinary NBA records with the required source family', async ({ page }) => {
+    const errors = await open(page);
+    await page.click('.site-link[data-goto="comps"]');
+    await page.waitForTimeout(500);
+
+    await page.fill('#simSearch', 'Nolan Traore');
+    await page.waitForTimeout(120);
+    await page.locator('[data-sim-pick="target:nolan-traore"]').click();
+    let text = await page.locator('#workspace').innerText();
+    expect(text).toContain('G LEAGUE → NBA HISTORICAL BLEND');
+    expect(text).toContain('recorded G League production');
+    expect(text).toContain('NBA statistics are not target inputs');
+    expect(text).toContain('Source confidence: high');
+    expect(await page.locator('#simScopeSame').count()).toBe(0);
+    let ids = await page.evaluate(() =>
+      DATA.analysis.playerCompsTargeted['target:nolan-traore'].top3.map(x=>String(x.playerId)));
+    expect(ids).not.toContain('1642849');
+
+    await page.fill('#simSearch', 'Dain Dainja');
+    await page.waitForTimeout(120);
+    await page.locator('[data-sim-pick="target:dain-dainja"]').click();
+    text = await page.locator('#workspace').innerText();
+    expect(text).toContain('PRE-NBA → NBA HISTORICAL BLEND');
+    expect(text).toContain('Memphis');
+    expect(text).toContain('pre-NBA production');
+    expect(text).toContain('NBA statistics are not target inputs');
+    ids = await page.evaluate(() =>
+      DATA.analysis.playerCompsTargeted['target:dain-dainja'].top3.map(x=>String(x.playerId)));
+    expect(ids).not.toContain('1643120');
+
+    await page.fill('#simSearch', 'Danny Wolf');
+    await page.waitForTimeout(120);
+    await page.locator('[data-sim-pick="target:danny-wolf"]').click();
+    text = await page.locator('#workspace').innerText();
+    expect(text).toContain('G LEAGUE → NBA HISTORICAL BLEND');
+    expect(text).toContain('G League production');
+    ids = await page.evaluate(() =>
+      DATA.analysis.playerCompsTargeted['target:danny-wolf'].top3.map(x=>String(x.playerId)));
+    expect(ids).not.toContain('1642874');
+
+    expect(await page.evaluate(() => DATA.analysis.playerCompTargets.length)).toBe(22);
+    expect(errors).toEqual([]);
+  });
+
   test('G League Player Comps can switch to a translated NBA historical pool', async ({ page }) => {
     const errors = await open(page);
     await page.click('.league-tab[data-league="GLEAGUE"]');

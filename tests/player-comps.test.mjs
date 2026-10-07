@@ -25,7 +25,7 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.2.0');
+assert.equal(meta.version, '4.3.0');
 assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
@@ -115,6 +115,79 @@ for (const league of ['NBA', 'GLEAGUE']) {
 assert.equal(physicalDominanceTraps, 0, 'a body-only single comp must not receive confident-match treatment');
 assert.ok(sparse > 0, 'complexity penalty should allow one- or two-player explanations');
 assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differentiated');
+
+
+{
+  const cfg = JSON.parse(fs.readFileSync(new URL('../scripts/data/player_comp_targets.json', import.meta.url), 'utf8'));
+  const expectedNames = [
+    'Dain Dainja','Dwight Murray Jr','Aaron Scott','Isaiah Wong','Nick Pringle','Dion Brown',
+    'Ben Humrichous','Tidjiane Dioumassi','DJ Rodman','Jonathan Pierre','Cedric Nga Mbiaba',
+    'Jeriah Coleman','Jordan Dingle','Wooga Poplar','Chaney Johnson','Grant Nelson','Tyler Bilodeau',
+    'Ben Saraf','Drake Powell','Joshua Jefferson','Nolan Traore','Danny Wolf',
+  ];
+  const expectedNbaExperienced = new Set([
+    'Isaiah Wong','Chaney Johnson','Grant Nelson','Ben Saraf','Drake Powell','Nolan Traore','Danny Wolf',
+  ]);
+  const expectedPreNba = new Set(expectedNames.filter((name) => !expectedNbaExperienced.has(name)));
+  assert.equal(cfg.targets.length, 22, 'requested target config must contain exactly 22 players');
+  assert.deepEqual(cfg.targets.map(x=>x.name), expectedNames, 'requested target list changed or reordered');
+  assert.equal(data.analysis.playerCompTargets?.length, 22, 'all requested targets must be searchable');
+  assert.equal(Object.keys(data.analysis.playerCompsTargeted || {}).length, 22, 'all requested targets must receive comps');
+  assert.equal(meta.targetedComparisons?.count, 22, 'metadata target count');
+  assert.deepEqual(new Set(meta.targetedComparisons?.sourceModes), new Set(['gleague','pre-nba']));
+
+  for (const spec of cfg.targets) {
+    const set = data.analysis.playerCompsTargeted[spec.targetId];
+    const catalog = data.analysis.playerCompTargets.find(x=>x.targetId===spec.targetId);
+    assert.ok(set, spec.name + ': missing requested comparison');
+    assert.ok(catalog, spec.name + ': missing from Player Comps picker');
+    assert.equal(catalog.name, spec.name, spec.name + ': picker identity');
+    assert.equal(set.targetName, spec.name, spec.name + ': target identity');
+    assert.equal(spec.nbaExperienced, expectedNbaExperienced.has(spec.name), spec.name + ': NBA-experience classification');
+    assert.equal(spec.sourceMode, spec.nbaExperienced ? 'gleague' : 'pre-nba', spec.name + ': config violates NBA-experience source rule');
+    assert.equal(set.sourceMode, spec.nbaExperienced ? 'gleague' : 'pre-nba', spec.name + ': wrong source family');
+    assert.equal(set.targetBasis, spec.nbaExperienced ? 'targeted-gleague-to-nba-equivalent' : 'pre-nba-to-nba-style',
+      spec.name + ': wrong target basis');
+    assert.equal(set.targetStats.mpg, null, spec.name + ': source minutes/role must not become an NBA MPG comp axis');
+    assert.ok(set.top3.length >= 1 && set.top3.length <= 3, spec.name + ': component count');
+    assert.ok(set.top3.every(x=>x.league==='NBA'), spec.name + ': comparison pool must be NBA');
+    assert.equal(new Set(set.top3.map(x=>String(x.playerId))).size, set.top3.length, spec.name + ': duplicate comp');
+    if (spec.nbaPersonId != null) {
+      assert.ok(set.top3.every(x=>String(x.playerId)!==String(spec.nbaPersonId)), spec.name + ': self-comparison');
+    }
+    assert.equal(set.blend.reduce((sum,x)=>sum+Number(x.share||0),0),100,spec.name + ': blend shares');
+    assert.equal(set.blend.length,set.top3.length,spec.name + ': blend/card mismatch');
+    assert.ok(finite(set.blendConfidence),spec.name + ': blend confidence');
+    assert.ok(finite(set.sourceOriginalMinutes) && set.sourceOriginalMinutes > 0,spec.name + ': missing source exposure');
+    assert.ok(['low','moderate','high'].includes(set.sourceConfidence),spec.name + ': source confidence disclosure');
+    assert.ok(set.profileRead?.text?.includes(spec.name),spec.name + ': missing style narrative');
+    if (expectedPreNba.has(spec.name)) {
+      assert.ok(set.sourceUrl,spec.name + ': pre-NBA source provenance');
+      assert.doesNotMatch(set.targetHistoryNote || '', /NBA statistics? (?:are|is) used/i, spec.name + ': NBA production leaked into description');
+    } else {
+      assert.match(set.targetHistoryNote || '', /G League production only/i, spec.name + ': must disclose G League-only target');
+    }
+  }
+  const wolf = data.analysis.playerCompsTargeted['target:danny-wolf'];
+  assert.equal(wolf.sourceMode,'gleague','Danny Wolf has NBA experience and must use G League production');
+  assert.ok(wolf.top3.every(x=>String(x.playerId)!=='1642874'),'Danny Wolf self-comparison');
+  const dainja = data.analysis.playerCompsTargeted['target:dain-dainja'];
+  assert.equal(dainja.sourceMode,'pre-nba','Dain Dainja has no NBA regular-season experience and must use pre-NBA production');
+  assert.match(dainja.sourceTeam || '',/Memphis/i,'Dain Dainja source team');
+  assert.ok(dainja.top3.every(x=>String(x.playerId)!=='1643120'),'Dain Dainja self-comparison');
+  const cedric = data.analysis.playerCompsTargeted['target:cedric-nga-mbiaba'];
+  assert.equal(cedric.sourceConfidence,'low','Cedric Nga Mbiaba limited sample must be labeled low confidence');
+  const nolan = data.analysis.playerCompsTargeted['target:nolan-traore'];
+  const drake = data.analysis.playerCompsTargeted['target:drake-powell'];
+  assert.equal(nolan.sourceMode,'gleague','Nolan Traore must use his G League appearance');
+  assert.equal(drake.sourceMode,'gleague','Drake Powell must use his G League appearance');
+  assert.ok(nolan.sourceOriginalMinutes >= 300,'Nolan Traore should use his substantial G League sample');
+  assert.equal(nolan.sourceConfidence,'high','Nolan Traore source confidence');
+  assert.ok(drake.sourceOriginalMinutes > 0,'Drake Powell must use a real G League sample');
+  const expectedDrakeConfidence = drake.sourceOriginalMinutes < 100 ? 'low'
+    : drake.sourceOriginalMinutes < 300 ? 'moderate' : 'high';
+  assert.equal(drake.sourceConfidence, expectedDrakeConfidence, 'Drake Powell source confidence must track actual G League exposure');
+}
 
 assert.equal(meta.nbaEquivalentAvailableForGLeague, true, 'G League NBA-equivalent comp mode must be published');
 assert.equal(meta.nbaEquivalent?.comparisonPool, 'NBA historical reference profiles');
