@@ -831,10 +831,17 @@
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
     const lg = p.league === 'NBA' ? 'NBA' : 'GLEAGUE';
-    const set = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const sameLeagueSet = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const nbaEquivalentSet = lg === 'GLEAGUE'
+      ? window.DATA?.analysis?.playerCompsNbaEquivalent?.GLEAGUE?.[String(p.playerId)] || null
+      : null;
+    const useNbaEquivalent = lg === 'GLEAGUE' && state.simCompScope === 'nba' && !!nbaEquivalentSet;
+    const set = useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet;
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
+      const rookie = rookieCohortComparison(p);
+      if (rookie) return rookie;
       const reason = p.currentRoster&&!p.appeared
         ? `${p.name} is on the current ${teamOf(p)} roster but has no 2025-26 NBA appearance, so the comparison engine has no target stat profile to match.`
         : `${p.name} has no usable 2025-26 professional sample for this comparison.`;
