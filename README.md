@@ -376,12 +376,13 @@ Player Comps also publishes a small explicit target set for Brooklyn / Long Isla
 evaluation. These targets always compare against the NBA historical reference pool and never allow
 the target player to match himself.
 
-- If the player has recorded G League minutes, the target profile uses **G League production only**.
+- If the player has **NBA regular-season experience**, the target profile uses **G League production only**.
   The same historical G League-to-NBA translation and sample-size shrinkage used by the normal
-  NBA-equivalent mode are applied. NBA statistics are not target inputs, even when the player has
-  already appeared in the NBA.
-- If no usable G League sample exists, the target uses a separately labeled **pre-NBA style
-  translation** from college or other verified competition. Per-40 volume is conservatively
+  NBA-equivalent mode are applied. NBA statistics are not target inputs, and the player can never
+  compare to himself.
+- If the player has **no NBA regular-season experience**, the target uses a separately labeled **pre-NBA style
+  translation** from college, international, or another verified pre-NBA competition even when later
+  G League statistics exist. Per-40 volume is conservatively
   translated toward NBA rates, shooting percentages are regressed toward NBA norms, and source
   exposure controls reliability shrinkage. This is a playing-style analogy, not a projection of NBA
   minutes, production, career outcome or probability of reaching the league.
