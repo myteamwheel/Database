@@ -801,29 +801,29 @@
     const evidence = p.proj?.why?.rookie;
     const neighbors = Array.isArray(evidence?.neighbors) ? evidence.neighbors : [];
     if (p.proj?.basis !== 'rookie-cohort-fallback' || !neighbors.length) return null;
-    const cards = neighbors.map((x, i) => \`
+    const cards = neighbors.map((x, i) => `
       <article class="comp-overall-card rookie-cohort-card">
-        <span class="eyebrow">COHORT NEIGHBOR #\${i + 1}</span>
-        <h4>\${esc(x.name || 'Historical rookie')}</h4>
-        <p>\${esc(x.rookieSeason || 'Rookie season')} · \${esc(x.position || '—')}
-          \${fin(x.draftPick) ? ' · pick ' + num(x.draftPick, 0) : ' · undrafted/unknown slot'}</p>
-        <p><b>\${num(x.cohortWeightPct, 1)}%</b> of the historical cohort weight</p>
-      </article>\`).join('');
-    return \`<div class="comp-page">
+        <span class="eyebrow">COHORT NEIGHBOR #${i + 1}</span>
+        <h4>${esc(x.name || 'Historical rookie')}</h4>
+        <p>${esc(x.rookieSeason || 'Rookie season')} · ${esc(x.position || '—')}
+          ${fin(x.draftPick) ? ' · pick ' + num(x.draftPick, 0) : ' · undrafted/unknown slot'}</p>
+        <p><b>${num(x.cohortWeightPct, 1)}%</b> of the historical cohort weight</p>
+      </article>`).join('');
+    return `<div class="comp-page">
       <div class="comp-page-title">
-        <div><div class="eyebrow">HISTORICAL ROOKIE COHORT</div><h2>\${esc(p.name)}</h2>
+        <div><div class="eyebrow">HISTORICAL ROOKIE COHORT</div><h2>${esc(p.name)}</h2>
           <p class="tiny">Projection neighbors, not playing-style comps.</p></div>
       </div>
-      \${compPlayerSearch(p)}
+      ${compPlayerSearch(p)}
       <div class="ws-card wide">
         <p><b>This player has no NBA/G League professional sample to run through Player Comps.</b></p>
         <p class="tiny">Instead, the rookie projection exposes the historical entries carrying the most weight in its fallback cohort. The distance uses draft slot, positional class and entry age only. College/international production and scouting traits are not inputs, so these names must not be read as stylistic comparisons.</p>
       </div>
       <section class="comp-overall-section"><div><div class="eyebrow">MOST INFLUENTIAL ROOKIE PRIORS</div>
-        <p class="tiny">\${esc(evidence.neighborDefinition || '')}</p></div>
-        <div class="comp-overall-grid">\${cards}</div></section>
-      <p class="tiny">Cohort: \${cval(evidence.peers, '—')} historical entries · effective peers \${cval(evidence.effectivePeers, '—')}. These percentages are shares of the full weighted cohort and therefore the five shown need not total 100%.</p>
-    </div>\`;
+        <p class="tiny">${esc(evidence.neighborDefinition || '')}</p></div>
+        <div class="comp-overall-grid">${cards}</div></section>
+      <p class="tiny">Cohort: ${cval(evidence.peers, '—')} historical entries · effective peers ${cval(evidence.effectivePeers, '—')}. These percentages are shares of the full weighted cohort and therefore the five shown need not total 100%.</p>
+    </div>`;
   }
 
   function viewSimilarity() {
