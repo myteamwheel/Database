@@ -840,6 +840,88 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
 }
 
+
+// Cross-league product: translate each current G League profile into NBA statistical space, then
+// run the SAME NBA historical comparison/blend engine. The translation is learned only from prior
+// same-player, same-season crossover samples; 2025-26 is held out from the translation fit.
+const nbaEquivalentResult = {};
+const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, histories.GLEAGUE);
+{
+  const nbaPool = histories.NBA;
+  const nbaDistributions = prepareMatchProfiles(nbaPool);
+  const nbaSeasonStats = nbaDistributions.get('NBA|2025-26');
+  const referencePool = stableReferenceProfiles(nbaPool, 300);
+  for (const p of data.leagues?.GLEAGUE || []) {
+    if (!p.appeared || !(p.minutes > 0)) continue;
+    const source = currentSiteTarget(p);
+    const target = nbaEquivalentTarget(p, source, nbaEquivalentTranslation, nbaSeasonStats);
+    const bestByPlayer = new Map();
+    for (const cand of referencePool) {
+      if (cand.playerId === target.playerId || cand.minutes < 300 || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
+      const m = compare(target, cand);
+      if (!m) continue;
+      let score = m.score;
+      if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
+      bestByPlayer.set(cand.playerId, { cand, m: { ...m, score } });
+    }
+    const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
+    if (!shortlist.length) continue;
+    const optimized = optimizeBlend(target, shortlist);
+    const best = optimized.selected.map((x) => serializeComp(target, x.cand, x.m));
+    const blend = optimized.blend;
+    const primary = best[0], rel = primary.relation || [];
+    const profileRead = independentStyleRead(target, referencePool, blend);
+    nbaEquivalentResult[String(p.playerId)] = {
+      top3: best,
+      nearestOverall: shortlist.slice(0, 3).map((item) => serializeComp(target, item.cand, item.m)),
+      blend,
+      blendConfidence: optimized.confidence,
+      blendReconstructionScore: optimized.reconstructionScore,
+      blendAxesUsed: optimized.axesUsed,
+      profileRead,
+      targetSeason: target.season,
+      targetSeasonType: target.seasonType,
+      targetBasis: target.targetBasis,
+      targetSourceSeasons: target.targetSourceSeasons,
+      targetHistoryNote: target.targetHistoryNote,
+      matchMethod: 'historical G League-to-NBA translation, then NBA-season robust z-scores after exposure shrinkage',
+      targetGames: target.gp,
+      targetMinutes: r1(target.minutes),
+      matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
+      shorthand: rel.length
+        ? \`An NBA-equivalent \${rel.join(', ')} blend led by \${primary.name} (\${primary.season}).\`
+        : \`NBA-equivalent historical blend led by \${primary.name} (\${primary.season}).\`,
+      targetPhysical: {
+        heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
+        weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
+        wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
+      },
+      targetStats: {
+        mpg: null, usg: r3(target.features.usg),
+        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
+        fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
+        tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: null,
+        oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
+        fgPct: r3(target.features.fgPct), efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
+        ftPct: r3(target.features.ftPct), ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
+        ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
+        astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
+        orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
+        offRtg: null, defRtg: null, netRtg: null, tmTovPct: r3(target.features.tmTovPct), pie: null,
+        stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+      },
+      targetStyle: {},
+      translationEvidence: {
+        method: nbaEquivalentTranslation.method,
+        pairCount: nbaEquivalentTranslation.pairCount,
+        minimumMinutesEachLeague: nbaEquivalentTranslation.minimumMinutesEachLeague,
+        trainingThrough: nbaEquivalentTranslation.trainingThrough,
+        mpgExcluded: true,
+      },
+    };
+  }
+}
+
 // Product contract: every player who actually appeared in the current source season must receive
 // one to three DISTINCT same-league historical player comps. Fail the build rather than silently
 // shipping a broken comparison card for an edge-case player.
