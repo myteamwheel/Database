@@ -25,6 +25,13 @@
     ? (window.DATA?.leagues?.NBA || []).filter((p) => p.appeared || p.currentRoster)
     : players();
   const byId = (id) => pickerPlayers().find((p) => String(p.playerId) === String(id));
+  const compTargets = () => window.DATA?.analysis?.playerCompTargets || [];
+  const compPickerPlayers = () => {
+    const targets = compTargets();
+    const targetNames = new Set(targets.map((p) => fold(p.name)));
+    return [...targets, ...pickerPlayers().filter((p) => !targetNames.has(fold(p.name)))];
+  };
+  const compById = (id) => compPickerPlayers().find((p) => String(p.playerId) === String(id));
 
   /* ------------------------------------------------------------- mode nav */
   const MODES = [
@@ -87,13 +94,18 @@
 
   /* ------------------------------------------------- shared UI fragments */
   // An old season team is history, not a current roster claim. Never fall back to it here.
-  const teamOf = (p) => p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.team || '—');
-  const teamContext = (p) => p?.league === 'NBA'
-    ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster')
-    : `${window.DATA?.season || '2025-26'} G League team: ${p?.team || '—'}`;
-  const rosterLabel = (p) => p?.currentRoster && !p.appeared
-    ? `${teamOf(p)} · current roster, no 2025-26 NBA stats`
-    : teamOf(p);
+  const teamOf = (p) => p?.compTarget ? (p.currentTeam || p.team || 'Brooklyn / Long Island')
+    : p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.team || '—');
+  const teamContext = (p) => p?.compTarget
+    ? `Comparison target: ${p.currentTeam || p.team || 'Brooklyn / Long Island'}`
+    : p?.league === 'NBA'
+      ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster')
+      : `${window.DATA?.season || '2025-26'} G League team: ${p?.team || '—'}`;
+  const rosterLabel = (p) => p?.compTarget
+    ? `${teamOf(p)} · ${p.sourceMode === 'gleague' ? 'G League-sourced NBA comp' : 'pre-NBA-sourced NBA comp'}`
+    : p?.currentRoster && !p.appeared
+      ? `${teamOf(p)} · current roster, no 2025-26 NBA stats`
+      : teamOf(p);
 
   const bar = (label, v, extra = '') =>
     `<div class="pbar"><span class="pbar-l">${esc(label)}</span>
@@ -110,12 +122,12 @@
     }</select></label>`;
 
   const compPlayerLabel = (p) => `${p.name} — ${teamOf(p)}`;
-  const compPool = () => pickerPlayers().filter((p) =>
+  const compPool = () => compPickerPlayers().filter((p) =>
     (!state.simTeam || teamOf(p) === state.simTeam)
     && (!state.simPosition || p.position === state.simPosition || p.positionFamily === state.simPosition));
   const compPlayerSearch = (p) => {
-    const teams = [...new Set(pickerPlayers().map(teamOf).filter(Boolean))].sort();
-    const positions = [...new Set(pickerPlayers().map((x) => x.position).filter(Boolean))].sort();
+    const teams = [...new Set(compPickerPlayers().map(teamOf).filter(Boolean))].sort();
+    const positions = [...new Set(compPickerPlayers().map((x) => x.position).filter(Boolean))].sort();
     if (state.simTeam && !teams.includes(state.simTeam)) state.simTeam = '';
     if (state.simPosition && !positions.includes(state.simPosition)) state.simPosition = '';
     return `<section class="comp-search-panel" aria-label="Player comparison search">
@@ -827,14 +839,16 @@
   }
 
   function viewSimilarity() {
-    const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
+    const p = compById(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
-    const lg = p.league === 'NBA' ? 'NBA' : 'GLEAGUE';
-    const sameLeagueSet = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
-    const nbaEquivalentSet = window.DATA?.analysis?.playerCompsNbaEquivalent?.[lg]?.[String(p.playerId)] || null;
-    const useNbaEquivalent = !!nbaEquivalentSet && (state.simCompScope === 'nba' || !sameLeagueSet);
-    const set = useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet;
+    const targetedSet = window.DATA?.analysis?.playerCompsTargeted?.[String(p.playerId)] || null;
+    const isTargeted = !!targetedSet;
+    const lg = isTargeted ? 'NBA' : (p.league === 'NBA' ? 'NBA' : 'GLEAGUE');
+    const sameLeagueSet = isTargeted ? null : (window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null);
+    const nbaEquivalentSet = isTargeted ? null : (window.DATA?.analysis?.playerCompsNbaEquivalent?.[lg]?.[String(p.playerId)] || null);
+    const useNbaEquivalent = isTargeted || (!!nbaEquivalentSet && (state.simCompScope === 'nba' || !sameLeagueSet));
+    const set = targetedSet || (useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet);
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
@@ -918,17 +932,24 @@
       </section>`;
     }).join('');
 
-    const scopeToggle = sameLeagueSet && nbaEquivalentSet ? `
+    const scopeToggle = !isTargeted && sameLeagueSet && nbaEquivalentSet ? `
       <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
         <button id="simScopeSame" class="${useNbaEquivalent ? '' : 'active'}" type="button">Same-league history</button>
         <button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>
       </div>` : '';
     const referenceMinimum = useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
-    const pageEyebrow = useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
-    const poolLabel = useNbaEquivalent ? 'NBA-equivalent history' : `${p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League')} history`;
-    const methodSecondParagraph = useNbaEquivalent
-      ? `The target starts with ${esc(p.name)}'s recorded G League production (${esc(set.targetSeason)}), then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
-      : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
+    const pageEyebrow = isTargeted
+      ? (set.sourceMode === 'gleague' ? 'G LEAGUE → NBA HISTORICAL BLEND' : 'PRE-NBA → NBA HISTORICAL BLEND')
+      : useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
+    const poolLabel = isTargeted ? 'NBA historical comparison pool'
+      : useNbaEquivalent ? 'NBA-equivalent history' : `${p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League')} history`;
+    const methodSecondParagraph = isTargeted
+      ? (set.sourceMode === 'gleague'
+        ? `This dedicated target uses ${esc(p.name)}'s recorded G League production from ${esc(set.targetSeason)} and translates it into NBA statistical space with the historical G League→NBA crossover model. His NBA statistics are not target inputs, and his own NBA identity is excluded from the candidate pool. Small G League samples are automatically shrunk toward league norms before matching.`
+        : `This dedicated target uses ${esc(p.name)}'s ${esc(set.targetSeason)} pre-NBA production from ${esc(set.sourceTeam || 'his prior team/league')}. Per-40 volume is conservatively translated toward NBA rates, noisy shooting percentages are regressed toward NBA norms, and source exposure controls shrinkage. This is a playing-style analogy, not a rookie performance forecast. NBA statistics are not target inputs.`)
+      : useNbaEquivalent
+        ? `The target starts with ${esc(p.name)}'s recorded G League production (${esc(set.targetSeason)}), then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
+        : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
 
     return `<div class="comp-page">
       <div class="comp-page-title">
@@ -944,9 +965,10 @@
       ${compPlayerSearch(p)}
       ${scopeToggle}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
-      · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
+      · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
+      ${isTargeted && set.sourceConfidence ? ' Source confidence: ' + esc(set.sourceConfidence) + '.' : ''}
       ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
-      ${fin(set.targetMinutes) && set.targetMinutes < 300 ? '<p class="comp-outlier-note">Small sample: fewer than 300 minutes. Treat the blend as provisional; a few games can substantially change these rates.</p>' : ''}
+      ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can substantially change the translated profile.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
           <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
@@ -1309,7 +1331,7 @@
     const selectCompPlayer = (candidate) => {
       if (!candidate) return;
       state.simPlayer = candidate.playerId;
-      state.player = candidate.playerId;
+      if (!candidate.compTarget) state.player = candidate.playerId;
       state.simQuery = '';
       hideCompSuggestions();
       render();
@@ -1354,7 +1376,7 @@
     on('simSuggestions', 'click', (e) => {
       const b = e.target.closest('[data-sim-pick]');
       if (!b) return;
-      selectCompPlayer(byId(b.dataset.simPick));
+      selectCompPlayer(compById(b.dataset.simPick));
     });
     on('tfTeam', 'change', (e) => { state.team = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('tuPlayer', 'change', (e) => { state.tulipPlayer = e.target.value; state.tulipTarget = null; render(); window.__siteUrlChanged?.('push'); });
@@ -1397,7 +1419,8 @@
   window.__wsRestoreUrlState = (x = {}) => {
     MODE = MODES.some(([key]) => key === x.mode) ? x.mode : 'database';
     const valid = (id) => id != null && pickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
-    state.player = valid(x.player); state.simPlayer = valid(x.sim);
+    const validSim = (id) => id != null && compPickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
+    state.player = valid(x.player); state.simPlayer = validSim(x.sim);
     state.simTeam = x.simTeam || ''; state.simPosition = x.simPosition || '';
     state.team = x.teamfit || null; state.tulipPlayer = valid(x.rolePlayer);
     state.tulipTarget = fin(x.target) && Number(x.target) >= 0 && Number(x.target) <= 48 ? Number(x.target) : null;
