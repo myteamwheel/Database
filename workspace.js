@@ -1351,6 +1351,8 @@
     });
     on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('simScopeSame', 'click', () => { state.simCompScope = 'same'; render(); window.__siteUrlChanged?.('push'); });
+    on('simScopeNba', 'click', () => { state.simCompScope = 'nba'; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
       const b = e.target.closest('[data-sim-pick]');
       if (!b) return;
