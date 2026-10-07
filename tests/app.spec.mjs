@@ -726,7 +726,7 @@ test.describe('analysis workspace', () => {
     expect(text).toContain('G LEAGUE → NBA HISTORICAL BLEND');
     expect(text).toContain('recorded G League production');
     expect(text).toContain('NBA statistics are not target inputs');
-    expect(text).toContain('Source confidence: low');
+    expect(text).toContain('Source confidence: high');
     expect(await page.locator('#simScopeSame').count()).toBe(0);
     let ids = await page.evaluate(() =>
       DATA.analysis.playerCompsTargeted['target:nolan-traore'].top3.map(x=>String(x.playerId)));
