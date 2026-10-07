@@ -510,6 +510,39 @@ function currentHistoricalTarget(p, leagueHist) {
   };
 }
 
+
+function currentSiteTarget(p) {
+  const pid = String(p.nbaPersonId ?? p.playerId);
+  const b = bio.get(Number(pid)) || {};
+  const cm = combine.get(Number(pid)) || {};
+  return {
+    league: p.league, season: '2025-26',
+    seasonType: p.league === 'GLEAGUE' ? 'Regular Season + Showcase Cup' : 'Regular Season',
+    playerId: pid, nbaPersonId: Number(pid), name: p.name,
+    team: p.team, position: p.position, age: p.age, gp: p.gp, minutes: p.minutes,
+    physical: {
+      height: p.heightInches ?? b.height ?? cm.heightNoShoes ?? null,
+      weight: p.weight ?? b.weight ?? cm.combineWeight ?? null,
+      wingspan: cm.wingspan ?? null, standingReach: cm.standingReach ?? null,
+    },
+    features: {
+      mpg: p.mpg, usg: fin(p.usg) ? (Number(p.usg) > 1 ? Number(p.usg) / 100 : Number(p.usg)) : null,
+      pts36: per36(p.pts, p.mpg), fga36: per36(p.fga, p.mpg), threeA36: per36(p.fg3a, p.mpg),
+      fta36: per36(p.fta, p.mpg), reb36: per36(p.reb, p.mpg), ast36: per36(p.ast, p.mpg),
+      stl36: per36(p.stl, p.mpg), blk36: per36(p.blk, p.mpg), tov36: per36(p.tov, p.mpg),
+      pf36: per36(p.pf, p.mpg), plusMinus36: per36(p.plusMinus, p.mpg),
+      oreb36: per36(p.oreb, p.mpg), dreb36: per36(p.dreb, p.mpg),
+      threeRate: fin(p.fg3a) && fin(p.fga) && p.fga > 0 ? p.fg3a / p.fga : null,
+      ftRate: fin(p.fta) && fin(p.fga) && p.fga > 0 ? p.fta / p.fga : null,
+      fg3Pct: p.fg3Pct, fgPct: p.fgPct, ftPct: p.ftPct, ts: p.ts, efgPct: p.efg,
+      astPct: p.astPct, astTo: p.astTo, astRatio: p.astRatio,
+      orebPct: p.orebPct, drebPct: p.drebPct, rebPct: p.rebPct,
+      offRtg: p.offRtg, defRtg: p.defRtg, netRtg: p.netRtg, tmTovPct: p.tmTovPct,
+      pie: p.pie, pace: p.pace,
+    },
+  };
+}
+
 function fmtSize(x) {
   if (!fin(x)) return null;
   const ft = Math.floor(x / 12), inch = Math.round((x - ft * 12) * 10) / 10;
