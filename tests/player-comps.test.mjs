@@ -176,8 +176,10 @@ assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differe
   const drake = data.analysis.playerCompsTargeted['target:drake-powell'];
   assert.equal(nolan.sourceMode,'gleague','Nolan Traore must use his G League appearance');
   assert.equal(drake.sourceMode,'gleague','Drake Powell must use his G League appearance');
-  assert.ok(nolan.sourceOriginalMinutes < 100,'Nolan Traore expected tiny G League sample');
+  assert.ok(nolan.sourceOriginalMinutes >= 300,'Nolan Traore should use his substantial G League sample');
+  assert.equal(nolan.sourceConfidence,'high','Nolan Traore source confidence');
   assert.ok(drake.sourceOriginalMinutes < 100,'Drake Powell expected tiny G League sample');
+  assert.equal(drake.sourceConfidence,'low','Drake Powell source confidence');
 }
 
 assert.equal(meta.nbaEquivalentAvailableForGLeague, true, 'G League NBA-equivalent comp mode must be published');
