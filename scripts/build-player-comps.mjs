@@ -508,6 +508,7 @@ function buildNbaTargetedSet(target, spec, referencePool, sourceMeta = {}) {
     sourceConfidence: target.sourceConfidence || sourceMeta.sourceConfidence || null,
     sourceTeam: sourceMeta.sourceTeam || target.team || null,
     sourceUrl: sourceMeta.sourceUrl || null,
+    sourceUrls: Array.isArray(sourceMeta.sourceUrls) ? sourceMeta.sourceUrls : (sourceMeta.sourceUrl ? [sourceMeta.sourceUrl] : []),
     sourceOriginalMinutes: fin(sourceMeta.sourceOriginalMinutes) ? r1(sourceMeta.sourceOriginalMinutes) : r1(target.minutes),
     shorthand: 'NBA historical blend led by ' + top3[0].name + ' (' + top3[0].season + ').',
     targetPhysical: {
@@ -1219,6 +1220,7 @@ const targetedPlayerCatalog = [];
       sourceMeta = {
         sourceTeam: profile.team || null,
         sourceUrl: profile.source || null,
+        sourceUrls: Array.isArray(profile.sources) && profile.sources.length ? profile.sources : (profile.source ? [profile.source] : []),
         sourceOriginalMinutes: profile.effectiveMinutes || null,
         sourceConfidence: target.sourceConfidence,
       };
