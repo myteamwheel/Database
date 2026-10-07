@@ -531,6 +531,49 @@ const gl = buildLeague({
 });
 console.log(`  ${gl.records.length} players`);
 
+// Explicit 2026-27 Player Comps targets requested by the owner. The frozen database is a
+// 2025-26 statistical snapshot, so players absent from those season tables are added as roster-only
+// identities only: zero games/minutes, no grade and no invented performance. Their comparison source
+// is resolved later by build-player-comps.mjs from recorded G League history or the rookie model.
+const requestedCompRosterPath = path.join(ROOT, 'scripts/data/requested_comp_roster.json');
+if (fs.existsSync(requestedCompRosterPath)) {
+  const requested = JSON.parse(fs.readFileSync(requestedCompRosterPath, 'utf8'));
+  const existingNames = new Set(gl.records.map((r) => resolveName(r.name)));
+  const existingIds = new Set(gl.records.map((r) => String(r.playerId)));
+  for (const e of requested.records || []) {
+    if (!e?.name || existingNames.has(resolveName(e.name)) || existingIds.has(String(e.playerId))) continue;
+    const heightInches = heightInchesFromRoster(e.height);
+    const officialPersonId = Number(e.playerId) > 0 ? Number(e.playerId) : null;
+    gl.records.push({
+      league: 'GLEAGUE', leagueLabel: 'NBA G League', season: SEASON,
+      playerId: String(e.playerId), nbaPersonId: officialPersonId, brefId: null,
+      name: e.name,
+      team: e.team || null, seasonTeam: null, currentTeam: null,
+      currentRoster: true, currentRosterOnly: true, rosterOnly: true, requestedCompTarget: true,
+      teamCount: 0, teams: [],
+      position: e.position || null,
+      positionSource: e.position ? 'requested-comp-roster' : null,
+      positionFamily: positionFamily(e.position),
+      height: e.height || null, heightInches,
+      weight: num(e.weight), college: e.college || null, country: null, jersey: e.jersey || null,
+      birthdate: e.birthdate || null,
+      ageOpeningNight: ageAt(e.birthdate, OPENING_NIGHT),
+      ageFeb1: ageAt(e.birthdate, FEB_FIRST),
+      age: null, seasonAge: null,
+      gp: 0, minutes: 0, mpg: null, regularGP: 0, showcaseGP: 0,
+      appeared: false,
+      grade: null, rateGrade: null, magnitudeGrade: null, gradeRaw: null, gradeShrunk: null,
+      reliabilityWeight: 0, rank: null, viewRank: null, gradeCoverage: null,
+      components: {}, rateComponents: {}, componentsBelowMinimum: [], custom: {}, stats: {},
+      skillProfile: null, archetypes: [],
+      sourceIds: { nbaStats: officialPersonId, basketballReference: null },
+      requestedCompProvenance: e.idSource || null,
+    });
+    existingNames.add(resolveName(e.name));
+    existingIds.add(String(e.playerId));
+  }
+}
+
 // Attach compact descriptive history to current players. This does NOT make TULIP Forecast
 // historical: the current estimator still uses only 2025-26 aggregate/split inputs.
 if (historySummary) {
