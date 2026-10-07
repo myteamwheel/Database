@@ -976,6 +976,74 @@ const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, hi
   }
 }
 
+
+// Roster-targeted historical G League profiles. A current NBA roster player may have a genuine
+// earlier G League season but no current G League record. Never substitute his NBA production.
+// Prefer the most recent completed G League season with at least 100 minutes.
+const historicalGLeagueNbaEquivalent = { NBA: {}, GLEAGUE: {} };
+{
+  const currentIds = new Map();
+  for (const lg of ['NBA', 'GLEAGUE']) {
+    for (const p of data.leagues?.[lg] || []) {
+      if (!p.currentRoster && !p.appeared) continue;
+      const id = String(p.nbaPersonId ?? p.playerId);
+      if (!currentIds.has(id)) currentIds.set(id, []);
+      currentIds.get(id).push({ lg, p });
+    }
+  }
+  const nbaStats = prepareMatchProfiles(histories.NBA).get('NBA|2025-26');
+  const referencePool = stableReferenceProfiles(histories.NBA, 300);
+  for (const [id, entries] of currentIds) {
+    const source = histories.GLEAGUE.filter(x => x.playerId === id && x.minutes >= 100)
+      .sort((a,b) => b.season.localeCompare(a.season) || b.minutes-a.minutes)[0];
+    if (!source) continue;
+    for (const {lg,p} of entries) {
+      if (lg === 'GLEAGUE' && nbaEquivalentResult[String(p.playerId)]) continue;
+      const target = nbaEquivalentTarget(p, source, nbaEquivalentTranslation, nbaStats);
+      target.targetSourceSeasons = [source.season];
+      target.seasonType = 'NBA-equivalent translation of historical G League regular-season production';
+      target.targetHistoryNote = 'Uses a recorded historical G League regular season, not the player’s NBA statistics. NBA minutes are not projected.';
+      const shortlist = referencePool.map(cand => {
+        if (cand.playerId === id || cand.minutes < 300) return null;
+        const m=compare(target,cand);
+        if (!m) return null;
+        if ((fin(target.physical.height)||fin(target.physical.weight)) && m.physicalCoverage < .45) m.score*=.82;
+        return {cand,m};
+      }).filter(Boolean).sort((a,b)=>b.m.score-a.m.score).slice(0,18);
+      if (!shortlist.length) continue;
+      const optimized=optimizeBlend(target,shortlist);
+      const best=optimized.selected.map(x=>serializeNbaEquivalentComp(target,x.cand,x.m));
+      const blend=optimized.blend;
+      historicalGLeagueNbaEquivalent[lg][String(p.playerId)]={
+        top3:best,
+        nearestOverall:shortlist.slice(0,3).map(x=>serializeNbaEquivalentOverall(x.cand,x.m)),
+        blend,blendConfidence:optimized.confidence,
+        blendReconstructionScore:optimized.reconstructionScore,
+        blendAxesUsed:optimized.axesUsed,
+        profileRead:compactProfileRead(independentStyleRead(target,referencePool,blend)),
+        targetSeason:source.season,targetSeasonType:target.seasonType,
+        targetBasis:'historical-gleague-to-nba-equivalent',
+        targetHistoryNote:target.targetHistoryNote,
+        targetGames:source.gp,targetMinutes:r1(source.minutes),
+        shorthand:'NBA-equivalent historical G League blend led by '+best[0].name+' ('+best[0].season+').',
+        targetPhysical:{height:fmtSize(target.physical.height),weight:r1(target.physical.weight),
+          wingspan:fmtSize(target.physical.wingspan),standingReach:fmtSize(target.physical.standingReach)},
+        targetStats:{mpg:null,usg:r3(target.features.usg),pts36:r1(target.features.pts36),
+          fga36:r1(target.features.fga36),fta36:r1(target.features.fta36),
+          reb36:r1(target.features.reb36),ast36:r1(target.features.ast36),
+          tov36:r1(target.features.tov36),pf36:r1(target.features.pf36),
+          efgPct:r3(target.features.efgPct),fg3Pct:r3(target.features.fg3Pct),
+          ts:r3(target.features.ts),threeRate:r3(target.features.threeRate),
+          ftRate:r3(target.features.ftRate),astPct:r3(target.features.astPct),
+          astTo:r2(target.features.astTo),astRatio:r2(target.features.astRatio),
+          orebPct:r3(target.features.orebPct),drebPct:r3(target.features.drebPct),
+          rebPct:r3(target.features.rebPct),stl36:r1(target.features.stl36),blk36:r1(target.features.blk36)},
+        translationEvidence:{trainingThrough:nbaEquivalentTranslation.trainingThrough,mpgExcluded:true}
+      };
+    }
+  }
+}
+
 // Product contract: every player who actually appeared in the current source season must receive
 // one to three DISTINCT same-league historical player comps. Fail the build rather than silently
 // shipping a broken comparison card for an edge-case player.
@@ -1064,7 +1132,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
-data.analysis.playerCompsNbaEquivalent = { GLEAGUE: nbaEquivalentResult };
+data.analysis.playerCompsNbaEquivalent = { GLEAGUE: {...historicalGLeagueNbaEquivalent.GLEAGUE,...nbaEquivalentResult}, NBA: historicalGLeagueNbaEquivalent.NBA };
 data.analysis.playerCompsMeta = {
   version: '4.2.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
