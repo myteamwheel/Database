@@ -599,6 +599,66 @@ function serializeComp(target, cand, m) {
 }
 
 
+function compactReferenceProfile(profile) {
+  if (!profile) return null;
+  return {
+    seasons: profile.seasons || [],
+    games: r1(profile.games),
+    minutes: r1(profile.minutes),
+    seasonCount: profile.seasonCount,
+    period: profile.period,
+    limited: !!profile.limited,
+  };
+}
+
+// The NBA-equivalent pool is additive and large (one set for every played G League player).
+// Keep only fields the UI actually renders so publication reloads do not have to parse a second
+// full copy of same-league comparison diagnostics such as blockDetails and style-source internals.
+function serializeNbaEquivalentComp(target, cand, m) {
+  return {
+    playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
+    referenceProfile: compactReferenceProfile(cand.referenceProfile),
+    team: cand.team, teamId: cand.teamId ?? null, position: cand.position,
+    similarity: r1(m.score),
+    height: fmtSize(cand.physical.height), weight: r1(cand.physical.weight),
+    wingspan: fmtSize(cand.physical.wingspan), standingReach: fmtSize(cand.physical.standingReach),
+    mpg: r1(cand.features.mpg), usg: r3(cand.features.usg),
+    pts36: r1(cand.features.pts36), fga36: r1(cand.features.fga36),
+    fta36: r1(cand.features.fta36), reb36: r1(cand.features.reb36), ast36: r1(cand.features.ast36),
+    tov36: r1(cand.features.tov36), pf36: r1(cand.features.pf36), plusMinus36: r1(cand.features.plusMinus36),
+    efgPct: r3(cand.features.efgPct), fg3Pct: r3(cand.features.fg3Pct), ts: r3(cand.features.ts),
+    threeRate: r3(cand.features.threeRate), ftRate: r3(cand.features.ftRate), astPct: r3(cand.features.astPct),
+    astTo: r2(cand.features.astTo), astRatio: r2(cand.features.astRatio),
+    orebPct: r3(cand.features.orebPct), drebPct: r3(cand.features.drebPct), rebPct: r3(cand.features.rebPct),
+    offRtg: r1(cand.features.offRtg), defRtg: r1(cand.features.defRtg), netRtg: r1(cand.features.netRtg),
+    pie: r3(cand.features.pie), stl36: r1(cand.features.stl36), blk36: r1(cand.features.blk36),
+    blockScores: m.blockScores,
+    mostSimilar: m.best.map((x) => x.label),
+    biggestDifferences: m.worst.map((x) => ({ label: x.label, normalizedGap: r1(x.z) })),
+  };
+}
+function serializeNbaEquivalentOverall(cand, m) {
+  return {
+    playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
+    similarity: r1(m.score),
+    referenceProfile: compactReferenceProfile(cand.referenceProfile),
+  };
+}
+function compactProfileRead(read) {
+  return {
+    text: read?.text || '',
+    position: read?.position || null,
+    blend: read?.blend || '',
+    caveat: read?.caveat || '',
+    components: (read?.components || []).map((x) => ({
+      playerId: x.playerId, name: x.name, season: x.season, fit: x.fit,
+      phrase: x.phrase, evidence: x.evidence || [], narrativeOrder: x.narrativeOrder,
+      referencePeriod: compactReferenceProfile(x.referencePeriod),
+    })),
+  };
+}
+
+
 // A blend should reconstruct the target's listed physical profile and playing style, not merely
 // distribute 100 points among the three nearest neighbours. Available listed size dimensions and
 // high-coverage player-controlled axes enter the convex fit. Team-context outputs (ratings,
