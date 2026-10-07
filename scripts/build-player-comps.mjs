@@ -946,6 +946,30 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   }
 }
 
+
+// Cross-league contract: every played G League target gets a distinct NBA-only blend with honest
+// translation provenance. Self-comps are prohibited even when the player has NBA history.
+{
+  const expectedIds = (data.leagues?.GLEAGUE || [])
+    .filter((p) => p.appeared && Number(p.minutes) > 0)
+    .map((p) => String(p.playerId));
+  const missing = expectedIds.filter((id) => !nbaEquivalentResult[id]);
+  const bad = Object.entries(nbaEquivalentResult).filter(([id, set]) => {
+    const comps = set.top3 || [], blend = set.blend || [];
+    return !expectedIds.includes(id)
+      || comps.length < 1 || comps.length > 3
+      || new Set(comps.map((x) => String(x.playerId))).size !== comps.length
+      || comps.some((x) => x.league !== 'NBA' || String(x.playerId) === id)
+      || blend.length !== comps.length
+      || blend.reduce((sum, x) => sum + Number(x.share || 0), 0) !== 100
+      || !fin(set.blendConfidence)
+      || set.targetBasis !== 'gleague-to-nba-equivalent';
+  });
+  if (missing.length || bad.length) {
+    throw new Error(\`NBA-equivalent player comps contract failed: missing=\${missing.length}, bad=\${bad.length}\`);
+  }
+}
+
 const pct = (arr, q) => {
   const x = arr.filter(fin).slice().sort((a, b) => a - b);
   if (!x.length) return null;
@@ -986,10 +1010,22 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
+data.analysis.playerCompsNbaEquivalent = { GLEAGUE: nbaEquivalentResult };
 data.analysis.playerCompsMeta = {
-  version: '4.1.1',
+  version: '4.2.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
+  nbaEquivalentAvailableForGLeague: true,
+  nbaEquivalent: {
+    comparisonPool: 'NBA historical reference profiles',
+    target: '2025-26 G League full-season line (Regular Season + Showcase Cup) translated into NBA statistical space',
+    translationMethod: nbaEquivalentTranslation.method,
+    trainingThrough: nbaEquivalentTranslation.trainingThrough,
+    pairedPlayerSeasons: nbaEquivalentTranslation.pairCount,
+    minimumMinutesEachLeague: nbaEquivalentTranslation.minimumMinutesEachLeague,
+    mpgExcluded: true,
+    note: 'This is an NBA-equivalent statistical/style comparison, not a forecast of NBA talent, minutes, career outcome or probability of reaching the NBA.',
+  },
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
   priority: 'overall comparisons, statistical blend shares, and independent style references answer different questions; reference periods are chosen before matching',
@@ -1015,6 +1051,8 @@ data.analysis.playerCompsMeta = {
     ? 'Listed professional height/weight stay primary; official combine wingspan and standing reach are added where measured. Players who never attended keep those length fields blank.'
     : 'No combine measurement cache was present in this build. Height/weight still drive the physical block; wingspan/reach remain blank rather than invented.',
   limitations: [
+    'NBA-equivalent G League comps apply empirical historical crossover translation before NBA matching. They describe translated statistical/style resemblance, not expected NBA performance or career outcome.',
+    'NBA-equivalent comps exclude G League MPG from the match because G League role size is not an NBA minutes forecast.',
     'Statistical Blend Fit is a heuristic fit score, not a calibrated probability or a prediction of career potential. Reliability shrinkage reduces short-sample influence but does not eliminate uncertainty.',
     'G League historical inputs use Regular Season totals; the main database combines Regular Season and Showcase Cup. The target scope is identified above each blend.',
     'Historical physical profiles use available listed measurements, which are not necessarily measurements from the displayed season.',
