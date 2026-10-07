@@ -968,6 +968,7 @@
       · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
       ${isTargeted && set.sourceConfidence ? ' Source confidence: ' + esc(set.sourceConfidence) + '.' : ''}
       ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
+      ${isTargeted ? '<p class="tiny comp-source-rule"><b>Source rule:</b> NBA statistics are not target inputs for this comparison, and the target player is excluded from the NBA reference pool.</p>' : ''}
       ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can substantially change the translated profile.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
