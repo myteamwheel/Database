@@ -21,6 +21,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.json');
 const INPUTS_PATH = path.join(ROOT, 'scripts/data/projection/inputs.json');
 const COMBINE_PATH = path.join(ROOT, 'scripts/data/combine_anthro.json');
+const TARGET_COMPS_PATH = path.join(ROOT, 'scripts/data/player_comp_targets.json');
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const n = (v) => fin(v) ? Number(v) : null;
@@ -40,6 +41,8 @@ const per36 = (total, minutes) => fin(total) && fin(minutes) && Number(minutes) 
 
 const data = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
 const inputs = JSON.parse(fs.readFileSync(INPUTS_PATH, 'utf8'));
+const targetCompConfig = fs.existsSync(TARGET_COMPS_PATH)
+  ? JSON.parse(fs.readFileSync(TARGET_COMPS_PATH, 'utf8')) : { targets: [], preNbaProfiles: {} };
 
 const bio = new Map();
 const addBio = (x) => bio.set(Number(x.PERSON_ID), {
@@ -400,6 +403,130 @@ function nbaEquivalentTarget(p, source, translation, nbaSeasonStats) {
   }
   target.matchFeatures = out;
   return target;
+}
+
+
+const PRENBA_LEVELS = {
+  NCAA_D1: { exposure: 1.00, volume: 1.00, label: 'NCAA Division I' },
+  CANADA_U_LIMITED: { exposure: 0.25, volume: 0.72, label: 'Canadian university (limited public sample)' },
+};
+const PRENBA_VOLUME_TRANSLATION = {
+  pts: .78, fga: .84, threeA: .90, fta: .72, reb: .88, oreb: .82, dreb: .90,
+  ast: .82, stl: .72, blk: .78, tov: .86, pf: .90,
+};
+function regressPct(value, center, strength, lo = .05, hi = .95) {
+  return fin(value) ? clamp(center + strength * (Number(value) - center), lo, hi) : null;
+}
+function preNbaEquivalentTarget(spec, profile, nbaSeasonStats) {
+  const level = PRENBA_LEVELS[profile.level] || { exposure: .55, volume: .82, label: profile.level || 'pre-NBA' };
+  const s = profile.per40 || {};
+  const rate36 = (key) => fin(s[key]) ? Number(s[key]) * .9 * PRENBA_VOLUME_TRANSLATION[key] * level.volume : null;
+  const threeA36 = rate36('threeA'), fga36 = rate36('fga'), fta36 = rate36('fta');
+  const features = {
+    mpg: null, usg: null,
+    pts36: rate36('pts'), fga36, threeA36, fta36,
+    reb36: rate36('reb'), oreb36: rate36('oreb'), dreb36: rate36('dreb'),
+    ast36: rate36('ast'), stl36: rate36('stl'), blk36: rate36('blk'),
+    tov36: rate36('tov'), pf36: rate36('pf'), plusMinus36: null,
+    threeRate: fin(threeA36) && fin(fga36) && fga36 > 0 ? clamp(threeA36 / fga36, 0, 1.25) : regressPct(s.threeRate, .40, .78, 0, 1.25),
+    ftRate: fin(fta36) && fin(fga36) && fga36 > 0 ? clamp(fta36 / fga36, 0, 1.5) : regressPct(s.ftRate, .28, .70, 0, 1.5),
+    fg3Pct: regressPct(s.fg3Pct, .355, profile.effectiveMinutes < 250 ? .28 : .62, .15, .55),
+    fgPct: regressPct(s.fgPct, .47, .55, .25, .75),
+    ftPct: regressPct(s.ftPct, .78, profile.effectiveMinutes < 250 ? .45 : .80, .40, .95),
+    efgPct: regressPct(s.efgPct, .54, .55, .30, .75),
+    ts: regressPct(s.ts, .57, .55, .35, .78),
+    astPct: null,
+    astTo: fin(s.ast) && fin(s.tov) && Number(s.tov) > 0 ? Number(s.ast) / Number(s.tov) : null,
+    astRatio: null, orebPct: null, drebPct: null, rebPct: null,
+    offRtg: null, defRtg: null, netRtg: null, tmTovPct: null, pie: null, pace: null,
+  };
+  const b = spec.nbaPersonId ? (bio.get(Number(spec.nbaPersonId)) || {}) : {};
+  const cm = spec.nbaPersonId ? (combine.get(Number(spec.nbaPersonId)) || {}) : {};
+  const height = n(profile.heightInches) ?? b.height ?? cm.heightNoShoes ?? null;
+  const weight = n(profile.weight) ?? b.weight ?? cm.combineWeight ?? null;
+  const position = b.position || (fin(height) ? (height >= 81 ? 'F' : height <= 76 ? 'G' : 'G-F') : null);
+  const exposureMinutes = Math.max(1, Number(profile.effectiveMinutes || 0) * level.exposure);
+  const target = {
+    league: 'NBA', season: profile.season, seasonType: level.label,
+    playerId: String(spec.nbaPersonId ?? spec.targetId), nbaPersonId: spec.nbaPersonId ?? null,
+    name: spec.name, team: profile.team || null, position, age: null,
+    gp: Number(profile.games || 0), minutes: exposureMinutes,
+    physical: { height, weight, wingspan: cm.wingspan ?? null, standingReach: cm.standingReach ?? null },
+    features,
+    targetBasis: 'pre-nba-to-nba-style',
+    targetSourceSeasons: [profile.season],
+    targetHistoryNote: profile.notes || 'Pre-NBA production is translated conservatively into NBA statistical space. This is a style comparison, not an NBA performance forecast.',
+    sourceConfidence: profile.level === 'CANADA_U_LIMITED' || exposureMinutes < 100 ? 'low'
+      : exposureMinutes < 300 ? 'moderate' : 'high',
+  };
+  const out = {};
+  for (const { key, axis } of MATCH_AXES) {
+    if (key === 'mpg') { out[key] = null; continue; }
+    const value = matchRawValue(target, key);
+    const center = nbaSeasonStats?.[key]?.median, scale = nbaSeasonStats?.[key]?.scale;
+    if (!fin(value) || !fin(center) || !fin(scale) || scale <= 0) { out[key] = null; continue; }
+    const prior = MATCH_PRIOR[key] ?? MATCH_PRIOR.default;
+    const reliability = exposureMinutes / (exposureMinutes + prior);
+    const shrunk = center + reliability * (Number(value) - center);
+    out[key] = clamp((shrunk - center) / scale, -4, 4) * axis.scale;
+  }
+  target.matchFeatures = out;
+  return target;
+}
+function buildNbaTargetedSet(target, spec, referencePool, sourceMeta = {}) {
+  const bestByPlayer = new Map();
+  for (const cand of referencePool) {
+    if (String(cand.playerId) === String(spec.nbaPersonId ?? target.playerId)
+      || cand.minutes < 300 || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
+    const m = compare(target, cand);
+    if (!m) continue;
+    let score = m.score;
+    if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < .45) score *= .82;
+    bestByPlayer.set(cand.playerId, { cand, m: { ...m, score } });
+  }
+  const shortlist = [...bestByPlayer.values()].sort((a,b)=>b.m.score-a.m.score).slice(0,18);
+  if (!shortlist.length) return null;
+  const optimized = optimizeBlend(target, shortlist);
+  const top3 = optimized.selected.map(x=>serializeNbaEquivalentComp(target,x.cand,x.m));
+  const blend = optimized.blend;
+  const profileRead = compactProfileRead(independentStyleRead(target, referencePool, blend));
+  return {
+    top3,
+    nearestOverall: shortlist.slice(0,3).map(x=>serializeNbaEquivalentOverall(x.cand,x.m)),
+    blend,
+    blendConfidence: optimized.confidence,
+    blendReconstructionScore: optimized.reconstructionScore,
+    blendAxesUsed: optimized.axesUsed,
+    profileRead,
+    targetSeason: target.season,
+    targetSeasonType: target.seasonType,
+    targetBasis: target.targetBasis,
+    targetHistoryNote: target.targetHistoryNote,
+    targetGames: target.gp,
+    targetMinutes: r1(target.minutes),
+    sourceMode: spec.sourceMode,
+    sourceConfidence: target.sourceConfidence || sourceMeta.sourceConfidence || null,
+    sourceTeam: sourceMeta.sourceTeam || target.team || null,
+    sourceUrl: sourceMeta.sourceUrl || null,
+    sourceOriginalMinutes: fin(sourceMeta.sourceOriginalMinutes) ? r1(sourceMeta.sourceOriginalMinutes) : r1(target.minutes),
+    shorthand: 'NBA historical blend led by ' + top3[0].name + ' (' + top3[0].season + ').',
+    targetPhysical: {
+      height: fmtSize(target.physical.height), weight: r1(target.physical.weight),
+      wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
+    },
+    targetStats: {
+      mpg:null, usg:r3(target.features.usg), pts36:r1(target.features.pts36),
+      fga36:r1(target.features.fga36), fta36:r1(target.features.fta36),
+      reb36:r1(target.features.reb36), ast36:r1(target.features.ast36),
+      tov36:r1(target.features.tov36), pf36:r1(target.features.pf36),
+      efgPct:r3(target.features.efgPct), fg3Pct:r3(target.features.fg3Pct),
+      ftPct:r3(target.features.ftPct), ts:r3(target.features.ts),
+      threeRate:r3(target.features.threeRate), ftRate:r3(target.features.ftRate),
+      astPct:r3(target.features.astPct), astTo:r2(target.features.astTo), astRatio:r2(target.features.astRatio),
+      orebPct:r3(target.features.orebPct), drebPct:r3(target.features.drebPct), rebPct:r3(target.features.rebPct),
+      stl36:r1(target.features.stl36), blk36:r1(target.features.blk36),
+    },
+  };
 }
 
 function blockDistance(target, cand, spec, targetPhysical = false) {
