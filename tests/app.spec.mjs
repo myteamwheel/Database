@@ -713,6 +713,44 @@ test.describe('analysis workspace', () => {
   });
 
 
+  test('G League Player Comps can switch to a translated NBA historical pool', async ({ page }) => {
+    const errors = await open(page);
+    await page.click('.league-tab[data-league="GLEAGUE"]');
+    await page.waitForTimeout(450);
+    await page.click('.site-link[data-goto="comps"]');
+    await page.waitForTimeout(500);
+
+    const target = await page.evaluate(() => {
+      const sets = DATA.analysis.playerCompsNbaEquivalent?.GLEAGUE || {};
+      return DATA.leagues.GLEAGUE.find((p) => p.appeared && sets[String(p.playerId)]) || null;
+    });
+    expect(target).not.toBeNull();
+
+    await page.fill('#simSearch', target.name);
+    await page.waitForTimeout(100);
+    await page.locator(\`[data-sim-pick="\${target.playerId}"]\`).click();
+    await expect(page.locator('#simScopeSame')).toHaveClass(/active/);
+    await expect(page.locator('#simScopeNba')).not.toHaveClass(/active/);
+
+    await page.click('#simScopeNba');
+    await expect(page.locator('#simScopeNba')).toHaveClass(/active/);
+    const text = await page.locator('#workspace').innerText();
+    expect(text).toContain('NBA-EQUIVALENT HISTORICAL BLEND');
+    expect(text).toContain('NBA-equivalent history');
+    expect(text).toContain('G League MPG is excluded');
+    expect(text).toContain('not a probability, calibrated confidence');
+
+    const sides = page.locator('.comp-side-table-disclosure');
+    expect(await sides.count()).toBeGreaterThan(0);
+    await sides.first().locator('summary').click();
+    await expect(sides.first().locator('thead')).toContainText('(NBA eq.)');
+    const leagues = await page.evaluate((id) =>
+      (DATA.analysis.playerCompsNbaEquivalent.GLEAGUE[String(id)].top3 || []).map((x) => x.league), target.playerId);
+    expect(leagues.every((x) => x === 'NBA')).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+
   test('glossary defines zero, missing, N/A, estimate, fallback and small-sample meanings', async ({ page }) => {
     const errors = await open(page);
     await page.click('#statGuideBtn');
