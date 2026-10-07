@@ -549,7 +549,7 @@ if (fs.existsSync(requestedCompRosterPath)) {
       playerId: String(e.playerId), nbaPersonId: officialPersonId, brefId: null,
       name: e.name,
       team: e.team || null, seasonTeam: null, currentTeam: null,
-      currentRoster: true, currentRosterOnly: true, rosterOnly: true, requestedCompTarget: true,
+      currentRoster: false, currentRosterOnly: false, rosterOnly: true, requestedCompTarget: true,
       teamCount: 0, teams: [],
       position: e.position || null,
       positionSource: e.position ? 'requested-comp-roster' : null,
