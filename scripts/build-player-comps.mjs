@@ -565,10 +565,57 @@ function playerHistoryRows(rows, p) {
   return rows.filter((row) => (pid && String(row.playerId) === pid) || (nk && nameKey(row.name) === nk));
 }
 
+
+const MANUAL_GLEAGUE_LINES = {
+  dannywolf: { season:'2025-26', team:'LIN', gp:7, mpg:33.4, pts:20.3, fgm:7.4, fga:15.4, fg3m:2.0, fg3a:6.0, ftm:2.0, fta:2.6, oreb:2.7, dreb:7.6, reb:10.3, ast:3.1, stl:0.9, blk:1.1, tov:3.4, pf:3.6 },
+  bensaraf: { season:'2025-26', team:'LIN', gp:15, mpg:27.5, pts:15.4, fgm:5.5, fga:13.1, fg3m:1.7, fg3a:4.5, ftm:1.5, fta:1.9, oreb:0.6, dreb:3.0, reb:3.6, ast:4.6, stl:1.5, blk:0.4, tov:3.0, pf:2.4 },
+  drakepowell: { season:'2025-26', team:'LIN', gp:2, mpg:28.7, pts:7.0, fgm:1.0, fga:5.0, fg3m:0.5, fg3a:3.5, ftm:3.0, fta:3.5, oreb:0.0, dreb:5.0, reb:5.0, ast:4.0, stl:3.0, blk:0.5, tov:1.0, pf:2.0 },
+  nolantraore: { season:'2025-26', team:'LIN', gp:13, mpg:30.4, pts:18.8, fgm:6.8, fga:14.1, fg3m:2.2, fg3a:5.0, ftm:1.8, fta:2.4, oreb:0.4, dreb:2.4, reb:2.8, ast:6.5, stl:0.8, blk:0.2, tov:3.5, pf:3.2 },
+  grantnelson: { season:'2025-26', team:'LIN', gp:6, mpg:15.3, pts:6.3, fgm:2.5, fga:4.8, fg3m:0.0, fg3a:1.0, ftm:0.8, fta:1.2, oreb:1.7, dreb:2.7, reb:4.3, ast:0.2, stl:0.7, blk:0.3, tov:1.0, pf:3.2 },
+  chaneyjohnson: { season:'2025-26', team:'CLC', gp:14, mpg:25.8, pts:13.3, fgm:5.2, fga:8.9, fg3m:0.7, fg3a:2.0, ftm:1.3, fta:1.8, oreb:2.2, dreb:3.4, reb:5.6, ast:2.1, stl:1.6, blk:1.3, tov:1.6, pf:3.5 },
+  isaiahwong: { season:'2024-25', team:'SLC', gp:8, mpg:31.4, pts:24.1, fgm:7.9, fga:17.0, fg3m:2.0, fg3a:4.9, ftm:4.1, fta:4.9, oreb:1.3, dreb:2.6, reb:3.9, ast:3.6, stl:1.5, blk:0.4, tov:2.5, pf:1.4 },
+};
+function manualGLeagueSource(p) {
+  const x = MANUAL_GLEAGUE_LINES[nameKey(p?.name)];
+  if (!x) return null;
+  const pid = String(p.nbaPersonId ?? p.playerId);
+  const b = bio.get(Number(pid)) || {};
+  const cm = combine.get(Number(pid)) || {};
+  const pct = (made, att) => fin(att) && Number(att) > 0 && fin(made) ? Number(made) / Number(att) : null;
+  const efg = fin(x.fga) && x.fga > 0 ? (Number(x.fgm) + 0.5 * Number(x.fg3m || 0)) / Number(x.fga) : null;
+  const tsDen = fin(x.fga) && fin(x.fta) ? 2 * (Number(x.fga) + 0.44 * Number(x.fta)) : null;
+  return {
+    league:'GLEAGUE', season:x.season, seasonType:'Official G League fallback line',
+    playerId:pid, nbaPersonId:Number(pid), name:p.name, team:x.team, position:p.position || b.position || null,
+    age:p.age, gp:x.gp, minutes:Number(x.gp) * Number(x.mpg),
+    physical:{
+      height:p.heightInches ?? b.height ?? cm.heightNoShoes ?? null,
+      weight:p.weight ?? b.weight ?? cm.combineWeight ?? null,
+      wingspan:cm.wingspan ?? null, standingReach:cm.standingReach ?? null,
+    },
+    features:{
+      mpg:x.mpg, usg:null,
+      pts36:per36(x.pts,x.mpg), fga36:per36(x.fga,x.mpg), threeA36:per36(x.fg3a,x.mpg),
+      fta36:per36(x.fta,x.mpg), reb36:per36(x.reb,x.mpg), ast36:per36(x.ast,x.mpg),
+      stl36:per36(x.stl,x.mpg), blk36:per36(x.blk,x.mpg), tov36:per36(x.tov,x.mpg),
+      pf36:per36(x.pf,x.mpg), plusMinus36:null, oreb36:per36(x.oreb,x.mpg), dreb36:per36(x.dreb,x.mpg),
+      threeRate:fin(x.fga)&&x.fga>0?Number(x.fg3a)/Number(x.fga):null,
+      ftRate:fin(x.fga)&&x.fga>0?Number(x.fta)/Number(x.fga):null,
+      fg3Pct:pct(x.fg3m,x.fg3a), fgPct:pct(x.fgm,x.fga), ftPct:pct(x.ftm,x.fta), efgPct:efg,
+      ts:fin(x.pts)&&fin(tsDen)&&tsDen>0?Number(x.pts)/tsDen:null,
+      astPct:null,astTo:fin(x.tov)&&x.tov>0?Number(x.ast)/Number(x.tov):null,astRatio:null,
+      orebPct:null,drebPct:null,rebPct:null,offRtg:null,defRtg:null,netRtg:null,tmTovPct:null,pie:null,pace:null,
+    },
+    targetBasis:'historical-gleague-source',
+    targetSourceSeasons:[x.season],
+    targetHistoryNote:'NBA comparison uses an official recorded G League line because the committed historical G League cache does not contain this player-season. NBA production is not used.',
+  };
+}
+
 function latestGLeagueSource(p) {
   const rows = playerHistoryRows(histories.GLEAGUE, p)
     .slice().sort((a, b) => Number(b.season.slice(0, 4)) - Number(a.season.slice(0, 4)) || b.minutes - a.minutes);
-  if (!rows.length) return null;
+  if (!rows.length) return manualGLeagueSource(p);
   const latestSeason = rows[0].season;
   const chosen = rows.filter((row) => row.season === latestSeason);
   const source = { ...chosen[0] };
