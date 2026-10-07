@@ -927,7 +927,7 @@
       </div>` : '';
     const referenceMinimum = useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
     const pageEyebrow = useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
-    const poolLabel = useNbaEquivalent ? 'NBA-equivalent history' : (p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League') + ' history');
+    const poolLabel = useNbaEquivalent ? 'NBA-equivalent history' : `${p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League')} history`;
     const methodSecondParagraph = useNbaEquivalent
       ? `The target starts with ${esc(p.name)}'s actual 2025-26 G League production, then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
       : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
