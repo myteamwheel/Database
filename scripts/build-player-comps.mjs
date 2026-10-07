@@ -1292,13 +1292,15 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
-data.analysis.playerCompsNbaEquivalent = { GLEAGUE: nbaEquivalentResult };
+data.analysis.playerCompsNbaEquivalent = { GLEAGUE: nbaEquivalentResult, NBA: nbaEquivalentNbaResult };
 data.analysis.playerCompsMeta = {
-  version: '4.2.0',
+  version: '4.3.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   sameLeagueDefault: true,
   nbaEquivalentAvailableForGLeague: true,
+  nbaEquivalentAvailableForRequestedNbaPlayers: true,
+  requestedNbaCompTargets: REQUESTED_NBA_COMP_NAMES,
   nbaEquivalent: {
     comparisonPool: 'NBA historical reference profiles',
     target: '2025-26 G League full-season line (Regular Season + Showcase Cup) translated into NBA statistical space',
@@ -1307,14 +1309,14 @@ data.analysis.playerCompsMeta = {
     pairedPlayerSeasons: nbaEquivalentTranslation.pairCount,
     minimumMinutesEachLeague: nbaEquivalentTranslation.minimumMinutesEachLeague,
     mpgExcluded: true,
-    note: 'This is an NBA-equivalent statistical/style comparison, not a forecast of NBA talent, minutes, career outcome or probability of reaching the NBA.',
+    note: 'Played G League samples are translated into NBA comparison space; requested players without a usable G League sample receive a separately labeled rookie-entry comparison based on historical cohort/frame/position/age. Neither is a forecast of NBA talent, minutes or career outcome.',
   },
   nbaHistory: '2009-10 through 2025-26',
   gleagueHistory: '2014-15 through 2025-26',
   priority: 'overall comparisons, statistical blend shares, and independent style references answer different questions; reference periods are chosen before matching',
   referenceMethod: 'one fixed representative profile per player: the highest-minute three-year calendar window with at least two meaningful seasons when available; pooled shooting attempts and minutes-weighted rate/era coordinates',
   styleMethod: 'independent trait-specific search across the full same-league multi-year reference pool; at least two observed seasons, sufficient shared axes, fit >=55, no selected axis beyond 2.5 scale units; style cards have no blend percentages',
-  targetEligibility: 'only players with a 2025-26 appearance and positive minutes receive a player-comparison target; roster-only players remain searchable but have no invented historical fallback comparison',
+  targetEligibility: 'standard same-league comps still require a 2025-26 appearance and positive minutes; the explicitly requested NBA-comparison target list may use recorded G League history or a labeled rookie-entry fallback when no professional sample exists',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
   blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties; nearestOverall is ranked independently and style references search the full stable pool',
@@ -1334,6 +1336,8 @@ data.analysis.playerCompsMeta = {
     ? 'Listed professional height/weight stay primary; official combine wingspan and standing reach are added where measured. Players who never attended keep those length fields blank.'
     : 'No combine measurement cache was present in this build. Height/weight still drive the physical block; wingspan/reach remain blank rather than invented.',
   limitations: [
+    'Requested rookie-entry comps without a usable G League sample are cohort/frame/position/age analogies, not direct translations of NCAA or international box-score production.',
+    'NBA-experienced requested players are sourced from their G League profile for the alternate NBA comparison and are explicitly barred from self-comparison.',
     'NBA-equivalent G League comps apply empirical historical crossover translation before NBA matching. They describe translated statistical/style resemblance, not expected NBA performance or career outcome.',
     'NBA-equivalent comps exclude G League MPG from the match because G League role size is not an NBA minutes forecast.',
     'Statistical Blend Fit is a heuristic fit score, not a calibrated probability or a prediction of career potential. Reliability shrinkage reduces short-sample influence but does not eliminate uncertainty.',
