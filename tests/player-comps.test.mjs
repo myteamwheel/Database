@@ -25,7 +25,7 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.1.1');
+assert.equal(meta.version, '4.2.0');
 assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
@@ -115,6 +115,31 @@ for (const league of ['NBA', 'GLEAGUE']) {
 assert.equal(physicalDominanceTraps, 0, 'a body-only single comp must not receive confident-match treatment');
 assert.ok(sparse > 0, 'complexity penalty should allow one- or two-player explanations');
 assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differentiated');
+
+assert.equal(meta.nbaEquivalentAvailableForGLeague, true, 'G League NBA-equivalent comp mode must be published');
+assert.equal(meta.nbaEquivalent?.comparisonPool, 'NBA historical reference profiles');
+assert.equal(meta.nbaEquivalent?.trainingThrough, '2024-25', 'current season must not train the cross-league translator');
+assert.equal(meta.nbaEquivalent?.mpgExcluded, true, 'G League MPG must not be treated as an NBA role forecast');
+assert.ok(Number(meta.nbaEquivalent?.pairedPlayerSeasons) >= 10, 'cross-league translation needs a non-trivial historical crossover sample');
+
+{
+  const sets = data.analysis.playerCompsNbaEquivalent?.GLEAGUE || {};
+  const expected = data.leagues.GLEAGUE.filter((p) => p.appeared && Number(p.minutes) > 0);
+  assert.equal(Object.keys(sets).length, expected.length, 'every played G League target needs an NBA-equivalent comp');
+  for (const p of expected) {
+    const set = sets[String(p.playerId)];
+    assert.ok(set, `${p.name}: missing NBA-equivalent comp`);
+    assert.equal(set.targetBasis, 'gleague-to-nba-equivalent', `${p.name}: wrong cross-league target basis`);
+    assert.equal(set.targetStats.mpg, null, `${p.name}: G League MPG leaked into NBA-equivalent matching`);
+    assert.ok(set.top3.length >= 1 && set.top3.length <= 3, `${p.name}: NBA-equivalent component count`);
+    assert.ok(set.top3.every((x) => x.league === 'NBA'), `${p.name}: NBA-equivalent pool contains a non-NBA reference`);
+    assert.ok(set.top3.every((x) => String(x.playerId) !== String(p.playerId)), `${p.name}: self NBA reference`);
+    assert.equal(set.blend.reduce((sum, x) => sum + x.share, 0), 100, `${p.name}: NBA-equivalent shares`);
+    assert.ok(set.blendAxesUsed >= 10, `${p.name}: NBA-equivalent blend has too little shared evidence`);
+    assert.equal(set.translationEvidence?.trainingThrough, '2024-25', `${p.name}: translation leakage`);
+    assert.equal(set.translationEvidence?.mpgExcluded, true, `${p.name}: MPG exclusion missing`);
+  }
+}
 
 // Regression example from the audit screenshots: the old model promoted a physical-profile
 // neighbor above Reed Sheppard's stronger basketball-role blend. Ja's historical references are
