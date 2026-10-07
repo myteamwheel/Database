@@ -1068,6 +1068,70 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 }
 
 
+
+function translatedNbaCompSet(p, source, translation, nbaSeasonStats, referencePool) {
+  const target = nbaEquivalentTarget(p, source, translation, nbaSeasonStats);
+  const bestByPlayer = new Map();
+  for (const cand of referencePool) {
+    if (sameIdentity(cand, target) || cand.minutes < 300 || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
+    const m = compare(target, cand);
+    if (!m) continue;
+    let score = m.score;
+    if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
+    bestByPlayer.set(cand.playerId, { cand, m: { ...m, score } });
+  }
+  const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
+  if (!shortlist.length) return null;
+  const optimized = optimizeBlend(target, shortlist);
+  const best = optimized.selected.map((x) => serializeNbaEquivalentComp(target, x.cand, x.m));
+  const blend = optimized.blend;
+  const primarySource = optimized.selected[0]?.cand;
+  const primary = best[0], rel = primarySource ? relation(target, primarySource) : [];
+  const profileRead = compactProfileRead(independentStyleRead(target, referencePool, blend));
+  return {
+    top3: best,
+    nearestOverall: shortlist.slice(0, 3).map((item) => serializeNbaEquivalentOverall(item.cand, item.m)),
+    blend,
+    blendConfidence: optimized.confidence,
+    blendReconstructionScore: optimized.reconstructionScore,
+    blendAxesUsed: optimized.axesUsed,
+    profileRead,
+    targetSeason: target.season,
+    targetSeasonType: target.seasonType,
+    targetBasis: target.targetBasis,
+    targetHistoryNote: target.targetHistoryNote,
+    targetGames: target.gp,
+    targetMinutes: r1(target.minutes),
+    shorthand: rel.length
+      ? 'An NBA-equivalent ' + rel.join(', ') + ' blend led by ' + primary.name + ' (' + primary.season + ').'
+      : 'NBA-equivalent historical blend led by ' + primary.name + ' (' + primary.season + ').',
+    targetPhysical: {
+      height: fmtSize(target.physical.height),
+      weight: r1(target.physical.weight),
+      wingspan: fmtSize(target.physical.wingspan),
+      standingReach: fmtSize(target.physical.standingReach),
+    },
+    targetStats: {
+      mpg: null, usg: r3(target.features.usg),
+      pts36: r1(target.features.pts36), fga36: r1(target.features.fga36),
+      fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
+      tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: null,
+      efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
+      ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
+      ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
+      astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
+      orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
+      offRtg: null, defRtg: null, netRtg: null, pie: null,
+      stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+    },
+    translationEvidence: {
+      trainingThrough: translation.trainingThrough,
+      mpgExcluded: true,
+      sourceSeason: source.season || null,
+    },
+  };
+}
+
 // Cross-league product: translate each current G League profile into NBA statistical space, then
 // run the SAME NBA historical comparison/blend engine. The translation is learned only from prior
 // same-player, same-season crossover samples; 2025-26 is held out from the translation fit.
