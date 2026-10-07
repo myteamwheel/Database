@@ -1171,6 +1171,110 @@ const historicalGLeagueNbaEquivalent = { NBA: {}, GLEAGUE: {} };
   }
 }
 
+
+
+// Requested Brooklyn / Long Island comparison targets. These are deliberately independent of
+// current league-table membership so camp, G League and pre-NBA players remain searchable here.
+const targetedPlayerComps = {};
+const targetedPlayerCatalog = [];
+{
+  const nbaPool = histories.NBA;
+  const nbaStats = prepareMatchProfiles(nbaPool).get('NBA|2025-26');
+  const referencePool = stableReferenceProfiles(nbaPool, 300);
+  const currentGLeagueById = new Map((data.leagues?.GLEAGUE || [])
+    .map(p => [String(p.nbaPersonId ?? p.playerId), p]));
+  for (const spec of targetCompConfig.targets || []) {
+    let target = null;
+    let sourceMeta = {};
+    if (spec.sourceMode === 'gleague') {
+      const id = String(spec.nbaPersonId ?? '');
+      const current = currentGLeagueById.get(id);
+      let source = null;
+      if (current?.appeared && Number(current.minutes) > 0) {
+        source = currentSiteTarget(current);
+        sourceMeta = {
+          sourceTeam: current.team || null,
+          sourceOriginalMinutes: Number(current.minutes),
+          sourceConfidence: Number(current.minutes) < 100 ? 'low' : Number(current.minutes) < 300 ? 'moderate' : 'high',
+        };
+      } else {
+        source = histories.GLEAGUE.filter(x => x.playerId === id && x.minutes > 0)
+          .sort((a,b)=>b.season.localeCompare(a.season) || b.minutes-a.minutes)[0] || null;
+        if (source) sourceMeta = {
+          sourceTeam: source.team || null,
+          sourceOriginalMinutes: source.minutes,
+          sourceConfidence: source.minutes < 100 ? 'low' : source.minutes < 300 ? 'moderate' : 'high',
+        };
+      }
+      if (!source) throw new Error('Targeted G League comp missing source for ' + spec.name);
+      target = nbaEquivalentTarget(spec, source, nbaEquivalentTranslation, nbaStats);
+      target.name = spec.name;
+      target.targetBasis = 'targeted-gleague-to-nba-equivalent';
+      target.targetHistoryNote = 'Uses recorded G League production only; NBA production is excluded from the target profile. NBA minutes and career outcome are not projected.';
+      target.sourceConfidence = sourceMeta.sourceConfidence;
+    } else if (spec.sourceMode === 'pre-nba') {
+      const profile = targetCompConfig.preNbaProfiles?.[spec.targetId];
+      if (!profile) throw new Error('Targeted pre-NBA comp missing profile for ' + spec.name);
+      target = preNbaEquivalentTarget(spec, profile, nbaStats);
+      sourceMeta = {
+        sourceTeam: profile.team || null,
+        sourceUrl: profile.source || null,
+        sourceOriginalMinutes: profile.effectiveMinutes || null,
+        sourceConfidence: target.sourceConfidence,
+      };
+    } else {
+      throw new Error('Unknown targeted comp source mode for ' + spec.name);
+    }
+    const set = buildNbaTargetedSet(target, spec, referencePool, sourceMeta);
+    if (!set) throw new Error('Unable to build targeted NBA comp for ' + spec.name);
+    set.targetId = spec.targetId;
+    set.targetName = spec.name;
+    set.nbaPersonId = spec.nbaPersonId ?? null;
+    set.number = spec.number ?? null;
+    targetedPlayerComps[spec.targetId] = set;
+    targetedPlayerCatalog.push({
+      playerId: spec.targetId,
+      targetId: spec.targetId,
+      nbaPersonId: spec.nbaPersonId ?? null,
+      name: spec.name,
+      number: spec.number ?? null,
+      league: 'TARGET',
+      leagueLabel: 'NBA comparison target',
+      team: target.team || sourceMeta.sourceTeam || targetCompConfig.teamLabel || 'Brooklyn / Long Island',
+      currentTeam: targetCompConfig.teamLabel || 'Brooklyn / Long Island',
+      position: target.position || null,
+      positionFamily: target.position || null,
+      heightInches: target.physical.height ?? null,
+      weight: target.physical.weight ?? null,
+      sourceMode: spec.sourceMode,
+      sourceConfidence: set.sourceConfidence,
+      compTarget: true,
+    });
+  }
+}
+
+// All requested targets are an explicit product contract: no silent omission, no self-comparison,
+// no non-NBA reference, and every blend must remain a valid 100% one-to-three-player explanation.
+{
+  const expected = targetCompConfig.targets || [];
+  const missing = expected.filter(x => !targetedPlayerComps[x.targetId]);
+  const bad = expected.filter(spec => {
+    const set = targetedPlayerComps[spec.targetId];
+    if (!set) return true;
+    const ids = (set.top3 || []).map(x => String(x.playerId));
+    return ids.length < 1 || ids.length > 3 || new Set(ids).size !== ids.length
+      || set.top3.some(x => x.league !== 'NBA')
+      || (spec.nbaPersonId != null && ids.includes(String(spec.nbaPersonId)))
+      || set.blend.length !== ids.length
+      || set.blend.reduce((sum,x)=>sum+Number(x.share||0),0) !== 100
+      || !fin(set.blendConfidence);
+  });
+  if (expected.length !== 22 || missing.length || bad.length) {
+    throw new Error('Targeted player comps contract failed: expected=' + expected.length
+      + ', missing=' + missing.length + ', bad=' + bad.length);
+  }
+}
+
 // Product contract: every player who actually appeared in the current source season must receive
 // one to three DISTINCT same-league historical player comps. Fail the build rather than silently
 // shipping a broken comparison card for an edge-case player.
@@ -1260,12 +1364,20 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
 data.analysis.playerCompsNbaEquivalent = { GLEAGUE: {...historicalGLeagueNbaEquivalent.GLEAGUE,...nbaEquivalentResult}, NBA: historicalGLeagueNbaEquivalent.NBA };
+data.analysis.playerCompTargets = targetedPlayerCatalog;
+data.analysis.playerCompsTargeted = targetedPlayerComps;
 data.analysis.playerCompsMeta = {
-  version: '4.2.0',
+  version: '4.3.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   sameLeagueDefault: true,
   nbaEquivalentAvailableForGLeague: true,
+  targetedComparisons: {
+    count: targetedPlayerCatalog.length,
+    comparisonPool: 'NBA historical reference profiles',
+    sourceModes: ['gleague','pre-nba'],
+    note: 'Requested Brooklyn / Long Island targets use recorded G League production when available; otherwise a separately labeled pre-NBA style translation. NBA production never supplies the target profile for this set.',
+  },
   nbaEquivalent: {
     comparisonPool: 'NBA historical reference profiles',
     target: '2025-26 G League full-season line (Regular Season + Showcase Cup) translated into NBA statistical space',
