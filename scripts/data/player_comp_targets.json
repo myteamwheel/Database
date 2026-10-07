@@ -7,154 +7,176 @@
       "name": "Dain Dainja",
       "number": "42",
       "nbaPersonId": 1643120,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:dwight-murray",
       "name": "Dwight Murray Jr",
       "number": "5",
       "nbaPersonId": 1642605,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:aaron-scott",
       "name": "Aaron Scott",
       "number": "1",
       "nbaPersonId": 1643058,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:isaiah-wong",
       "name": "Isaiah Wong",
       "number": "21",
       "nbaPersonId": 1631209,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:nick-pringle",
       "name": "Nick Pringle",
       "number": "23",
       "nbaPersonId": 1643761,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:dion-brown",
       "name": "Dion Brown",
       "number": "33",
       "nbaPersonId": null,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:ben-humrichous",
       "name": "Ben Humrichous",
       "number": "12",
       "nbaPersonId": 1643750,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:tidjiane-dioumassi",
       "name": "Tidjiane Dioumassi",
       "number": "22",
       "nbaPersonId": null,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:dj-rodman",
       "name": "DJ Rodman",
       "number": "3",
       "nbaPersonId": 1642485,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:jonathan-pierre",
       "name": "Jonathan Pierre",
       "number": "00",
       "nbaPersonId": 1642952,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:cedric-nga-mbiaba",
       "name": "Cedric Nga Mbiaba",
       "number": null,
       "nbaPersonId": null,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:jeriah-coleman",
       "name": "Jeriah Coleman",
       "number": null,
       "nbaPersonId": null,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:jordan-dingle",
       "name": "Jordan Dingle",
       "number": null,
       "nbaPersonId": null,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:wooga-poplar",
       "name": "Wooga Poplar",
       "number": null,
       "nbaPersonId": 1642390,
-      "sourceMode": "gleague"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:chaney-johnson",
       "name": "Chaney Johnson",
       "number": "31",
       "nbaPersonId": 1643052,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:grant-nelson",
       "name": "Grant Nelson",
       "number": "16",
       "nbaPersonId": 1641761,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:tyler-bilodeau",
       "name": "Tyler Bilodeau",
       "number": "34",
       "nbaPersonId": 1643548,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:ben-saraf",
       "name": "Ben Saraf",
       "number": "77",
       "nbaPersonId": 1642879,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:drake-powell",
       "name": "Drake Powell",
       "number": "4",
       "nbaPersonId": 1642962,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:joshua-jefferson",
       "name": "Joshua Jefferson",
       "number": "9",
       "nbaPersonId": 1643538,
-      "sourceMode": "pre-nba"
+      "sourceMode": "pre-nba",
+      "nbaExperienced": false
     },
     {
       "targetId": "target:nolan-traore",
       "name": "Nolan Traore",
       "number": "10",
       "nbaPersonId": 1642849,
-      "sourceMode": "gleague"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     },
     {
       "targetId": "target:danny-wolf",
       "name": "Danny Wolf",
       "number": "2",
       "nbaPersonId": 1642874,
-      "sourceMode": "pre-nba"
+      "sourceMode": "gleague",
+      "nbaExperienced": true
     }
   ],
   "preNbaProfiles": {
@@ -453,38 +475,203 @@
       },
       "source": "https://www.sports-reference.com/cbb/schools/iowa-state/men/2026.html"
     },
-    "target:danny-wolf": {
-      "name": "Danny Wolf",
+    "target:dain-dainja": {
+      "name": "Dain Dainja",
       "season": "2024-25",
-      "team": "Michigan",
+      "team": "Memphis",
       "level": "NCAA_D1",
-      "games": 37,
-      "effectiveMinutes": 1128,
-      "heightInches": 83,
-      "weight": 250,
+      "games": 35,
+      "effectiveMinutes": 951,
+      "heightInches": 81,
+      "weight": 255,
       "per40": {
-        "pts": 17.311,
-        "fga": 13.246,
-        "threeA": 4.066,
-        "fta": 4.721,
-        "oreb": 3.016,
-        "dreb": 9.705,
-        "reb": 12.721,
-        "ast": 4.721,
-        "stl": 0.918,
-        "blk": 1.836,
-        "tov": 4.197,
-        "pf": 2.754,
-        "fgPct": 0.497,
-        "fg3Pct": 0.336,
-        "ftPct": 0.594,
-        "efgPct": 0.548,
-        "threeRate": 0.30693,
-        "ftRate": 0.35644,
-        "ts": 0.56488
+        "pts": 21.451,
+        "fga": 14.301,
+        "threeA": 0.042,
+        "fta": 6.604,
+        "oreb": 4.08,
+        "dreb": 6.772,
+        "reb": 10.852,
+        "ast": 2.482,
+        "stl": 1.388,
+        "blk": 1.977,
+        "tov": 4.122,
+        "pf": 4.248,
+        "fgPct": 0.615,
+        "fg3Pct": 0,
+        "ftPct": 0.586,
+        "efgPct": 0.615,
+        "threeRate": 0.00294,
+        "ftRate": 0.46176,
+        "ts": 0.62335
       },
-      "source": "https://www.sports-reference.com/cbb/players/danny-wolf-1.html",
-      "notes": "No G League sample exists; college is used despite NBA experience, and NBA stats are excluded."
+      "source": "https://www.sports-reference.com/cbb/players/dain-dainja-1.html",
+      "notes": "Final Memphis season totals: 35 games, 951 minutes. No NBA regular-season experience; college production is used even though later G League data exist."
+    },
+    "target:dwight-murray": {
+      "name": "Dwight Murray Jr",
+      "season": "2022-23",
+      "team": "Rider",
+      "level": "NCAA_D1",
+      "games": 29,
+      "effectiveMinutes": 1059,
+      "heightInches": 72,
+      "weight": 181,
+      "per40": {
+        "pts": 17.148,
+        "fga": 14.504,
+        "threeA": 4.721,
+        "fta": 3.966,
+        "oreb": 0.642,
+        "dreb": 4.797,
+        "reb": 5.439,
+        "ast": 3.286,
+        "stl": 1.511,
+        "blk": 0.076,
+        "tov": 2.266,
+        "pf": 1.549,
+        "fgPct": 0.419,
+        "fg3Pct": 0.4,
+        "ftPct": 0.781,
+        "efgPct": 0.484,
+        "threeRate": 0.32552,
+        "ftRate": 0.27344,
+        "ts": 0.52766
+      },
+      "source": "https://www.sports-reference.com/cbb/players/dwight-murrayjr-1.html",
+      "notes": "Final Rider season totals: 29 games, 1,059 minutes. No NBA regular-season experience; pre-NBA college production is used."
+    },
+    "target:aaron-scott": {
+      "name": "Aaron Scott",
+      "season": "2024-25",
+      "team": "St. John's",
+      "level": "NCAA_D1",
+      "games": 36,
+      "effectiveMinutes": 978,
+      "heightInches": 79,
+      "weight": 200,
+      "per40": {
+        "pts": 12.393,
+        "fga": 11.452,
+        "threeA": 7.117,
+        "fta": 1.718,
+        "oreb": 2.781,
+        "dreb": 3.599,
+        "reb": 6.38,
+        "ast": 1.431,
+        "stl": 2.127,
+        "blk": 0.859,
+        "tov": 0.941,
+        "pf": 4.131,
+        "fgPct": 0.389,
+        "fg3Pct": 0.293,
+        "ftPct": 0.81,
+        "efgPct": 0.48,
+        "threeRate": 0.62143,
+        "ftRate": 0.15,
+        "ts": 0.50757
+      },
+      "source": "https://www.sports-reference.com/cbb/players/aaron-scott-5.html",
+      "notes": "Final St. John's season totals: 36 games, 978 minutes. No NBA regular-season experience; college production is used."
+    },
+    "target:dj-rodman": {
+      "name": "DJ Rodman",
+      "season": "2023-24",
+      "team": "USC",
+      "level": "NCAA_D1",
+      "games": 32,
+      "effectiveMinutes": 881,
+      "heightInches": 78,
+      "weight": 215,
+      "per40": {
+        "pts": 12.259,
+        "fga": 9.489,
+        "threeA": 4.767,
+        "fta": 2.951,
+        "oreb": 2.724,
+        "dreb": 4.586,
+        "reb": 7.31,
+        "ast": 1.816,
+        "stl": 1.044,
+        "blk": 0.726,
+        "tov": 1.635,
+        "pf": 2.134,
+        "fgPct": 0.44,
+        "fg3Pct": 0.362,
+        "ftPct": 0.738,
+        "efgPct": 0.531,
+        "threeRate": 0.50239,
+        "ftRate": 0.311,
+        "ts": 0.56818
+      },
+      "source": "https://www.sports-reference.com/cbb/players/dj-rodman-1.html",
+      "notes": "Final USC season totals: 32 games, 881 minutes. No NBA regular-season experience; college production is used instead of later G League production."
+    },
+    "target:jonathan-pierre": {
+      "name": "Jonathan Pierre",
+      "season": "2024-25",
+      "team": "Belmont",
+      "level": "NCAA_D1",
+      "games": 33,
+      "effectiveMinutes": 919,
+      "heightInches": 81,
+      "weight": 210,
+      "per40": {
+        "pts": 19.761,
+        "fga": 16.67,
+        "threeA": 8.618,
+        "fta": 4.135,
+        "oreb": 1.436,
+        "dreb": 7.573,
+        "reb": 9.01,
+        "ast": 5.049,
+        "stl": 1.175,
+        "blk": 0.522,
+        "tov": 2.786,
+        "pf": 2.96,
+        "fgPct": 0.402,
+        "fg3Pct": 0.369,
+        "ftPct": 0.768,
+        "efgPct": 0.497,
+        "threeRate": 0.51697,
+        "ftRate": 0.24804,
+        "ts": 0.53437
+      },
+      "source": "https://www.sports-reference.com/cbb/players/jonathan-pierre-1.html",
+      "notes": "Final Belmont season totals: 33 games, 919 minutes. No NBA regular-season experience; college production is used."
+    },
+    "target:wooga-poplar": {
+      "name": "Wooga Poplar",
+      "season": "2024-25",
+      "team": "Villanova",
+      "level": "NCAA_D1",
+      "games": 36,
+      "effectiveMinutes": 1149,
+      "heightInches": 77,
+      "weight": 195,
+      "per40": {
+        "pts": 19.112,
+        "fga": 14.517,
+        "threeA": 6.301,
+        "fta": 3.864,
+        "oreb": 1.079,
+        "dreb": 7.659,
+        "reb": 8.738,
+        "ast": 1.845,
+        "stl": 1.601,
+        "blk": 0.313,
+        "tov": 2.263,
+        "pf": 2.785,
+        "fgPct": 0.46,
+        "fg3Pct": 0.387,
+        "ftPct": 0.856,
+        "efgPct": 0.544,
+        "threeRate": 0.43405,
+        "ftRate": 0.26619,
+        "ts": 0.58926
+      },
+      "source": "https://www.sports-reference.com/cbb/players/wooga-poplar-1.html",
+      "notes": "Final Villanova season totals: 36 games, 1,149 minutes. No NBA regular-season experience; college production is used instead of later G League production."
     }
   }
 }
