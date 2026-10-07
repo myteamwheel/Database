@@ -1014,7 +1014,8 @@ data.analysis.playerCompsNbaEquivalent = { GLEAGUE: nbaEquivalentResult };
 data.analysis.playerCompsMeta = {
   version: '4.2.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
-  sameLeagueOnly: true,
+  sameLeagueOnly: false,
+  sameLeagueDefault: true,
   nbaEquivalentAvailableForGLeague: true,
   nbaEquivalent: {
     comparisonPool: 'NBA historical reference profiles',
