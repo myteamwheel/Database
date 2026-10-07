@@ -379,12 +379,12 @@ function nbaEquivalentTarget(p, source, translation, nbaSeasonStats) {
   const target = {
     ...source,
     league: 'NBA',
-    seasonType: 'NBA-equivalent translation of 2025-26 G League production',
+    seasonType: 'NBA-equivalent translation of ' + (source.season || 'G League') + ' G League production',
     name: p.name,
     features,
     targetBasis: 'gleague-to-nba-equivalent',
-    targetSourceSeasons: [source.season],
-    targetHistoryNote: 'G League production is translated into NBA statistical space using prior same-season crossover players. Listed body measurements are unchanged. NBA role/minutes are not projected and MPG is excluded from the match.',
+    targetSourceSeasons: source.targetSourceSeasons || [source.season],
+    targetHistoryNote: source.targetHistoryNote || 'G League production is translated into NBA statistical space using prior same-season crossover players. Listed body measurements are unchanged. NBA role/minutes are not projected and MPG is excluded from the match.',
   };
   const out = {};
   for (const { key, axis } of MATCH_AXES) {
