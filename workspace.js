@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, team: null,
+                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, simCompScope: 'same', team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -780,7 +780,7 @@
     if (deep.length) rows.push(['DEEP STYLE (COMMON COVERAGE)', null, null, 'section'], ...deep);
 
     return `<div class="comp-side-table-wrap"><table class="comp-side-table">
-      <thead><tr><th class="left">Comparison axis</th><th>${esc(p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
+      <thead><tr><th class="left">Comparison axis</th><th>${esc(set?.targetBasis === 'gleague-to-nba-equivalent' ? p.name + ' (NBA eq.)' : p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
       <tbody>${rows.map(([label, a, b, type]) => type === 'section'
         ? `<tr class="comp-section-row"><th colspan="3">${esc(label)}</th></tr>`
         : `<tr><th class="left">${esc(label)}</th><td>${type === 'text' ? esc(a) : cval(a, type)}</td><td>${type === 'text' ? esc(b) : cval(b, type)}</td></tr>`).join('')}
@@ -794,6 +794,36 @@
         <p class="tiny">Seasons included: ${esc((profile.seasons || []).join(', '))}. ${num(profile.games, 0)} games · ${num(profile.minutes, 0)} minutes.</p>
         <p class="tiny">Selected once for this player by playing-time exposure, before matching any target. Shooting percentages pool makes and attempts; rates are weighted by minutes. This describes a career stretch, not a whole-career average or a guaranteed peak. The team logo represents the highest-minute season in that stretch.</p>
       </details>`;
+  }
+
+
+  function rookieCohortComparison(p) {
+    const evidence = p.proj?.why?.rookie;
+    const neighbors = Array.isArray(evidence?.neighbors) ? evidence.neighbors : [];
+    if (p.proj?.basis !== 'rookie-cohort-fallback' || !neighbors.length) return null;
+    const cards = neighbors.map((x, i) => \`
+      <article class="comp-overall-card rookie-cohort-card">
+        <span class="eyebrow">COHORT NEIGHBOR #\${i + 1}</span>
+        <h4>\${esc(x.name || 'Historical rookie')}</h4>
+        <p>\${esc(x.rookieSeason || 'Rookie season')} · \${esc(x.position || '—')}
+          \${fin(x.draftPick) ? ' · pick ' + num(x.draftPick, 0) : ' · undrafted/unknown slot'}</p>
+        <p><b>\${num(x.cohortWeightPct, 1)}%</b> of the historical cohort weight</p>
+      </article>\`).join('');
+    return \`<div class="comp-page">
+      <div class="comp-page-title">
+        <div><div class="eyebrow">HISTORICAL ROOKIE COHORT</div><h2>\${esc(p.name)}</h2>
+          <p class="tiny">Projection neighbors, not playing-style comps.</p></div>
+      </div>
+      \${compPlayerSearch(p)}
+      <div class="ws-card wide">
+        <p><b>This player has no NBA/G League professional sample to run through Player Comps.</b></p>
+        <p class="tiny">Instead, the rookie projection exposes the historical entries carrying the most weight in its fallback cohort. The distance uses draft slot, positional class and entry age only. College/international production and scouting traits are not inputs, so these names must not be read as stylistic comparisons.</p>
+      </div>
+      <section class="comp-overall-section"><div><div class="eyebrow">MOST INFLUENTIAL ROOKIE PRIORS</div>
+        <p class="tiny">\${esc(evidence.neighborDefinition || '')}</p></div>
+        <div class="comp-overall-grid">\${cards}</div></section>
+      <p class="tiny">Cohort: \${cval(evidence.peers, '—')} historical entries · effective peers \${cval(evidence.effectivePeers, '—')}. These percentages are shares of the full weighted cohort and therefore the five shown need not total 100%.</p>
+    </div>\`;
   }
 
   function viewSimilarity() {
