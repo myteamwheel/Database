@@ -313,6 +313,95 @@ function normalizeMatchFeatures(row, stats) {
   return out;
 }
 
+
+const NBA_EQ_MIN_MINUTES = 150;
+// NBA-equivalent comps translate the G League target into NBA statistical space before matching.
+// MPG is deliberately excluded: G League role size is not an NBA role forecast.
+const NBA_EQ_VOLUME_AXES = new Set([
+  'pts36','fga36','threeA36','fta36','reb36','ast36','stl36','blk36','tov36','pf36','oreb36','dreb36',
+]);
+const NBA_EQ_EXTRA_AXES = ['threeA36','oreb36','dreb36','fgPct'];
+const NBA_EQ_KEYS = [...new Set([...MATCH_AXES.map(({ key }) => key), ...NBA_EQ_EXTRA_AXES])].filter((key) => key !== 'mpg');
+const median = (values) => {
+  const x = values.filter(fin).map(Number).sort((a, b) => a - b);
+  if (!x.length) return null;
+  const m = Math.floor(x.length / 2);
+  return x.length % 2 ? x[m] : (x[m - 1] + x[m]) / 2;
+};
+function translationSummary(values, mode) {
+  const x = values.filter(fin).map(Number);
+  if (x.length < 10) return null;
+  return mode === 'ratio'
+    ? { mode, n: x.length, factor: median(x) }
+    : { mode, n: x.length, delta: median(x) };
+}
+function applyTranslation(value, rule) {
+  if (!fin(value) || !rule) return null;
+  return rule.mode === 'ratio' ? Number(value) * Number(rule.factor) : Number(value) + Number(rule.delta);
+}
+function buildNbaEquivalentTranslation(nbaRows, glRows) {
+  const gl = new Map(glRows
+    .filter((row) => row.season !== '2025-26' && row.minutes >= NBA_EQ_MIN_MINUTES)
+    .map((row) => [\`\${row.season}|\${row.playerId}\`, row]));
+  const pairs = nbaRows
+    .filter((row) => row.season !== '2025-26' && row.minutes >= NBA_EQ_MIN_MINUTES)
+    .map((nba) => ({ nba, gl: gl.get(\`\${nba.season}|\${nba.playerId}\`) }))
+    .filter((x) => x.gl);
+  const rules = {};
+  for (const key of NBA_EQ_KEYS) {
+    const mode = NBA_EQ_VOLUME_AXES.has(key) ? 'ratio' : 'difference';
+    const raw = [], match = [];
+    for (const pair of pairs) {
+      const gv = pair.gl.features?.[key], nv = pair.nba.features?.[key];
+      if (fin(gv) && fin(nv) && (mode !== 'ratio' || Math.abs(Number(gv)) > 0.05)) {
+        raw.push(mode === 'ratio' ? Number(nv) / Number(gv) : Number(nv) - Number(gv));
+      }
+      const gm = matchRawValue(pair.gl, key), nm = matchRawValue(pair.nba, key);
+      if (fin(gm) && fin(nm) && (mode !== 'ratio' || Math.abs(Number(gm)) > 0.05)) {
+        match.push(mode === 'ratio' ? Number(nm) / Number(gm) : Number(nm) - Number(gm));
+      }
+    }
+    rules[key] = { raw: translationSummary(raw, mode), match: translationSummary(match, mode) };
+  }
+  return {
+    method: 'same-player same-season historical G League-to-NBA median translation',
+    pairCount: pairs.length,
+    minimumMinutesEachLeague: NBA_EQ_MIN_MINUTES,
+    trainingThrough: '2024-25',
+    mpgExcluded: true,
+    rules,
+  };
+}
+function nbaEquivalentTarget(p, source, translation, nbaSeasonStats) {
+  const features = Object.fromEntries(Object.keys(source.features || {}).map((key) => [key, null]));
+  for (const key of NBA_EQ_KEYS) features[key] = applyTranslation(source.features?.[key], translation.rules?.[key]?.raw);
+  features.mpg = null;
+  const target = {
+    ...source,
+    league: 'NBA',
+    seasonType: 'NBA-equivalent translation of 2025-26 G League production',
+    name: p.name,
+    features,
+    targetBasis: 'gleague-to-nba-equivalent',
+    targetSourceSeasons: [source.season],
+    targetHistoryNote: 'G League production is translated into NBA statistical space using prior same-season crossover players. Listed body measurements are unchanged. NBA role/minutes are not projected and MPG is excluded from the match.',
+  };
+  const out = {};
+  for (const { key, axis } of MATCH_AXES) {
+    if (key === 'mpg') { out[key] = null; continue; }
+    const value = applyTranslation(matchRawValue(source, key), translation.rules?.[key]?.match);
+    const center = nbaSeasonStats?.[key]?.median, scale = nbaSeasonStats?.[key]?.scale;
+    if (!fin(value) || !fin(center) || !fin(scale) || scale <= 0) { out[key] = null; continue; }
+    const exposure = featureExposure(source, key);
+    const prior = MATCH_PRIOR[key] ?? MATCH_PRIOR.default;
+    const reliability = exposure / (exposure + prior);
+    const shrunk = center + reliability * (value - center);
+    out[key] = clamp((shrunk - center) / scale, -4, 4) * axis.scale;
+  }
+  target.matchFeatures = out;
+  return target;
+}
+
 function blockDistance(target, cand, spec, targetPhysical = false) {
   let acc = 0, w = 0, avail = 0, possible = 0;
   const detail = [];
