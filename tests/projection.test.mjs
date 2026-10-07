@@ -286,6 +286,15 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       && p.proj.why.rookie.coverage.contractSecurity.available === false
       && p.proj.why.rookie.coverage.currentInjuryClearance.available === false),
     `${rookies.length} rookies`);
+  check('rookie fallbacks expose their most influential historical cohort neighbors',
+    rookies.length > 0 && rookies.every((p) => {
+      const n = p.proj.why?.rookie?.neighbors;
+      return Array.isArray(n) && n.length > 0 && n.length <= 5
+        && n.every((x) => typeof x.name === 'string' && x.name.length > 0
+          && Number.isFinite(x.cohortWeightPct) && x.cohortWeightPct > 0)
+        && n.every((x, i) => i === 0 || x.cohortWeightPct <= n[i - 1].cohortWeightPct + 0.11)
+        && /not playing-style similarity/i.test(p.proj.why.rookie.neighborDefinition || '');
+    }), `${rookies.length} rookies`);
   const metaCov = rebuiltData.projectionMeta?.rookieInputCoverage;
   check('projection metadata aggregates rookie input coverage',
     metaCov?.players === rookies.length
