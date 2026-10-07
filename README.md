@@ -370,6 +370,28 @@ translated. G League MPG is deliberately excluded because G League role size is 
 forecast. The result is an NBA-equivalent statistical/style analogy, **not** a prediction of NBA
 talent, NBA minutes, career outcome or probability of earning an NBA role.
 
+### Requested Brooklyn / Long Island comparison targets
+
+Player Comps also publishes a small explicit target set for Brooklyn / Long Island roster and camp
+evaluation. These targets always compare against the NBA historical reference pool and never allow
+the target player to match himself.
+
+- If the player has recorded G League minutes, the target profile uses **G League production only**.
+  The same historical G League-to-NBA translation and sample-size shrinkage used by the normal
+  NBA-equivalent mode are applied. NBA statistics are not target inputs, even when the player has
+  already appeared in the NBA.
+- If no usable G League sample exists, the target uses a separately labeled **pre-NBA style
+  translation** from college or other verified competition. Per-40 volume is conservatively
+  translated toward NBA rates, shooting percentages are regressed toward NBA norms, and source
+  exposure controls reliability shrinkage. This is a playing-style analogy, not a projection of NBA
+  minutes, production, career outcome or probability of reaching the league.
+- The source season/team, source-exposure minutes and a source-confidence label are published with
+  each requested target. Very small or incomplete public samples are visibly labeled low confidence.
+
+The curated target/source manifest lives in `scripts/data/player_comp_targets.json`. The build
+fails if any requested target is omitted, receives a non-NBA comparison, self-compares, or has blend
+shares that do not total 100%.
+
 ### Rookies with no professional sample
 
 Roster rookies with no NBA or G League playing sample still do not receive invented style comps.
