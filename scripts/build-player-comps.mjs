@@ -927,13 +927,14 @@ const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, hi
     const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
     if (!shortlist.length) continue;
     const optimized = optimizeBlend(target, shortlist);
-    const best = optimized.selected.map((x) => serializeComp(target, x.cand, x.m));
+    const best = optimized.selected.map((x) => serializeNbaEquivalentComp(target, x.cand, x.m));
     const blend = optimized.blend;
-    const primary = best[0], rel = primary.relation || [];
-    const profileRead = independentStyleRead(target, referencePool, blend);
+    const primarySource = optimized.selected[0]?.cand;
+    const primary = best[0], rel = primarySource ? relation(target, primarySource) : [];
+    const profileRead = compactProfileRead(independentStyleRead(target, referencePool, blend));
     nbaEquivalentResult[String(p.playerId)] = {
       top3: best,
-      nearestOverall: shortlist.slice(0, 3).map((item) => serializeComp(target, item.cand, item.m)),
+      nearestOverall: shortlist.slice(0, 3).map((item) => serializeNbaEquivalentOverall(item.cand, item.m)),
       blend,
       blendConfidence: optimized.confidence,
       blendReconstructionScore: optimized.reconstructionScore,
@@ -942,39 +943,32 @@ const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, hi
       targetSeason: target.season,
       targetSeasonType: target.seasonType,
       targetBasis: target.targetBasis,
-      targetSourceSeasons: target.targetSourceSeasons,
       targetHistoryNote: target.targetHistoryNote,
-      matchMethod: 'historical G League-to-NBA translation, then NBA-season robust z-scores after exposure shrinkage',
       targetGames: target.gp,
       targetMinutes: r1(target.minutes),
-      matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
       shorthand: rel.length
         ? `An NBA-equivalent ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
         : `NBA-equivalent historical blend led by ${primary.name} (${primary.season}).`,
       targetPhysical: {
-        heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
-        weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
-        wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
+        height: fmtSize(target.physical.height),
+        weight: r1(target.physical.weight),
+        wingspan: fmtSize(target.physical.wingspan),
+        standingReach: fmtSize(target.physical.standingReach),
       },
       targetStats: {
         mpg: null, usg: r3(target.features.usg),
-        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
+        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36),
         fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
         tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: null,
-        oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
-        fgPct: r3(target.features.fgPct), efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
-        ftPct: r3(target.features.ftPct), ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
+        efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
+        ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
         ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
         astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
         orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
-        offRtg: null, defRtg: null, netRtg: null, tmTovPct: r3(target.features.tmTovPct), pie: null,
+        offRtg: null, defRtg: null, netRtg: null, pie: null,
         stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
       },
-      targetStyle: {},
       translationEvidence: {
-        method: nbaEquivalentTranslation.method,
-        pairCount: nbaEquivalentTranslation.pairCount,
-        minimumMinutesEachLeague: nbaEquivalentTranslation.minimumMinutesEachLeague,
         trainingThrough: nbaEquivalentTranslation.trainingThrough,
         mpgExcluded: true,
       },
