@@ -242,7 +242,7 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
     draftPick: x.bio?.draftNumber > 0 ? Math.min(60, x.bio.draftNumber) : null,
     position: x.bio?.position || null,
     age: Number.isFinite(x.age) ? x.age : null,
-    cohortWeightPct: round(100 * x.w / sw),
+    cohortWeightPct: Math.round((100 * x.w / sw) * 10) / 10,
   }));
   const evidence = { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
     draftPick: pick === 61 ? null : pick, position: bio.position, age,
