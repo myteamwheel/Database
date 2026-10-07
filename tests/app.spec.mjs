@@ -737,7 +737,7 @@ test.describe('analysis workspace', () => {
     const text = await page.locator('#workspace').innerText();
     expect(text).toContain('NBA-EQUIVALENT HISTORICAL BLEND');
     expect(text).toContain('NBA-equivalent history');
-    expect(text).toContain('G League MPG is excluded');
+    expect(text).toContain('NBA-equivalent comps exclude G League MPG');
     expect(text).toContain('not a probability, calibrated confidence');
 
     const sides = page.locator('.comp-side-table-disclosure');
