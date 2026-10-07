@@ -728,7 +728,7 @@ test.describe('analysis workspace', () => {
 
     await page.fill('#simSearch', target.name);
     await page.waitForTimeout(100);
-    await page.locator(\`[data-sim-pick="\${target.playerId}"]\`).click();
+    await page.locator(`[data-sim-pick="${target.playerId}"]`).click();
     await expect(page.locator('#simScopeSame')).toHaveClass(/active/);
     await expect(page.locator('#simScopeNba')).not.toHaveClass(/active/);
 
