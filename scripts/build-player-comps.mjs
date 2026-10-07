@@ -1267,6 +1267,8 @@ const targetedPlayerCatalog = [];
     return ids.length < 1 || ids.length > 3 || new Set(ids).size !== ids.length
       || set.top3.some(x => x.league !== 'NBA')
       || (spec.nbaPersonId != null && ids.includes(String(spec.nbaPersonId)))
+      || spec.sourceMode !== (spec.nbaExperienced ? 'gleague' : 'pre-nba')
+      || set.sourceMode !== spec.sourceMode
       || set.blend.length !== ids.length
       || set.blend.reduce((sum,x)=>sum+Number(x.share||0),0) !== 100
       || !fin(set.blendConfidence);
@@ -1378,7 +1380,7 @@ data.analysis.playerCompsMeta = {
     count: targetedPlayerCatalog.length,
     comparisonPool: 'NBA historical reference profiles',
     sourceModes: ['gleague','pre-nba'],
-    note: 'Requested Brooklyn / Long Island targets use recorded G League production when available; otherwise a separately labeled pre-NBA style translation. NBA production never supplies the target profile for this set.',
+    note: 'Requested Brooklyn / Long Island targets use G League production only for players with NBA regular-season experience. Players with no NBA regular-season experience use verified pre-NBA production, even when later G League data exist. NBA production never supplies the target profile, and self-comparisons are prohibited.',
   },
   nbaEquivalent: {
     comparisonPool: 'NBA historical reference profiles',
