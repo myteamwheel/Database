@@ -1210,7 +1210,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 // translation provenance. Self-comps are prohibited even when the player has NBA history.
 {
   const expectedIds = (data.leagues?.GLEAGUE || [])
-    .filter((p) => p.appeared && Number(p.minutes) > 0)
+    .filter((p) => (p.appeared && Number(p.minutes) > 0) || requestedNbaComp(p))
     .map((p) => String(p.playerId));
   const missing = expectedIds.filter((id) => !nbaEquivalentResult[id]);
   const bad = Object.entries(nbaEquivalentResult).filter(([id, set]) => {
@@ -1222,10 +1222,33 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       || blend.length !== comps.length
       || blend.reduce((sum, x) => sum + Number(x.share || 0), 0) !== 100
       || !fin(set.blendConfidence)
-      || set.targetBasis !== 'gleague-to-nba-equivalent';
+      || !['gleague-to-nba-equivalent','rookie-model-to-nba'].includes(set.targetBasis);
   });
   if (missing.length || bad.length) {
     throw new Error(`NBA-equivalent player comps contract failed: missing=${missing.length}, bad=${bad.length}`);
+  }
+}
+
+// User-requested target contract. Every named player currently present in either league must expose
+// an NBA comparison. Anyone with prior NBA minutes must use a G League source profile, and nobody
+// may compare to himself by person id OR normalized name.
+{
+  const records = [...(data.leagues?.GLEAGUE || []), ...(data.leagues?.NBA || [])]
+    .filter(requestedNbaComp);
+  const foundNames = new Set(records.map((p) => nameKey(p.name)));
+  const missingNames = REQUESTED_NBA_COMP_NAMES.filter((name) => !foundNames.has(nameKey(name)));
+  const failures = [];
+  for (const p of records) {
+    const set = p.league === 'NBA'
+      ? nbaEquivalentNbaResult[String(p.playerId)]
+      : nbaEquivalentResult[String(p.playerId)];
+    if (!set) { failures.push(p.name + ':no-set'); continue; }
+    const nbaExperience = playerHistoryRows(histories.NBA, p).length > 0;
+    if (nbaExperience && set.targetBasis !== 'gleague-to-nba-equivalent') failures.push(p.name + ':nba-experience-without-g-league-source');
+    if ((set.top3 || []).some((x) => sameIdentity(x, p))) failures.push(p.name + ':self-comp');
+  }
+  if (missingNames.length || failures.length) {
+    throw new Error('Requested NBA comps contract failed: missingNames=' + missingNames.join('|') + '; failures=' + failures.join('|'));
   }
 }
 
