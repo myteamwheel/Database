@@ -920,26 +920,39 @@
       </section>`;
     }).join('');
 
+    const scopeToggle = lg === 'GLEAGUE' && sameLeagueSet && nbaEquivalentSet ? `
+      <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
+        <button id="simScopeSame" class="${useNbaEquivalent ? '' : 'active'}" type="button">G League history</button>
+        <button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>
+      </div>` : '';
+    const referenceMinimum = useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
+    const pageEyebrow = useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
+    const poolLabel = useNbaEquivalent ? 'NBA-equivalent history' : (p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League') + ' history');
+    const methodSecondParagraph = useNbaEquivalent
+      ? `The target starts with ${esc(p.name)}'s actual 2025-26 G League production, then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
+      : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
+
     return `<div class="comp-page">
       <div class="comp-page-title">
-        <div><div class="eyebrow">HISTORICAL PLAYER-SEASON BLEND</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
+        <div><div class="eyebrow">${esc(pageEyebrow)}</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
         <div class="comp-confidence"><span>STATISTICAL BLEND FIT</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
       <details class="comp-method-note"><summary>How historical rates are compared</summary>
-        <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${lg==='NBA'?'300':'200'} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
-        <p class="tiny">Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.</p>
+        <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${referenceMinimum} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
+        <p class="tiny">${methodSecondParagraph}</p>
       </details>
       ${compPlayerSearch(p)}
+      ${scopeToggle}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
-      ${league() === 'GLEAGUE' ? 'The main database combines Regular Season and Showcase Cup; this comparison may use a different season scope.' : ''}</p>
+      ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
       ${fin(set.targetMinutes) && set.targetMinutes < 300 ? '<p class="comp-outlier-note">Small sample: fewer than 300 minutes. Treat the blend as provisional; a few games can substantially change these rates.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
           <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
-        <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
+        <div class="comp-pool-note">${esc(poolLabel)}<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
       ${set.targetHistoryNote ? `<p class="comp-outlier-note">${esc(set.targetHistoryNote)}</p>` : ''}
