@@ -543,6 +543,173 @@ function currentSiteTarget(p) {
   };
 }
 
+
+const REQUESTED_NBA_COMP_NAMES = [
+  'Dain Dainja','Dwight Murray Jr','Aaron Scott','Isaiah Wong','Nick Pringle','Dion Brown',
+  'Ben Humrichous','Tidjiane Dioumassi','DJ Rodman','Jonathan Pierre','Cedric Nga Mbiaba',
+  'Jeriah Coleman','Jordan Dingle','Wooga Poplar','Chaney Johnson','Grant Nelson',
+  'Tyler Bilodeau','Ben Saraf','Drake Powell','Joshua Jefferson','Nolan Traore','Danny Wolf',
+];
+const nameKey = (value) => String(value || '')
+  .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '');
+const REQUESTED_NBA_COMP_KEYS = new Set(REQUESTED_NBA_COMP_NAMES.map(nameKey));
+const requestedNbaComp = (p) => REQUESTED_NBA_COMP_KEYS.has(nameKey(p?.name));
+const sameIdentity = (a, b) =>
+  (String(a?.playerId || '') && String(a?.playerId || '') === String(b?.playerId || ''))
+  || (nameKey(a?.name) && nameKey(a?.name) === nameKey(b?.name));
+
+function playerHistoryRows(rows, p) {
+  const pid = String(p?.nbaPersonId ?? p?.playerId ?? '');
+  const nk = nameKey(p?.name);
+  return rows.filter((row) => (pid && String(row.playerId) === pid) || (nk && nameKey(row.name) === nk));
+}
+
+function latestGLeagueSource(p) {
+  const rows = playerHistoryRows(histories.GLEAGUE, p)
+    .slice().sort((a, b) => Number(b.season.slice(0, 4)) - Number(a.season.slice(0, 4)) || b.minutes - a.minutes);
+  if (!rows.length) return null;
+  const latestSeason = rows[0].season;
+  const chosen = rows.filter((row) => row.season === latestSeason);
+  const source = { ...chosen[0] };
+  source.name = p.name;
+  source.targetBasis = 'historical-gleague-source';
+  source.targetSourceSeasons = [latestSeason];
+  source.targetHistoryNote = 'NBA comparison uses ' + p.name + "'s " + latestSeason + ' G League production rather than NBA production.';
+  return source;
+}
+
+function positionalClass(position, height) {
+  const pos = String(position || '').toUpperCase();
+  if (pos.includes('C') && pos.includes('F')) return 2.6;
+  if (pos === 'C' || pos.includes('CENTER')) return 3;
+  if (pos.includes('F') && pos.includes('G')) return 1.6;
+  if (pos === 'F' || pos.includes('FORWARD')) return 2;
+  if (pos.includes('G')) return 1;
+  if (fin(height)) return Number(height) >= 81 ? 2.7 : Number(height) >= 78 ? 2 : Number(height) >= 75 ? 1.5 : 1;
+  return 2;
+}
+
+function rookieReferenceRows(rows) {
+  const byPlayer = new Map();
+  for (const row of rows) {
+    if (!/[A-Za-z]/.test(String(row.name || '')) || !(row.minutes > 0)) continue;
+    if (!byPlayer.has(row.playerId)) byPlayer.set(row.playerId, []);
+    byPlayer.get(row.playerId).push(row);
+  }
+  return [...byPlayer.values()].map((seasons) =>
+    seasons.slice().sort((a, b) => Number(a.season.slice(0, 4)) - Number(b.season.slice(0, 4)))[0]
+  ).filter(Boolean);
+}
+
+function prospectTargetProfile(p) {
+  const pid = String(p.nbaPersonId ?? p.playerId);
+  const b = bio.get(Number(pid)) || {};
+  const cm = combine.get(Number(pid)) || {};
+  return {
+    playerId: pid, name: p.name, position: p.position || b.position || null,
+    age: p.age,
+    physical: {
+      height: p.heightInches ?? b.height ?? cm.heightNoShoes ?? null,
+      weight: p.weight ?? b.weight ?? cm.combineWeight ?? null,
+      wingspan: cm.wingspan ?? null,
+      standingReach: cm.standingReach ?? null,
+    },
+  };
+}
+
+function prospectRookieCompSet(p, nbaPool) {
+  const target = prospectTargetProfile(p);
+  const nbaRecord = (data.leagues?.NBA || []).find((x) => sameIdentity(x, p));
+  const cohortNeighbors = nbaRecord?.proj?.why?.rookie?.neighbors || [];
+  const cohortById = new Map(cohortNeighbors.map((x) => [String(x.playerId), Number(x.cohortWeightPct || 0)]));
+  let candidates = rookieReferenceRows(nbaPool).filter((cand) => !sameIdentity(cand, target));
+  if (cohortById.size >= 3) {
+    const cohortCandidates = candidates.filter((cand) => cohortById.has(String(cand.playerId)));
+    if (cohortCandidates.length >= 3) candidates = cohortCandidates;
+  }
+  const targetBig = positionalClass(target.position, target.physical.height);
+  const maxCohort = Math.max(1, ...cohortById.values());
+  const ranked = candidates.map((cand) => {
+    const physical = blockDistance(target.physical, cand.physical, BLOCKS.physical, true);
+    const posGap = Math.abs(targetBig - positionalClass(cand.position, cand.physical.height)) / 0.65;
+    const ageGap = fin(target.age) && fin(cand.age) ? Math.abs(Number(target.age) - Number(cand.age)) / 3 : null;
+    const terms = [];
+    if (fin(physical.distance)) terms.push({ w: 0.60, d: physical.distance });
+    terms.push({ w: 0.25, d: posGap });
+    if (fin(ageGap)) terms.push({ w: 0.15, d: ageGap });
+    const tw = terms.reduce((s, x) => s + x.w, 0) || 1;
+    let distance = Math.sqrt(terms.reduce((s, x) => s + x.w * x.d * x.d, 0) / tw);
+    const cohort = cohortById.get(String(cand.playerId));
+    if (fin(cohort) && cohort > 0) distance *= 0.88 + 0.12 * (1 - Math.min(1, cohort / maxCohort));
+    const score = similarityFromDistance(distance);
+    return { cand, distance, score, physical };
+  }).sort((a, b) => b.score - a.score).slice(0, 18);
+  if (!ranked.length) return null;
+  const chosen = ranked.slice(0, 3);
+  const rawWeights = chosen.map((x) => Math.exp(-x.distance / 2));
+  const sw = rawWeights.reduce((a, x) => a + x, 0) || 1;
+  const shares = integerShares(rawWeights.map((x) => x / sw));
+  const top3 = chosen.map((x) => ({
+    playerId: x.cand.playerId, league: 'NBA', name: x.cand.name, season: x.cand.season,
+    referenceProfile: { seasons: [x.cand.season], games: x.cand.gp, minutes: r1(x.cand.minutes), seasonCount: 1, period: x.cand.season, limited: true },
+    team: x.cand.team, teamId: x.cand.teamId ?? null, position: x.cand.position,
+    similarity: r1(x.score),
+    height: fmtSize(x.cand.physical.height), weight: r1(x.cand.physical.weight),
+    wingspan: fmtSize(x.cand.physical.wingspan), standingReach: fmtSize(x.cand.physical.standingReach),
+    mpg: r1(x.cand.features.mpg), usg: r3(x.cand.features.usg),
+    pts36: r1(x.cand.features.pts36), fga36: r1(x.cand.features.fga36),
+    fta36: r1(x.cand.features.fta36), reb36: r1(x.cand.features.reb36), ast36: r1(x.cand.features.ast36),
+    tov36: r1(x.cand.features.tov36), pf36: r1(x.cand.features.pf36), plusMinus36: r1(x.cand.features.plusMinus36),
+    efgPct: r3(x.cand.features.efgPct), fg3Pct: r3(x.cand.features.fg3Pct), ts: r3(x.cand.features.ts),
+    threeRate: r3(x.cand.features.threeRate), ftRate: r3(x.cand.features.ftRate), astPct: r3(x.cand.features.astPct),
+    astTo: r2(x.cand.features.astTo), astRatio: r2(x.cand.features.astRatio),
+    orebPct: r3(x.cand.features.orebPct), drebPct: r3(x.cand.features.drebPct), rebPct: r3(x.cand.features.rebPct),
+    offRtg: r1(x.cand.features.offRtg), defRtg: r1(x.cand.features.defRtg), netRtg: r1(x.cand.features.netRtg),
+    pie: r3(x.cand.features.pie), stl36: r1(x.cand.features.stl36), blk36: r1(x.cand.features.blk36),
+    blockScores: { physical: fin(x.physical.distance) ? r1(similarityFromDistance(x.physical.distance)) : null },
+    mostSimilar: [], biggestDifferences: [],
+  }));
+  const blend = chosen.map((x, i) => ({
+    playerId: x.cand.playerId, name: x.cand.name, season: x.cand.season,
+    share: shares[i], quality: r1(x.score), matchScore: r1(x.score),
+  }));
+  const confidence = r1(chosen.reduce((s, x, i) => s + (shares[i] / 100) * x.score, 0));
+  const cohortNote = cohortById.size >= 3
+    ? 'The candidate pool starts from the site rookie projection cohort (draft slot, positional class and entry age), then re-ranks by listed frame and age.'
+    : 'No verified professional statistical sample was available, so the fallback compares listed frame, positional class and age against historical NBA rookies.';
+  return {
+    top3,
+    nearestOverall: top3.map((x) => ({ playerId: x.playerId, league: 'NBA', name: x.name, season: x.season, similarity: x.similarity, referenceProfile: x.referenceProfile })),
+    blend,
+    blendConfidence: confidence,
+    blendReconstructionScore: null,
+    blendAxesUsed: [target.physical.height,target.physical.weight,target.physical.wingspan,target.physical.standingReach].filter(fin).length + 1 + (fin(target.age) ? 1 : 0),
+    profileRead: {
+      text: p.name + ' is matched to historical NBA rookies from the closest available entry-profile cohort.',
+      position: p.position || 'Prospect',
+      components: [],
+      caveat: 'This is a rookie-entry comparison, not a direct translation of college box-score production or a career forecast.',
+    },
+    targetSeason: 'Pre-NBA / rookie entry profile',
+    targetSeasonType: 'Rookie-model comparison',
+    targetBasis: 'rookie-model-to-nba',
+    targetHistoryNote: cohortNote,
+    targetGames: null, targetMinutes: null,
+    shorthand: 'Rookie-entry NBA comparison led by ' + top3[0].name + ' (' + top3[0].season + ').',
+    targetPhysical: {
+      height: fmtSize(target.physical.height), weight: r1(target.physical.weight),
+      wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
+    },
+    targetStats: {
+      mpg:null,usg:null,pts36:null,fga36:null,fta36:null,reb36:null,ast36:null,tov36:null,pf36:null,plusMinus36:null,
+      efgPct:null,fg3Pct:null,ts:null,threeRate:null,ftRate:null,astPct:null,astTo:null,astRatio:null,
+      orebPct:null,drebPct:null,rebPct:null,offRtg:null,defRtg:null,netRtg:null,pie:null,stl36:null,blk36:null,
+    },
+    modelEvidence: { method: 'rookie-entry cohort + frame/position/age', cohortNeighborsUsed: cohortById.size },
+  };
+}
+
 function fmtSize(x) {
   if (!fin(x)) return null;
   const ft = Math.floor(x / 12), inch = Math.round((x - ft * 12) * 10) / 10;
