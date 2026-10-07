@@ -356,6 +356,29 @@ weight, wingspan, standing reach and the production/style axes that support the 
 do not have the same tracking/shot-zone inventory as 2025-26, so deep rows appear only when both
 players actually have comparable source data; missing historical fields are never invented.
 
+### NBA-equivalent comps for G League players
+
+A G League target can now switch from the normal **G League history** pool to an
+**NBA-equivalent history** pool. This does not compare G League-relative z-scores directly with NBA
+z-scores. The build first learns robust G League-to-NBA translations from prior same-player,
+same-season crossover samples with at least 150 minutes in each league, holding 2025-26 out of the
+translation fit. Counting/volume axes use median NBA:G League ratios; percentages and role/rate axes
+use median NBA-minus-G-League differences. The translated 2025-26 target is then standardized against
+the 2025-26 NBA distribution and sent through the same 18-candidate, one-to-three-player convex blend
+solver used by normal NBA comps. Listed height, weight, wingspan and standing reach are never
+translated. G League MPG is deliberately excluded because G League role size is not an NBA minutes
+forecast. The result is an NBA-equivalent statistical/style analogy, **not** a prediction of NBA
+talent, NBA minutes, career outcome or probability of earning an NBA role.
+
+### Rookies with no professional sample
+
+Roster rookies with no NBA or G League playing sample still do not receive invented style comps.
+Instead, Player Comps exposes the most influential entries from the projection model's historical
+rookie cohort. Those cohort neighbors use the same draft-slot, positional-class and February-1 entry
+age distance as the rookie projection and display their normalized cohort weights. College and
+international production are not verified inputs to that fallback, so these names are explicitly
+labeled **projection-cohort neighbors, not playing-style comparisons**.
+
 ## Current NBA roster identity
 
 NBA team identity is now split into two explicit concepts:
