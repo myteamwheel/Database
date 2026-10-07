@@ -235,11 +235,22 @@ export function rookieProjection(bio, age, cohort, currentPrior) {
     pct[k] = clamp(norm[k] + num / (den + 2), 0.05, 0.95);
     pieces[k] = { base: pct[k], prior: norm[k], own: null, weightOnOwn: den / (den + 2), ageAdd: 0 };
   }
+  const neighbors = candidates.slice(0, 5).map((x) => ({
+    playerId: String(x.pid),
+    name: x.bio?.name || String(x.pid),
+    rookieSeason: x.season,
+    draftPick: x.bio?.draftNumber > 0 ? Math.min(60, x.bio.draftNumber) : null,
+    position: x.bio?.position || null,
+    age: Number.isFinite(x.age) ? x.age : null,
+    cohortWeightPct: Math.round((100 * x.w / sw) * 10) / 10,
+  }));
   const evidence = { method: 'historical-entry-cohort', fallback: true, preNbaStats: 'unavailable',
     draftPick: pick === 61 ? null : pick, position: bio.position, age,
     peers: candidates.length, knownAgePeers: candidates.filter(x => Number.isFinite(x.age)).length,
     effectivePeers: sw ** 2 / candidates.reduce((s, x) => s + x.w ** 2, 0),
     seasons: [...new Set(candidates.map(x => x.season))].sort(),
+    neighbors,
+    neighborDefinition: 'Nearest historical rookie-cohort entries by the same draft-slot, positional-class and entry-age distance used by the projection. Percentages are normalized cohort weights, not playing-style similarity.',
     note: 'Draft/position/age cohort estimate, adjusted for team opportunity. College/international production, contract security and current injury clearance are not verified inputs. Not a player-specific scouting projection.' };
   evidence.coverage = rookieInputCoverage(evidence);
   return { mpg, share, pr: { rate, pct, pieces, age, yearsIn: 1, draft: pick, basePoss: 0, baseMin: 0 }, evidence };

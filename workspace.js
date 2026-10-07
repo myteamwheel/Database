@@ -14,7 +14,7 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, team: null,
+                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, simCompScope: 'same', team: null,
                   tulipPlayer: null, tulipTarget: null };
 
   const league = () => window.__wsLeague();
@@ -780,7 +780,7 @@
     if (deep.length) rows.push(['DEEP STYLE (COMMON COVERAGE)', null, null, 'section'], ...deep);
 
     return `<div class="comp-side-table-wrap"><table class="comp-side-table">
-      <thead><tr><th class="left">Comparison axis</th><th>${esc(p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
+      <thead><tr><th class="left">Comparison axis</th><th>${esc(set?.targetBasis === 'gleague-to-nba-equivalent' ? p.name + ' (NBA eq.)' : p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
       <tbody>${rows.map(([label, a, b, type]) => type === 'section'
         ? `<tr class="comp-section-row"><th colspan="3">${esc(label)}</th></tr>`
         : `<tr><th class="left">${esc(label)}</th><td>${type === 'text' ? esc(a) : cval(a, type)}</td><td>${type === 'text' ? esc(b) : cval(b, type)}</td></tr>`).join('')}
@@ -796,15 +796,52 @@
       </details>`;
   }
 
+
+  function rookieCohortComparison(p) {
+    const evidence = p.proj?.why?.rookie;
+    const neighbors = Array.isArray(evidence?.neighbors) ? evidence.neighbors : [];
+    if (p.proj?.basis !== 'rookie-cohort-fallback' || !neighbors.length) return null;
+    const cards = neighbors.map((x, i) => `
+      <article class="comp-overall-card rookie-cohort-card">
+        <span class="eyebrow">COHORT NEIGHBOR #${i + 1}</span>
+        <h4>${esc(x.name || 'Historical rookie')}</h4>
+        <p>${esc(x.rookieSeason || 'Rookie season')} · ${esc(x.position || '—')}
+          ${fin(x.draftPick) ? ' · pick ' + num(x.draftPick, 0) : ' · undrafted/unknown slot'}</p>
+        <p><b>${num(x.cohortWeightPct, 1)}%</b> of the historical cohort weight</p>
+      </article>`).join('');
+    return `<div class="comp-page">
+      <div class="comp-page-title">
+        <div><div class="eyebrow">HISTORICAL ROOKIE COHORT</div><h2>${esc(p.name)}</h2>
+          <p class="tiny">Projection neighbors, not playing-style comps.</p></div>
+      </div>
+      ${compPlayerSearch(p)}
+      <div class="ws-card wide">
+        <p><b>This player has no NBA/G League professional sample to run through Player Comps.</b></p>
+        <p class="tiny">Instead, the rookie projection exposes the historical entries carrying the most weight in its fallback cohort. The distance uses draft slot, positional class and entry age only. College/international production and scouting traits are not inputs, so these names must not be read as stylistic comparisons.</p>
+      </div>
+      <section class="comp-overall-section"><div><div class="eyebrow">MOST INFLUENTIAL ROOKIE PRIORS</div>
+        <p class="tiny">${esc(evidence.neighborDefinition || '')}</p></div>
+        <div class="comp-overall-grid">${cards}</div></section>
+      <p class="tiny">Cohort: ${cval(evidence.peers, '—')} historical entries · effective peers ${cval(evidence.effectivePeers, '—')}. These percentages are shares of the full weighted cohort and therefore the five shown need not total 100%.</p>
+    </div>`;
+  }
+
   function viewSimilarity() {
     const p = byId(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
     const lg = p.league === 'NBA' ? 'NBA' : 'GLEAGUE';
-    const set = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const sameLeagueSet = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null;
+    const nbaEquivalentSet = lg === 'GLEAGUE'
+      ? window.DATA?.analysis?.playerCompsNbaEquivalent?.GLEAGUE?.[String(p.playerId)] || null
+      : null;
+    const useNbaEquivalent = lg === 'GLEAGUE' && state.simCompScope === 'nba' && !!nbaEquivalentSet;
+    const set = useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet;
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
+      const rookie = rookieCohortComparison(p);
+      if (rookie) return rookie;
       const reason = p.currentRoster&&!p.appeared
         ? `${p.name} is on the current ${teamOf(p)} roster but has no 2025-26 NBA appearance, so the comparison engine has no target stat profile to match.`
         : `${p.name} has no usable 2025-26 professional sample for this comparison.`;
@@ -883,26 +920,39 @@
       </section>`;
     }).join('');
 
+    const scopeToggle = lg === 'GLEAGUE' && sameLeagueSet && nbaEquivalentSet ? `
+      <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
+        <button id="simScopeSame" class="${useNbaEquivalent ? '' : 'active'}" type="button">G League history</button>
+        <button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>
+      </div>` : '';
+    const referenceMinimum = useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
+    const pageEyebrow = useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
+    const poolLabel = useNbaEquivalent ? 'NBA-equivalent history' : `${p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League')} history`;
+    const methodSecondParagraph = useNbaEquivalent
+      ? `The target starts with ${esc(p.name)}'s actual 2025-26 G League production, then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
+      : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
+
     return `<div class="comp-page">
       <div class="comp-page-title">
-        <div><div class="eyebrow">HISTORICAL PLAYER-SEASON BLEND</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
+        <div><div class="eyebrow">${esc(pageEyebrow)}</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
         <div class="comp-confidence"><span>STATISTICAL BLEND FIT</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
       <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
       Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
       <details class="comp-method-note"><summary>How historical rates are compared</summary>
-        <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${lg==='NBA'?'300':'200'} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
-        <p class="tiny">Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.</p>
+        <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${referenceMinimum} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
+        <p class="tiny">${methodSecondParagraph}</p>
       </details>
       ${compPlayerSearch(p)}
+      ${scopeToggle}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(set.targetMinutes, '0')} minutes.
-      ${league() === 'GLEAGUE' ? 'The main database combines Regular Season and Showcase Cup; this comparison may use a different season scope.' : ''}</p>
+      ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
       ${fin(set.targetMinutes) && set.targetMinutes < 300 ? '<p class="comp-outlier-note">Small sample: fewer than 300 minutes. Treat the blend as provisional; a few games can substantially change these rates.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
           <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
-        <div class="comp-pool-note">${esc(p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League'))} history<br>
+        <div class="comp-pool-note">${esc(poolLabel)}<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
       ${set.targetHistoryNote ? `<p class="comp-outlier-note">${esc(set.targetHistoryNote)}</p>` : ''}
@@ -1301,6 +1351,8 @@
     });
     on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('simScopeSame', 'click', () => { state.simCompScope = 'same'; render(); window.__siteUrlChanged?.('push'); });
+    on('simScopeNba', 'click', () => { state.simCompScope = 'nba'; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
       const b = e.target.closest('[data-sim-pick]');
       if (!b) return;
