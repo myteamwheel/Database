@@ -1,0 +1,90 @@
+{
+  "asOf": "2026-10-06",
+  "purpose": "Explicit Player Comps targets requested for the 2026-27 Long Island pool when absent from the frozen 2025-26 database.",
+  "records": [
+    {
+      "playerId": 1631209,
+      "name": "Isaiah Wong",
+      "team": "LIN",
+      "jersey": "21",
+      "position": "G",
+      "height": "6-3",
+      "weight": 185,
+      "birthdate": "2001-01-28",
+      "college": "Miami",
+      "idSource": "NBA G League official profile"
+    },
+    {
+      "playerId": 1643761,
+      "name": "Nick Pringle",
+      "team": "LIN",
+      "jersey": "23",
+      "position": "F",
+      "height": "6-10",
+      "weight": 228,
+      "birthdate": "2001-09-16",
+      "college": "Arkansas",
+      "idSource": "NBA.com player profile"
+    },
+    {
+      "playerId": -926001,
+      "name": "Dion Brown",
+      "team": "LIN",
+      "jersey": "33",
+      "position": "G",
+      "height": "6-3",
+      "weight": 185,
+      "birthdate": "2003-05-26",
+      "college": "Saint Louis",
+      "idSource": "internal requested-target key; no official NBA/G League person id in frozen source"
+    },
+    {
+      "playerId": -926002,
+      "name": "Tidjiane Dioumassi",
+      "team": "LIN",
+      "jersey": "22",
+      "position": "G",
+      "height": "6-4",
+      "weight": 200,
+      "birthdate": null,
+      "college": "Western Carolina",
+      "idSource": "internal requested-target key; no official NBA/G League person id in frozen source"
+    },
+    {
+      "playerId": -926003,
+      "name": "Cedric Nga Mbiaba",
+      "team": "LIN",
+      "jersey": null,
+      "position": null,
+      "height": null,
+      "weight": null,
+      "birthdate": null,
+      "college": "Laurentian",
+      "idSource": "internal requested-target key; no official NBA/G League person id in frozen source"
+    },
+    {
+      "playerId": -926004,
+      "name": "Jeriah Coleman",
+      "team": "LIN",
+      "jersey": null,
+      "position": "C",
+      "height": "7-0",
+      "weight": 220,
+      "birthdate": "2000-08-02",
+      "college": "Nevada",
+      "idSource": "internal requested-target key; no official NBA/G League person id in frozen source"
+    },
+    {
+      "playerId": -926005,
+      "name": "Jordan Dingle",
+      "team": "LIN",
+      "jersey": null,
+      "position": "G",
+      "height": "6-3",
+      "weight": 190,
+      "birthdate": "2000-07-14",
+      "college": "St. John's",
+      "idSource": "internal requested-target key; no official NBA/G League person id in frozen source"
+    }
+  ]
+}

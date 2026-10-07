@@ -25,8 +25,8 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.2.0');
-assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
+assert.equal(meta.version, '4.3.0');
+assert.match(meta.targetEligibility, /standard same-league comps.*require/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
 assert.match(meta.blendMethod, /non-negative convex reconstruction/i);
@@ -125,7 +125,7 @@ assert.ok(Number(meta.nbaEquivalent?.pairedPlayerSeasons) >= 10, 'cross-league t
 {
   const sets = data.analysis.playerCompsNbaEquivalent?.GLEAGUE || {};
   const expected = data.leagues.GLEAGUE.filter((p) => p.appeared && Number(p.minutes) > 0);
-  assert.equal(Object.keys(sets).length, expected.length, 'every played G League target needs an NBA-equivalent comp');
+  assert.ok(Object.keys(sets).length >= expected.length, 'played G League targets plus requested roster-only targets need NBA-equivalent comps');
   for (const p of expected) {
     const set = sets[String(p.playerId)];
     assert.ok(set, `${p.name}: missing NBA-equivalent comp`);
@@ -138,6 +138,29 @@ assert.ok(Number(meta.nbaEquivalent?.pairedPlayerSeasons) >= 10, 'cross-league t
     assert.ok(set.blendAxesUsed >= 10, `${p.name}: NBA-equivalent blend has too little shared evidence`);
     assert.equal(set.translationEvidence?.trainingThrough, '2024-25', `${p.name}: translation leakage`);
     assert.equal(set.translationEvidence?.mpgExcluded, true, `${p.name}: MPG exclusion missing`);
+  }
+}
+
+{
+  const requested = meta.requestedNbaCompTargets || [];
+  assert.equal(requested.length, 22, 'requested NBA comp target list changed unexpectedly');
+  const key = (value) => String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'');
+  const all = [...data.leagues.GLEAGUE, ...data.leagues.NBA];
+  for (const name of requested) {
+    const records = all.filter((p) => key(p.name) === key(name));
+    assert.ok(records.length > 0, `requested target missing from database: ${name}`);
+    for (const p of records) {
+      const set = data.analysis.playerCompsNbaEquivalent?.[p.league]?.[String(p.playerId)];
+      assert.ok(set, `${name} (${p.league}): missing requested NBA comparison`);
+      assert.ok(['gleague-to-nba-equivalent','rookie-model-to-nba'].includes(set.targetBasis),
+        `${name}: unexpected requested comparison basis`);
+      assert.ok(set.top3.length >= 1 && set.top3.length <= 3, `${name}: requested comparison component count`);
+      assert.ok(set.top3.every((x) => x.league === 'NBA'), `${name}: requested comparison must use NBA references`);
+      assert.ok(set.top3.every((x) => String(x.playerId) !== String(p.playerId) && key(x.name) !== key(p.name)),
+        `${name}: requested comparison contains self`);
+      assert.equal(set.blend.reduce((sum, x) => sum + Number(x.share || 0), 0), 100, `${name}: requested shares`);
+    }
   }
 }
 
