@@ -1136,74 +1136,48 @@ function translatedNbaCompSet(p, source, translation, nbaSeasonStats, referenceP
 // run the SAME NBA historical comparison/blend engine. The translation is learned only from prior
 // same-player, same-season crossover samples; 2025-26 is held out from the translation fit.
 const nbaEquivalentResult = {};
+const nbaEquivalentNbaResult = {};
 const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, histories.GLEAGUE);
 {
   const nbaPool = histories.NBA;
   const nbaDistributions = prepareMatchProfiles(nbaPool);
   const nbaSeasonStats = nbaDistributions.get('NBA|2025-26');
   const referencePool = stableReferenceProfiles(nbaPool, 300);
+
+  // Preserve the existing product for every played G League player, then extend it to the
+  // user-requested roster-only targets. Requested players use their latest G League profile when
+  // one exists; otherwise a rookie-entry NBA comparison is built from frame/position/age and the
+  // site's historical rookie cohort evidence when available.
   for (const p of data.leagues?.GLEAGUE || []) {
-    if (!p.appeared || !(p.minutes > 0)) continue;
-    const source = currentSiteTarget(p);
-    const target = nbaEquivalentTarget(p, source, nbaEquivalentTranslation, nbaSeasonStats);
-    const bestByPlayer = new Map();
-    for (const cand of referencePool) {
-      if (cand.playerId === target.playerId || cand.minutes < 300 || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
-      const m = compare(target, cand);
-      if (!m) continue;
-      let score = m.score;
-      if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
-      bestByPlayer.set(cand.playerId, { cand, m: { ...m, score } });
+    let set = null;
+    if (p.appeared && p.minutes > 0) {
+      set = translatedNbaCompSet(p, currentSiteTarget(p), nbaEquivalentTranslation, nbaSeasonStats, referencePool);
+    } else if (requestedNbaComp(p)) {
+      const source = latestGLeagueSource(p);
+      const nbaExperience = playerHistoryRows(histories.NBA, p).length > 0;
+      if (nbaExperience && !source) {
+        throw new Error('Requested NBA-experienced player has no G League source profile: ' + p.name);
+      }
+      set = source
+        ? translatedNbaCompSet(p, source, nbaEquivalentTranslation, nbaSeasonStats, referencePool)
+        : prospectRookieCompSet(p, nbaPool);
     }
-    const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
-    if (!shortlist.length) continue;
-    const optimized = optimizeBlend(target, shortlist);
-    const best = optimized.selected.map((x) => serializeNbaEquivalentComp(target, x.cand, x.m));
-    const blend = optimized.blend;
-    const primarySource = optimized.selected[0]?.cand;
-    const primary = best[0], rel = primarySource ? relation(target, primarySource) : [];
-    const profileRead = compactProfileRead(independentStyleRead(target, referencePool, blend));
-    nbaEquivalentResult[String(p.playerId)] = {
-      top3: best,
-      nearestOverall: shortlist.slice(0, 3).map((item) => serializeNbaEquivalentOverall(item.cand, item.m)),
-      blend,
-      blendConfidence: optimized.confidence,
-      blendReconstructionScore: optimized.reconstructionScore,
-      blendAxesUsed: optimized.axesUsed,
-      profileRead,
-      targetSeason: target.season,
-      targetSeasonType: target.seasonType,
-      targetBasis: target.targetBasis,
-      targetHistoryNote: target.targetHistoryNote,
-      targetGames: target.gp,
-      targetMinutes: r1(target.minutes),
-      shorthand: rel.length
-        ? `An NBA-equivalent ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
-        : `NBA-equivalent historical blend led by ${primary.name} (${primary.season}).`,
-      targetPhysical: {
-        height: fmtSize(target.physical.height),
-        weight: r1(target.physical.weight),
-        wingspan: fmtSize(target.physical.wingspan),
-        standingReach: fmtSize(target.physical.standingReach),
-      },
-      targetStats: {
-        mpg: null, usg: r3(target.features.usg),
-        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36),
-        fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
-        tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: null,
-        efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
-        ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
-        ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
-        astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
-        orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
-        offRtg: null, defRtg: null, netRtg: null, pie: null,
-        stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
-      },
-      translationEvidence: {
-        trainingThrough: nbaEquivalentTranslation.trainingThrough,
-        mpgExcluded: true,
-      },
-    };
+    if (set) nbaEquivalentResult[String(p.playerId)] = set;
+  }
+
+  // The same requested comparison should also be reachable when the NBA copy of an assignment/
+  // two-way player is selected in Player Comps. NBA production is never used to build this alternate.
+  for (const p of data.leagues?.NBA || []) {
+    if (!requestedNbaComp(p)) continue;
+    const source = latestGLeagueSource(p);
+    const nbaExperience = playerHistoryRows(histories.NBA, p).length > 0;
+    if (nbaExperience && !source) {
+      throw new Error('Requested NBA-experienced player has no G League source profile: ' + p.name);
+    }
+    const set = source
+      ? translatedNbaCompSet(p, source, nbaEquivalentTranslation, nbaSeasonStats, referencePool)
+      : prospectRookieCompSet(p, nbaPool);
+    if (set) nbaEquivalentNbaResult[String(p.playerId)] = set;
   }
 }
 
