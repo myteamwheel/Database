@@ -342,10 +342,10 @@ function applyTranslation(value, rule) {
 function buildNbaEquivalentTranslation(nbaRows, glRows) {
   const gl = new Map(glRows
     .filter((row) => row.season !== '2025-26' && row.minutes >= NBA_EQ_MIN_MINUTES)
-    .map((row) => [\`\${row.season}|\${row.playerId}\`, row]));
+    .map((row) => [`${row.season}|${row.playerId}`, row]));
   const pairs = nbaRows
     .filter((row) => row.season !== '2025-26' && row.minutes >= NBA_EQ_MIN_MINUTES)
-    .map((nba) => ({ nba, gl: gl.get(\`\${nba.season}|\${nba.playerId}\`) }))
+    .map((nba) => ({ nba, gl: gl.get(`${nba.season}|${nba.playerId}`) }))
     .filter((x) => x.gl);
   const rules = {};
   for (const key of NBA_EQ_KEYS) {
@@ -889,8 +889,8 @@ const nbaEquivalentTranslation = buildNbaEquivalentTranslation(histories.NBA, hi
       targetMinutes: r1(target.minutes),
       matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
       shorthand: rel.length
-        ? \`An NBA-equivalent \${rel.join(', ')} blend led by \${primary.name} (\${primary.season}).\`
-        : \`NBA-equivalent historical blend led by \${primary.name} (\${primary.season}).\`,
+        ? `An NBA-equivalent ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
+        : `NBA-equivalent historical blend led by ${primary.name} (${primary.season}).`,
       targetPhysical: {
         heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
         weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
@@ -966,7 +966,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       || set.targetBasis !== 'gleague-to-nba-equivalent';
   });
   if (missing.length || bad.length) {
-    throw new Error(\`NBA-equivalent player comps contract failed: missing=\${missing.length}, bad=\${bad.length}\`);
+    throw new Error(`NBA-equivalent player comps contract failed: missing=${missing.length}, bad=${bad.length}`);
   }
 }
 
