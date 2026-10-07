@@ -918,7 +918,7 @@
       </section>`;
     }).join('');
 
-    const altLabel = set?.targetBasis === 'rookie-model-to-nba' ? 'Rookie-model NBA history' : 'G League profile → NBA history';
+    const altLabel = nbaEquivalentSet?.targetBasis === 'rookie-model-to-nba' ? 'Rookie-model NBA history' : 'G League profile → NBA history';
     const sameLabel = lg === 'NBA' ? 'NBA history' : 'G League history';
     const scopeToggle = sameLeagueSet && nbaEquivalentSet ? `
       <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
