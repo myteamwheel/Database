@@ -125,10 +125,10 @@ assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differe
     'Jeriah Coleman','Jordan Dingle','Wooga Poplar','Chaney Johnson','Grant Nelson','Tyler Bilodeau',
     'Ben Saraf','Drake Powell','Joshua Jefferson','Nolan Traore','Danny Wolf',
   ];
-  const expectedPreNba = new Set([
-    'Nick Pringle','Dion Brown','Ben Humrichous','Tidjiane Dioumassi','Cedric Nga Mbiaba',
-    'Jeriah Coleman','Jordan Dingle','Tyler Bilodeau','Joshua Jefferson','Danny Wolf',
+  const expectedNbaExperienced = new Set([
+    'Isaiah Wong','Chaney Johnson','Grant Nelson','Ben Saraf','Drake Powell','Nolan Traore','Danny Wolf',
   ]);
+  const expectedPreNba = new Set(expectedNames.filter((name) => !expectedNbaExperienced.has(name)));
   assert.equal(cfg.targets.length, 22, 'requested target config must contain exactly 22 players');
   assert.deepEqual(cfg.targets.map(x=>x.name), expectedNames, 'requested target list changed or reordered');
   assert.equal(data.analysis.playerCompTargets?.length, 22, 'all requested targets must be searchable');
@@ -143,8 +143,10 @@ assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differe
     assert.ok(catalog, spec.name + ': missing from Player Comps picker');
     assert.equal(catalog.name, spec.name, spec.name + ': picker identity');
     assert.equal(set.targetName, spec.name, spec.name + ': target identity');
-    assert.equal(set.sourceMode, expectedPreNba.has(spec.name) ? 'pre-nba' : 'gleague', spec.name + ': wrong source family');
-    assert.equal(set.targetBasis, expectedPreNba.has(spec.name) ? 'pre-nba-to-nba-style' : 'targeted-gleague-to-nba-equivalent',
+    assert.equal(spec.nbaExperienced, expectedNbaExperienced.has(spec.name), spec.name + ': NBA-experience classification');
+    assert.equal(spec.sourceMode, spec.nbaExperienced ? 'gleague' : 'pre-nba', spec.name + ': config violates NBA-experience source rule');
+    assert.equal(set.sourceMode, spec.nbaExperienced ? 'gleague' : 'pre-nba', spec.name + ': wrong source family');
+    assert.equal(set.targetBasis, spec.nbaExperienced ? 'targeted-gleague-to-nba-equivalent' : 'pre-nba-to-nba-style',
       spec.name + ': wrong target basis');
     assert.equal(set.targetStats.mpg, null, spec.name + ': source minutes/role must not become an NBA MPG comp axis');
     assert.ok(set.top3.length >= 1 && set.top3.length <= 3, spec.name + ': component count');
@@ -167,9 +169,12 @@ assert.ok(patterns.size > 100, 'blend percentages should be meaningfully differe
     }
   }
   const wolf = data.analysis.playerCompsTargeted['target:danny-wolf'];
-  assert.equal(wolf.sourceMode,'pre-nba','Danny Wolf has no G League sample and must use Michigan');
-  assert.match(wolf.sourceTeam || '',/Michigan/i,'Danny Wolf source team');
+  assert.equal(wolf.sourceMode,'gleague','Danny Wolf has NBA experience and must use G League production');
   assert.ok(wolf.top3.every(x=>String(x.playerId)!=='1642874'),'Danny Wolf self-comparison');
+  const dainja = data.analysis.playerCompsTargeted['target:dain-dainja'];
+  assert.equal(dainja.sourceMode,'pre-nba','Dain Dainja has no NBA regular-season experience and must use pre-NBA production');
+  assert.match(dainja.sourceTeam || '',/Memphis/i,'Dain Dainja source team');
+  assert.ok(dainja.top3.every(x=>String(x.playerId)!=='1643120'),'Dain Dainja self-comparison');
   const cedric = data.analysis.playerCompsTargeted['target:cedric-nga-mbiaba'];
   assert.equal(cedric.sourceConfidence,'low','Cedric Nga Mbiaba limited sample must be labeled low confidence');
   const nolan = data.analysis.playerCompsTargeted['target:nolan-traore'];
