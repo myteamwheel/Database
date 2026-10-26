@@ -1,5 +1,25 @@
 # Model and website rebuild — authoritative checklist
 
+## Current implementation review — October 26, 2026
+
+The entries below supersede older statements that the current-season views are helper-only or that injury/news ingestion is unconfigured. These changes are **local and under release review, not yet deployed**. Historical release records below describe their stated releases only; they are not evidence that this candidate is live.
+
+| Original item | Candidate progress | Remaining completion evidence |
+| --- | --- | --- |
+| 2 — Contextual projections | Verified two-way contracts cap games before roster-budget reconciliation. Upcoming official Out listings reduce remaining-season expected appearances. Each adjustment has dated source/assumption details. | Broader verified role/usage and recovery-duration inputs remain unavailable. No claim that preseason per-game estimates adapt to new game performance. |
+| 3 — Projection evaluation | Existing chronological and baseline checks preserved. | Evaluation of the full shipped model, rookie cohorts and intervals remains incomplete; prospective outcomes cannot be manufactured. |
+| 4 — Rookies | Existing DOB-normalized draft/age/position fallback retained; verified two-way contracts now enter exposure. | College/international production and verified roles are still missing inputs, explicitly labeled rather than guessed. |
+| 5 — TULIP | Existing bounded diagnostic ledgers and abstentions retained. | Full positional/availability-aware rotations and defensible outcome evidence remain incomplete. No unsupported win-optimal claim or arbitrary expansion of positive recommendations. |
+| 9 — Refresh/publication | Added official current-season schedule/player totals, official injury PDFs, official two-way tracker and attributed ESPN headlines. Source validation and atomic cache promotion preserve prior snapshots on failure. Corrected reviewed transaction revisions and old-injury-report refresh handling. | Full candidate CI, deployment and live verification remain pending. Pending team injury reports and the limited news-feed window remain visible source limits. |
+| 15 — NBA/G League scope | October 26 NBA roster reconciles 521 active players; 86 two-way contracts match unique roster identities and affiliates. One tracker discrepancy is withheld. | Current G League assignments are unverified; an affiliate is not an assignment. Broader G League current-roster coverage still needs a verified source. |
+| 16 — Forecast timeframes | Implemented actual, remaining and combined table views, matching CSV exports and collapsed player-card details. All 400 source player-total rows and 520 forecast combinations pass independent arithmetic checks. | Browser regression, CI and live publication verification are required before marking released. Remaining estimates use dated historical appearance rates and preseason per-game estimates. |
+
+Verified locally so far: complete build; independent current-season, historical and projection accounting; all 30 NBA budget ledgers; all 521 current-roster identities; full PDF text replay (43 listed players, 13 pending team reports); source failure/continuity controls; transitive model provenance; lossless standalone encoding; focused browser table/export and keyboard/detail checks. The full browser regression suite is in progress. No new release completion claim is made here.
+
+The rookie-age correction described as “in review” in the historical notes below was subsequently released in PRs #35/#36. Its age-input tests also pass on this candidate; college/international input coverage remains separate unfinished work.
+
+## Historical release records and original completion standards
+
 Updated 2026-10-01 after PR #34 deployed as rebuilt payload `bde0c3f`: all seven served assets matched exactly and the focused live owner-control desktop/phone test passed. Eleven of the 18 full implementation standards are complete; seven remain partial. Item 1 now includes transitive model dependencies, browser calculators and interface defaults; item 13 covers season-wide and team-scoped accounting. Audit completion is not forecast-accuracy validation. This supersedes contradictory completion claims in earlier plan notes.
 
 Official transaction ingestion is live verified: PR #29 passed all 18 checks and merged as `886b0d3`; rebuilt payload `9eba566` passed Pages run `36918670424`. All seven served assets matched it and both focused transaction browser checks passed live. The October 1 fetch contains 9,921 dated official events through September 30, including 520 non-player trade-consideration events that must not be mistaken for signings. An independent person-ID join checks all 1,289 player records; 416 receive 471 recent event notes, collapsed by default. All pre-existing player fields, forecasts, grades and frozen recommendations were unchanged by that release. Input validation, atomic cache promotion, stale-publication rejection and failed/backwards/revised-feed preservation pass. Injury/news ingestion remains unavailable; this transaction ledger is not medical clearance or G League assignment evidence.

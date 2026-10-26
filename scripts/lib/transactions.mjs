@@ -7,6 +7,18 @@ export const TRANSACTION_URL = 'https://stats.nba.com/js/data/playermovement/NBA
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const TYPES = new Set(['Signing','Waive','Trade','AwardOnWaivers','ContractConverted']);
 
+// The official feed rewrites historical descriptions when a player's listed
+// position is filled in or corrected. Preserve every other field and word:
+// changing the player, date, team, action or contract still requires review.
+function continuityHash(row) {
+  if (!row.PLAYER_ID) return hash(row);
+  const description = row.TRANSACTION_DESCRIPTION.replace(
+    /\b(signed|re-signed|waived|received)\s+(?:(?:guard-forward|forward-guard|forward-center|center-forward|guard|forward|center)\s+)?/,
+    '$1 '
+  );
+  return hash({ ...row, TRANSACTION_DESCRIPTION: description });
+}
+
 export function parseTransactions(payload, { fetchedAt, minRows = 1000 } = {}) {
   if (!fetchedAt || !Number.isFinite(Date.parse(fetchedAt))) throw new Error('Transaction fetch date is invalid');
   const rows = payload?.NBA_Player_Movement?.rows;
@@ -60,14 +72,17 @@ export function playerTransactionIndex(snapshot, { fromDate = '2026-07-01', limi
   return index;
 }
 
-export async function refreshTransactions({ file, now = () => new Date().toISOString(), fetchImpl = fetchJson, minRows = 1000 } = {}) {
+export async function refreshTransactions({ file, now = () => new Date().toISOString(), fetchImpl = fetchJson, minRows = 1000, reviewedRevisions = [] } = {}) {
   if (!file) throw new Error('Transaction destination is required');
+  if (!Array.isArray(reviewedRevisions) || reviewedRevisions.some(r=>!r || !/^[a-f0-9]{64}$/.test(r.beforeSha256) || !/^[a-f0-9]{64}$/.test(r.afterSha256) || typeof r.reason!=='string' || !r.reason.trim())) throw new Error('Invalid reviewed transaction revisions');
   const previous = fs.existsSync(file) ? verifyTransactionSnapshot(JSON.parse(fs.readFileSync(file,'utf8')), { minRows }) : null;
   const payload = await fetchImpl(TRANSACTION_URL);
   const next = parseTransactions(payload, { fetchedAt: now(), minRows });
   if (previous && next.summary.latestEventDate < previous.summary.latestEventDate) throw new Error('Transaction feed moved backwards; prior snapshot retained');
-  const nextIdentities = new Set(next.rows.map(hash));
-  if (previous && previous.rows.some(row => !nextIdentities.has(hash(row)))) throw new Error('Transaction history removed or revised; explicit review required, prior snapshot retained');
+  const nextIdentities = new Set(next.rows.map(continuityHash));
+  const exactNext = new Set(next.rows.map(hash));
+  const approved = new Set(reviewedRevisions.filter(r=>exactNext.has(r.afterSha256)).map(r=>r.beforeSha256));
+  if (previous && previous.rows.some(row => !nextIdentities.has(continuityHash(row)) && !approved.has(hash(row)))) throw new Error('Transaction history removed or revised; explicit review required, prior snapshot retained');
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temp = `${file}.tmp-${process.pid}`;
   try { fs.writeFileSync(temp, JSON.stringify(next) + '\n'); fs.renameSync(temp,file); }

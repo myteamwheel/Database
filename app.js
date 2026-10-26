@@ -180,7 +180,10 @@ function rehydrate(d) {
 /** 2026-27 roster situation, as shown in the Status column. */
 const PROJ_STATUS = { same: 'Returning', new: 'New team', rookie: 'Rookie estimate', historical: 'Historical fallback', unsigned: 'No NBA roster', 'nba-roster': 'On NBA roster', gleague: 'G League' };
 
+const SEASON_VIEWS={actual2627:'actual',remaining2627:'remaining',combined2627:'combined'};
+const seasonFrame=(p,view)=>({actual:p.seasonActual,remaining:p.seasonForecast?.remainingSeason,combined:p.seasonForecast?.fullSeason})[view]||null;
 const get = (p, key) => {
+  if(key.startsWith('sf.')){const [,view,stat]=key.split('.'),f=seasonFrame(p,view);return stat==='gp'?(f?.gp??null):(f?.perGame?.[stat]??null);}
   // Never render an old 2025-26 team as if it were the player's present NBA team. Historical
   // team identity stays in seasonTeam and is shown beside the player when it adds context.
   if (key === 'team') return p.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p.team ?? null);
@@ -328,7 +331,8 @@ function updatePublishedHeader() {
   $('sourceLine').textContent = 'Official NBA and G League stats: ' + DATA.counts.records.toLocaleString()
     + ' player seasons for ' + DATA.counts.uniquePeople.toLocaleString() + ' players'
     + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
-    + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.' + published;
+    + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.'
+    + (DATA.seasonProgress ? ` Current NBA season: ${DATA.seasonProgress.completedGames} completed games, fetched ${DATA.seasonProgress.asOf.slice(0,10)}.` : '') + published;
   $('seasonEyebrow').textContent = DATA.seasonType;
 }
 function openDataStatus() {
@@ -342,7 +346,7 @@ function openDataStatus() {
     const d = s.sourceDomains?.[key] || {};
     return '<div class="metric-definition"><strong>' + esc(label) + ' — ' + esc(statusText(d.status)) + '</strong>'
       + '<span>Fetched: ' + esc(dateTime(d.fetchedAt)) + '. Checked: ' + esc(dateTime(d.checkedAt)) + '.'
-      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
+      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.currentSeason?` Current ${esc(d.currentSeason.season)} NBA feed: ${d.currentSeason.completedGames} completed games; fetched ${esc(dateTime(d.currentSeason.asOf))}.`:'') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
   }).join('');
   const ch = s.changes?.officialStats || {};
   $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Loaded data snapshot</h2>'
@@ -680,7 +684,12 @@ for (const [k,label] of Object.entries({
   'stats.split_showcase_gp':'Cup Games','stats.split_showcase_min':'Cup Min','stats.split_showcase_pts':'Cup Pts',
 })) BASE_COLS[k]={label,type:'int'};
 
+for(const [view,label] of Object.entries({actual:'Actual to date',remaining:'Remaining estimate',combined:'Combined estimate'})){
+  for(const [key,name] of Object.entries({gp:'GP',mpg:'MIN',pts:'PTS',reb:'REB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fg3m:'3PM',fgPct:'FG%',fg3Pct:'3P%',ftPct:'FT%'}))BASE_COLS[`sf.${view}.${key}`]={label:name,type:key.endsWith('Pct')?'pct':'1',help:`2026-27 ${label.toLowerCase()}. ${key==='gp'?'Season appearance count; estimates may be fractional.':'Per appearance; percentages pool made shots and attempts.'} Actuals use the dated current-season feed; forecasts use the stated assumptions in the player card.`};
+}
+const seasonViewColumns=view=>['select','viewRank','name','team','position',...['gp','mpg','pts','reb','ast','stl','blk','tov','fg3m','fgPct','fg3Pct','ftPct'].map(k=>`sf.${view}.${k}`)];
 const PRESETS = {
+  actual2627:seasonViewColumns('actual'),remaining2627:seasonViewColumns('remaining'),combined2627:seasonViewColumns('combined'),
   proj:['select','viewRank','name','proj.team','proj.status','proj.age','proj.gp','proj.mpg','proj.pts','proj.reb','proj.ast','proj.stl','proj.blk','proj.tov','proj.fg3m','proj.fgPct','proj.fg3Pct','proj.ftPct','proj.ts','proj.lastPts','proj.dPts'],
   overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tb.tulip','tb.recommendedMpg','tb.confidence','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   workload:['select','viewRank','name','team','position','age','gp','mpg','grade','tc.capacityMpg','tc.teamASeasonMpg','tc.headroom','tc.evidence','tulip.leagueDelta'],
@@ -717,13 +726,14 @@ const PRESETS = {
 };
 
 /** Views that open on their own headline column rather than on grade. */
-const PRESET_SORT = { tulipbeta:'tb.tulip', proj:'proj.pts', per36:'p36.pts', per36nba:'p36n.pts' };
+const PRESET_SORT = { actual2627:'sf.actual.pts',remaining2627:'sf.remaining.pts',combined2627:'sf.combined.pts',tulipbeta:'tb.tulip', proj:'proj.pts', per36:'p36.pts', per36nba:'p36n.pts' };
 const PRESET_LABELS = {overall:'Overall',proj:'2026-27 Projections',workload:'Projected Role MPG',capacity:'Projected Role MPG (detail)',tulipbeta:'TULIP Beta',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
   splitsExplorer:'Splits: scoring',splitsShooting:'Splits: efficiency',splitsMonthly:'Splits: by month',
   teams:'Team History',bio:'Bio & Draft',splits:'Season Splits (G League)',
   tracking:'Tracking & Hustle (NBA)',all:'All Raw Stats'};
+Object.assign(PRESET_LABELS,{actual2627:'2026-27 Actual to date',remaining2627:'2026-27 Remaining estimate',combined2627:'2026-27 Combined estimate'});
 
 // CORE_REGISTRY removed in v3.5 — the field catalog and the records themselves are the registry.
 
@@ -1133,7 +1143,7 @@ function populateSelectors(){
   const hasProj=players.some(p=>p.proj&&p.proj.abstain!==true);
   const current=$('viewPreset').value;
   $('viewPreset').innerHTML=Object.entries(PRESET_LABELS).filter(([k])=>
-    (k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(!['capacity','workload'].includes(k)||hasCapacity)&&(!['nbaready','per36nba'].includes(k)||league==='GLEAGUE')&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
+    (!SEASON_VIEWS[k]||(league==='NBA'&&DATA.seasonProgress))&&(k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(!['capacity','workload'].includes(k)||hasCapacity)&&(!['nbaready','per36nba'].includes(k)||league==='GLEAGUE')&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
   ).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
   // Keep the chosen view across a league switch when the other league offers it too.
   if([...$('viewPreset').options].some(o=>o.value===current)) $('viewPreset').value=current;
@@ -1223,6 +1233,7 @@ function sortValue(p,key){
 }
 
 function filteredPlayers(){
+  const seasonView=SEASON_VIEWS[$('viewPreset').value];
   const q=fold($('searchInput').value.trim());
   const team=$('teamFilter').value, pos=$('positionFilter').value, country=$('countryFilter').value;
   const minGp=Number($('minGp').value)||0, minMpg=Number($('minMpg').value)||0;
@@ -1230,7 +1241,7 @@ function filteredPlayers(){
   const minRel=Number($('minReliability').value)||0;
   const teamMode=$('teamMode')?.value||'season';
   const showRosterOnly=$('includeRosterOnly')?.checked;
-  const currentRosterView=isCurrentNbaRosterView();
+  const currentRosterView=!seasonView&&isCurrentNbaRosterView();
   let list=currentPlayers()
     .filter(p=>{
       const hay=fold([p.name,p.currentTeam,p.seasonTeam,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
@@ -1238,15 +1249,16 @@ function filteredPlayers(){
       // browsing them all belongs in the explicit Current NBA rosters view.
       const directRosterSearch=Boolean(q)&&hay.includes(q);
       if(currentRosterView && !p.currentRoster) return false;
-      if(!currentRosterView && p.rosterOnly&&!showRosterOnly&&!directRosterSearch) return false;
-      return (!q||hay.includes(q))&&playedFor(p,team)&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
+      if(!seasonView&&!currentRosterView && p.rosterOnly&&!showRosterOnly&&!directRosterSearch) return false;
+      return (!q||hay.includes(q))&&(seasonView?(!team||p.currentTeam===team):playedFor(p,team))&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
         &&(!$('bothOnly').checked||p.bothLeagues);
     })
     // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
-    .map(p=>$('viewPreset').value==='proj'?p:teamScoped(p,team,teamMode))
+    .map(p=>seasonView||$('viewPreset').value==='proj'?p:teamScoped(p,team,teamMode))
     .filter(p=>{
       // Zero disables a minimum filter. A positive threshold requires an observed value.
       const meets=(v,min)=>min<=0||(finite(v)&&Number(v)>=min);
+      if(seasonView){const f=seasonFrame(p,seasonView);return meets(f?.gp,minGp)&&meets(f?.perGame?.mpg,minMpg)&&meets(f?.totals?.min,minMin)&&applyRules(p);}
       const gradeOk=finite(p.grade)?p.grade>=minGrade:minGrade<=0&&(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo);
       return meets(p.gp,minGp)&&meets(p.mpg,minMpg)&&meets(p.minutes,minMin)&&gradeOk
         &&meets(p.reliabilityWeight,minRel)&&applyRules(p);
@@ -1295,15 +1307,19 @@ function renderRules(){
 /** Title, breadcrumb and section highlight follow the league and the view. */
 function updatePageHead(){
   const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj', currentRosterView=isCurrentNbaRosterView();
+  const seasonView=SEASON_VIEWS[preset];
   // A season-stint selector cannot rescope a preseason full-season forecast.
-  if($('teamMode')) $('teamMode').disabled=isProj;
-  $('pageTitle').textContent=isProj?`2026-27 ${lg} Projections`:currentRosterView?'2026-27 NBA Current Rosters':`2025-26 ${lg} Player Stats`;
+  if($('teamMode')) $('teamMode').disabled=isProj||!!seasonView;
+  $('pageTitle').textContent=seasonView?`NBA ${PRESET_LABELS[preset]}`:isProj?`2026-27 ${lg} Projections`:currentRosterView?'2026-27 NBA Current Rosters':`2025-26 ${lg} Player Stats`;
   $('crumbs').textContent=isProj
     ? `${lg} › 2026-27 › Projections`
     : currentRosterView ? 'NBA › 2026-27 › Current rosters'
       : `${lg} › 2025-26 › ${PRESET_LABELS[preset]||'Player stats'}`;
-  document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',(b.dataset.goto==='proj')===isProj));
+  document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',b.dataset.goto===(seasonView?'current':isProj?'proj':'stats')));
   $('projNote').hidden=!isProj;
+  if(seasonView){$('crumbs').textContent=`NBA › 2026-27 › ${PRESET_LABELS[preset]}`;}
+  if($('seasonProgressNote')){$('seasonProgressNote').hidden=!seasonView;$('seasonProgressNote').textContent=seasonView?`As of ${DATA.seasonProgress.asOf.slice(0,10)}. ${seasonView==='actual'?'Measured regular-season results; zero appearances have no per-game average.':'Estimates combine the dated schedule, historical appearance rates and official upcoming Out listings. Open a player for assumptions and all three timeframes.'} All player totals include prior teams. Grade and reliability filters refer to 2025-26 and do not apply to these views.`:'';}
+  if($('rosterScopeControl'))$('rosterScopeControl').hidden=!!seasonView||league!=='NBA';
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
   if($('projRosterContext')) $('projRosterContext').hidden=league!=='NBA';
   const scope=$('projScope');
@@ -1326,7 +1342,11 @@ function goTo(dest){
   if(dest==='proj'){
     if(![...sel.options].some(o=>o.value==='proj')) return;
     sel.value='proj'; sortKey='proj.pts'; sortDir=-1;
-  } else if(sel.value==='proj'){
+  } else if(dest==='current'){
+    if(league!=='NBA'){switchLeague(document.querySelector('.league-tab[data-league="NBA"]'));}
+    if(![...sel.options].some(o=>o.value==='actual2627'))return;
+    sel.value='actual2627';sortKey='sf.actual.pts';sortDir=-1;
+  } else if(sel.value==='proj'||SEASON_VIEWS[sel.value]){
     sel.value='overall'; sortKey='grade'; sortDir=-1;
   }
   render();
@@ -1357,7 +1377,7 @@ function render(){
     ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
     : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
-  $('sortLabel').textContent=`· ${$('viewPreset').value==='proj'?'2026-27 projections':isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
+  $('sortLabel').textContent=`· ${SEASON_VIEWS[$('viewPreset').value]?PRESET_LABELS[$('viewPreset').value]:$('viewPreset').value==='proj'?'2026-27 projections':isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   hideStatTip(true);   // a re-render replaces the header the panel was anchored to
   $('tableHead').innerHTML=cols.map(key=>{
@@ -1389,7 +1409,7 @@ function cell(p,key){
     // In the projections view the Team column is the 2026-27 team, so the name cell leaves last
     // season's team out rather than show two different teams on one row.
     let sub;
-    if($('viewPreset').value==='proj') sub=esc(p.position||'—');
+    if($('viewPreset').value==='proj'||SEASON_VIEWS[$('viewPreset').value]) sub=esc(p.position||'—');
     else if(p.league==='NBA'){
       sub=esc(p.currentTeam||'No NBA roster')+' · '+esc(p.position||'—');
       if(p.currentRoster&&!p.appeared) sub+=' · Current roster, no 2025-26 NBA stats';
@@ -1648,13 +1668,36 @@ const longDate = (iso) => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('
 const pctChange = (x, d=1) => finite(x) ? `${x > 0 ? '+' : ''}${(x * 100).toFixed(d)}%` : '—';
 
 /** The player-card section: last season beside the projection, and how the projection was built. */
+function seasonProgressCard(p){
+  const f=p.seasonForecast;
+  if(!f || f.status==='unavailable') return '';
+  const views=[f.actualToDate,f.remainingSeason,f.fullSeason];
+  const rows=[['Games','gp'],['Minutes','mpg'],['Points','pts'],['Rebounds','reb'],['Assists','ast']];
+  return `<details class="proj-season-progress"><summary>2026-27 season progress</summary><p class="tiny">As of ${esc(f.asOf.slice(0,10))}. ${f.actualToDate.teamGamesElapsed} current-team games completed; ${f.remainingSeason.teamGamesRemaining} remain. Actuals include every team the player appeared for.</p><table class="compare-table"><caption>Per-game averages; games are season counts. No appearances means no measured average.</caption><thead><tr><th>Metric</th><th>Actual to date</th><th>Remaining estimate</th><th>Combined estimate</th></tr></thead><tbody>${rows.map(([label,key])=>`<tr><th scope="row">${label}</th>${views.map(v=>`<td>${num(key==='gp'?v.gp:v.perGame[key])}</td>`).join('')}</tr>`).join('')}</tbody></table><p class="tiny">${esc(f.assumption)}</p><button type="button" class="text-button" data-season-export="${esc(p.playerId)}">Export all three timeframes</button></details>`;
+}
+document.addEventListener('click',e=>{
+  const button=e.target.closest?.('[data-season-export]');
+  if(!button)return;
+  const p=DATA.leagues.NBA.find(p=>String(p.playerId)===button.dataset.seasonExport), f=p?.seasonForecast;
+  if(!f || f.status==='unavailable')return;
+  const quote=v=>`"${String(v??'').replaceAll('"','""')}"`;
+  const lines=[['Player ID','Season','As of','Timeframe','Games','Stat','Per game','Total']];
+  for(const key of ['actualToDate','remainingSeason','fullSeason']) {
+    for(const [stat,total] of Object.entries(f[key].totals))lines.push([p.playerId,f.season,f.asOf,key,f[key].gp,stat,f[key].perGame[stat==='min'?'mpg':stat],total]);
+  }
+  const url=URL.createObjectURL(new Blob([lines.map(r=>r.map(quote).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=url;link.download=`${p.playerId}_${f.season}_timeframes.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
 function projCard(p){
   // A dialog opened from historical stint stats still compares full-season forecast/actuals.
   if(p.teamScopedTo) p=currentPlayers().find(x=>x.playerId===p.playerId)||p;
   const c=p.proj;
   if(!c) return '';
+  const availability=(p.reportedAvailability||[]).filter(e=>!p.currentTeam||e.team===p.currentTeam);
+  const report=availability.length?`<details class="proj-availability"><summary>NBA availability: ${esc(availability[0].status)} · ${esc(availability[0].gameDate)}</summary><ul>${availability.map(e=>`<li>${esc(e.gameDate)} · ${esc(e.status)}: ${esc(e.reason)}</li>`).join('')}</ul><p class="tiny"><a href="${esc(availability[0].source)}" target="_blank" rel="noopener">Official NBA report</a> · ${esc(availability[0].reportAt.replace('T',' ').replace('.000Z',' UTC'))}. This report covers the listed game.</p></details>`:'';
+  const news=p.recentNews?.length?`<details class="proj-news"><summary>Recent NBA news</summary><ul>${p.recentNews.map(a=>`<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.headline)}</a> · ESPN · ${esc(a.published.slice(0,10))}</li>`).join('')}</ul><p class="tiny">Links from the latest ESPN feed, matched by tagged athlete names.</p></details>`:'';
   if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
-    <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p></div>`;
+    <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p>${report}${news}</div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
   const latestHistory=(w.seasons||[]).slice().sort((a,b)=>b.season.localeCompare(a.season))[0];
   const returner=c.basis!=='rookie-cohort-fallback'&&latestHistory&&latestHistory.season<'2025-26';
@@ -1674,6 +1717,7 @@ function projCard(p){
     </tbody></table></details>`;
 
   const items=[];
+  if(w.contract)items.push(`<b>Two-way contract.</b> Forecast games are capped at ${w.contract.maxGames}, before allocating the team's minutes. ${esc(w.contract.assumption)}`);
   const statusText={same:`back with ${esc(c.team)}`,new:`with a new team, ${esc(c.team)}`,rookie:`on the published ${esc(c.team)} roster; role is estimated from historical rookie cohorts`,historical:`on the published ${esc(c.team)} roster; this estimate uses older NBA history after a long gap`,unsigned:'not on a published 2026-27 NBA roster yet; this line assumes he signs and plays',
     'nba-roster':'on a 2026-27 NBA roster; this is his G League line if he plays there',gleague:`in the G League, last with ${esc(c.team)}`}[c.status]||'';
   items.push(`<b>Team.</b> ${statusText}.${c.status==='new'?` The legacy team-change factor adjusts shot volume ${Math.abs((w.team?.newTeam||0)*100).toFixed(0)}% in this estimate.`:''}`);
@@ -1707,7 +1751,8 @@ function projCard(p){
   const chain=steps.length?`<div class="proj-steps"><b>Points per 100 possessions:</b> ${steps.map(([k,v])=>`<span>${num(v)} <i>${k}</i></span>`).join(' → ')}</div>`:'';
   return `<div class="proj-card"><div class="section-bar">2026-27 projection · ${esc(c.role||'projected role')}</div>
     <p class="proj-context tiny">${esc(get(p,'proj.team'))} · ${esc(get(p,'proj.status'))}${c.basis==='rookie-cohort-fallback'?' · provisional cohort estimate; no personal NBA history':c.basis==='older-history-fallback'?' · low-support estimate from older NBA history':c.status==='unsigned'?' · conditional on signing and playing':p.league==='GLEAGUE'?' · G League forecast; team is last observed affiliation':''}.</p>
-    ${returnerNote}<div class="proj-body"><div>${table}${ranges}</div>
+    ${p.rosterContext?`<p class="tiny">Two-way contract: ${esc(p.rosterContext.nbaTeam)} · affiliate ${esc(p.rosterContext.gLeagueAffiliate)}. Current G League assignment is unverified. Contract checked ${esc(p.rosterContext.asOf.slice(0,10))}.</p>`:''}
+    ${returnerNote}${report}${news}<div class="proj-body"><div>${table}${seasonProgressCard(p)}${ranges}</div>
       <details class="proj-why"><summary>How this line was built</summary><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
       <p class="tiny">Availability uses historical appearance rates. Injury clearance and contract security are not verified here.
       <button class="text-button" type="button" data-proj-method>How the projections work</button></p></details></div></div>`;
@@ -2114,7 +2159,7 @@ async function exportCsv(){
       const v=get(p,k);
       if(notApplicable(p,k)) return q('N/A');
       // Projection exports match visible precision; keep ordinary raw-stat exports lossless.
-      if($('viewPreset').value==='proj'&&finite(v)){
+      if(($('viewPreset').value==='proj'||SEASON_VIEWS[$('viewPreset').value])&&finite(v)){
         const type=colDef(k).type, n=toDisplayUnit(k,Number(v));
         if(type==='int') return q(Math.round(n));
         if(['1','signed1','pct'].includes(type)) return q(n.toFixed(1));
@@ -2126,7 +2171,7 @@ async function exportCsv(){
     lines.push(row.join(','));
   }
   const csv=lines.join('\n');
-  const base=$('viewPreset').value==='proj'
+  const base=SEASON_VIEWS[$('viewPreset').value]?`nba_2026-27_${SEASON_VIEWS[$('viewPreset').value]}_${DATA.seasonProgress.asOf.slice(0,10)}`:$('viewPreset').value==='proj'
     ? `${league.toLowerCase()}_2026-27_projections`
     : `${league.toLowerCase()}_2025-26_rankings`;
 

@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+      - name: Install locked verification dependencies
+        run: npm ci --no-audit --no-fund
       - name: Refit card and rebuild projection payload for source-contract tests
         run: |
           npm run fit:projections

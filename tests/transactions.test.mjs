@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { parseTransactions, verifyTransactionSnapshot, refreshTransactions, playerTransactionIndex, TRANSACTION_URL } from '../scripts/lib/transactions.mjs';
 const fetchedAt = '2026-10-01T12:00:00Z';
 const row = { Transaction_Type:'Signing', TRANSACTION_DATE:'2026-09-30T00:00:00',
@@ -44,5 +45,27 @@ try {
   await refreshTransactions({file,minRows:1,now:()=>fetchedAt,fetchImpl:async()=>payload([row,{...row,PLAYER_ID:1630162,TRANSACTION_DATE:'2026-10-01T00:00:00'}])});
   assert.equal(JSON.parse(fs.readFileSync(file,'utf8')).summary.uniqueEvents,2);
   assert.equal(fs.readdirSync(dir).some(file=>file.includes('.tmp-')),false);
+  const oldPosition = {...row, TRANSACTION_DESCRIPTION:'Memphis Grizzlies signed  Carson Cooper to a Two-Way Contract.'};
+  const corrected = {...oldPosition, TRANSACTION_DESCRIPTION:'Memphis Grizzlies signed forward Carson Cooper to a Two-Way Contract.'};
+  fs.writeFileSync(file, JSON.stringify(parseTransactions(payload([oldPosition]),{fetchedAt,minRows:1})));
+  await refreshTransactions({file,minRows:1,now:()=>fetchedAt,fetchImpl:async()=>payload([corrected])});
+  assert.equal(JSON.parse(fs.readFileSync(file)).rows[0].TRANSACTION_DESCRIPTION,corrected.TRANSACTION_DESCRIPTION);
+  const retained = fs.readFileSync(file,'utf8');
+  for (const change of [
+    {PLAYER_ID:1630162}, {TEAM_ID:1610612753}, {Transaction_Type:'Waive'},
+    {TRANSACTION_DESCRIPTION:corrected.TRANSACTION_DESCRIPTION.replace('Two-Way','Standard')},
+    {TRANSACTION_DESCRIPTION:corrected.TRANSACTION_DESCRIPTION.replace('Carson Cooper','Another Player')},
+  ]) {
+    await assert.rejects(refreshTransactions({file,minRows:1,now:()=>fetchedAt,fetchImpl:async()=>payload([{...corrected,...change}])}),/removed|revised/);
+    assert.equal(fs.readFileSync(file,'utf8'),retained);
+  }
+  const revised={...corrected,PLAYER_ID:1630162};
+  const hash=r=>crypto.createHash('sha256').update(JSON.stringify(r)).digest('hex');
+  const approval={beforeSha256:hash(corrected),afterSha256:hash(revised),reason:'Reviewed official person-ID correction.'};
+  await assert.rejects(refreshTransactions({file,minRows:1,now:()=>fetchedAt,reviewedRevisions:[approval],fetchImpl:async()=>payload([{...revised,PLAYER_ID:1630163}])}),/removed|revised/);
+  assert.equal(fs.readFileSync(file,'utf8'),retained);
+  await refreshTransactions({file,minRows:1,now:()=>fetchedAt,reviewedRevisions:[approval],fetchImpl:async()=>payload([revised])});
+  assert.equal(JSON.parse(fs.readFileSync(file)).rows[0].PLAYER_ID,1630162);
+  await assert.rejects(refreshTransactions({file,minRows:1,reviewedRevisions:[{...approval,reason:''}]}),/Invalid reviewed/);
 } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 console.log('Transactions passed: official identities, dates, nonplayer events, duplicate handling, tamper detection, atomic promotion, failure/backward/revision preservation');

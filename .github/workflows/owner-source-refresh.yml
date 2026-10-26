@@ -61,7 +61,7 @@ jobs:
             scripts/data/stints_gleague_regular.json scripts/data/stints_gleague_showcase.json \
             scripts/data/splits_nba scripts/data/splits_gleague_regular scripts/data/splits_gleague_showcase \
             scripts/data/provenance_splits.json scripts/data/player_bios.json \
-            scripts/data/birthdates.json scripts/data/live/roster.json scripts/data/live/transactions.json
+            scripts/data/birthdates.json scripts/data/live/roster.json scripts/data/live/transactions.json scripts/data/live/season-progress.json scripts/data/live/two-way-roster.json scripts/data/live/injuries.json scripts/data/live/news.json
           if git diff --cached --quiet; then
             echo 'No source changes. The live site has not been changed.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -81,7 +81,7 @@ jobs:
         if: always()
         run: |
           if [ -f scripts/data/refresh-runs/latest.json ]; then
-            node -e 'const fs=require("node:fs"),r=require("./scripts/data/refresh-runs/latest.json");fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`\nRefresh outcome: ${r.state}. Completed stages: ${r.stages.filter(s=>s.status==="ok").length}. Failed stage: ${r.failure?.stage||"none"}.\nSupported: 2025-26 statistics, 2026-27 NBA roster, dated transactions and individual bios. Injuries/news and 2026-27 game-stat rollover are not configured.\n`)'
+            node -e 'const fs=require("node:fs"),r=require("./scripts/data/refresh-runs/latest.json");fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`\nRefresh outcome: ${r.state}. Completed stages: ${r.stages.filter(s=>s.status==="ok").length}. Failed stage: ${r.failure?.stage||"none"}.\nSupported: historical statistics, current NBA roster, transactions, bios, two-way contracts, official injury reports, ESPN headlines and 2026-27 regular-season results. Injury reports retain pending team submissions; news coverage is limited to the returned feed. Two-way affiliation does not establish current G League assignment.\n`)'
           else
             echo 'Refresh did not reach source ingestion. The live website was not changed.' >> "$GITHUB_STEP_SUMMARY"
           fi

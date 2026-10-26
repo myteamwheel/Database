@@ -2,7 +2,7 @@
 // versioned: its historical accuracy must not be attributed to these new rules.
 import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeatures, dot, MIN_FEATURES, GP_FEATURES, ageInSeason } from './projection.mjs';
 
-export const CONTEXT_VERSION = 'context-2-rookie-age';
+export const CONTEXT_VERSION = 'context-3-two-way-contracts';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Explicit model convention, not today's age or a stale previous-season AGE field.

@@ -82,5 +82,11 @@ check('zero actual games cannot have positive totals', throws(()=>combine({actua
 check('actual points must reconcile with makes', throws(()=>combine({actual:{...actual,totals:{...actual.totals,pts:999}}}), /points|pts/i));
 check('three attempts cannot exceed all attempts', throws(()=>combine({actual:{...actual,totals:{...actual.totals,fg3a:300}}}), /attempt|3pa/i));
 check('two-point makes cannot exceed two-point attempts', throws(()=>combine({actual:{...actual,totals:{...actual.totals,fg3a:250}}}), /two.point/i));
+const traded=combine({actual:{...actual,gp:21,playerGamesAvailable:22}});
+check('traded player retains all prior-team games without changing new-team remaining schedule',traded.actualToDate.gp===21&&traded.remainingSeason.teamGamesRemaining===62);
+check('explicit player opportunities reject malformed values',throws(()=>combine({actual:{...actual,playerGamesAvailable:'22'}}),/opportunities/));
+check('no remaining appearances means no per-game scoring estimate', finalOut.remainingSeason.perGame.pts===null);
+const empty=combine({actual:{teamGamesElapsed:0,gp:0,totals:Object.fromEntries(Object.keys(actual.totals).map(k=>[k,0]))}});
+check('no actual appearances means unavailable averages, not measured zeros',empty.actualToDate.perGame.pts===null&&empty.actualToDate.totals.pts===0);
 console.log(`${fail?'FAILED':'ALL PASS'} · timeframes: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

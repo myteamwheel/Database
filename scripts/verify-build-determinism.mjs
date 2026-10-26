@@ -12,6 +12,7 @@ const targets = [
   'scripts/data/history/player_history_product.json',
   'public/history-games.json.gz',
   'public/data.json',
+  'public/data-status.json',
   'public/standalone.html',
 ];
 const originals = new Map(targets.map((rel) => {
@@ -31,8 +32,7 @@ function run(script) {
 function buildAndHash() {
   run('scripts/build-history-summary.mjs');
   run('scripts/build-history-games.mjs');
-  run('scripts/build-v3.mjs');
-  run('scripts/build-artifact.mjs');
+  execFileSync('npm', ['run','build'], { cwd: ROOT, env, stdio: 'pipe', maxBuffer: 32 * 1024 * 1024 });
   return Object.fromEntries(targets.map((rel) => [rel, sha(fs.readFileSync(path.join(ROOT, rel)))]));
 }
 function restore() {
@@ -45,6 +45,9 @@ function restore() {
 
 try {
   const first = buildAndHash();
+  // Publication change summaries take the previous bundle as an explicit input.
+  // Both runs must start with the same bundle, including its status metadata.
+  restore();
   const second = buildAndHash();
   const mismatches = targets.filter((rel) => first[rel] !== second[rel]);
   console.log(`determinism inputs: generatedAt=${env.BUILD_GENERATED_AT} buildCommit=${env.BUILD_COMMIT}`);

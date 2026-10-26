@@ -41,15 +41,17 @@ test.describe('published data reload + source status', () => {
     expect(state.stats).toBeTruthy();
     const transactionFile = path.join(ROOT, 'scripts/data/live/transactions.json');
     expect(state.tx).toBe(fs.existsSync(transactionFile) ? 'tracked-snapshot' : 'not-configured');
-    expect(state.injuries).toBe('not-configured');
-    expect(state.news).toBe('not-configured');
+    expect(state.injuries).toBe('partial');
+    expect(state.news).toBe('partial');
     await page.click('#dataStatusBtn');
     const txt = await page.locator('#dataStatusDialog').innerText();
     expect(txt).toContain('Official stats');
     expect(txt).toContain('Transactions');
     expect(txt).toContain('Injuries');
     expect(txt).toContain('News');
-    expect(txt.toLowerCase()).toContain('not configured');
+    expect(txt).toContain('Unsubmitted teams');
+    expect(txt).toContain('Latest ESPN NBA feed');
+    expect(txt).toContain('2026-27');
     expect(errors).toEqual([]);
   });
 

@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+      - name: Install locked verification dependencies
+        run: npm ci --no-audit --no-fund
       - name: Rebuild full review artifact
         run: |
           npm run build

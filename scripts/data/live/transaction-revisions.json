@@ -1,0 +1,20 @@
+[
+  {
+    "beforeSha256": "7dddd859ae132eadf816c5d6a42db079988f63b8f6b0bfd2df8f791f5c222cd6",
+    "afterSha256": "46dd50c623befb0edfc778324a6918733b8a903093d07780ff003c89083d6df2",
+    "reviewedOn": "2026-10-26",
+    "reason": "Official source changed Karim Lopez's name/slug to Karim L?pez; person ID, event, team, date and contract are identical. Preserve the source wording, while player identity remains ID-based."
+  },
+  {
+    "beforeSha256": "eac82afc626828ace9f4c22c592c935e16c651da44a42652b2d535d44bb403fd",
+    "afterSha256": "7ed2595015da25ea9db84da45f9dd4fd6c08af19327bb07a70a95ace0c29036d",
+    "reviewedOn": "2026-10-26",
+    "reason": "Official source added Jr. to Labaron Philon's name and slug; person ID, event, date, team and contract are identical."
+  },
+  {
+    "beforeSha256": "c097a82b209a951b465ba733baa4abb93034998d4c50fbd1b78ec366674fd0e6",
+    "afterSha256": "b6d810d4be1412737ec6d463b589a80b3ff95270f93a6e8fb60b4453c4200091",
+    "reviewedOn": "2026-10-26",
+    "reason": "Official feed replaced the September 30 Portland waiver recorded as Lee Hyun-jung (1643876) with Hyunjung Lee (1631253). The same team, date and waiver action remain; this exact replacement applies only to the transaction ledger and does not alias player records."
+  }
+]
