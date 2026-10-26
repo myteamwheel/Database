@@ -21,6 +21,10 @@ for(const p of players.values()){
     if(f.fullSeason.gp)close(f.fullSeason.perGame[key==='min'?'mpg':key],f.fullSeason.totals[key]/f.fullSeason.gp);
   }
   if(f.fullSeason.totals.fga)close(f.fullSeason.perGame.fgPct,f.fullSeason.totals.fgm/f.fullSeason.totals.fga);
+  if(f.remainingSeason.gp){
+    close(f.remainingSeason.perGame.pts,2*p.proj.accounting.fgm+p.proj.accounting.fg3m+p.proj.accounting.ftm);
+    close(f.remainingSeason.perGame.mpg,p.proj.accounting.mpg);
+  }
   if(!p.seasonActual.gp)assert.equal(p.seasonActual.perGame.pts,null);
 }
 assert.ok(forecasts>400);

@@ -30,6 +30,20 @@ const dataset = (player) => ({
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 {
+  const before=dataset(basePlayer(90,'Reference change'));
+  before.analysis.playerComps.NBA['90'].top3[0].heightInches=76;
+  const after=clone(before),set=after.analysis.playerComps.NBA['90'];
+  set.nearestOverall=[{...set.top3[0],heightInches:74}];
+  set.top3=[{playerId:'c2',name:'Comp Two',season:'2024-25',heightInches:78}];
+  set.blend=[{...set.top3[0],share:100}];
+  const report=buildMaterialChangeReport(before,after);
+  const change=report.changes.find(c=>c.family==='player-comparison');
+  assert.ok(change.explanation.drivers.some(d=>d.label==='reference.c1|2024-25.heightInches'&&d.before===76&&d.after===74));
+  set.nearestOverall[0].heightInches=76;
+  assert.throws(()=>validateMaterialChangeReport(buildMaterialChangeReport(before,after)),/lack explanation/);
+}
+
+{
   const before = dataset(basePlayer(1, 'Alpha'));
   const after = clone(before);
   const p = after.leagues.NBA[0];

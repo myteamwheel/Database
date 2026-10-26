@@ -9,6 +9,7 @@ async function open(page){
 }
 test('current-season tables render all three timeframes and export the selected view',async({page})=>{
   const errors=await open(page);
+  await page.locator('.more-filters > summary').click();
   for(const [preset,label] of [['actual2627','actual'],['remaining2627','remaining'],['combined2627','combined']]){
     await page.selectOption('#viewPreset',preset);
     await page.selectOption('#rowLimit','9999');

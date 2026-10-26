@@ -9,7 +9,7 @@
     "fetch:news": "node scripts/fetch-news.mjs",
     "fetch:season-progress": "node scripts/fetch-season-progress.mjs",
     "test:season-progress": "node tests/season-progress.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/two-way-roster.test.mjs && node tests/injury-report.test.mjs && node tests/player-news.test.mjs && node tests/current-season-accounting.test.mjs",
-    "build:projections": "node scripts/build-projections.mjs",
+    "build:projections": "node scripts/build-projections.mjs && node scripts/build-season-progress.mjs",
     "fit:projections": "node scripts/fit-projections.mjs",
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
     "fetch:combine": "node scripts/fetch-combine-anthro.mjs",
