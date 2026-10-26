@@ -83,7 +83,7 @@
     "audit:cross-tabs": "node scripts/audit-cross-tab-consistency.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1"
