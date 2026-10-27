@@ -18,6 +18,10 @@ Verified locally: complete build; independent current-season, historical and pro
 
 The rookie-age correction described as “in review” in the historical notes below was subsequently released in PRs #35/#36. Its age-input tests also pass on this candidate; college/international input coverage remains separate unfinished work.
 
+October 27 release review: PR #40 includes the current-season coverage header correction and a strict historical starter-source repair. Mutable SportsDataverse schedule crosswalks changed eleven ESPN event mappings, breaking previously certified coverage. Completed official NBA game-log snapshots (2,460 regular-season and 170 playoff team rows) now independently establish dates and both team identities. Exact matching to one ESPN event retains source-declared starters and home/away, checks NBA designations where available, handles five neutral games with both NBA rows marked away, and excludes All-Star exhibitions. The full live gate passed all 1,315 games, 2,630 team-game records and every per-player regular-season start total with zero mismatches. Hashes and the eleven corrections are retained in acceptance evidence. No acceptance threshold was lowered. CI and deployment remain pending.
+
+A read-only probe of the official 2026-27 G League player index returned 508 active records across 31 teams. This establishes an available source for further roster integration, not a deployed G League roster refresh or proof of current NBA-to-G League assignments.
+
 ## Historical release records and original completion standards
 
 Updated 2026-10-01 after PR #34 deployed as rebuilt payload `bde0c3f`: all seven served assets matched exactly and the focused live owner-control desktop/phone test passed. Eleven of the 18 full implementation standards are complete; seven remain partial. Item 1 now includes transitive model dependencies, browser calculators and interface defaults; item 13 covers season-wide and team-scoped accounting. Audit completion is not forecast-accuracy validation. This supersedes contradictory completion claims in earlier plan notes.
