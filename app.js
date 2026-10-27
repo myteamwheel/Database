@@ -333,6 +333,7 @@ function updatePublishedHeader() {
     + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
     + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.'
     + (DATA.seasonProgress ? ` Current NBA season: ${DATA.seasonProgress.completedGames} completed games, fetched ${DATA.seasonProgress.asOf.slice(0,10)}.` : '') + published;
+  $('sourceLine').dataset.historicalText=$('sourceLine').textContent;
   $('seasonEyebrow').textContent = DATA.seasonType;
 }
 function openDataStatus() {
@@ -1317,7 +1318,14 @@ function updatePageHead(){
       : `${lg} › 2025-26 › ${PRESET_LABELS[preset]||'Player stats'}`;
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',b.dataset.goto===(seasonView?'current':isProj?'proj':'stats')));
   $('projNote').hidden=!isProj;
-  if(seasonView){$('crumbs').textContent=`NBA › 2026-27 › ${PRESET_LABELS[preset]}`;}
+  if(seasonView){
+    const appearances=DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length;
+    $('crumbs').textContent=`NBA › ${PRESET_LABELS[preset]}`;
+    $('sourceLine').textContent=`Official NBA 2026-27 regular season: ${DATA.seasonProgress.completedGames} completed games; ${appearances.toLocaleString()} players with an appearance. Results checked ${DATA.seasonProgress.asOf.slice(0,10)}. Source details and coverage are in Data status.`;
+    $('nbaCount').textContent=appearances.toLocaleString();
+    $('nbaCount').title='Players with a 2026-27 NBA appearance; the table also includes non-appearing roster records';
+  }else if($('sourceLine').dataset.historicalText){$('sourceLine').textContent=$('sourceLine').dataset.historicalText;}
+  for(const id of ['minGrade','minReliability'])if($(id))$(id).disabled=!!seasonView;
   if($('seasonProgressNote')){$('seasonProgressNote').hidden=!seasonView;$('seasonProgressNote').textContent=seasonView?`As of ${DATA.seasonProgress.asOf.slice(0,10)}. ${seasonView==='actual'?'Measured regular-season results; zero appearances have no per-game average.':'Estimates combine the dated schedule, historical appearance rates and official upcoming Out listings. Open a player for assumptions and all three timeframes.'} All player totals include prior teams. Grade and reliability filters refer to 2025-26 and do not apply to these views.`:'';}
   if($('rosterScopeControl'))$('rosterScopeControl').hidden=!!seasonView||league!=='NBA';
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);

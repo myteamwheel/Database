@@ -263,11 +263,11 @@
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "27b171536a46309c58a8f56174faf992899310b31149e81efe3abcc2f2672c98",
+        "codeVersionSha256": "00882fab4b0ee43e2ad119fa488b78a56995229052077c2df52c1e1f1f3fa046",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "b5e266ea95fad7c01c8665ffc50c145a492afb44ac0db70b267f8c8ee09c4d73"
+            "sha256": "091223e410d75538d8daa0b8529a59b260da190fae92f83211f85110f0558ab1"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -703,13 +703,13 @@
       },
       "teamFit": {
         "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:e674532521a8334b106b29a230adea593945db1f2572b971439edc78880bf7b3",
+        "modelVersion": "code-sha256:49faef923127077e7ba3778d34b8494ab616a774d913855c49e508893535f2ec",
         "semanticVersion": null,
-        "codeVersionSha256": "e674532521a8334b106b29a230adea593945db1f2572b971439edc78880bf7b3",
+        "codeVersionSha256": "49faef923127077e7ba3778d34b8494ab616a774d913855c49e508893535f2ec",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "b5e266ea95fad7c01c8665ffc50c145a492afb44ac0db70b267f8c8ee09c4d73"
+            "sha256": "091223e410d75538d8daa0b8529a59b260da190fae92f83211f85110f0558ab1"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -1203,7 +1203,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:e674532521a8334b106b29a230adea593945db1f2572b971439edc78880bf7b3",
+        "modelVersion": "code-sha256:49faef923127077e7ba3778d34b8494ab616a774d913855c49e508893535f2ec",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,

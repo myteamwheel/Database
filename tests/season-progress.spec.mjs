@@ -9,6 +9,10 @@ async function open(page){
 }
 test('current-season tables render all three timeframes and export the selected view',async({page})=>{
   const errors=await open(page);
+  const appearances=source.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length.toLocaleString();
+  await expect(page.locator('#sourceLine')).toContainText(`${appearances} players with an appearance`);
+  await expect(page.locator('#sourceLine')).not.toContainText('player seasons');
+  await expect(page.locator('#nbaCount')).toHaveText(appearances);
   await page.locator('.more-filters > summary').click();
   for(const [preset,label] of [['actual2627','actual'],['remaining2627','remaining'],['combined2627','combined']]){
     await page.selectOption('#viewPreset',preset);
@@ -38,6 +42,9 @@ test('current-season tables render all three timeframes and export the selected 
     expect(csv).not.toMatch(/NaN|undefined/);
   }
   expect(errors).toEqual([]);
+  await page.locator('[data-goto="stats"]').click();
+  await expect(page.locator('#sourceLine')).toContainText('player seasons');
+  await expect(page.locator('#minGrade')).toBeEnabled();
 });
 test('season progress stays collapsed, opens by keyboard and exports every timeframe',async({page})=>{
   const errors=await open(page);
