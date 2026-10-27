@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T22:52:39.754Z",
-  "sourceCommit": "f8f8f27441520ed15b088a01f6b399b515c2e70b",
+  "generatedAt": "2026-10-27T03:41:57.316Z",
+  "sourceCommit": "83d807779c1a6927448574bb01aa201209325db1",
   "scope": "2015-16 through 2025-26, Regular Season + Playoffs",
   "allAccepted": false,
   "results": [
@@ -13,7 +13,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "dbc28733ad9e3208d83e237644a5f2461cdb0f83a61598375794bc2517ce6b20",
+      "evidenceSha256": "a9e0bbee30d1052eec1615ca6d291d8b1b45074c2f452ae01664ebf2b22f529e",
       "logPresent": true,
       "logSha256": "c3a4ccecbccc2be165dd39c66b34901267a621d3e0e98af4f5f5d4fde85c0f3c",
       "logTail": [
@@ -28,7 +28,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "a520c61fe6b0ebfa346678653b0cdf66b4db7398840ed2aed3ad43e8344f79cc",
+      "evidenceSha256": "8c60bbf154278eae9b27427b3ac0e44f5748e737af8708d8ae80050a03eb21ff",
       "logPresent": true,
       "logSha256": "c9c02232b40bd75f18c6f88a6d11ed6a91baf95a35a5dd2f69351d336f68757d",
       "logTail": [
@@ -43,7 +43,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "18886ec54a450ab9c3bb59b9256d1b84e3bbeabe4012d37562cb8fcdca0c84ae",
+      "evidenceSha256": "d787f1324bb6b35bd5613479e7099bee6c389f0e60fab6f4d880dfddf13c411d",
       "logPresent": true,
       "logSha256": "066a33353d82f198b466872a13b065ae1ef370598b092c839f7f196fad9cbce8",
       "logTail": [
@@ -58,7 +58,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "677386c5294cbbc2e3fdda57b9bc670a9c73a161f52f5dc772ef33e8d1d97c7a",
+      "evidenceSha256": "68dfc0414ac64c5b13f65581c860b3c86c946a9f4b12f7f86476d54922c445da",
       "logPresent": true,
       "logSha256": "ddb476b88131862fad5b165413a1956b57d68188f66b23b9deb34af70f770f9f",
       "logTail": [
@@ -73,7 +73,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "bafc289d8edab4a0cbd74a1efef68befd12997c6773322d811707bc49b966779",
+      "evidenceSha256": "57129195314325fb0e3c2d8dbb1516b5aaf5bce4d2dd08e6ecf624b6e7fd8006",
       "logPresent": true,
       "logSha256": "7e1ea80e73c83814ebcc4784ef25f54f7c901140c6c1dabd2f7e63d5d6d0046c",
       "logTail": [
@@ -88,7 +88,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "1bb4e0e1df1e230e66f4d7c497b2ed63a6f0820d0bc56879f144bc5a6a5e0979",
+      "evidenceSha256": "15d071336fd4b4c2f308bc7f26fd863f1f75434a11322a4f397dd8ef3d677c0e",
       "logPresent": true,
       "logSha256": "53a89808429a10130777753d709213e0b41e08e7124e4f6a1edc94b5cf84e4c4",
       "logTail": [
@@ -103,7 +103,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "4142360f05835aa4dc5fc1ccf3bb489a6a282557c9c274a1a5e1a266ac4853e3",
+      "evidenceSha256": "92f3ee69a2f87282aafbe244644d412f6382d52d9ff80cbc057e259ddc12af61",
       "logPresent": true,
       "logSha256": "946a78c5f69abc354a786302ec2059fa08422a37263fa6ec854927e8b993fb14",
       "logTail": [
@@ -118,7 +118,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "fd5df3362e6898b7a1a2e1d910b05615c0492e74d9683b6be8bc30f227e78f0e",
+      "evidenceSha256": "7721179ddbd06125842ca77526dc6cacc24e783a53e8c3d64671e310422ad587",
       "logPresent": true,
       "logSha256": "3fb02baa2528b5029f743ed413af2245a0380829d311c0b140735e803bcb8d2e",
       "logTail": [
@@ -133,7 +133,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "7c1a82757f699296d8ffae0ad52875fb0aa2eb5b2c1c825dc284631d8892ea8f",
+      "evidenceSha256": "b54393ad7dab9d88239a53fd82915fa4d00a8d359244d01e683f4d15020cd9c6",
       "logPresent": true,
       "logSha256": "c122332e7375ea732e355b9a8f168538b34ee885822aa4ed9429d279d9b4a553",
       "logTail": [
@@ -148,7 +148,7 @@
       "teamGames": null,
       "starterEdges": null,
       "perPlayerStartMismatches": null,
-      "evidenceSha256": "1627a15a33c0efa6a069d3351ea34378150896e5f3990f22fbfafc2f187da89f",
+      "evidenceSha256": "ef8dc12e3c663dcd8ab2b857e65d5c6c461e25f39af9dce694fbcd783872d467",
       "logPresent": true,
       "logSha256": "ef7468ccd059d6be4c2fd15e1d7bf0dca1540d389711beee6817b52e0e4660ab",
       "logTail": [
@@ -163,16 +163,14 @@
       "teamGames": 2630,
       "starterEdges": 13150,
       "perPlayerStartMismatches": 0,
-      "evidenceSha256": "d19c989fbd2a90b40df072f100ac5598acadc5514d41a7081fbe589cd5b990c0",
+      "evidenceSha256": "b09e431e0e750bbe50c67f4b382a7c248e857999d733bbf7095b4937fe3d2060",
       "logPresent": true,
-      "logSha256": "b52831af9939ee191880e8882a79368a21f3c0b6ad161458c91fc3e7858b6076",
+      "logSha256": "94c40694bbad370b76e1689bac1ffcfed0e4b8737f68cf22663180792a5bd129",
       "logTail": [
         "Exhaustive ESPN -> NBA starter acceptance gate: 2025-26",
         "mode: current-season schedule crosswalk",
-        "downloaded source assets: player box 17729581 B, schedule xwalk 150611 B, player xwalk 65122 B",
-        "    live ESPN summary fallback failed for 401859968: HTTP 404",
-        "    live ESPN summary fallback failed for 401859969: HTTP 404",
-        "  omitted 2 conditional playoff schedule slot(s) with ESPN 404 and no player box",
+        "downloaded source assets: player box 17729581 B, schedule xwalk 181888 B, player xwalk 110060 B",
+        "Official schedule reconciliation: 1315 completed games; 11 upstream event IDs corrected by exact date/home-away teams",
         "  Regular Season: PASS · 1230 games · 2460/2460 team-games",
         "  Playoffs: PASS · 85 games · 170/170 team-games",
         "per-player regular starts: PASS · 0 mismatches",
