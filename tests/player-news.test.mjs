@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {parsePlayerNews} from '../scripts/lib/player-news.mjs';
+const options={asOf:'2026-10-26T15:00:00Z'};
+const article={id:1,headline:'Player update',published:'2026-10-26T14:00:00Z',links:{web:{href:'http://www.espn.com/nba/story/_/id/1/test'}},categories:[{type:'athlete',sportId:46,description:'Example Player'}]};
+const payload={articles:[article]};
+const parsed=parsePlayerNews(payload,options);
+assert.equal(parsed.articles[0].url,'https://www.espn.com/nba/story/_/id/1/test');
+assert.deepEqual(parsed.articles[0].athletes,['Example Player']);
+for(const changed of [{published:'2026-10-27T15:00:00Z'},{published:'invalid'},{id:true},{headline:''},{links:{web:{href:'javascript:alert(1)'}}},{links:{web:{href:'https://www.espn.com.attacker.test/x'}}}])assert.throws(()=>parsePlayerNews({articles:[{...article,...changed}]},options));
+assert.throws(()=>parsePlayerNews({articles:[article,article]},options),/duplicate/);
+assert.throws(()=>parsePlayerNews(payload,{asOf:'2026-11-10T15:00:00Z'}),/stale/);
+assert.deepEqual(parsePlayerNews({articles:[{...article,categories:[{type:'team',sportId:46,description:'Example Player'}]}]},options).articles[0].athletes,[]);
+console.log('Player news: explicit athlete tags, source-host checks, attribution, dates, stale and duplicate controls passed.');

@@ -6,7 +6,7 @@
   <meta name="description" content="2025-26 NBA and NBA G League player stats, rankings and 2026-27 projections" />
   <title>Pro Basketball Database: 2025-26 Player Stats and 2026-27 Projections</title>
   <!-- Versioned URLs make a Pages deploy immediately pick up the matching UI assets. -->
-  <link rel="stylesheet" href="styles.css?v=20261001-rookie-age" />
+  <link rel="stylesheet" href="styles.css?v=20261026-season-progress" />
 </head>
 <body>
   <header class="site-header">
@@ -14,6 +14,7 @@
       <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span>Pro Basketball Database</a>
       <nav class="site-nav" aria-label="Primary sections">
         <button class="site-link active" data-goto="stats" type="button">Player Stats</button>
+        <button class="site-link" data-goto="current" type="button">2026-27 Results</button>
         <button class="site-link" data-goto="proj" type="button">2026-27 Projections</button>
         <button class="site-link" data-goto="comps" type="button">Player Comps</button>
         <button class="site-link" id="tulipAllocBtn" type="button">TULIP by Team</button>
@@ -47,6 +48,7 @@
       <button class="text-button" id="projMethodBtn" type="button">How the projections work</button></p>
       <p class="tiny">GP is expected season games, not games per appearance. Estimates and CSV use the same precision; blank estimates are not zero. Open a player for expandable reference ranges and assumptions.</p>
     </section>
+    <p class="db-only proj-note tiny" id="seasonProgressNote" hidden></p>
 
     <section class="db-only control-panel" aria-label="Filters">
       <div class="control-grid">
@@ -194,7 +196,7 @@
     <div class="modal-actions"><button id="saveRuleBtn" class="button">Add filter</button><button class="button secondary" data-close="ruleDialog">Cancel</button></div>
   </dialog>
 
-  <script src="app.js?v=20261001-rookie-age"></script>
-  <script src="workspace.js?v=20261001-rookie-age"></script>
+  <script src="app.js?v=20261026-season-progress"></script>
+  <script src="workspace.js?v=20261026-season-progress"></script>
 </body>
 </html>

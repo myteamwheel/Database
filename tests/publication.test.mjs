@@ -83,6 +83,17 @@ try {
   assert.equal(domains.rosterProjectionInputs.status, 'ok');
   assert.equal(domains.rosterProjectionInputs.fetchedAt, '2026-09-26T04:28:41.551Z');
   fs.mkdirSync(path.join(root, 'scripts/data/live'), { recursive:true });
+  for(const [key,file,dateKey] of [['injuryMeta','injuries.json','asOf'],['newsMeta','news.json','asOf'],['twoWayRosterMeta','two-way-roster.json','fetchedAt']]){
+    const full=path.join(root,'scripts/data/live',file),asOf='2026-10-26T14:00:00Z';
+    const snapshot=JSON.stringify({[dateKey]:asOf,source:'fixture'});
+    fs.writeFileSync(full,snapshot);
+    const meta={asOf,sourceSha256:crypto.createHash('sha256').update(snapshot).digest('hex'),unresolved:[],notSubmitted:[]};
+    const bound={...publicData,[key]:meta};
+    assert.doesNotThrow(()=>deriveSourceDomains({root,publicData:bound}));
+    fs.writeFileSync(full,JSON.stringify({[dateKey]:asOf,source:'changed without a timestamp change'}));
+    assert.throws(()=>deriveSourceDomains({root,publicData:bound}),/stale/);
+    fs.rmSync(full);
+  }
   const transactionSnapshot = parseTransactions({NBA_Player_Movement:{rows:Array.from({length:1000},(_,i)=>({
     PLAYER_ID:i+1,TEAM_ID:1610612752,Transaction_Type:'Signing',TRANSACTION_DATE:'2026-09-30T00:00:00',TRANSACTION_DESCRIPTION:'Official signing fixture',
   }))}},{fetchedAt:'2026-10-01T12:00:00Z'});

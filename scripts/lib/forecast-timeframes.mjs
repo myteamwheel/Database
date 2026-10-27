@@ -27,9 +27,9 @@ function percentages(totals) {
   return { fgPct, fg3Pct, ftPct, ts };
 }
 
-function perGameFromTotals(totals, gp) {
+export function perGameFromTotals(totals, gp) {
   const pg = {};
-  for (const k of STAT_KEYS) pg[k === 'min' ? 'mpg' : k] = gp > 0 ? totals[k] / gp : 0;
+  for (const k of STAT_KEYS) pg[k === 'min' ? 'mpg' : k] = gp > 0 ? totals[k] / gp : null;
   return { ...pg, ...percentages(totals) };
 }
 
@@ -62,7 +62,9 @@ export function combineForecastTimeframes({ season, asOf, scheduledGames, actual
     throw new Error('Actual team games elapsed must be a non-negative integer.');
   }
   if (actual.teamGamesElapsed > scheduledGames) throw new Error('Team games elapsed cannot exceed scheduled games.');
-  if (!Number.isInteger(actual.gp) || actual.gp < 0 || actual.gp > actual.teamGamesElapsed) {
+  const availablePlayerGames = actual.playerGamesAvailable ?? actual.teamGamesElapsed;
+  if (!Number.isSafeInteger(availablePlayerGames) || availablePlayerGames < 0) throw new Error('Player game opportunities must be a non-negative integer.');
+  if (!Number.isInteger(actual.gp) || actual.gp < 0 || actual.gp > availablePlayerGames) {
     throw new Error('Actual player games cannot exceed team games elapsed.');
   }
   validateTotals(actual.totals, 'actual', ftValue);
@@ -86,6 +88,7 @@ export function combineForecastTimeframes({ season, asOf, scheduledGames, actual
     scheduledGames,
     actualToDate: {
       teamGamesElapsed: actual.teamGamesElapsed,
+      playerGamesAvailable: availablePlayerGames,
       gp: actual.gp,
       totals: { ...actual.totals },
       perGame: perGameFromTotals(actual.totals, actual.gp),
@@ -94,7 +97,7 @@ export function combineForecastTimeframes({ season, asOf, scheduledGames, actual
       teamGamesRemaining,
       gp: remaining.gp,
       totals: remainingTotals,
-      perGame: { ...remaining.perGame, ...percentages(remainingTotals) },
+      perGame: perGameFromTotals(remainingTotals, remaining.gp),
     },
     fullSeason: {
       teamGames: scheduledGames,

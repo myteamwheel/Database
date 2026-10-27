@@ -192,6 +192,14 @@ function compKey(x) {
   return `${x.playerId ?? x.name ?? ''}|${x.season ?? ''}`;
 }
 
+function referencePhysical(data,league,key) {
+  for(const set of Object.values(data?.analysis?.playerComps?.[league]||{})){
+    const ref=[...(set.top3||[]),...(set.nearestOverall||[])].find(r=>compKey(r)===key);
+    if(ref)return Object.fromEntries(['heightInches','weight','wingspanInches','standingReachInches'].map(k=>[k,ref[k]??null]));
+  }
+  return null;
+}
+
 function playerCompChange(beforeData, afterData, league, beforeRow, afterRow) {
   const before = comparisonFor(beforeData, league, beforeRow), after = comparisonFor(afterData, league, afterRow);
   if (!before && !after) return null;
@@ -213,6 +221,13 @@ function playerCompChange(beforeData, afterData, league, beforeRow, afterRow) {
   pushDriver(drivers, 'comparisonModelVersion', beforeData?.analysis?.playerCompsMeta?.version, afterData?.analysis?.playerCompsMeta?.version, { kind: 'model-version' });
   pushDriver(drivers, 'comparisonHistory.NBA', beforeData?.analysis?.playerCompsMeta?.nbaHistory, afterData?.analysis?.playerCompsMeta?.nbaHistory);
   pushDriver(drivers, 'comparisonHistory.GLEAGUE', beforeData?.analysis?.playerCompsMeta?.gleagueHistory, afterData?.analysis?.playerCompsMeta?.gleagueHistory);
+  // A refreshed reference measurement can change the blend even when the target
+  // and algorithm are unchanged. Compare the same reference identity/period
+  // across both pools; never use changed match scores themselves as a cause.
+  for(const key of new Set([...(before?.top3||[]),...(after?.top3||[])].map(compKey))){
+    const b=referencePhysical(beforeData,league,key),a=referencePhysical(afterData,league,key);
+    if(b&&a)drivers.push(...objectDeltaDrivers(b,a,`reference.${key}`,4));
+  }
   return { family: 'player-comparison', outputs, explanation: explanation(drivers) };
 }
 

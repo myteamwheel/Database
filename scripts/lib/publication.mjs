@@ -18,7 +18,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   projections: Object.freeze({
     label: '2026-27 player projections',
-    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/lib/projection-validation.mjs','scripts/build-projections.mjs'],
+    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/lib/projection-validation.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-roster-context.mjs'],
     source: 'Frozen projection inputs/model card plus the published current-roster context',
   }),
   tulipEvidence: Object.freeze({
@@ -116,6 +116,10 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     modelCardSha256: fileSha256(root, 'PROJECTION_2026_27.json'),
     projectionInputsSha256: fileSha256(root, 'scripts/data/projection/inputs.json'),
     birthdatesSha256: fileSha256(root, 'scripts/data/birthdates.json'),
+    seasonProgressSha256: fileSha256(root, 'scripts/data/live/season-progress.json', {optional:true}),
+    twoWayRosterSha256: fileSha256(root, 'scripts/data/live/two-way-roster.json', {optional:true}),
+    injuriesSha256: fileSha256(root, 'scripts/data/live/injuries.json', {optional:true}),
+    newsSha256: fileSha256(root, 'scripts/data/live/news.json', {optional:true}),
     publishedInputsSha256: publicData?.projectionMeta?.inputsSha256 || null,
     rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
     rostersAsOf: publicData?.projectionMeta?.rostersAsOf || null,
@@ -271,8 +275,14 @@ export function deriveSourceDomains({ root, publicData }) {
   if (transactions && (publicData?.transactionMeta?.sourceRawSha256 !== transactions.rawSha256 || publicData?.transactionMeta?.fetchedAt !== transactions.fetchedAt)) {
     throw new Error('Published transaction context is stale; rebuild before publication.');
   }
+  for(const [key,file,dateKey] of [['injuryMeta','injuries.json','asOf'],['newsMeta','news.json','asOf'],['twoWayRosterMeta','two-way-roster.json','fetchedAt']]){
+    if(!publicData?.[key])continue;
+    const input=readJson(path.join(root,'scripts/data/live',file));
+    if(!input||publicData[key].asOf!==input[dateKey]||publicData[key].sourceSha256!==fileSha256(root,`scripts/data/live/${file}`))throw new Error(`Published ${key} is stale; rebuild before publication.`);
+  }
+  if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
   return {
-    officialStats: officialStatsDomain(root, publicData),
+    officialStats: {...officialStatsDomain(root, publicData),currentSeason:publicData?.seasonProgress?{season:publicData.seasonProgress.season,asOf:publicData.seasonProgress.asOf,completedGames:publicData.seasonProgress.completedGames,sha256:publicData.seasonProgress.sourceSha256,sources:publicData.seasonProgress.sources}:null},
     rosterProjectionInputs: projection || liveRoster ? {
       status: liveRoster && !liveRosterMatches ? 'partial' : 'ok',
       checkedAt: liveRoster?.fetchedAt || projection?.fetchedAt || null,
@@ -298,11 +308,21 @@ export function deriveSourceDomains({ root, publicData }) {
       status:'not-configured', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'No verified transaction feed is configured. Roster snapshots are not presented as a transaction history.',
     },
-    injuries: {
+    injuries: publicData?.injuryMeta ? {
+      status:'partial',checkedAt:publicData.injuryMeta.asOf,fetchedAt:publicData.injuryMeta.asOf,asOf:publicData.injuryMeta.reportAt,source:publicData.injuryMeta.source,
+      sha256:fileSha256(root,'scripts/data/live/injuries.json'),
+      confirmedPlayers:publicData.injuryMeta.confirmed,unresolvedPlayers:publicData.injuryMeta.unresolved.length,
+      notSubmitted:publicData.injuryMeta.notSubmitted,
+      limitation:'Dated official game-specific injury report. Unsubmitted teams and players absent from the report are not medical clearance. Upcoming Out listings affect remaining-season expected appearances only; no recovery duration is inferred.',
+    } : {
       status:'not-configured', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'No verified injury/medical-status feed is configured. The model does not infer current clearance.',
     },
-    news: {
+    news: publicData?.newsMeta ? {
+      status:'partial',checkedAt:publicData.newsMeta.asOf,fetchedAt:publicData.newsMeta.asOf,asOf:publicData.newsMeta.newestPublished,source:publicData.newsMeta.source,
+      sha256:fileSha256(root,'scripts/data/live/news.json'),articles:publicData.newsMeta.articles,
+      limitation:publicData.newsMeta.scope,
+    } : {
       status:'not-configured', checkedAt:null, fetchedAt:null, asOf:null,
       limitation:'No verified news ingestion is configured. Headlines do not silently alter forecasts.',
     },

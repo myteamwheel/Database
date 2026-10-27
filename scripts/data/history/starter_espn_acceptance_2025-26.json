@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T22:52:03.115Z",
+  "generatedAt": "2026-10-27T03:14:08.601Z",
   "season": "2025-26",
   "accepted": true,
   "mode": "current-season-crosswalk-validated",
@@ -8,14 +8,19 @@
   "implementation": {
     "gate": {
       "path": "scripts/espn-starter-full-season-gate.mjs",
-      "bytes": 37017,
-      "sha256": "3c011eebad28cbdf21ef8f28765e0c5aaec2b01ca90d695b738f4da146adc1b1"
+      "bytes": 39136,
+      "sha256": "ada94d7ccab7cac02eb2624c1f04ffa7d56efb9bf8eb2240af7506612d291849"
+    },
+    "scheduleReconciliation": {
+      "path": "scripts/lib/starter-schedule.mjs",
+      "bytes": 5682,
+      "sha256": "67d5ebfa09191d90a2b7045001658371451dcfce9d9c9fecdd5cc78ce58c0ffd"
     }
   },
   "sourceContract": {
     "provider": "ESPN data processed and published by SportsDataverse/hoopR",
     "playerBox": "starter=true only; never inferred from minutes",
-    "scheduleIdentity": "nba_schedule_crosswalk: exact match_method=both and match_confidence=1",
+    "scheduleIdentity": "Official NBA completed-game dates and both team IDs joined to exactly one ESPN box-score event with the same date, phase and both teams; bidirectional team crosswalk must be unique. NBA home/away is checked where designated; neutral games with both NBA rows marked away retain ESPN declared home/away. Mutable upstream event-ID corrections are recorded.",
     "playerIdentity": "nba_player_crosswalk: unique NBA player id at confidence >= 0.92; current 2025-26 only may fall back to an exact normalized full-name match against the independent official StarterBench=Starters split; historical mode still requires crosswalk/local-roster validation",
     "regularSeasonAcceptance": "mapped per-player start counts must exactly equal NBA StarterBench=Starters GP for every player"
   },
@@ -27,15 +32,142 @@
     },
     "scheduleCrosswalk": {
       "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_crosswalk/nba_schedule_crosswalk_2026.csv",
-      "bytes": 150611,
-      "sha256": "2f35921cedcbd9bf10838e62a64271ca1b8d42a47f41d746105c5435b49a108c"
+      "bytes": 181888,
+      "sha256": "19d72264ccf9452e017badba0b5445b28b4b635c91291454ca5e57ccfb28f682"
     },
     "playerCrosswalk": {
       "url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nba_crosswalk/nba_player_crosswalk_2026.csv",
-      "bytes": 65122,
-      "sha256": "b70403103606e827c953a2083619937e5c4a5cb270f72d65eb304fb58ed33c2f"
+      "bytes": 110060,
+      "sha256": "018fc23698ba7361c0bf74394e2ab374b8758eedc30f171dd1290f522d84eae6"
     },
-    "livePlayerBoxFallbacks": []
+    "livePlayerBoxFallbacks": [],
+    "officialSchedule": {
+      "manifest": {
+        "path": "scripts/data/history/schedule-2025-26/provenance.json",
+        "bytes": 876,
+        "sha256": "c858a80770008e0fa5a3a3b2bb4d21c4816ef8169d8a4fe04f71d98bc393ecee"
+      },
+      "season": "2025-26",
+      "checkedAt": "2026-10-27",
+      "source": "https://stats.nba.com/stats/leaguegamelog",
+      "parameters": {
+        "Counter": "1000",
+        "DateFrom": "",
+        "DateTo": "",
+        "Direction": "DESC",
+        "LeagueID": "00",
+        "PlayerOrTeam": "T",
+        "Season": "2025-26",
+        "Sorter": "DATE"
+      },
+      "files": [
+        {
+          "file": "regular.json",
+          "phase": "Regular Season",
+          "teamGames": 2460,
+          "bytes": 391179,
+          "sha256": "4330ec80565589587331889c30a2c03f8006cb7a3ae7164cb868544ed98a993a"
+        },
+        {
+          "file": "playoffs.json",
+          "phase": "Playoffs",
+          "teamGames": 170,
+          "bytes": 27667,
+          "sha256": "5d1e552324eedca4c29532ea76c323c7c3e8cd34a627b814c7dbea879162be06"
+        }
+      ],
+      "purpose": "Independent completed-game dates and home/away NBA team identities for strict reconciliation against ESPN declared-starter box scores; preserves rescheduled games when the mutable third-party schedule crosswalk changes. No starters are inferred from this source.",
+      "corrections": [
+        {
+          "nbaGameId": "0022501003",
+          "before": "",
+          "after": "401810858",
+          "date": "2026-04-01",
+          "homeTeamId": "1610612763",
+          "awayTeamId": "1610612752"
+        },
+        {
+          "nbaGameId": "0022500652",
+          "before": "401810507",
+          "after": "401858694",
+          "date": "2026-03-31",
+          "homeTeamId": "1610612749",
+          "awayTeamId": "1610612742"
+        },
+        {
+          "nbaGameId": "0022500651",
+          "before": "401810506",
+          "after": "401858693",
+          "date": "2026-03-18",
+          "homeTeamId": "1610612763",
+          "awayTeamId": "1610612743"
+        },
+        {
+          "nbaGameId": "0022501111",
+          "before": "",
+          "after": "401810966",
+          "date": "2026-03-12",
+          "homeTeamId": "1610612763",
+          "awayTeamId": "1610612742"
+        },
+        {
+          "nbaGameId": "0022500692",
+          "before": "",
+          "after": "401810547",
+          "date": "2026-01-31",
+          "homeTeamId": "1610612748",
+          "awayTeamId": "1610612741"
+        },
+        {
+          "nbaGameId": "0022500529",
+          "before": "401810384",
+          "after": "401850920",
+          "date": "2026-01-29",
+          "homeTeamId": "1610612741",
+          "awayTeamId": "1610612748"
+        },
+        {
+          "nbaGameId": "0022500644",
+          "before": "401810499",
+          "after": "401857824",
+          "date": "2026-01-25",
+          "homeTeamId": "1610612750",
+          "awayTeamId": "1610612744"
+        },
+        {
+          "nbaGameId": "0022500370",
+          "before": "",
+          "after": "401810225",
+          "date": "2025-12-18",
+          "homeTeamId": "1610612759",
+          "awayTeamId": "1610612764"
+        },
+        {
+          "nbaGameId": "0022500369",
+          "before": "",
+          "after": "401810224",
+          "date": "2025-12-18",
+          "homeTeamId": "1610612760",
+          "awayTeamId": "1610612746"
+        },
+        {
+          "nbaGameId": "0022501203",
+          "before": "",
+          "after": "401809835",
+          "date": "2025-12-10",
+          "homeTeamId": "1610612760",
+          "awayTeamId": "1610612756"
+        },
+        {
+          "nbaGameId": "0022501202",
+          "before": "",
+          "after": "401809834",
+          "date": "2025-12-09",
+          "homeTeamId": "1610612761",
+          "awayTeamId": "1610612752"
+        }
+      ]
+    }
   },
   "historyProvenance": null,
   "officialStarterSplit": {
@@ -136,8 +268,8 @@
   "failureCount": 0,
   "starterAssignments": {
     "path": "scripts/data/history/starter_assignments_2025-26.json",
-    "bytes": 3761504,
-    "sha256": "832af62955dbfad865fbb08708937e94b899f5196d18ed9a60d492bc790797f4",
+    "bytes": 3706231,
+    "sha256": "76f0d5a6f6313064ea9ef6afa9a0c5e36203adc74b938c6b80b6c9890e2f5a8d",
     "teamGames": 2630,
     "starterEdges": 13150
   }

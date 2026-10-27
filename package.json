@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-v3.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-player-comps.mjs && node scripts/build-transactions.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
-    "build:projections": "node scripts/build-projections.mjs",
+    "build": "node scripts/build-v3.mjs && node scripts/build-roster-context.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-season-progress.mjs && node scripts/build-player-comps.mjs && node scripts/build-transactions.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
+    "fetch:two-way-roster": "node scripts/fetch-two-way-roster.mjs",
+    "fetch:injuries": "node scripts/fetch-injuries.mjs",
+    "fetch:news": "node scripts/fetch-news.mjs",
+    "fetch:season-progress": "node scripts/fetch-season-progress.mjs",
+    "test:season-progress": "node tests/season-progress.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/two-way-roster.test.mjs && node tests/injury-report.test.mjs && node tests/player-news.test.mjs && node tests/current-season-accounting.test.mjs",
+    "build:projections": "node scripts/build-projections.mjs && node scripts/build-season-progress.mjs",
     "fit:projections": "node scripts/fit-projections.mjs",
     "fetch:projection-inputs": "node scripts/fetch-projection-inputs.mjs",
     "fetch:combine": "node scripts/fetch-combine-anthro.mjs",
-    "test:projections": "node tests/projection.test.mjs && npm run test:accounting",
+    "test:projections": "node tests/projection.test.mjs && npm run test:accounting && npm run test:season-progress",
     "test:accounting": "node tests/independent-accounting.test.mjs && node tests/precise-exposure.test.mjs && node tests/model-number-semantics.test.mjs && node tests/stint-identity.test.mjs",
     "test:comps": "node tests/player-comps.test.mjs && node tests/comparison-reference-audit.test.mjs",
     "build:data": "node scripts/build-v3.mjs",
@@ -42,7 +47,7 @@
     "probe:starter": "node scripts/probe-starter-source.mjs",
     "gate:espn-starters": "node scripts/espn-full-season-gate.mjs",
     "build:history-summary": "node scripts/build-history-summary.mjs",
-    "test:starter": "node tests/bmatch.test.mjs && node tests/bmatch.oracle.test.mjs && node tests/starter-merge.test.mjs",
+    "test:starter": "node tests/bmatch.test.mjs && node tests/bmatch.oracle.test.mjs && node tests/starter-merge.test.mjs && node tests/starter-schedule.test.mjs",
     "test:history": "node tests/history.test.mjs && node tests/history-games.test.mjs && node tests/role-features.test.mjs",
     "verify:local-history": "npm run audit:history && npm run verify:history",
     "verify:determinism": "node scripts/verify-build-determinism.mjs",
@@ -78,9 +83,12 @@
     "audit:cross-tabs": "node scripts/audit-cross-tab-consistency.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299"
   }
 }

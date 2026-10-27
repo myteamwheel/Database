@@ -51,6 +51,9 @@ check('all historical rookie peers use the same independently reconstructed DOB 
 // 1. The card was fitted on exactly the committed inputs.
 check('card matches the committed inputs file',
   card.builtFrom.sha256 === crypto.createHash('sha256').update(rawInputs).digest('hex'));
+const contracts=data.leagues.NBA.filter(p=>p.proj?.why?.contract?.type==='two-way');
+check('confirmed two-way forecasts obey the current contract ceiling before roster accounting',
+  contracts.length>50&&contracts.every(p=>p.proj.gp<=50&&p.proj.gpHi<=50&&p.proj.accounting.gp<=50.000001&&p.proj.why.contract.maxGames===50&&p.currentTeam===p.rosterContext.nbaTeam));
 
 // 2. Rebuilding from inputs + card reproduces every committed projection, value for value.
 {

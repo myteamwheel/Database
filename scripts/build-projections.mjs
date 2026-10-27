@@ -137,9 +137,13 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
       const f = historicalRole?.f || recentFeatures;
       const mpgRaw = rookie ? rookie.mpg : historicalRole ? historicalRole.mpg : dot(role.minutes, f, MIN_FEATURES);
       const mpg = Math.max(1, Math.min(isNba ? 40 : 42, mpgRaw));
-      const share = rookie?.share ?? historicalRole?.share ?? Math.max(0.05, Math.min(1, dot(role.gp, f, GP_FEATURES)));
+      const baseShare = rookie?.share ?? historicalRole?.share ?? Math.max(0.05, Math.min(1, dot(role.gp, f, GP_FEATURES)));
+      const twoWay = isNba && team26 && p.rosterContext?.contract==='two-way'
+        && p.rosterContext.nbaTeam===team26 && p.rosterContext.rosterAsOf===roster?.fetchedAt;
+      const share = twoWay ? Math.min(baseShare,50/82) : baseShare;
       rows.push({ p, pid, hist, historicalFallback: history.fallback, historicalRole, last, bio, rookie, team: team26 || last.team, status, moved, depth, pr, f, mpgRaw, mpg, share,
-        games: share * games, mpgLast: hist[0] ? hist[0].min / hist[0].gp : null });
+        games: share * games, contract:twoWay?{type:'two-way',maxGames:50,unconstrainedGames:baseShare*82,source:p.rosterContext.source,asOf:p.rosterContext.asOf,assumption:'Assumes the current two-way contract remains in force; a conversion requires a refresh.'}:null,
+        mpgLast: hist[0] ? hist[0].min / hist[0].gp : null });
     }
 
     // Team context. Unsigned players and the G League get neutral context (no roster to balance).
@@ -209,10 +213,11 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
         accounting,
         fgPct: r3(line.fgPct), fg3Pct: r3(line.fg3Pct), ftPct: r3(line.ftPct), ts: r3(line.ts),
         ptsLo: r1(ptsLo), ptsHi: r1(ptsHi), rebLo: r1(rebLo), rebHi: r1(rebHi), astLo: r1(astLo), astHi: r1(astHi),
-        mpgLo: r1(mpgLo), mpgHi: r1(Math.min(isNba ? 42 : 44, mpgHi)), gpLo: r1(gpLo), gpHi: r1(Math.min(games, gpHi)),
+        mpgLo: r1(mpgLo), mpgHi: r1(Math.min(isNba ? 42 : 44, mpgHi)), gpLo: r1(gpLo), gpHi: r1(Math.min(games, r.contract?.maxGames??games, gpHi)),
         dPts: r1(line.pts - (p.pts ?? NaN)), dReb: r1(line.reb - (p.reb ?? NaN)), dAst: r1(line.ast - (p.ast ?? NaN)),
         dMpg: r1(line.mpg - (p.mpg ?? NaN)),
         why: {
+          contract: r.contract,
           rookie: r.rookie?.evidence ? { ...r.rookie.evidence, effectivePeers:r9(r.rookie.evidence.effectivePeers) } : null,
           seasons: seasonsUsed,
           possessions: Math.round(pr.basePoss),

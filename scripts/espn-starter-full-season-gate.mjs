@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {reconcileOfficialSchedule} from './lib/starter-schedule.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -400,7 +401,7 @@ function validateScheduleRecord(rec, failures, context) {
     addFailure(failures, 'INCOMPLETE_SCHEDULE_CROSSWALK_ROW', { ...context, rec });
     return false;
   }
-  if (rec.matchMethod !== 'both' || rec.matchConfidence !== 1) {
+  if (!['both','official-date-teams'].includes(rec.matchMethod) || rec.matchConfidence !== 1) {
     addFailure(failures, 'SCHEDULE_CROSSWALK_NOT_EXACT', { ...context, method: rec.matchMethod, confidence: rec.matchConfidence });
     return false;
   }
@@ -571,8 +572,26 @@ const assets = {
 console.log(`downloaded source assets: player box ${assets.playerBox.bytes} B, schedule xwalk ${assets.scheduleCrosswalk.bytes} B, player xwalk ${assets.playerCrosswalk.bytes} B`);
 
 const playerBoxCsv = parseCsvBuffer(assets.playerBox.buffer, 'ESPN player box');
-const scheduleCsv = parseCsvBuffer(assets.scheduleCrosswalk.buffer, 'NBA schedule crosswalk');
+let scheduleCsv = parseCsvBuffer(assets.scheduleCrosswalk.buffer, 'NBA schedule crosswalk');
 const playerCsv = parseCsvBuffer(assets.playerCrosswalk.buffer, 'NBA player crosswalk');
+let officialScheduleEvidence=null;
+if(season===CURRENT_SEASON){
+  const directory=path.join(HIST,`schedule-${season}`),manifestFile=path.join(directory,'provenance.json');
+  const manifest=readJson(manifestFile,'official schedule provenance');
+  if(manifest.season!==season||manifest.files?.length!==2)throw Error('Official schedule provenance incomplete');
+  const official=manifest.files.map(entry=>{
+    if(!['regular.json','playoffs.json'].includes(entry.file))throw Error('Invalid official schedule source path');
+    const file=path.join(directory,entry.file),fingerprint=sha256File(file);
+    if(fingerprint.bytes!==entry.bytes||fingerprint.sha256!==entry.sha256)throw Error('Official schedule source fingerprint mismatch');
+    const payload=readJson(file,'official schedule');
+    if(payload.resultSets?.[0]?.rowSet?.length!==entry.teamGames)throw Error('Official schedule row count mismatch');
+    return {phase:entry.phase,payload};
+  });
+  const resolved=reconcileOfficialSchedule({schedule:scheduleCsv,box:playerBoxCsv,official,season});
+  scheduleCsv=resolved.schedule;
+  officialScheduleEvidence={manifest:{path:path.relative(ROOT,manifestFile),...sha256File(manifestFile)},...manifest,corrections:resolved.corrections};
+  console.log(`Official schedule reconciliation: ${scheduleCsv.rows.length} completed games; ${resolved.corrections.length} upstream event IDs corrected by exact date/home-away teams`);
+}
 const scheduleIndex = indexSchedule(scheduleCsv);
 const playerByKey = indexPlayers(playerCsv);
 const playerBoxByGame = indexPlayerBox(playerBoxCsv);
@@ -678,15 +697,16 @@ const observedAssignmentEdges = allAssignments.reduce((n, x) => n + x.starterPla
 const accepted = phaseResults.every((x) => x.accepted) && perPlayerStarts.pass && failures.length === 0 &&
   allAssignments.length === expectedAssignmentRows && observedAssignmentEdges === expectedAssignmentEdges;
 
-const implementation = { gate: { path: path.relative(ROOT, fileURLToPath(import.meta.url)), ...sha256File(fileURLToPath(import.meta.url)) } };
+const implementation = { gate: { path: path.relative(ROOT, fileURLToPath(import.meta.url)), ...sha256File(fileURLToPath(import.meta.url)) },scheduleReconciliation:{path:'scripts/lib/starter-schedule.mjs',...sha256File(path.join(ROOT,'scripts/lib/starter-schedule.mjs'))} };
 const sourceAssets = Object.fromEntries(Object.entries(assets).map(([key, a]) => [key, { url: a.url, bytes: a.bytes, sha256: a.sha256 }]));
 sourceAssets.livePlayerBoxFallbacks = livePlayerBoxFallbacks.map((x) => ({
   espnGameId: x.espnGameId, url: x.url, bytes: x.bytes, sha256: x.sha256, rows: x.rows,
 }));
+if(officialScheduleEvidence)sourceAssets.officialSchedule=officialScheduleEvidence;
 const sourceContract = {
   provider: 'ESPN data processed and published by SportsDataverse/hoopR',
   playerBox: 'starter=true only; never inferred from minutes',
-  scheduleIdentity: 'nba_schedule_crosswalk: exact match_method=both and match_confidence=1',
+  scheduleIdentity: officialScheduleEvidence?'Official NBA completed-game dates and both team IDs joined to exactly one ESPN box-score event with the same date, phase and both teams; bidirectional team crosswalk must be unique. NBA home/away is checked where designated; neutral games with both NBA rows marked away retain ESPN declared home/away. Mutable upstream event-ID corrections are recorded.':'nba_schedule_crosswalk: exact match_method=both and match_confidence=1',
   playerIdentity: `nba_player_crosswalk: unique NBA player id at confidence >= ${MIN_CROSSWALK_CONFIDENCE}; current 2025-26 only may fall back to an exact normalized full-name match against the independent official StarterBench=Starters split; historical mode still requires crosswalk/local-roster validation`,
   regularSeasonAcceptance: 'mapped per-player start counts must exactly equal NBA StarterBench=Starters GP for every player',
 };
