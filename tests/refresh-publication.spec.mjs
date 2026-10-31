@@ -147,7 +147,8 @@ test('source refresh is a collapsed authenticated owner action, not a public ing
   await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('href','https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml');
   await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('rel','noopener noreferrer');
   await expect(details).toContainText('repository write access');
-  await expect(details).toContainText('2026-27 game statistics are not yet supported');
+  await expect(details).toContainText('current NBA schedule/player totals');
+  await expect(details).toContainText('G League assignments are not verified');
   await expect(details).toContainText('review branch');
   await expect(details).toContainText('does not immediately change the live site');
 });

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build-v3.mjs && node scripts/build-roster-context.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-season-progress.mjs && node scripts/build-player-comps.mjs && node scripts/build-transactions.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
     "fetch:two-way-roster": "node scripts/fetch-two-way-roster.mjs",
+    "fetch:gleague-index": "node scripts/fetch-live-gleague-index.mjs",
     "fetch:injuries": "node scripts/fetch-injuries.mjs",
     "fetch:news": "node scripts/fetch-news.mjs",
     "fetch:season-progress": "node scripts/fetch-season-progress.mjs",
@@ -76,7 +77,7 @@
     "test:candidate-verification": "node tests/candidate-verification.test.mjs",
     "verify:candidate": "node scripts/verify-candidate.mjs",
     "refresh:owner": "node scripts/owner-refresh.mjs",
-    "test:owner-refresh": "node tests/owner-refresh.test.mjs && node tests/live-roster.test.mjs && node tests/transactions.test.mjs && node tests/transaction-context.test.mjs && node tests/deployment-routing.test.mjs && node tests/owner-source-workflow.test.mjs",
+    "test:owner-refresh": "node tests/owner-refresh.test.mjs && node tests/live-roster.test.mjs && node tests/live-gleague-index.test.mjs && node tests/transactions.test.mjs && node tests/transaction-context.test.mjs && node tests/deployment-routing.test.mjs && node tests/owner-source-workflow.test.mjs",
     "verify:publication": "node scripts/verify-publication-status.mjs",
     "test:review": "node --test tests/review-regressions.test.mjs && node tests/projection-validation.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/projection-context-reconciliation.test.mjs && node tests/value-semantics.test.mjs && npm run test:cross-tabs",
     "test:cross-tabs": "node tests/cross-tab-consistency.test.mjs && node tests/current-roster-consistency.test.mjs",

@@ -3,7 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {parseSeasonProgress} from './lib/season-progress.mjs';
-import {combineForecastTimeframes,perGameFromTotals} from './lib/forecast-timeframes.mjs';
+import {adaptRemainingPerGame,combineForecastTimeframes,perGameFromTotals} from './lib/forecast-timeframes.mjs';
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'..');
 const source=path.join(root,'scripts/data/live/season-progress.json');
 const bytes=fs.readFileSync(source);
@@ -24,7 +24,8 @@ for(const p of data.leagues.NBA) {
   const a=p.proj.accounting;
   // Stored rates are rounded to nine decimals; reconstruct identities before
   // multiplying by expected games so rounding noise cannot accumulate.
-  const perGame={...a,reb:a.oreb+a.dreb,pts:2*a.fgm+a.fg3m+a.ftm};
+  const update=adaptRemainingPerGame({...a,reb:a.oreb+a.dreb,pts:2*a.fgm+a.fg3m+a.ftm},actual.totals,actual.gp);
+  const perGame=update.perGame;
   const futureOut=(p.reportedAvailability||[]).filter(entry=>entry.status==='Out'&&
     raw.schedule.leagueSchedule.gameDates.some(day=>day.games.some(game=>game.gameId.startsWith('00226')&&game.gameStatus!==3&&game.gameDateEst?.slice(0,10)===entry.gameDate&&`${game.awayTeam.teamTricode}@${game.homeTeam.teamTricode}`===entry.matchup)));
   const missedGames=new Set(futureOut.map(entry=>`${entry.gameDate}:${entry.matchup}`)).size;
@@ -35,8 +36,12 @@ for(const p of data.leagues.NBA) {
     actual:{...actual,teamGamesElapsed:team.completed,playerGamesAvailable:Math.max(actual.gp,team.completed)},
     remaining:{gp:remainingGp,perGame}});
   p.seasonForecast.availability={reportedOutGames:missedGames,expectedGamesReduction:missedGames*appearanceRate,source:data.injuryMeta?.source||null};
-  p.seasonForecast.assumption='Remaining games use the preseason appearance rate, exclude upcoming games officially listed Out, and apply a two-way ceiling when verified. Active-but-unused two-way games are unavailable, so the true remaining eligibility may be lower. Per-game estimates retain the preseason model; the report does not establish a longer-term recovery date.';
+  p.seasonForecast.roleUpdate={method:'observed-rate-shrinkage-v1',observedGames:update.observedGames,volumeWeight:update.weight,
+    priorStrengthGames:{minutes:10,assists:10,turnovers:10,otherCounts:20},
+    prior:'preseason statistical projection',observed:'official current-season player totals',
+    limitation:'Current observations update per-game rate and role, not verified future usage, lineup, medical clearance or recovery duration.'};
+  p.seasonForecast.assumption='Remaining games use the preseason appearance rate, exclude upcoming games officially listed Out, and apply a two-way ceiling when verified. Active-but-unused two-way games are unavailable, so the true remaining eligibility may be lower. Per-game rates blend the preseason forecast with official current-season performance, using stronger shrinkage for noisy shooting and rebounds. This does not establish a future role or recovery date.';
 }
-data.seasonProgress={version:progress.version,season:progress.season,asOf:progress.fetchedAt,status:progress.status,completedGames:progress.completedGames,teams:progress.teams,sourceSha256:crypto.createHash('sha256').update(bytes).digest('hex'),sources:[progress.scheduleSource,progress.statsSource]};
+data.seasonProgress={version:progress.version,season:progress.season,asOf:progress.fetchedAt,status:progress.status,completedGames:progress.completedGames,teams:progress.teams,sourceSha256:crypto.createHash('sha256').update(bytes).digest('hex'),sources:[progress.scheduleSource,progress.statsSource,progress.gameLogSource].filter(Boolean),sourceCorrections:progress.sourceCorrections};
 fs.writeFileSync(file,JSON.stringify(data));
 console.log(`Built ${progress.season} actual/remaining/combined views; ${progress.completedGames} completed regular-season games.`);

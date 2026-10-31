@@ -1,4 +1,4 @@
-import { combineForecastTimeframes } from '../scripts/lib/forecast-timeframes.mjs';
+import { adaptRemainingPerGame, combineForecastTimeframes } from '../scripts/lib/forecast-timeframes.mjs';
 
 let pass = 0, fail = 0;
 const check = (name, ok, detail='') => {
@@ -88,5 +88,15 @@ check('explicit player opportunities reject malformed values',throws(()=>combine
 check('no remaining appearances means no per-game scoring estimate', finalOut.remainingSeason.perGame.pts===null);
 const empty=combine({actual:{teamGamesElapsed:0,gp:0,totals:Object.fromEntries(Object.keys(actual.totals).map(k=>[k,0]))}});
 check('no actual appearances means unavailable averages, not measured zeros',empty.actualToDate.perGame.pts===null&&empty.actualToDate.totals.pts===0);
+const early=adaptRemainingPerGame(remaining.perGame,actual.totals,18);
+check('observed role and shooting change remaining rates without replacing the prior',
+  early.perGame.mpg>remaining.perGame.mpg*0.8 && early.perGame.pts<remaining.perGame.pts && early.perGame.ast<remaining.perGame.ast);
+check('adaptive rates retain shot, points and rebound identities',
+  Math.abs(early.perGame.pts-(2*early.perGame.fgm+early.perGame.fg3m+early.perGame.ftm))<1e-9 &&
+  Math.abs(early.perGame.reb-early.perGame.oreb-early.perGame.dreb)<1e-9);
+check('zero-game update leaves preseason count rates unchanged',
+  adaptRemainingPerGame(remaining.perGame,Object.fromEntries(Object.keys(actual.totals).map(k=>[k,0])),0).perGame.pts===remaining.perGame.pts);
+check('adaptive update rejects corrupted official totals',
+  throws(()=>adaptRemainingPerGame(remaining.perGame,{...actual.totals,fgm:999},18),/FGM/));
 console.log(`${fail?'FAILED':'ALL PASS'} · timeframes: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
