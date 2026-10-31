@@ -332,7 +332,8 @@ function updatePublishedHeader() {
     + ' player seasons for ' + DATA.counts.uniquePeople.toLocaleString() + ' players'
     + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
     + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.'
-    + (DATA.seasonProgress ? ` Current NBA season: ${DATA.seasonProgress.completedGames} completed games, fetched ${DATA.seasonProgress.asOf.slice(0,10)}.` : '') + published;
+    + (DATA.seasonProgress ? ` Current NBA season: ${DATA.seasonProgress.completedGames} completed games, fetched ${DATA.seasonProgress.asOf.slice(0,10)}.` : '')
+    + (DATA.currentGLeagueIndexMeta ? ` G League index: ${DATA.currentGLeagueIndexMeta.listedPlayers} provisionally listed players as of ${DATA.currentGLeagueIndexMeta.asOf.slice(0,10)}; opening rosters and assignments are unverified.` : '') + published;
   $('sourceLine').dataset.historicalText=$('sourceLine').textContent;
   $('seasonEyebrow').textContent = DATA.seasonType;
 }
@@ -347,7 +348,7 @@ function openDataStatus() {
     const d = s.sourceDomains?.[key] || {};
     return '<div class="metric-definition"><strong>' + esc(label) + ' — ' + esc(statusText(d.status)) + '</strong>'
       + '<span>Fetched: ' + esc(dateTime(d.fetchedAt)) + '. Checked: ' + esc(dateTime(d.checkedAt)) + '.'
-      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.currentSeason?` Current ${esc(d.currentSeason.season)} NBA feed: ${d.currentSeason.completedGames} completed games; fetched ${esc(dateTime(d.currentSeason.asOf))}.`:'') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
+      + (d.asOf ? ' As of: ' + esc(d.asOf) + '.' : '') + (d.currentSeason?` Current ${esc(d.currentSeason.season)} NBA feed: ${d.currentSeason.completedGames} completed games; fetched ${esc(dateTime(d.currentSeason.asOf))}. ${d.currentSeason.dashboardCorrections?.length||0} count-field corrections reconciled against official player game logs.`:'') + (d.limitation ? ' ' + esc(d.limitation) : '') + '</span></div>';
   }).join('');
   const ch = s.changes?.officialStats || {};
   $('dataStatusBody').innerHTML = '<div class="eyebrow">DATA STATUS</div><h2>Loaded data snapshot</h2>'
@@ -355,11 +356,12 @@ function openDataStatus() {
     + '<p><strong>Latest official-stat change record:</strong> ' + Number(ch.added || 0) + ' added, '
     + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
     + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'
+    + (DATA.currentGLeagueIndexMeta ? `<p><strong>G League player index:</strong> ${DATA.currentGLeagueIndexMeta.listedPlayers.toLocaleString()} provisionally listed players, fetched ${esc(dateTime(DATA.currentGLeagueIndexMeta.asOf))}. ${esc(DATA.currentGLeagueIndexMeta.note)}</p>` : '')
     + '<div class="metric-list">' + rows + '</div>'
     + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>'
     + '<details class="owner-refresh"><summary>Refresh sources — website owner</summary>'
     + '<p><a id="ownerRefreshLink" href="https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml" target="_blank" rel="noopener noreferrer">Open authenticated source refresh</a></p>'
-    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources are 2025-26 statistics, the 2026-27 NBA roster, dated transactions and individual bios. Injuries, news and 2026-27 game statistics are not yet supported.</p>'
+    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources include 2025-26 historical statistics, current NBA rosters, the provisional G League player index, transactions, individual bios, two-way contracts, dated injury reports, attributed NBA headlines and current NBA schedule/player totals. G League assignments are not verified.</p>'
     + '<p>The run verifies the data and creates a review branch. Open its review link, pass the release checks and merge to publish. This does not immediately change the live site, retrain models or expose account credentials.</p></details>';
   $('dataStatusDialog').showModal();
 }
@@ -1326,7 +1328,7 @@ function updatePageHead(){
     $('nbaCount').title='Players with a 2026-27 NBA appearance; the table also includes non-appearing roster records';
   }else if($('sourceLine').dataset.historicalText){$('sourceLine').textContent=$('sourceLine').dataset.historicalText;}
   for(const id of ['minGrade','minReliability'])if($(id))$(id).disabled=!!seasonView;
-  if($('seasonProgressNote')){$('seasonProgressNote').hidden=!seasonView;$('seasonProgressNote').textContent=seasonView?`As of ${DATA.seasonProgress.asOf.slice(0,10)}. ${seasonView==='actual'?'Measured regular-season results; zero appearances have no per-game average.':'Estimates combine the dated schedule, historical appearance rates and official upcoming Out listings. Open a player for assumptions and all three timeframes.'} All player totals include prior teams. Grade and reliability filters refer to 2025-26 and do not apply to these views.`:'';}
+  if($('seasonProgressNote')){$('seasonProgressNote').hidden=!seasonView;$('seasonProgressNote').textContent=seasonView?`As of ${DATA.seasonProgress.asOf.slice(0,10)}. ${seasonView==='actual'?'Measured regular-season results; zero appearances have no per-game average.':'Remaining per-game estimates blend preseason projections with observed current-season totals; games use historical appearance rates and official upcoming Out listings. Open a player for assumptions and all three timeframes.'} All player totals include prior teams. Grade and reliability filters refer to 2025-26 and do not apply to these views.`:'';}
   if($('rosterScopeControl'))$('rosterScopeControl').hidden=!!seasonView||league!=='NBA';
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
   if($('projRosterContext')) $('projRosterContext').hidden=league!=='NBA';
@@ -1422,7 +1424,7 @@ function cell(p,key){
       sub=esc(p.currentTeam||'No NBA roster')+' · '+esc(p.position||'—');
       if(p.currentRoster&&!p.appeared) sub+=' · Current roster, no 2025-26 NBA stats';
       if(p.seasonTeam&&p.seasonTeam!==p.currentTeam) sub+=' · 2025-26: '+esc(p.seasonTeam);
-    } else sub=esc(p.team||'')+' · '+esc(p.position||'—');
+    } else sub=(p.team?esc(p.team):p.currentGLeagueIndexTeam?`2026-27 index listing: ${esc(p.currentGLeagueIndexTeam)} (provisional)`:'No 2025-26 G League team')+' · '+esc(p.position||'—');
     return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${sub}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${formatCell(p,key)}</td>`;
@@ -1849,8 +1851,8 @@ function openPlayer(id){
     $('playerDialogBody').innerHTML=`<div class="player-hero"><div>
         <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
         <h2>${esc(p.name)}</h2>
-        <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
-        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
+        <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.currentGLeagueIndexTeam?`${p.currentGLeagueIndexTeam} (provisional index)`:p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
+        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':p.currentIndexOnly?'Listed in the current G League player index, with no 2025-26 G League performance row. Opening roster membership, signed contract and NBA assignment are unverified.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>

@@ -30,6 +30,7 @@ import { buildCapacityIndex, capacityForRecord } from './lib/tulip-capacity-buil
 import { tulipBetaForTeam, BETA_CONFIG } from './lib/tulip-beta.mjs';
 import { distributionSummary as tulipBetaDistribution, teamAllocationDiagnostics, validationStatus as tulipBetaValidationStatus } from './lib/tulip-beta-diagnostics.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
+import { verifyGLeagueIndex } from './lib/live-gleague-index.mjs';
 
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,6 +70,11 @@ const currentNbaRoster = new Map(currentNbaRosterRows
 const currentNbaRosterBio = new Map(currentNbaRosterRows
   .filter((r) => r.PERSON_ID && Number(r.ROSTER_STATUS) === 1).map((r) => [Number(r.PERSON_ID), r]));
 const currentRosterAsOf = (liveRoster?.fetchedAt || projectionInputs?.fetchedAt || '').slice(0, 10) || null;
+const gLeagueIndexPath = path.join(ROOT, 'scripts/data/live/gleague-index.json');
+const gLeagueIndex = fs.existsSync(gLeagueIndexPath)
+  ? verifyGLeagueIndex(JSON.parse(fs.readFileSync(gLeagueIndexPath, 'utf8'))) : null;
+const currentGLeagueIndexRows = compactRows(gLeagueIndex);
+const currentGLeagueIndex = new Map(currentGLeagueIndexRows.map(r => [Number(r.PERSON_ID), r.TEAM_ABBREVIATION]));
 const heightInchesFromRoster = (h) => {
   const m = String(h || '').match(/^(\d+)-(\d+(?:\.\d+)?)$/);
   return m ? Number(m[1]) * 12 + Number(m[2]) : null;
@@ -550,6 +556,8 @@ for (const r of nba.records) {
 }
 for (const r of gl.records) {
   r.currentNbaTeam = currentNbaRoster.get(Number(r.nbaPersonId ?? r.playerId)) || null;
+  r.currentGLeagueIndexTeam = currentGLeagueIndex.get(Number(r.nbaPersonId ?? r.playerId)) || null;
+  r.currentGLeagueIndexStatus = r.currentGLeagueIndexTeam ? 'provisional-index-listing' : null;
 }
 
 // Add NBA.com-published 2026-27 roster players who have no 2025-26 NBA row (notably incoming
@@ -578,6 +586,34 @@ for (const [pid, team] of currentNbaRoster) {
     reliabilityWeight: 0, rank: null, viewRank: null, gradeCoverage: null,
     components: {}, rateComponents: {}, componentsBelowMinimum: [], custom: {}, stats: {},
     skillProfile: null, archetypes: [], sourceIds: { nbaStats: pid, basketballReference: null },
+  });
+}
+
+// The pre-opening G League player index is useful discovery evidence, but team listings
+// remain provisional until opening rosters are set. Never overwrite 2025-26 team history.
+const existingGLeague = new Set(gl.records.map(r => Number(r.nbaPersonId ?? r.playerId)));
+for (const e of currentGLeagueIndexRows) {
+  const pid = Number(e.PERSON_ID);
+  if (existingGLeague.has(pid)) continue;
+  const heightInches = heightInchesFromRoster(e.HEIGHT);
+  gl.records.push({
+    league:'GLEAGUE',leagueLabel:'NBA G League',season:SEASON,
+    playerId:String(pid),nbaPersonId:pid,brefId:null,
+    name:[e.PLAYER_FIRST_NAME,e.PLAYER_LAST_NAME].join(' '),
+    team:null,teamCount:0,teams:[],currentNbaTeam:currentNbaRoster.get(pid)||null,
+    currentGLeagueIndexTeam:e.TEAM_ABBREVIATION,currentGLeagueIndexStatus:'provisional-index-listing',
+    position:e.POSITION||null,positionSource:e.POSITION?'current-index-listed':null,
+    positionFamily:positionFamily(e.POSITION),height:e.HEIGHT||null,heightInches,
+    weight:num(e.WEIGHT),college:null,country:null,jersey:null,
+    birthdate:birthdates[String(pid)]?.birthdate||null,
+    ageOpeningNight:ageAt(birthdates[String(pid)]?.birthdate,OPENING_NIGHT),
+    ageFeb1:ageAt(birthdates[String(pid)]?.birthdate,FEB_FIRST),age:null,seasonAge:null,
+    gp:0,minutes:0,mpg:null,regularGP:0,showcaseGP:0,
+    appeared:false,rosterOnly:true,currentIndexOnly:true,
+    grade:null,rateGrade:null,magnitudeGrade:null,gradeRaw:null,gradeShrunk:null,
+    reliabilityWeight:0,rank:null,viewRank:null,gradeCoverage:null,
+    components:{},rateComponents:{},componentsBelowMinimum:[],custom:{},stats:{},
+    skillProfile:null,archetypes:[],sourceIds:{nbaStats:pid,basketballReference:null},
   });
 }
 
@@ -965,6 +1001,11 @@ const out = {
     nbaPlayers: currentNbaRoster.size,
     note: 'Current roster identity is separate from 2025-26 performance-team history. NBA team filtering uses currentTeam; historical stint views keep seasonTeam.'
   },
+  currentGLeagueIndexMeta: gLeagueIndex ? {
+    season:gLeagueIndex.season,source:gLeagueIndex.source,asOf:gLeagueIndex.fetchedAt,
+    listedPlayers:currentGLeagueIndex.size,scope:gLeagueIndex.scope,note:gLeagueIndex.note,
+    sourceSha256:crypto.createHash('sha256').update(fs.readFileSync(gLeagueIndexPath)).digest('hex'),
+  } : null,
   tulipBetaMeta: {
     status: 'EXPERIMENTAL BETA',
     whatItIs: 'Experimental zero-sum heuristic for how many MPG the model reallocates toward or away from each scored player, from team-relative player value, a 2025-26 workload baseline, role evidence and the current-roster team-mates in the eligible pool.',

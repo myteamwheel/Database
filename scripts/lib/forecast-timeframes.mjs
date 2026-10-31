@@ -33,6 +33,36 @@ export function perGameFromTotals(totals, gp) {
   return { ...pg, ...percentages(totals) };
 }
 
+/** Shrink current observed role and shot volume toward the preseason line.
+ * The first-game update is deliberately modest; 10 prior games for volume and
+ * 20 for noisy shooting/rebounding events. This is a transparent estimator,
+ * not a fitted claim about the complete preseason model or injury recovery.
+ */
+export function adaptRemainingPerGame(preseason, actualTotals, actualGp) {
+  if (!Number.isSafeInteger(actualGp) || actualGp < 0) throw new Error('Observed games must be a non-negative integer.');
+  validateTotals(actualTotals, 'actual');
+  const prior = {};
+  for (const key of STAT_KEYS) {
+    const field=key==='min'?'mpg':key;
+    if (!isFiniteNonNegative(preseason?.[field])) throw new Error(`Preseason ${field} is unavailable.`);
+    prior[key]=preseason[field];
+  }
+  validateTotals(prior,'preseason');
+  if (!actualGp) return {perGame:{...preseason,reb:prior.oreb+prior.dreb,pts:2*prior.fgm+prior.fg3m+prior.ftm},weight:0,observedGames:0};
+  const out={};
+  for (const key of STAT_KEYS) {
+    const k=key==='min'||key==='ast'||key==='tov'?10:20;
+    out[key]=(k*prior[key]+actualTotals[key])/(k+actualGp);
+  }
+  // All shot makes and attempts use the same prior strength, so every linear
+  // shooting identity remains feasible without hiding an impossible outcome.
+  out.reb=out.oreb+out.dreb;
+  out.pts=2*out.fgm+out.fg3m+out.ftm;
+  validateTotals(out,'adapted');
+  return {perGame:Object.fromEntries(STAT_KEYS.map(key=>[key==='min'?'mpg':key,out[key]])),
+    weight:actualGp/(10+actualGp),observedGames:actualGp};
+}
+
 function totalsFromPerGame(perGame, gp, ftValue) {
   if (!perGame || typeof perGame !== 'object') throw new Error('Remaining per-game forecast is required.');
   const totals = {};

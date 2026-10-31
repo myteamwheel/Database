@@ -339,6 +339,18 @@ test.describe('team scoping', () => {
 });
 
 test.describe('roster-only players', () => {
+  test('G League index-only players are discoverable without a false roster or assignment claim', async ({ page }) => {
+    const errors=await open(page);
+    const target=await page.evaluate(()=>DATA.leagues.GLEAGUE.find(p=>p.currentIndexOnly));
+    expect(target).toBeTruthy();expect(target.appeared).toBe(false);expect(target.team).toBe(null);
+    await page.click('.league-tab[data-league="GLEAGUE"]');
+    await setVal(page,'#searchInput',target.name);
+    await expect(page.locator('#tableBody')).toContainText(target.name);
+    await expect(page.locator('#tableBody')).toContainText('provisional');
+    await page.locator('#tableBody .player-link').filter({hasText:target.name}).first().click();
+    await expect(page.locator('#playerDialogBody')).toContainText('Opening roster membership, signed contract and NBA assignment are unverified');
+    expect(errors).toEqual([]);
+  });
   test('can be included and their profile does not crash', async ({ page }) => {
     const errors = await open(page);
     const before = await count(page);
