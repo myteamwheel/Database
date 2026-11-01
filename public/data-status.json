@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261031163030-375af30c60be",
+  "publicationId": "2025-26-20261031163030-8b692ca55ba0",
   "season": "2025-26",
   "publishedAt": "2026-10-31T16:30:30.062Z",
   "buildGeneratedAt": "2026-10-31T16:30:30.062Z",
-  "dataSha256": "375af30c60beb5e630db75f00bd32fc84bf5db971845600c4d82eaedb162f2bb",
+  "dataSha256": "8b692ca55ba07e464e05ee80277350f3128c202b31032e4817bc33f072cd407d",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261031161118-1440959e8179",
-    "publishedAt": "2026-10-31T16:11:18.350Z",
-    "dataSha256": "1440959e81795590062a6e8f35273fc2685a0eef75d2fedd9861a0322ec9952b"
+    "publicationId": "2025-26-20261031163030-375af30c60be",
+    "publishedAt": "2026-10-31T16:30:30.062Z",
+    "dataSha256": "375af30c60beb5e630db75f00bd32fc84bf5db971845600c4d82eaedb162f2bb"
   },
   "sourceDomains": {
     "officialStats": {
@@ -407,7 +407,7 @@
         "label": "2026-27 player projections",
         "modelVersion": "PROJECTION_2026_27+context-3-two-way-contracts",
         "semanticVersion": "PROJECTION_2026_27+context-3-two-way-contracts",
-        "codeVersionSha256": "c38fff6cd3960519e48f2b2971613a9db2cae620535881257082292c7e79683d",
+        "codeVersionSha256": "0cbfc4b35f1d9fce540eb2f78e69c8fd11061adce41470846b193aeb2aa0e72a",
         "codeFiles": [
           {
             "path": "scripts/build-projections.mjs",
@@ -419,11 +419,11 @@
           },
           {
             "path": "scripts/build-season-progress.mjs",
-            "sha256": "7f79c54ea9a784f13821b5230e3d86db7509a62085e0a74b568f9765172111b0"
+            "sha256": "77aa4f7d330cccd5e2b4279a1887333d7327a6cc65b8e2760f1ae62dc81fb976"
           },
           {
             "path": "scripts/lib/forecast-timeframes.mjs",
-            "sha256": "0f2d2e28e2fdb585c325ac58e3dd55e12b02b068cd78669b0ac52966fbdcafe3"
+            "sha256": "7946f4f35d4556d04fd704afb5686617cf4ce0a18614d2731ed1f130466a864d"
           },
           {
             "path": "scripts/lib/injury-report.mjs",
@@ -451,7 +451,7 @@
           },
           {
             "path": "scripts/lib/season-progress.mjs",
-            "sha256": "93b28a7528446246f728016459bd02c010ec7a58d4c90a7d92e66c4d0b6f5046"
+            "sha256": "35d7dc2f03ec875dfec679a20565081fdb4e943e9ed62d33f04e2fbdc92c5eef"
           },
           {
             "path": "scripts/lib/two-way-roster.mjs",

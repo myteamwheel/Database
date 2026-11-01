@@ -63,6 +63,19 @@ export function adaptRemainingPerGame(preseason, actualTotals, actualGp) {
     weight:actualGp/(10+actualGp),observedGames:actualGp};
 }
 
+/** Use only games on the projected team to update a future per-game role.
+ * Full-season actual totals remain intact across trades. When a player has no
+ * games with the projected team, the preseason prior remains the only input.
+ */
+export function observedSampleForTeam(actual, team) {
+  if (!actual || !team) throw new Error('Observed player and projected team are required.');
+  const stint=actual.byTeam?.[team];
+  if (!actual.byTeam) return {gp:actual.gp,totals:actual.totals,scope:'all observed games'};
+  if (!stint) return {gp:0,totals:Object.fromEntries(STAT_KEYS.map(key=>[key,0])),scope:'no projected-team games'};
+  const soleTeam=Object.keys(actual.byTeam).length===1;
+  return {gp:stint.gp,totals:soleTeam?actual.totals:stint.totals,scope:'projected-team games'};
+}
+
 function totalsFromPerGame(perGame, gp, ftValue) {
   if (!perGame || typeof perGame !== 'object') throw new Error('Remaining per-game forecast is required.');
   const totals = {};

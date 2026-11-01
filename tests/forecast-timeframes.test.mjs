@@ -1,4 +1,4 @@
-import { adaptRemainingPerGame, combineForecastTimeframes } from '../scripts/lib/forecast-timeframes.mjs';
+import { adaptRemainingPerGame, combineForecastTimeframes, observedSampleForTeam } from '../scripts/lib/forecast-timeframes.mjs';
 
 let pass = 0, fail = 0;
 const check = (name, ok, detail='') => {
@@ -98,5 +98,14 @@ check('zero-game update leaves preseason count rates unchanged',
   adaptRemainingPerGame(remaining.perGame,Object.fromEntries(Object.keys(actual.totals).map(k=>[k,0])),0).perGame.pts===remaining.perGame.pts);
 check('adaptive update rejects corrupted official totals',
   throws(()=>adaptRemainingPerGame(remaining.perGame,{...actual.totals,fgm:999},18),/FGM/));
+const priorTeam={gp:16,totals:{...actual.totals,min:480}};
+const newTeam={gp:2,totals:{...actual.totals,min:60}};
+const tradeActual={gp:18,totals:actual.totals,byTeam:{LAL:priorTeam,NYK:newTeam}};
+check('future role uses only the projected-team stint after a trade',
+  observedSampleForTeam(tradeActual,'NYK').gp===2 && observedSampleForTeam(tradeActual,'NYK').totals.min===60);
+check('no games on a new team leave the future role at its preseason prior',
+  observedSampleForTeam(tradeActual,'BOS').gp===0);
+check('untraded players retain precise aggregate dashboard minutes',
+  observedSampleForTeam({...actual,byTeam:{NYK:newTeam}},'NYK').totals.min===actual.totals.min);
 console.log(`${fail?'FAILED':'ALL PASS'} · timeframes: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

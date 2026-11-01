@@ -45,7 +45,9 @@ for(const p of players.values()){
   }
   if(f.fullSeason.totals.fga)close(f.fullSeason.perGame.fgPct,f.fullSeason.totals.fgm/f.fullSeason.totals.fga);
   if(f.remainingSeason.gp){
-    const n=p.seasonActual.gp,a=p.proj.accounting,t=p.seasonActual.totals;
+    const stint=p.seasonActual.byTeam?.[p.proj.team];
+    const n=p.seasonActual.byTeam?(stint?.gp||0):p.seasonActual.gp,a=p.proj.accounting;
+    const t=p.seasonActual.byTeam?(stint?(Object.keys(p.seasonActual.byTeam).length===1?p.seasonActual.totals:stint.totals):Object.fromEntries(Object.keys(sourceKeys).map(k=>[k,0]))):p.seasonActual.totals;
     const expected=(key,k)=>(k*a[key]+t[key])/(k+n);
     close(f.remainingSeason.perGame.mpg,(10*a.mpg+t.min)/(10+n));
     if(n)close(f.remainingSeason.perGame.pts,2*expected('fgm',20)+expected('fg3m',20)+expected('ftm',20));

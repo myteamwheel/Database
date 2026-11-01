@@ -8,7 +8,7 @@ const zero = () => Object.fromEntries(Object.keys(STATS).map(k => [k,0]));
 
 export function reconcileGameLog(schedule,stats,gameLog,season) {
   const table=gameLog?.resultSets?.[0],headers=table?.headers;
-  const needed=['PLAYER_ID','TEAM_ABBREVIATION','GAME_ID',...COUNT_COLUMNS];
+  const needed=['PLAYER_ID','TEAM_ABBREVIATION','GAME_ID','MIN',...COUNT_COLUMNS];
   if(!Array.isArray(headers)||!Array.isArray(table?.rowSet)||new Set(headers).size!==headers.length||needed.some(k=>!headers.includes(k)))throw new Error('Invalid official player game-log schema');
   const ix=Object.fromEntries(headers.map((k,i)=>[k,i]));
   const games=new Map();
@@ -16,17 +16,24 @@ export function reconcileGameLog(schedule,stats,gameLog,season) {
     if(!String(g.gameId).startsWith(`002${season.slice(2,4)}`)||g.gameStatus!==3)continue;
     games.set(g.gameId,new Map([[g.homeTeam.teamTricode,g.homeTeam.score],[g.awayTeam.teamTricode,g.awayTeam.score]]));
   }
-  const totals=new Map(),teamPoints=new Map(),teamCounts=new Map(),seen=new Set();
+  const totals=new Map(),byPlayerTeam=new Map(),teamPoints=new Map(),teamCounts=new Map(),seen=new Set();
   for(const row of table.rowSet){
     if(!Array.isArray(row)||row.length!==headers.length)throw new Error('Invalid player game-log row width');
     const id=row[ix.PLAYER_ID],game=row[ix.GAME_ID],team=row[ix.TEAM_ABBREVIATION];
     if(!Number.isSafeInteger(id)||id<=0||!games.get(game)?.has(team)||seen.has(`${game}:${id}`))throw new Error('Invalid, duplicate or unscheduled player game-log identity');
     seen.add(`${game}:${id}`);
     const v=Object.fromEntries(COUNT_COLUMNS.map(k=>[k,row[ix[k]]]));
+    const minutes=row[ix.MIN];
+    if(!Number.isFinite(minutes)||minutes<0)throw new Error('Invalid player game-log minutes');
     if(Object.values(v).some(n=>!Number.isSafeInteger(n)||n<0)||v.REB!==v.OREB+v.DREB||v.PTS!==2*v.FGM+v.FG3M+v.FTM||v.FGM>v.FGA||v.FG3M>v.FG3A||v.FTM>v.FTA)throw new Error('Invalid player game-log scoring or rebound identity');
     const key=`${game}:${team}`;teamPoints.set(key,(teamPoints.get(key)||0)+v.PTS);teamCounts.set(key,(teamCounts.get(key)||0)+1);
     const a=totals.get(id)||{GP:0,...Object.fromEntries(COUNT_COLUMNS.map(k=>[k,0]))};a.GP++;
     for(const k of COUNT_COLUMNS)a[k]+=v[k];totals.set(id,a);
+    const stints=byPlayerTeam.get(id)||new Map();
+    const stint=stints.get(team)||{GP:0,MIN:0,...Object.fromEntries(COUNT_COLUMNS.map(k=>[k,0]))};
+    stint.GP++;stint.MIN+=minutes;
+    for(const k of COUNT_COLUMNS)stint[k]+=v[k];
+    stints.set(team,stint);byPlayerTeam.set(id,stints);
   }
   if(!games.size)throw new Error('Game-log validation requires completed games');
   for(const [game,teams] of games)for(const [team,score] of teams){const key=`${game}:${team}`;
@@ -41,7 +48,7 @@ export function reconcileGameLog(schedule,stats,gameLog,season) {
     if(!agg||agg.GP!==row[di.GP])throw new Error('Season dashboard and game log have different player games');
     for(const k of COUNT_COLUMNS)if(row[di[k]]!==agg[k])corrections.push({playerId:id,field:k,dashboard:row[di[k]],gameLog:agg[k]});
   }
-  return {totals,corrections,completedGames:games.size,source:'stats.nba.com/stats/leaguegamelog?PlayerOrTeam=P'};
+  return {totals,byPlayerTeam,corrections,completedGames:games.size,source:'stats.nba.com/stats/leaguegamelog?PlayerOrTeam=P'};
 }
 
 export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog} = {}) {
@@ -96,7 +103,9 @@ export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog
     const totals=Object.fromEntries(Object.entries(STATS).map(([key,column])=>[key,column==='MIN'?r[column]:(gameTotals?gameTotals[column]:r[column])]));
     // Reuse independently tested shot/rebound accounting, allowing only rounding of NBA MIN.
     combineForecastTimeframes({season,asOf:fetchedAt,scheduledGames:Math.max(82,r.GP),actual:{gp:r.GP,teamGamesElapsed:Math.max(r.GP,...Object.values(teams).map(t=>t.completed)),totals},remaining:{gp:0,perGame:{...zero(),mpg:0}}});
-    players[r.PLAYER_ID]={gp:r.GP,totals};
+    const stints=reconciled?.byPlayerTeam.get(r.PLAYER_ID);
+    const byTeam=stints?Object.fromEntries([...stints].map(([team,values])=>[team,{gp:values.GP,totals:Object.fromEntries(Object.entries(STATS).map(([key,column])=>[key,values[column]]))}])):null;
+    players[r.PLAYER_ID]={gp:r.GP,totals,...(byTeam?{byTeam}:{})};
   }
   if (completedGames>0 && !Object.keys(players).length) throw new Error('Completed games without player statistics');
   const playerGames=Object.values(players).reduce((n,p)=>n+p.gp,0);
