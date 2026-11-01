@@ -351,6 +351,17 @@ test.describe('roster-only players', () => {
     await expect(page.locator('#playerDialogBody')).toContainText('Opening roster membership, signed contract and NBA assignment are unverified');
     expect(errors).toEqual([]);
   });
+  test('a prior no-appearance row also listed in the current index uses provisional wording', async ({ page }) => {
+    const errors=await open(page);
+    const target=await page.evaluate(()=>DATA.leagues.GLEAGUE.find(p=>p.rosterOnly&&p.currentGLeagueIndexTeam&&!p.currentIndexOnly));
+    expect(target).toBeTruthy();
+    await page.click('.league-tab[data-league="GLEAGUE"]');
+    await setVal(page,'#searchInput',target.name);
+    await page.locator('#tableBody .player-link').filter({hasText:target.name}).first().click();
+    await expect(page.locator('#playerDialogBody')).toContainText('Opening roster membership, signed contract and NBA assignment are unverified');
+    await expect(page.locator('#playerDialogBody')).not.toContainText('Rostered in 2025-26 but never played');
+    expect(errors).toEqual([]);
+  });
   test('can be included and their profile does not crash', async ({ page }) => {
     const errors = await open(page);
     const before = await count(page);

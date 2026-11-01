@@ -1852,7 +1852,7 @@ function openPlayer(id){
         <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
         <h2>${esc(p.name)}</h2>
         <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.currentGLeagueIndexTeam?`${p.currentGLeagueIndexTeam} (provisional index)`:p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
-        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':p.currentIndexOnly?'Listed in the current G League player index, with no 2025-26 G League performance row. Opening roster membership, signed contract and NBA assignment are unverified.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
+        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':p.currentGLeagueIndexTeam?'Listed in the current G League player index, with no 2025-26 G League performance row. Opening roster membership, signed contract and NBA assignment are unverified.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>
