@@ -13,7 +13,7 @@ assert.doesNotMatch(workflow,/--force|git push.*v3-official-data|gh pr create|de
 const add=workflow.match(/git add ([\s\S]*?)\n          if git diff/)[1].replace(/\\\n/g,' ').trim().split(/\s+/);
 assert.equal(new Set(add).size,add.length);
 for(const p of add){assert.match(p,/^scripts\/data\//);assert.doesNotMatch(p,/history|projection|forecast-archive|\.\.\//);assert.ok(fs.existsSync(new URL('../'+p,import.meta.url)),`tracked source candidate path exists: ${p}`);}
-for(const p of ['scripts/data/live/roster.json','scripts/data/live/transactions.json','scripts/data/player_bios.json','scripts/data/birthdates.json','scripts/data/stints_gleague_showcase.json'])assert.ok(add.includes(p));
+for(const p of ['scripts/data/live/roster.json','scripts/data/live/gleague-index.json','scripts/data/live/transactions.json','scripts/data/player_bios.json','scripts/data/birthdates.json','scripts/data/stints_gleague_showcase.json'])assert.ok(add.includes(p));
 assert.match(workflow,/compare\/v3-official-data\.\.\.\$\{branch\}\?expand=1/);
 assert.match(workflow,/The live website is unchanged/);
 const app=read('app.js');assert.match(app,/owner-source-refresh\.yml/);assert.match(app,/Run workflow and confirm/);assert.match(app,/does not immediately change the live site/);

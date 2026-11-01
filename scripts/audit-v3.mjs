@@ -23,25 +23,26 @@ const CUSTOM = ['selfCreatedPts36', 'possessionSwing36', 'whistleDiff36',
 
 for (const lg of ['NBA', 'GLEAGUE']) {
   const arr = d.leagues[lg];
+  const observed = arr.filter(p => p.appeared);
   console.log(`===== ${lg} (${arr.length}) =====`);
   const nStats = new Set(); arr.forEach((p) => Object.keys(p.stats || {}).forEach((k) => nStats.add(k)));
   console.log(`  distinct stats fields: ${nStats.size}`);
 
-  console.log('  -- core field coverage --');
+  console.log(`  -- 2025-26 appeared-player field coverage (${observed.length}); current index-only rows are not missing historical stats --`);
   for (const f of CORE) {
-    const miss = arr.filter((p) => empty(p[f])).length;
-    const pctMiss = (100 * miss / arr.length);
+    const miss = observed.filter((p) => empty(p[f])).length;
+    const pctMiss = (100 * miss / observed.length);
     const flag = pctMiss === 0 ? 'OK  ' : pctMiss < 5 ? 'ok  ' : pctMiss < 25 ? 'WARN' : 'GAP ';
     if (pctMiss > 0) console.log(`     ${flag} ${f.padEnd(20)} missing ${String(miss).padStart(4)} (${pctMiss.toFixed(1)}%)`);
     if (pctMiss >= 25 && !['gs'].includes(f)) warn.push(`${lg}.${f} ${pctMiss.toFixed(1)}% missing`);
   }
-  const allCore = CORE.every((f) => arr.every((p) => !empty(p[f])));
+  const allCore = CORE.every((f) => observed.every((p) => !empty(p[f])));
   if (allCore) console.log('     all core fields fully populated');
 
   console.log('  -- custom metric coverage --');
   for (const f of CUSTOM) {
-    const miss = arr.filter((p) => empty(p.custom?.[f])).length;
-    if (miss > 0) console.log(`     ${f.padEnd(26)} missing ${miss} (${(100 * miss / arr.length).toFixed(1)}%)`);
+    const miss = observed.filter((p) => empty(p.custom?.[f])).length;
+    if (miss > 0) console.log(`     ${f.padEnd(26)} missing ${miss} (${(100 * miss / observed.length).toFixed(1)}%)`);
   }
 
   // grade sanity — graded players only. Roster-only rows carry grade null, and null coerces to
@@ -160,7 +161,9 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const arr = d.leagues[lg];
   const played = arr.filter((p) => p.appeared !== false);
   const rosterOnly = arr.filter((p) => p.rosterOnly);
-  console.log(`${lg}: ${played.length} appeared, ${rosterOnly.length} rostered but never played`);
+  const currentIndexOnly=rosterOnly.filter(p=>p.currentIndexOnly).length;
+  const currentNbaOnly=rosterOnly.filter(p=>p.currentRosterOnly).length;
+  console.log(`${lg}: ${played.length} appeared; ${rosterOnly.length-currentIndexOnly-currentNbaOnly} 2025-26 roster-only, ${currentNbaOnly} current NBA roster-only, ${currentIndexOnly} provisional current G League index-only`);
   if (rosterOnly.some((p) => p.grade !== null))
     fails.push(`${lg}: a roster-only player carries a grade; they have no performance to grade`);
   if (rosterOnly.some((p) => p.rank !== null))

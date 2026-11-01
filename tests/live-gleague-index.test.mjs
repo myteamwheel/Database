@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {parseGLeagueIndex,verifyGLeagueIndex} from '../scripts/lib/live-gleague-index.mjs';
+const snapshot=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-index.json',import.meta.url)));
+const verified=verifyGLeagueIndex(snapshot);
+assert.equal(verified.rows.length,snapshot.rows.length);
+assert.equal(new Set(verified.rows.map(r=>r[3])).size,31);
+assert.equal(new Set(verified.rows.map(r=>r[0])).size,verified.rows.length);
+const corrupt=structuredClone(snapshot);corrupt.rows[1][0]=corrupt.rows[0][0];
+assert.throws(()=>verifyGLeagueIndex(corrupt),/duplicate/);
+const old=structuredClone(snapshot);old.scope='confirmed-assignment';
+assert.throws(()=>verifyGLeagueIndex(old),/scope/);
+const table={resultSets:[{headers:[...snapshot.headers,'ROSTER_STATUS'],rowSet:snapshot.rows.map(r=>[...r,1])}]};
+table.resultSets[0].rowSet[0][3]='BAD';
+assert.throws(()=>parseGLeagueIndex(table,{fetchedAt:snapshot.fetchedAt}),/unassigned/);
+console.log(`G League provisional index verified: ${verified.rows.length} identities across 31 teams; malformed statuses and identities rejected.`);

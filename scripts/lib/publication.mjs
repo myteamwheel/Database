@@ -117,6 +117,7 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     projectionInputsSha256: fileSha256(root, 'scripts/data/projection/inputs.json'),
     birthdatesSha256: fileSha256(root, 'scripts/data/birthdates.json'),
     seasonProgressSha256: fileSha256(root, 'scripts/data/live/season-progress.json', {optional:true}),
+    gLeagueIndexSha256: fileSha256(root, 'scripts/data/live/gleague-index.json', {optional:true}),
     twoWayRosterSha256: fileSha256(root, 'scripts/data/live/two-way-roster.json', {optional:true}),
     injuriesSha256: fileSha256(root, 'scripts/data/live/injuries.json', {optional:true}),
     newsSha256: fileSha256(root, 'scripts/data/live/news.json', {optional:true}),
@@ -281,8 +282,13 @@ export function deriveSourceDomains({ root, publicData }) {
     if(!input||publicData[key].asOf!==input[dateKey]||publicData[key].sourceSha256!==fileSha256(root,`scripts/data/live/${file}`))throw new Error(`Published ${key} is stale; rebuild before publication.`);
   }
   if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
+  if(publicData?.currentGLeagueIndexMeta){
+    const file='scripts/data/live/gleague-index.json';
+    const input=readJson(path.join(root,file));
+    if(!input||publicData.currentGLeagueIndexMeta.asOf!==input.fetchedAt||publicData.currentGLeagueIndexMeta.sourceSha256!==fileSha256(root,file))throw new Error('Published G League index is stale; rebuild before publication.');
+  }
   return {
-    officialStats: {...officialStatsDomain(root, publicData),currentSeason:publicData?.seasonProgress?{season:publicData.seasonProgress.season,asOf:publicData.seasonProgress.asOf,completedGames:publicData.seasonProgress.completedGames,sha256:publicData.seasonProgress.sourceSha256,sources:publicData.seasonProgress.sources}:null},
+    officialStats: {...officialStatsDomain(root, publicData),currentSeason:publicData?.seasonProgress?{season:publicData.seasonProgress.season,asOf:publicData.seasonProgress.asOf,completedGames:publicData.seasonProgress.completedGames,sha256:publicData.seasonProgress.sourceSha256,sources:publicData.seasonProgress.sources,dashboardCorrections:publicData.seasonProgress.sourceCorrections||[]}:null},
     rosterProjectionInputs: projection || liveRoster ? {
       status: liveRoster && !liveRosterMatches ? 'partial' : 'ok',
       checkedAt: liveRoster?.fetchedAt || projection?.fetchedAt || null,

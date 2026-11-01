@@ -61,7 +61,7 @@ jobs:
             scripts/data/stints_gleague_regular.json scripts/data/stints_gleague_showcase.json \
             scripts/data/splits_nba scripts/data/splits_gleague_regular scripts/data/splits_gleague_showcase \
             scripts/data/provenance_splits.json scripts/data/player_bios.json \
-            scripts/data/birthdates.json scripts/data/live/roster.json scripts/data/live/transactions.json scripts/data/live/season-progress.json scripts/data/live/two-way-roster.json scripts/data/live/injuries.json scripts/data/live/news.json
+            scripts/data/birthdates.json scripts/data/live/roster.json scripts/data/live/gleague-index.json scripts/data/live/transactions.json scripts/data/live/season-progress.json scripts/data/live/two-way-roster.json scripts/data/live/injuries.json scripts/data/live/news.json
           if git diff --cached --quiet; then
             echo 'No source changes. The live site has not been changed.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
