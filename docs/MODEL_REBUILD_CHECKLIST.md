@@ -1,8 +1,8 @@
 # Model and website rebuild — authoritative checklist
 
-## October 31, 2026 candidate — not yet published
+## October 31, 2026 candidate work (PR #41)
 
-The original 18 standards remain **13 complete and five partial (2, 3, 4, 5, 15)**. This section records new candidate work and does not supersede the October 27 live-release evidence until CI, deployment and live checks pass.
+The original 18 standards remain **13 complete and five partial (2, 3, 4, 5, 15)**. This section records work in PR #41. The October 27 live-release evidence remains the publication baseline until PR #41 passes CI, deployment and live checks.
 
 - **2 — contextual projections, advanced but partial.** Remaining-season per-game counts now shrink official current-season observations toward the preseason forecast. Minutes, assists and turnovers use ten prior games; other counts use twenty. Shooting makes and attempts use the same weight, so scoring, rebounding and percentage identities remain coherent. For a traded player, only games with the projected team update future per-game role; actual season totals still include all teams. The actual/remaining/combined views explain the rule per player. Future appearances still use historical rates plus official upcoming Out listings and two-way ceilings. A dated report does not establish recovery duration, future lineup or verified usage.
 - **3 — evaluation, advanced but partial.** A chronological game-level update-rule check uses earlier seasons to choose prior strengths and 2024-25 as a holdout. On 212 complete-case players with at least 55 target-season games, updating after three observed games reduced future-game MAE for minutes (3.518→3.029), points (2.278→2.012), rebounds (0.771→0.712) and assists (0.618→0.564), compared with repeating the previous season. This is **not** a full as-of evaluation of the shipped preseason model: the prior in this test is the previous season, and the survivor cohort excludes players with shorter seasons. Shooting updates and intervals remain uncalibrated. The executable report is `scripts/evaluate-inseason-update.mjs`.
