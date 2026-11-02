@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {fitResidualBands,evaluateResidualBands,evaluateChronologicalIntervals} from '../scripts/lib/interval-calibration.mjs';
+const row=(p,a)=>({model:{pts:p},actual:{pts:a},repeat:{pts:p+2},avg3:{pts:p+1},cohort:{rotation1000:true,moved:false,missedPriorSeason:false}});
+const calibration=Array.from({length:100},(_,i)=>row(i,i+(i%10)-5));
+const bands=fitResidualBands(calibration,'pts');
+assert.equal(bands.length,4);
+assert.equal(bands.reduce((n,b)=>n+b.n,0),100);
+assert.throws(()=>fitResidualBands(calibration.slice(0,79),'pts'),/Insufficient/);
+const score=evaluateResidualBands([row(10,11),row(50,49)],'pts',bands);
+assert.equal(score.n,2);
+assert.ok(score.coverage>=0&&score.coverage<=1);
+assert.equal(evaluateResidualBands([],'pts',bands).coverage,null);
+assert.throws(()=>evaluateChronologicalIntervals({season:'2025-26'}, {season:'2024-25'}),/chronological/);
+console.log('Chronological interval calibration controls passed.');

@@ -1,0 +1,576 @@
+{
+  "protocol": "Fit through 2023-24, calibrate 10th/90th residual bands on 2024-25; refit through 2024-25 and test coverage on 2025-26. No 2025-26 outcomes select bands.",
+  "nominalCoverage": 0.8,
+  "calibrationSeason": "2024-25",
+  "testSeason": "2025-26",
+  "boundary": "Veterans with recent history who appeared in the target season only. The historical evaluation uses opening-team data when present but falls back to a player’s final team when the player missed the opening fortnight. It excludes rookies, no-appearance players, current-season adaptive updates and the later roster-minute reconciliation. Structural model choices were examined in development, so this is not a pristine prospective validation of the entire shipped stack.",
+  "stats": {
+    "gp": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 40.549,
+          "n": 115,
+          "lowerResidual": -24.06,
+          "upperResidual": 27.549
+        },
+        {
+          "upperPrediction": 55.293,
+          "n": 116,
+          "lowerResidual": -35.209,
+          "upperResidual": 25.391
+        },
+        {
+          "upperPrediction": 63.598,
+          "n": 115,
+          "lowerResidual": -23.545,
+          "upperResidual": 16.904
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -25.945,
+          "upperResidual": 11.848
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.798,
+          "modelMae": 15.829,
+          "repeatMae": 18.074,
+          "avg3Mae": 17.681,
+          "meanWidth": 48.596
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.783,
+          "modelMae": 14.03,
+          "repeatMae": 15.787,
+          "avg3Mae": 15.493,
+          "meanWidth": 45.4
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.793,
+          "modelMae": 17.886,
+          "repeatMae": 19.944,
+          "avg3Mae": 18.735,
+          "meanWidth": 52.245
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.917,
+          "modelMae": 13.972,
+          "repeatMae": 10.917,
+          "avg3Mae": 7.881,
+          "meanWidth": 47.61
+        }
+      }
+    },
+    "mpg": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 14.867,
+          "n": 115,
+          "lowerResidual": -7.342,
+          "upperResidual": 7.517
+        },
+        {
+          "upperPrediction": 19.879,
+          "n": 116,
+          "lowerResidual": -7.343,
+          "upperResidual": 5.751
+        },
+        {
+          "upperPrediction": 27.261,
+          "n": 115,
+          "lowerResidual": -6.029,
+          "upperResidual": 6.197
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -3.975,
+          "upperResidual": 3.793
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.758,
+          "modelMae": 4.2,
+          "repeatMae": 4.928,
+          "avg3Mae": 5.085,
+          "meanWidth": 12.063
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.806,
+          "modelMae": 3.337,
+          "repeatMae": 3.959,
+          "avg3Mae": 4.165,
+          "meanWidth": 10.868
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.737,
+          "modelMae": 4.799,
+          "repeatMae": 5.988,
+          "avg3Mae": 5.902,
+          "meanWidth": 13.067
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.5,
+          "modelMae": 9.205,
+          "repeatMae": 8.405,
+          "avg3Mae": 8.414,
+          "meanWidth": 14.712
+        }
+      }
+    },
+    "pts": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 5.485,
+          "n": 115,
+          "lowerResidual": -2.776,
+          "upperResidual": 2.617
+        },
+        {
+          "upperPrediction": 7.879,
+          "n": 116,
+          "lowerResidual": -3.461,
+          "upperResidual": 2.942
+        },
+        {
+          "upperPrediction": 12.811,
+          "n": 115,
+          "lowerResidual": -3.295,
+          "upperResidual": 3.435
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -3.36,
+          "upperResidual": 3.546
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.702,
+          "modelMae": 2.511,
+          "repeatMae": 2.913,
+          "avg3Mae": 2.964,
+          "meanWidth": 6.349
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.739,
+          "modelMae": 2.439,
+          "repeatMae": 2.892,
+          "avg3Mae": 2.934,
+          "meanWidth": 6.634
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.646,
+          "modelMae": 2.741,
+          "repeatMae": 3.254,
+          "avg3Mae": 3.245,
+          "meanWidth": 6.134
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.417,
+          "modelMae": 3.788,
+          "repeatMae": 3.689,
+          "avg3Mae": 3.647,
+          "meanWidth": 5.64
+        }
+      }
+    },
+    "reb": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 2.202,
+          "n": 115,
+          "lowerResidual": -1.138,
+          "upperResidual": 1.283
+        },
+        {
+          "upperPrediction": 3.415,
+          "n": 116,
+          "lowerResidual": -1.256,
+          "upperResidual": 0.991
+        },
+        {
+          "upperPrediction": 4.728,
+          "n": 115,
+          "lowerResidual": -1.229,
+          "upperResidual": 0.985
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -1.576,
+          "upperResidual": 1.38
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.752,
+          "modelMae": 0.889,
+          "repeatMae": 1.039,
+          "avg3Mae": 1.038,
+          "meanWidth": 2.473
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.838,
+          "modelMae": 0.728,
+          "repeatMae": 0.863,
+          "avg3Mae": 0.876,
+          "meanWidth": 2.537
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.692,
+          "modelMae": 0.996,
+          "repeatMae": 1.194,
+          "avg3Mae": 1.183,
+          "meanWidth": 2.382
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.417,
+          "modelMae": 1.524,
+          "repeatMae": 1.254,
+          "avg3Mae": 1.127,
+          "meanWidth": 2.39
+        }
+      }
+    },
+    "ast": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 1.138,
+          "n": 115,
+          "lowerResidual": -0.575,
+          "upperResidual": 0.686
+        },
+        {
+          "upperPrediction": 1.64,
+          "n": 116,
+          "lowerResidual": -0.642,
+          "upperResidual": 0.905
+        },
+        {
+          "upperPrediction": 2.977,
+          "n": 115,
+          "lowerResidual": -0.957,
+          "upperResidual": 1.004
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -1.192,
+          "upperResidual": 1.128
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.756,
+          "modelMae": 0.65,
+          "repeatMae": 0.742,
+          "avg3Mae": 0.779,
+          "meanWidth": 1.771
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.81,
+          "modelMae": 0.671,
+          "repeatMae": 0.777,
+          "avg3Mae": 0.821,
+          "meanWidth": 1.922
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.717,
+          "modelMae": 0.644,
+          "repeatMae": 0.775,
+          "avg3Mae": 0.767,
+          "meanWidth": 1.635
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.417,
+          "modelMae": 1.301,
+          "repeatMae": 1.21,
+          "avg3Mae": 1.188,
+          "meanWidth": 1.402
+        }
+      }
+    },
+    "stl": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 0.396,
+          "n": 115,
+          "lowerResidual": -0.23,
+          "upperResidual": 0.383
+        },
+        {
+          "upperPrediction": 0.59,
+          "n": 116,
+          "lowerResidual": -0.242,
+          "upperResidual": 0.291
+        },
+        {
+          "upperPrediction": 0.83,
+          "n": 115,
+          "lowerResidual": -0.13,
+          "upperResidual": 0.413
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -0.272,
+          "upperResidual": 0.498
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.706,
+          "modelMae": 0.214,
+          "repeatMae": 0.247,
+          "avg3Mae": 0.229,
+          "meanWidth": 0.613
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.775,
+          "modelMae": 0.206,
+          "repeatMae": 0.235,
+          "avg3Mae": 0.217,
+          "meanWidth": 0.638
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.657,
+          "modelMae": 0.231,
+          "repeatMae": 0.274,
+          "avg3Mae": 0.249,
+          "meanWidth": 0.586
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.333,
+          "modelMae": 0.424,
+          "repeatMae": 0.432,
+          "avg3Mae": 0.435,
+          "meanWidth": 0.587
+        }
+      }
+    },
+    "blk": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 0.2,
+          "n": 115,
+          "lowerResidual": -0.145,
+          "upperResidual": 0.117
+        },
+        {
+          "upperPrediction": 0.335,
+          "n": 116,
+          "lowerResidual": -0.189,
+          "upperResidual": 0.205
+        },
+        {
+          "upperPrediction": 0.546,
+          "n": 115,
+          "lowerResidual": -0.176,
+          "upperResidual": 0.248
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -0.323,
+          "upperResidual": 0.303
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.752,
+          "modelMae": 0.15,
+          "repeatMae": 0.18,
+          "avg3Mae": 0.172,
+          "meanWidth": 0.42
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.834,
+          "modelMae": 0.141,
+          "repeatMae": 0.171,
+          "avg3Mae": 0.161,
+          "meanWidth": 0.454
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.687,
+          "modelMae": 0.149,
+          "repeatMae": 0.195,
+          "avg3Mae": 0.19,
+          "meanWidth": 0.386
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.5,
+          "modelMae": 0.221,
+          "repeatMae": 0.298,
+          "avg3Mae": 0.308,
+          "meanWidth": 0.35
+        }
+      }
+    },
+    "tov": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 0.587,
+          "n": 115,
+          "lowerResidual": -0.283,
+          "upperResidual": 0.654
+        },
+        {
+          "upperPrediction": 0.864,
+          "n": 116,
+          "lowerResidual": -0.373,
+          "upperResidual": 0.377
+        },
+        {
+          "upperPrediction": 1.412,
+          "n": 115,
+          "lowerResidual": -0.387,
+          "upperResidual": 0.607
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -0.397,
+          "upperResidual": 0.804
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.735,
+          "modelMae": 0.332,
+          "repeatMae": 0.396,
+          "avg3Mae": 0.391,
+          "meanWidth": 0.972
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.787,
+          "modelMae": 0.336,
+          "repeatMae": 0.398,
+          "avg3Mae": 0.39,
+          "meanWidth": 1.02
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.697,
+          "modelMae": 0.336,
+          "repeatMae": 0.405,
+          "avg3Mae": 0.381,
+          "meanWidth": 0.932
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.5,
+          "modelMae": 0.594,
+          "repeatMae": 0.525,
+          "avg3Mae": 0.51,
+          "meanWidth": 0.859
+        }
+      }
+    },
+    "fg3m": {
+      "calibrationN": 462,
+      "bands": [
+        {
+          "upperPrediction": 0.571,
+          "n": 115,
+          "lowerResidual": -0.265,
+          "upperResidual": 0.33
+        },
+        {
+          "upperPrediction": 0.948,
+          "n": 116,
+          "lowerResidual": -0.492,
+          "upperResidual": 0.614
+        },
+        {
+          "upperPrediction": 1.563,
+          "n": 115,
+          "lowerResidual": -0.624,
+          "upperResidual": 0.634
+        },
+        {
+          "upperPrediction": null,
+          "n": 116,
+          "lowerResidual": -0.517,
+          "upperResidual": 0.549
+        }
+      ],
+      "cohorts": {
+        "all": {
+          "n": 476,
+          "coverage": 0.737,
+          "modelMae": 0.365,
+          "repeatMae": 0.376,
+          "avg3Mae": 0.381,
+          "meanWidth": 1
+        },
+        "rotation1000": {
+          "n": 253,
+          "coverage": 0.775,
+          "modelMae": 0.342,
+          "repeatMae": 0.368,
+          "avg3Mae": 0.384,
+          "meanWidth": 1.042
+        },
+        "moved": {
+          "n": 198,
+          "coverage": 0.722,
+          "modelMae": 0.382,
+          "repeatMae": 0.426,
+          "avg3Mae": 0.41,
+          "meanWidth": 0.979
+        },
+        "missedPriorSeason": {
+          "n": 12,
+          "coverage": 0.5,
+          "modelMae": 0.473,
+          "repeatMae": 0.479,
+          "avg3Mae": 0.485,
+          "meanWidth": 0.86
+        }
+      }
+    }
+  }
+}
