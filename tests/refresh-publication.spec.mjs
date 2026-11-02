@@ -152,7 +152,9 @@ test('source refresh is a collapsed authenticated owner action, not a public ing
   await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('rel','noopener noreferrer');
   await expect(details).toContainText('repository write access');
   await expect(details).toContainText('current NBA schedule/player totals');
-  await expect(details).toContainText('G League assignments are not verified');
+  await expect(details).toContainText('all 31 official team rosters');
+  await expect(details).toContainText('Exact-game NBA reports can verify an assignment for that game');
+  await expect(details).toContainText('continuous assignment/recall states remain unverified');
   await expect(details).toContainText('review branch');
   await expect(details).toContainText('does not immediately change the live site');
 });
