@@ -643,6 +643,26 @@ function intervals(rows) {
   return out;
 }
 const residualBands = intervals(testRows);
+// Machine-readable held-out rows for chronological evaluation. The evaluator
+// runs this script once per as-of year and keeps the final forecast card intact.
+if (process.env.PROJ_EVAL_ROWS) {
+  const rows = testRows.map((r) => {
+    const actual = actualLine(r.q.actual);
+    actual.gp = Math.min(1, r.q.actual.gp / D.nba.teamGames(r.q.T, r.q.actual.team)) * 82;
+    return {
+      playerId: r.q.pid, season: r.q.T, model: r.line, actual,
+      repeat: r.base.repeat, avg3: r.base.avg3,
+      cohort: {
+        rotation1000: r.q.actual.min >= 1000,
+        moved: r.q.moved,
+        missedPriorSeason: !r.q.hist[0],
+      },
+    };
+  });
+  fs.writeFileSync(process.env.PROJ_EVAL_ROWS, JSON.stringify({season:NBA_TEST,trainedThrough:NBA_TRAIN.at(-1),rows}));
+  log(`Wrote ${rows.length} chronological evaluation rows to ${process.env.PROJ_EVAL_ROWS}`);
+  process.exit(0);
+}
 if (process.env.PROJ_DEBUG) {
   const bias = (k) => testRows.reduce((s, r) => s + r.line[k] - (k === 'gp' ? Math.min(1, r.q.actual.gp / D.nba.teamGames(r.q.T, r.q.actual.team)) * 82 : actualLine(r.q.actual)[k]), 0) / testRows.length;
   log('\n  mean bias (model - actual):', ['mpg', 'gp', 'pts', 'reb', 'ast', 'fg3m'].map((k) => k + ' ' + bias(k).toFixed(2)).join('  '));
