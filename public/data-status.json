@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261102020127-13d056ebcf9b",
+  "publicationId": "2025-26-20261102021002-3cac605eb223",
   "season": "2025-26",
-  "publishedAt": "2026-11-02T02:01:27.153Z",
-  "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-  "dataSha256": "13d056ebcf9ba4b05c41af29c508d61ab9ad5a7dc893981c441e2f365c8aecfe",
+  "publishedAt": "2026-11-02T02:10:02.588Z",
+  "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+  "dataSha256": "3cac605eb2237072318071240eda258ab50d9135d5b83d76db7e08fd0c5b85f6",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261102020127-5a8de7d86d25",
+    "publicationId": "2025-26-20261102020127-13d056ebcf9b",
     "publishedAt": "2026-11-02T02:01:27.153Z",
-    "dataSha256": "5a8de7d86d2589f3299f34f96596a33c164d54ff1c33b139467579e0d3733550"
+    "dataSha256": "13d056ebcf9ba4b05c41af29c508d61ab9ad5a7dc893981c441e2f365c8aecfe"
   },
   "sourceDomains": {
     "officialStats": {
@@ -92,7 +92,7 @@
       "checkedAt": "2026-11-02T01:39:59.221Z",
       "fetchedAt": "2026-11-02T01:39:59.221Z",
       "asOf": "2026-11-02",
-      "sha256": "390e5e3f9e1bfd88ff02e68f52c27a4a9a3605265cc521c3218e8b79de4a741b",
+      "sha256": "2aa4f1ed51a9d4c70d23a1f7f10aff64fe0d7d048c59633cdb989f149add3c94",
       "source": "stats.nba.com/stats/playerindex",
       "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
       "projectionInputsFetchedAt": "2026-09-26T04:28:41.551Z",
@@ -273,8 +273,8 @@
   },
   "modelProvenance": {
     "schemaVersion": 1,
-    "buildCommit": "d3ff9ad",
-    "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+    "buildCommit": "43d03e9",
+    "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
     "dependencyAudit": {
       "policy": "transitive-static-esm-v1",
       "nodeMajor": "24",
@@ -294,11 +294,11 @@
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "d6bc734d961e7726fc9ee7b577dbee2f9e52b253c035406c844a1219c63c96ea",
+        "codeVersionSha256": "d55260896f41af72ed1d188400d8f0992e1ee0062c110d27c93e07893d56a155",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "61598999491bc43e33d37c9231abb930dbc16228b5a7393d5d17f398d130f726"
+            "sha256": "58fa2b0721c2cec1e63efdbac5d91c20ae64cd9d422e841731dd81433e81aafe"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -380,9 +380,9 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
-          "interfaceDefaultsSha256": "6ed25972d69b9541a94a4a2ddb3a6b712a2f0473148469407973ea458297acf2",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
+          "interfaceDefaultsSha256": "1cb178596b91e7e7bfbb69c45e2ca50c069d2013363ce945b00ba7d1e79ead39",
           "interactiveConfiguration": "Custom score uses up to four user-selected fields and weights, tied within-cohort percentiles, missing-ingredient renormalization and explicit mixed-scope consent; configuration and cohort/filter state are preserved in the browser URL."
         },
         "source": "2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields"
@@ -461,8 +461,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
           "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
           "forecastReferencesSha256": "c220cb326ec99dcab74dda2ff8c944c71035cef2c24ec2e2ac44c3c925320ca1",
@@ -568,8 +568,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6"
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea"
         },
         "source": "Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable"
       },
@@ -707,8 +707,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "baselineSeason": "2025-26",
           "rotationVersion": "rotation-tulip-v1",
           "projectionRawInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
@@ -811,8 +811,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "cardSha256": "96cb2f34c6cd06c3",
           "frozenAt": "2026-08-21T01:24:50.909Z",
           "buildInputMode": "preserved_verified_frozen_output"
@@ -837,8 +837,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "nbaHistory": "2009-10 through 2025-26",
           "gleagueHistory": "2014-15 through 2025-26"
         },
@@ -846,13 +846,13 @@
       },
       "teamFit": {
         "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:1691cde155eec477df810381d5e79d035839f0a91593305ca94d30818f5e2ce5",
+        "modelVersion": "code-sha256:ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
         "semanticVersion": null,
-        "codeVersionSha256": "1691cde155eec477df810381d5e79d035839f0a91593305ca94d30818f5e2ce5",
+        "codeVersionSha256": "ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "61598999491bc43e33d37c9231abb930dbc16228b5a7393d5d17f398d130f726"
+            "sha256": "58fa2b0721c2cec1e63efdbac5d91c20ae64cd9d422e841731dd81433e81aafe"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -938,11 +938,11 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6",
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "rosterSha256": "d4d71a86fd3a138cf8c55c4e84c4dacb67a287ee9b8cf68ed963bf721a6a0e70",
           "rostersAsOf": "2026-11-02",
-          "interfaceDefaultsSha256": "6ed25972d69b9541a94a4a2ddb3a6b712a2f0473148469407973ea458297acf2",
+          "interfaceDefaultsSha256": "1cb178596b91e7e7bfbb69c45e2ca50c069d2013363ce945b00ba7d1e79ead39",
           "interactiveConfiguration": "Selected league, player, fields, weights, ranking cohort, filters and mixed-scope permission are user inputs preserved in the browser URL; not fitted model parameters."
         },
         "source": "Published same-league player rows and minutes-weighted roster need profiles"
@@ -969,8 +969,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-02T02:01:27.153Z",
-          "sourceManifestSha256": "6915009d89acd879dbd65e839aba3f7594345e7c17ccd56ba015a7693112d9d6"
+          "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
+          "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea"
         },
         "source": "Same-season dual-league player sample with explicitly reported sample thresholds and held-out limitations"
       }
@@ -1354,7 +1354,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:1691cde155eec477df810381d5e79d035839f0a91593305ca94d30818f5e2ce5",
+        "modelVersion": "code-sha256:ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,

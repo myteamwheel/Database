@@ -369,7 +369,7 @@ function openDataStatus() {
     + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>'
     + '<details class="owner-refresh"><summary>Refresh sources — website owner</summary>'
     + '<p><a id="ownerRefreshLink" href="https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml" target="_blank" rel="noopener noreferrer">Open authenticated source refresh</a></p>'
-    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources include 2025-26 historical statistics, current NBA rosters, the provisional G League player index, transactions, individual bios, two-way contracts, dated injury reports, attributed NBA headlines and current NBA schedule/player totals. G League assignments are not verified.</p>'
+    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources include 2025-26 historical statistics, current NBA rosters, the G League discovery index and all 31 official team rosters, separate G League competition results, transactions, individual bios, two-way contracts, dated injury reports, attributed NBA headlines and current NBA schedule/player totals. Exact-game NBA reports can verify an assignment for that game; continuous assignment/recall states remain unverified.</p>'
     + '<p>The run verifies the data and creates a review branch. Open its review link, pass the release checks and merge to publish. This does not immediately change the live site, retrain models or expose account credentials.</p></details>';
   $('dataStatusDialog').showModal();
 }
@@ -2390,6 +2390,7 @@ async function init(){
     updatePublishedHeader();
     populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();
+    if(!window.__STANDALONE_DATA_LOADER)$('reloadDataBtn').disabled=false;
     // Links from other pages (History Lab) can open the projections directly.
     if(location.hash==='#projections' && !new URLSearchParams(location.search).has('view')) goTo('proj');
     writeUrlState('replace');
