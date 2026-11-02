@@ -1,9 +1,10 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 const PAGE = 'file://' + fileURLToPath(new URL('../public/standalone.html', import.meta.url));
 test.beforeEach(async ({ page }) => {
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => window.DATA && document.querySelector('#tableBody tr td'));
 });
 
@@ -57,7 +58,7 @@ test('shareable analysis URL restores league, tab, filters and chart axes', asyn
 
 test('shareable Formula Lab score restores its metrics and weights', async ({page}) => {
   const score = encodeURIComponent(JSON.stringify({ fields: [['pts', 2.5]], cohort: 'league' }));
-  await page.goto(`${PAGE}?score=${score}`);
+  await page.goto(`${PAGE}?mode=database&score=${score}`);
   await page.waitForFunction(() => window.DATA && document.querySelector('#tableBody tr td'));
   await expect(page.locator('#labMetric1')).toHaveValue('pts');
   await expect(page.locator('#labWeight1')).toHaveValue('2.5');

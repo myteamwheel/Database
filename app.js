@@ -16,14 +16,14 @@ const URL_FILTER_FIELDS = {
   gp: 'minGp', mpg: 'minMpg', min: 'minMin', grade: 'minGrade', reliability: 'minReliability',
   rosterScope: 'rosterScope', teamMode: 'teamMode', view: 'viewPreset', sort: 'sortField', dir: 'sortOrder', rows: 'rowLimit',
 };
-const URL_ALLOWED_MODES = new Set(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
+const URL_ALLOWED_MODES = new Set(['current','seasonreview','database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
 
 function writeUrlState(kind = 'replace') {
   if (restoringUrlState || !DATA || location.protocol === 'file:') return;
   const params = new URLSearchParams();
   if (league !== 'NBA') params.set('league', league);
   const mode = window.__wsMode?.() || 'database';
-  if (mode !== 'database') params.set('mode', mode);
+  params.set('mode', mode);
   for (const [key, id] of Object.entries(URL_FILTER_FIELDS)) {
     const el = $(id);
     if (!el) continue;
@@ -111,7 +111,7 @@ function restoreUrlState() {
     sortKey = nextSort;
     sortDir = params.get('dir') === '1' ? 1 : -1;
     window.__wsRestoreUrlState?.({
-      mode: URL_ALLOWED_MODES.has(params.get('mode')) ? params.get('mode') : (location.hash === '#projections' ? 'database' : 'database'),
+      mode: URL_ALLOWED_MODES.has(params.get('mode')) ? params.get('mode') : (location.hash === '#projections'||params.has('view')?'database':'current'),
       player: params.get('player'), sim: params.get('sim'), simTeam: params.get('simTeam'),
       simPosition: params.get('simPosition'), teamfit: params.get('teamfit'), rolePlayer: params.get('rolePlayer'),
       target: params.get('target'), x: params.get('x'), y: params.get('y'), size: params.get('size'), color: params.get('color'),

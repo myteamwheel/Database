@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +37,7 @@ for(const league of ['NBA','GLEAGUE']) {
 }
 
 test('a missing independent trait reference never becomes a mislabeled blend reference',async({page})=>{
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(()=>window.DATA?.analysis?.playerComps);
   await page.evaluate(()=>{
     const [id,set]=Object.entries(DATA.analysis.playerComps.NBA)[0];

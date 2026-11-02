@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 // Runs against the built standalone page, same target as the rest of the suite.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
@@ -18,7 +19,7 @@ const hold = async (page, locator, ms = 700) => {
 const open = async (page) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => document.querySelector('#tableBody tr td'), null, { timeout: 60000 });
   await page.waitForTimeout(400);
   return errors;

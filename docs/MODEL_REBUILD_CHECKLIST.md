@@ -24,6 +24,19 @@ Current NBA sources reconcile 523 roster members, 90 completed games and 441 pla
 
 Final holdout: 441 observed players, including two with no later appearance. Per-appearance points MAE is 2.718; paired veterans are 2.615 versus 2.923 repeating last season and 2.974 using a three-year average. Historical nominal-80% points ranges cover 78.1% overall and 86.4% of rookies; moved-player coverage is 73.3%. These are measured limitations, not grounds to tune on the final holdout.
 
+## Current-season and prior-season review navigation
+
+Tracked in [PR #45](https://github.com/myteamwheel/Database/pull/45). PR #44 passed all 19 required checks and was merged as `1429f21`; publication remains a separate live-verification step. The navigation follow-up has independent current-grade/source tests, lossless artifact verification and desktop/mobile/CSV browser coverage.
+
+The user subsequently requested the current season first and the prior-season accuracy review second. The implementation adds these two tabs ahead of the historical Database, with the current season as the default landing page.
+
+- Current 2026–27 NBA grades are computed from official current-season base and advanced inputs using the existing grade model, including separate per-36 and magnitude grades, coverage and sample shrinkage. The original 2025–26 grade is preserved. Current TULIP remains the explicitly experimental next-game plan, using measured current workload/availability and historical value evidence.
+- G League competition phases remain separate. Before a recorded appearance, averages and grades remain unavailable. The current-roster list still allows discovery of signed/listed players.
+- The 2025–26 review joins independent measured results to 476 NBA and 295 G League regular-season chronological backtest rows, displays point estimates beside outcomes, and calculates errors over all comparable filtered rows. Unsupported forecasts stay blank.
+- **No pre-season 2025–26 published forecast archive exists in the repository.** Reconstructed predictions are prominently labeled retrospective. They must not be presented as previously published forecasts. The retained dated forecast archive begins with the 2026–27 preseason release.
+- Full historical grades and TULIP/Role Evidence remain visible with their correct scope. Comparable box-score grades apply one common measured-season reference to both sides, separate from the full grade. A TULIP recommendation is not an observed truth that can be scored as forecast accuracy.
+- Current-season and review CSV exports preserve league, season, competition/basis, missing values and comparison scope. Older tools retain explicit historical deep links and regression coverage.
+
 ## November 1, 2026 release and subsequent evidence
 
 At that earlier release, the original standards were **13 complete and five partial (2, 3, 4, 5, 15)**; the final-five implementation above supersedes that count. [PR #41](https://github.com/myteamwheel/Database/pull/41) passed all 19 exact-head checks, merged as `7c8d146`, rebuilt as `5f60ae08`, and passed [Pages deployment](https://github.com/myteamwheel/Database/actions/runs/41350058323). All seven checked public assets matched the rebuilt commit byte for byte; the live results page showed 81 completed games and 432 players with appearances. [PR #42](https://github.com/myteamwheel/Database/pull/42) fixed an overlapping provisional G League index/profile label that a live spot check exposed. Its 16 exact-head checks passed, it merged as `876f127`, rebuilt as `126cd585`, and passed [Pages deployment](https://github.com/myteamwheel/Database/actions/runs/41363393490). All seven served assets again matched the final commit. A transient public 503 on one asset resolved on retry. The user-facing provisional wording was verified by the browser regression in CI; local browser automation was disabled for the final live dialog check.

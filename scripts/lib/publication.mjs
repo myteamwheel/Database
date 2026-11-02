@@ -13,8 +13,8 @@ const COVERAGE_SET = new Set(COVERAGE_STATES);
 export const MODEL_OUTPUTS = Object.freeze({
   performanceGrades: Object.freeze({
     label: 'Performance grades and custom metrics',
-    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs','app.js'],
-    source: '2025-26 official NBA/G League stat snapshots with explicitly labeled Basketball-Reference second-source fields',
+    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs','scripts/build-season-dashboards.mjs','app.js','workspace.js'],
+    source: '2025-26 official NBA/G League snapshots with labeled Basketball-Reference fields; 2026-27 grades use separate current-season official base and advanced tables',
   }),
   projections: Object.freeze({
     label: '2026-27 player projections',
@@ -110,6 +110,8 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     season: publicData?.season || null,
     buildGeneratedAt: publicData?.generatedAt || null,
     sourceManifestSha256,
+    currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
+    seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
   };
   if (key === 'projections') return {
     ...common,
@@ -198,6 +200,8 @@ export function deriveModelProvenance({ root, publicData }) {
     schemaVersion: 1,
     buildCommit: publicData?.provenance?.buildCommit || null,
     sourceManifestSha256,
+    currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
+    seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
     dependencyAudit:{policy:'transitive-static-esm-v1',nodeMajor:process.versions.node.split('.')[0],codeFiles:DEPENDENCY_AUDIT_FILES.map(relativePath=>({path:relativePath,sha256:fileSha256(root,relativePath)}))},
     outputs,
   };
@@ -298,6 +302,8 @@ export function deriveSourceDomains({ root, publicData }) {
     if(!input||publicData[key].asOf!==input[dateKey]||publicData[key].sourceSha256!==fileSha256(root,`scripts/data/live/${file}`))throw new Error(`Published ${key} is stale; rebuild before publication.`);
   }
   if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
+  if(publicData?.currentGradeMeta&&publicData.currentGradeMeta.sourceSha256!==fileSha256(root,'scripts/data/live/current-grade-inputs.json'))throw new Error('Current-season grades are stale');
+  if(publicData?.seasonReview&&publicData.seasonReview.sourceSha256!==fileSha256(root,'scripts/data/projection/season-review-2025-26.json'))throw new Error('Season review is stale');
   if(publicData?.gLeagueSeasonProgress&&publicData.gLeagueSeasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-progress.json'))throw new Error('Published G League phase results are stale; rebuild before publication.');
   if(publicData?.currentGLeagueRosterMeta){const input=readJson(path.join(root,'scripts/data/live/gleague-rosters.json'));if(!input||input.fetchedAt!==publicData.currentGLeagueRosterMeta.asOf||publicData.currentGLeagueRosterMeta.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-rosters.json'))throw new Error('Published G League team rosters are stale; rebuild before publication.');}
   if(publicData?.currentGLeagueIndexMeta){
