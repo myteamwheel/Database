@@ -1,0 +1,56 @@
+name: Daily NBA and G League refresh
+on:
+  schedule:
+    - cron: '17 7,10 * * *'
+      timezone: America/New_York
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: daily-season-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/v3-official-data'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install verification tools and historical evidence
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \
+            scripts/data/history/provenance.json \
+            scripts/data/history/2015-16 scripts/data/history/2016-17 \
+            scripts/data/history/2017-18 scripts/data/history/2018-19 \
+            scripts/data/history/2019-20 scripts/data/history/2020-21 \
+            scripts/data/history/2021-22 scripts/data/history/2022-23 \
+            scripts/data/history/2023-24 scripts/data/history/2024-25 | tar -x
+          # Historical products are already committed. Retain their exact bytes;
+          # the daily refresh updates current-season inputs only.
+          npm run verify:local-history
+      - name: Fetch current sources, rebuild scores and verify the complete release
+        run: npm run refresh:daily
+      - name: Publish the verified snapshots without overwriting concurrent work
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/publish-daily-refresh.mjs
+          # GITHUB_TOKEN pushes do not trigger ordinary workflows. Explicitly
+          # request Pages; its independent payload/UI gates still run before deploy.
+          gh workflow run deploy-pages.yml --ref v3-official-data
+      - name: Record outcome
+        if: always()
+        run: |
+          if [ -f scripts/data/refresh-runs/daily-latest.json ]; then
+            node -e 'const fs=require("node:fs"),r=require("./scripts/data/refresh-runs/daily-latest.json");fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`Current-season refresh: ${r.state}. ${r.stages.filter(s=>s.status==="ok").length} stages passed. ${r.failure||"Publication and Pages status appear in their following steps."}\n`);'
+          fi
+          echo 'Schedule: 7:17 AM and 10:17 AM America/New_York. Source or verification failure retains the last published snapshot. GitHub run notifications and the Actions page show failures.' >> "$GITHUB_STEP_SUMMARY"

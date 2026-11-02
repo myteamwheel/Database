@@ -1,5 +1,16 @@
 # Model and website rebuild — authoritative checklist
 
+## November 2 follow-up — automatic morning updates
+
+The earlier completion statement did **not** cover unattended daily publication: the owner refresh was manual and review-only. This follow-up adds the explicitly requested automatic path; the manual historical refresh remains available.
+
+- [x] Current-season morning workflow configured for **7:17 AM and 10:17 AM America/New_York**. Uses official NBA and separate G League phase data, current roster listings and dated availability. No automatic season rollover or model refit.
+- [x] Player and team results validated before publication. Team game logs reconcile dashboard count corrections with attribution. Current participants remain discoverable after a signing/waiver even without a historical row.
+- [x] Every measured participant must have a current grade. TULIP displays a supported score or a specific reason; no games, unavailable evidence, reported Out status and infeasible rotations do not become invented zeros. NBA rotation TULIP remains unsupported for G League.
+- [x] Daily source/public-output rollback on required-stage failure; optional invalid transaction/contract/injury updates retain verified snapshots with a visible notice. Publication allows only current source snapshots and generated web files, refuses concurrent branch changes and never force-pushes.
+- [x] Visible local-time source check, overdue warning, refresh-run link, collapsed team results and exported score statuses.
+- [ ] Complete a real current-source ingestion, release CI, initial scheduled-workflow dispatch and live verification. GitHub scheduling and official source publication may be delayed; the second morning run picks up late results.
+
 ## Final-five implementation — 18/18 implemented
 
 All **18 implementation items are implemented** in `finish/model-integration`; the final five are covered below. Release verification is tracked in [PR #44](https://github.com/myteamwheel/Database/pull/44) and the [Pages deployment workflow](https://github.com/myteamwheel/Database/actions/workflows/deploy-pages.yml): require passing exact-commit checks, merge, generated-artifact rebuild and matching live files before calling a release published. A checked implementation is not a promise of perfect future accuracy, known recovery dates, or win-maximizing minutes. Earlier 13/18 counts below describe earlier releases.

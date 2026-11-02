@@ -18,8 +18,10 @@ test('second tab compares the correct 2025 season and clearly distinguishes a re
  const pending=page.waitForEvent('download');await page.click('#seasonExport');expect((await pending).suggestedFilename()).toContain('2025-26_retrospective-review');expect(errors).toEqual([]);
 });
 test('G League current phases have no invented grades and its review compares regular-season metrics',async({page})=>{
- const errors=await open(page);await page.click('.league-tab[data-league="GLEAGUE"]');await expect(page.locator('.season-notice')).toContainText('No published player results');
- await expect(page.locator('#sourceLine')).toContainText('G League');await expect(page.locator('.season-grade').first()).toHaveText('—');await page.selectOption('#seasonPhase','Regular Season');await expect(page.locator('.season-notice')).toBeVisible();
+ const errors=await open(page);await page.click('.league-tab[data-league="GLEAGUE"]');
+ await expect(page.locator('#sourceLine')).toContainText('G League');
+ for(const phase of ['Showcase','Regular Season']){await page.selectOption('#seasonPhase',phase);const hasGames=await page.evaluate(type=>DATA.leagues.GLEAGUE.some(p=>p.gLeagueSeasonActual?.phases?.[type]?.gp>0),phase);if(hasGames){await expect(page.locator('.season-grade').first()).not.toHaveText('No games');}else{await expect(page.locator('.season-notice')).toContainText('No published player results');await expect(page.locator('.season-grade').first()).toHaveText('No games');}await expect(page.locator('.season-table tbody tr').first()).toContainText('Not modeled');}
+
  await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-hero')).toContainText('G League regular-season');await expect(page.locator('.season-table > table > thead')).toContainText('Combined-season grade');
  const p=await page.evaluate(()=>DATA.seasonReview.leagues.GLEAGUE.rows.find(p=>p.model));await page.fill('#seasonSearch',p.name);await expect(page.locator('.season-table tbody tr').first()).toContainText(p.actual.pts.toFixed(1));expect(errors).toEqual([]);
 });

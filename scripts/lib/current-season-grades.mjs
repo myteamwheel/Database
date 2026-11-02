@@ -11,6 +11,7 @@ export function advancedTable(payload,{leagueId,seasonType,season='2026-27'}){
 export function gradeCurrentRows(players,actualById,baseTable,advanced){
  const ix=Object.fromEntries(baseTable.headers.map((k,i)=>[k,i]));
  const base=new Map(baseTable.rowSet.map(r=>[r[ix.PLAYER_ID],Object.fromEntries(baseTable.headers.map((k,i)=>[k,r[i]]))]));
+ const publishedIds=new Set(players.map(p=>Number(p.nbaPersonId||p.playerId)));if(Object.keys(actualById).some(id=>!publishedIds.has(Number(id))))throw new Error('Measured participant missing from database');
  const eligible=players.filter(p=>actualById[p.nbaPersonId||p.playerId]?.gp>0),norm=[];
  for(const p of eligible){const id=Number(p.nbaPersonId||p.playerId),a=actualById[id],b=base.get(id),v=advanced.get(id);if(!b||!v||v.GP!==a.gp)throw new Error('Current grade base/advanced exposure mismatch');
   const t={...b,...Object.fromEntries(Object.entries(a.totals).map(([k,v])=>[{min:'MIN',pts:'PTS',oreb:'OREB',dreb:'DREB',reb:'REB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fgm:'FGM',fga:'FGA',fg3m:'FG3M',fg3a:'FG3A',ftm:'FTM',fta:'FTA'}[k]||k,v])),GP:a.gp};
