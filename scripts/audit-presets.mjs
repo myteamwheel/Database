@@ -79,6 +79,8 @@ for (const league of ['NBA', 'GLEAGUE']) {
     if (Number.isFinite(c.supportCount)) capKeys.add('evidence');
   }
 
+  const rotationKeys=new Set(d.leagues[league].filter(p=>p.tulipRotation&&!p.tulipRotation.abstain).flatMap(p=>Object.entries(p.tulipRotation).filter(([,v])=>v!==null&&v!==undefined).map(([k])=>k)));
+
   // Cross-league derived fields live on nested objects rather than as top-level keys.
   const derived = { opt: new Set(), rb: new Set(), p36: new Set(), p36n: new Set() };
   for (const p of d.leagues[league]) {
@@ -95,6 +97,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
     // TULIP fields are derived from the per-player tulip.card object rather than being top-level
     // keys, and they are legitimately null for every player TULIP abstains on. "Resolves" here
     // means at least one player carries a real value, which is the same bar as every other field.
+    if(key.startsWith('tr.'))return rotationKeys.has(key.slice(3));
     if (key.startsWith('tb.')) return betaKeys.has(key.slice(3));
     if (key.startsWith('tc.')) return capKeys.has(key.slice(3));
     if (key.startsWith('tulip.')) return tulipKeys.has(key.slice(6));
@@ -114,17 +117,19 @@ for (const league of ['NBA', 'GLEAGUE']) {
   // A field may legitimately be absent in one league (tracking in the G League) as long as the
   // preset itself is hidden there. These are the presets each league actually offers.
   const leagueOnly = { tracking: 'NBA', splits: 'GLEAGUE', nbaready: 'GLEAGUE', per36nba: 'GLEAGUE',
-    capacity: 'NBA', tulipbeta: 'NBA' };
+    capacity: 'NBA', tulipbeta: 'NBA', tuliprotation: 'NBA' };
 
   const otherLeague = league === 'NBA' ? 'GLEAGUE' : 'NBA';
   const otherStats = new Set(d.leagues[otherLeague].filter((p) => p.appeared)
     .flatMap((p) => Object.keys(p.stats || {})));
   const otherHasCapacity = d.leagues[otherLeague].some((p) => p.tulipCapacity && p.tulipCapacity.abstain !== true);
   const otherHasBeta = d.leagues[otherLeague].some((p) => p.tulipBeta && p.tulipBeta.abstain !== true);
+  const otherRotationKeys=new Set(d.leagues[otherLeague].filter(p=>p.tulipRotation&&!p.tulipRotation.abstain).flatMap(p=>Object.entries(p.tulipRotation).filter(([,v])=>v!==null&&v!==undefined).map(([k])=>k)));
   const existsSomewhere = (k) => resolves(k)
     || (k.startsWith('stats.') && otherStats.has(k.slice(6)))
     || (k.startsWith('tc.') && otherHasCapacity)
-    || (k.startsWith('tb.') && otherHasBeta);
+    || (k.startsWith('tb.') && otherHasBeta)
+    || (k.startsWith('tr.') && otherRotationKeys.has(k.slice(3)));
 
   const dead = [], leagueAbsent = [];
   for (const [name, keys] of Object.entries(P)) {

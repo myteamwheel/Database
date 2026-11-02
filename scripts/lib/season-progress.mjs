@@ -51,9 +51,15 @@ export function reconcileGameLog(schedule,stats,gameLog,season) {
   return {totals,byPlayerTeam,corrections,completedGames:games.size,source:'stats.nba.com/stats/leaguegamelog?PlayerOrTeam=P'};
 }
 
-export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog} = {}) {
+export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog,sourceUrls=null} = {}) {
+  if(sourceUrls){
+    const allowed={schedule:'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',stats:/^https:\/\/stats\.(?:gleague\.)?nba\.com\/stats\/leaguedashplayerstats\?/,gameLog:/^https:\/\/stats\.(?:gleague\.)?nba\.com\/stats\/leaguegamelog\?/};
+    if(sourceUrls.schedule!==allowed.schedule||!allowed.stats.test(sourceUrls.stats)||!allowed.gameLog.test(sourceUrls.gameLog)||new URL(sourceUrls.stats).searchParams.get('LeagueID')!=='00'||new URL(sourceUrls.gameLog).searchParams.get('LeagueID')!=='00')throw new Error('Invalid official NBA source URLs');
+  }
   if (!/^\d{4}-\d{2}$/.test(season || '') || Number(season.slice(5)) !== (Number(season.slice(0,4))+1)%100) throw new Error('Invalid season');
   if (!Number.isFinite(Date.parse(fetchedAt))) throw new Error('Invalid fetch date');
+  if(stats?.parameters&&(stats.parameters.Season!==season||String(stats.parameters.LeagueID)!=='00'||stats.parameters.PerMode!=='Totals'))throw new Error('NBA player-stat source scope mismatch');
+  if(gameLog?.parameters&&(gameLog.parameters.Season!==season||String(gameLog.parameters.LeagueID)!=='00'||gameLog.parameters.PlayerOrTeam!=='P'))throw new Error('NBA game-log source scope mismatch');
   if (schedule?.leagueSchedule?.seasonYear !== season || schedule.leagueSchedule.leagueId !== '00') throw new Error('Schedule season/league mismatch');
   if (!Array.isArray(schedule.leagueSchedule.gameDates)) throw new Error('Missing schedule');
   const teams = Object.fromEntries(TEAMS.map(t => [t,{completed:0,scheduled:0}]));
@@ -115,6 +121,6 @@ export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog
   return {version:SEASON_PROGRESS_VERSION,season,fetchedAt,completedGames,teams,players,
     sourceCorrections:reconciled?.corrections||[],
     status:completedGames?'in-season':'preseason',
-    scheduleSource:'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',
-    statsSource:'https://stats.nba.com/stats/leaguedashplayerstats',gameLogSource:reconciled?.source||null};
+    scheduleSource:sourceUrls?.schedule||'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',
+    statsSource:sourceUrls?.stats||'https://stats.nba.com/stats/leaguedashplayerstats',gameLogSource:sourceUrls?.gameLog||reconciled?.source||null};
 }

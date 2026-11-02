@@ -16,6 +16,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'PROJECTION_2026_27.json'
+      - 'ENTRY_PRODUCTION_MODEL.json'
+      - 'FORECAST_REFERENCE_RANGES.json'
       - '.github/workflows/rebuild-generated.yml'
   workflow_dispatch:
 

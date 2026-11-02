@@ -14,8 +14,9 @@ import {
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
   MIN_FEATURES, GP_FEATURES, RATE_STATS,
 } from './lib/projection.mjs';
-import { CONTEXT_VERSION, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, rookieAgeAtReference, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
+import { CONTEXT_VERSION, eligibleEntryFallback, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, rookieAgeAtReference, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
+import {verifyEntryProduction,collegeInputFor,applyEntryProduction,ENTRY_PRODUCTION_VERSION} from './lib/entry-production.mjs';
 import { validateProjectionAccounting } from './lib/projection-validation.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,7 +24,7 @@ const DATA = path.join(ROOT, 'public/data.json');
 const CARD = path.join(ROOT, 'PROJECTION_2026_27.json');
 const INPUTS = path.join(ROOT, 'scripts/data/projection/inputs.json');
 
-const T = '2026-27', LAST = '2025-26';
+const DEFAULT_TARGET_SEASON='2026-27';
 
 export function projectionRoleLabel(mpg) {
   if (!Number.isFinite(mpg)) throw new Error('Projection role requires finite MPG.');
@@ -34,11 +35,18 @@ export function projectionRoleLabel(mpg) {
  * Compute every player's projection into `data` (mutated in place) and return the counts.
  * Pure given its arguments, so the test suite can rebuild in memory and compare.
  */
-export function buildProjections(data, rawInputs, card, { roster = null, birthdates = {} } = {}) {
+export function buildProjections(data, rawInputs, card, { roster = null, birthdates = {}, entryProduction = null, entryCard = null, targetSeason=DEFAULT_TARGET_SEASON } = {}) {
+  if(!/^20\d{2}-\d{2}$/.test(targetSeason)||targetSeason.slice(5)!==String(Number(targetSeason.slice(0,4))+1).slice(-2))throw new Error('Invalid projection target season');
+  const T=targetSeason,LAST=prevSeason(T),targetYear=Number(T.slice(0,4));
   if (!birthdates || typeof birthdates !== 'object' || Array.isArray(birthdates)) throw new Error('Projection birthdate cache must be an object');
   const inputsSha = crypto.createHash('sha256').update(rawInputs).digest('hex');
   if (card.builtFrom.sha256 !== inputsSha) {
     throw new Error(`inputs.json (${inputsSha.slice(0, 12)}) is not the file the card was fitted on (${card.builtFrom.sha256.slice(0, 12)}). Refit with scripts/fit-projections.mjs.`);
+  }
+  if(entryProduction){
+    verifyEntryProduction(entryProduction);
+    const sha=crypto.createHash('sha256').update(JSON.stringify(entryProduction)).digest('hex');
+    if(entryCard?.version!==ENTRY_PRODUCTION_VERSION||entryCard.targetYear!==targetYear||entryCard.trainedThrough>=targetYear||entryCard.sourceSha256!==sha)throw new Error('Entry production model/source or training cutoff mismatch');
   }
   const inputs = JSON.parse(rawInputs);
   // A live roster is context, not a mutation of the frozen training dataset/card.
@@ -108,11 +116,13 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
       const hist = history.hist;
       const bio = D.bio.get(pid);
       const team26 = isNba ? D.rosters2627.get(pid) || null : null;
-      const rookie = isNba && team26 && !hist.some(Boolean)
-        && (bio?.fromYear >= 2026 || bio?.draftYear === 2026)
+      let rookie = isNba && team26 && eligibleEntryFallback(bio,hist,T)
         ? rookieProjection(bio, rookieAgeAtReference(p.birthdate, T), rookies, ctx.priors) : null;
+      if(rookie&&entryProduction)rookie=applyEntryProduction(rookie,bio,collegeInputFor(entryProduction,pid,targetYear),entryCard);
+      if(rookie&&entryProduction&&!rookie.evidence.production){const past=entryProduction.records.filter(r=>r.playerId===String(pid)&&r.seasonEndYear<targetYear-3);rookie.evidence.productionFallback={status:'cohort-fallback',reason:past.length?'College production is older than the three-year input window; no stale college adjustment is applied.':'No uniquely matched recent NCAA production; international or unmatched players retain the draft/position/age cohort.',lastCollegeSeason:past.length?Math.max(...past.map(r=>r.seasonEndYear)):null};}
+      if (rookie) rookie.evidence.entryStatus = {draftYear:bio.draftYear,listedFromYear:bio.fromYear,delayedDebut:(bio.draftYear??targetYear)<targetYear,nbaHistory:'No recorded NBA appearances in the available history; draft year does not imply a played season.'};
       if (rookie) rookie.evidence.ageReference = {
-        date: `${Number(T.slice(0, 4)) + 1}-02-01`,
+        date: `${targetYear+1}-02-01`,
         source: Number.isFinite(rookie.pr.age) ? 'published-official-birthdate' : 'unavailable',
         birthdate: Number.isFinite(rookie.pr.age) ? p.birthdate.slice(0, 10) : null,
         historicalPeers: 'Known official birthdates use February 1 of each entry season; unknown peer ages omit the age-distance term.',
@@ -141,7 +151,7 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
       const twoWay = isNba && team26 && p.rosterContext?.contract==='two-way'
         && p.rosterContext.nbaTeam===team26 && p.rosterContext.rosterAsOf===roster?.fetchedAt;
       const share = twoWay ? Math.min(baseShare,50/82) : baseShare;
-      rows.push({ p, pid, hist, historicalFallback: history.fallback, historicalRole, last, bio, rookie, team: team26 || last.team, status, moved, depth, pr, f, mpgRaw, mpg, share,
+      rows.push({ p, pid, hist, historicalFallback: history.fallback, historicalRole, last, bio, rookie, team: team26 || (!isNba?p.currentGLeagueRosterTeam:null) || last.team, status, moved, depth, pr, f, mpgRaw, mpg, share,
         games: share * games, contract:twoWay?{type:'two-way',maxGames:50,unconstrainedGames:baseShare*82,source:p.rosterContext.source,asOf:p.rosterContext.asOf,assumption:'Assumes the current two-way contract remains in force; a conversion requires a refresh.'}:null,
         mpgLast: hist[0] ? hist[0].min / hist[0].gp : null });
     }
@@ -255,7 +265,7 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
             returnToPlayPredicted: false,
             note: r.historicalRole.note,
           } : null,
-          team: { usage: r3(r.factors.usage - 1), newTeam: r3(r.factors.newTeam - 1), pace: r1(r.factors.pace),
+          team: { leaguePlaysPer100:r9(ctx.priors.playsPer100), usage: r3(r.factors.usage - 1), newTeam: r3(r.factors.newTeam - 1), pace: r1(r.factors.pace),
             leaguePace: r1(ctx.priors.pace), rosterBalance: r3(r.factors.rosterBalance) },
         },
       };
@@ -317,6 +327,7 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
     teamBudgets,
     rookieEvaluation: evaluateRookieFallback(D, LAST),
     rookieInputCoverage: nba.rookieCoverage,
+    entryProductionModel: entryCard?{version:entryCard.version,trainedThrough:entryCard.trainedThrough,enabled:entryCard.enabled,sourceSha256:entryCard.sourceSha256,trainingPlayers:entryCard.trainingPlayers}:null,
     contextReconciliation: bt.nba.contextReconciliation || null,
     contextValidation: `Accounting and sensitivity tested; legacy veteran backtest below does not validate ${CONTEXT_VERSION}. Rookie retrospective check omits target age without archived preseason bios and does not validate the live DOB-age correction.`,
     inputsSha256: inputsSha.slice(0, 16),
@@ -343,7 +354,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const roster = fs.existsSync(livePath)
     ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(livePath, 'utf8'))) : null;
   const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/data/birthdates.json'), 'utf8'));
-  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster, birthdates });
+  const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster, birthdates, entryProduction:JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/projection/entry-production.json'))),entryCard:JSON.parse(fs.readFileSync(path.join(ROOT,'ENTRY_PRODUCTION_MODEL.json'))) });
   fs.writeFileSync(DATA, JSON.stringify(data));
   console.log(`2026-27 projections: NBA ${nba.scored} projected (${nba.moved} on new teams, ${nba.unsigned} not on a roster), ${nba.abstained} without recent NBA minutes`);
   console.log(`  G League ${gleague.scored} projected, ${gleague.abstained} without recent G League minutes`);

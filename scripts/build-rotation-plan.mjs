@@ -1,0 +1,9 @@
+import fs from 'node:fs';
+import {buildRotationPlans,attachRotationRecommendations} from './lib/rotation-plan.mjs';
+const file=new URL('../public/data.json',import.meta.url);
+const data=JSON.parse(fs.readFileSync(file));
+const snapshot=JSON.parse(fs.readFileSync(new URL('./data/live/season-progress.json',import.meta.url)));
+data.rotationPlans=buildRotationPlans(data,snapshot);
+attachRotationRecommendations(data);
+fs.writeFileSync(file,JSON.stringify(data));
+console.log('Built position-constrained next-game rotation plans:',Object.values(data.rotationPlans).reduce((out,p)=>(out[p.status]=(out[p.status]||0)+1,out),{}));

@@ -512,3 +512,5 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
   .team-allocation-controls label{width:100%}
   .site-footer{padding:12px}
 }
+
+.rotation-card{margin:14px 0;border:1px solid var(--line);padding:12px}.rotation-card .player-grid{gap:12px}

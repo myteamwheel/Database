@@ -24,7 +24,7 @@ assert.ok(parsed.rows.length>20&&parsed.notSubmitted.length>0);
 assert.equal(result.confirmed.length+result.unresolved.length,parsed.rows.length);
 assert.ok(parsed.rows.every(r=>r.name&&r.reason&&['Out','Questionable','Doubtful','Probable','Available'].includes(r.status)));
 assert.throws(()=>parseInjuryReportPages([],{...raw}),/snapshot/);
-assert.throws(()=>parseInjuryReportPages(pages,{...raw,source:prefix+'2026-10-26_09_00AM.pdf'}),/banner/);
+assert.throws(()=>parseInjuryReportPages(pages,{...raw,source:raw.source.replace(/_(\d{2})_(\d{2})(AM|PM)\.pdf$/,(_,h,m,a)=>`_${h}_${m==='30'?'00':'30'}${a}.pdf`)}),/banner/);
 const missingHeader=structuredClone(pages);missingHeader[0]=missingHeader[0].filter(i=>i.text.trim()!=='Player');
 assert.throws(()=>parseInjuryReportPages(missingHeader,raw),/headers/);
 const wrongRoster=structuredClone(roster);const id=wrongRoster.headers.indexOf('TEAM_ABBREVIATION');wrongRoster.rows.forEach(r=>r[id]='ATL');

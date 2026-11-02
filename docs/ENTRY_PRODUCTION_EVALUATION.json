@@ -1,0 +1,235 @@
+{
+  "version": "entry-college-residual-v1",
+  "protocol": "College-production residual adjustments to the historical entry-cohort model. Ridge penalty 30 fixed before holdout evaluation; 2023 development enables metrics improving MAE by at least 1%, then 2024/2025 holdouts score unchanged structure. Production refits through 2025 for 2026 entry.",
+  "boundary": "Retrospective unique-name NBA/college joins and NBA index entry labels; missing international/college inputs keep cohort fallbacks. Historical index coverage can omit undrafted nonappearers. Live age and team-minute reconciliation are evaluated separately.",
+  "development": {
+    "mpg": {
+      "n": 34,
+      "baselineMae": 5.32347311,
+      "modelMae": 5.256953034
+    },
+    "share": {
+      "n": 78,
+      "baselineMae": 0.197569845,
+      "modelMae": 0.178538204
+    },
+    "fga": {
+      "n": 34,
+      "baselineMae": 3.200573174,
+      "modelMae": 2.936976124
+    },
+    "fg3a": {
+      "n": 34,
+      "baselineMae": 2.448397923,
+      "modelMae": 2.067817262
+    },
+    "fta": {
+      "n": 34,
+      "baselineMae": 1.696450762,
+      "modelMae": 1.601085122
+    },
+    "oreb": {
+      "n": 34,
+      "baselineMae": 0.765401068,
+      "modelMae": 0.759728182
+    },
+    "dreb": {
+      "n": 34,
+      "baselineMae": 1.07045223,
+      "modelMae": 1.031452289
+    },
+    "ast": {
+      "n": 34,
+      "baselineMae": 1.327586934,
+      "modelMae": 1.227905102
+    },
+    "stl": {
+      "n": 34,
+      "baselineMae": 0.311284706,
+      "modelMae": 0.296477942
+    },
+    "blk": {
+      "n": 34,
+      "baselineMae": 0.402305095,
+      "modelMae": 0.397321903
+    },
+    "tov": {
+      "n": 34,
+      "baselineMae": 0.694024452,
+      "modelMae": 0.643441877
+    },
+    "fg2": {
+      "n": 34,
+      "baselineMae": 0.059547088,
+      "modelMae": 0.061242861
+    },
+    "fg3": {
+      "n": 29,
+      "baselineMae": 0.040410363,
+      "modelMae": 0.042503683
+    },
+    "ft": {
+      "n": 27,
+      "baselineMae": 0.079555111,
+      "modelMae": 0.079302343
+    }
+  },
+  "enabled": [
+    "mpg",
+    "share",
+    "fga",
+    "fg3a",
+    "fta",
+    "dreb",
+    "ast",
+    "stl",
+    "blk",
+    "tov"
+  ],
+  "holdouts": {
+    "2024": {
+      "mpg": {
+        "n": 44,
+        "baselineMae": 5.68063588,
+        "modelMae": 5.321417638
+      },
+      "share": {
+        "n": 81,
+        "baselineMae": 0.201732933,
+        "modelMae": 0.190005683
+      },
+      "fga": {
+        "n": 44,
+        "baselineMae": 2.259624093,
+        "modelMae": 2.16570106
+      },
+      "fg3a": {
+        "n": 44,
+        "baselineMae": 2.542103308,
+        "modelMae": 2.22155363
+      },
+      "fta": {
+        "n": 44,
+        "baselineMae": 1.129281644,
+        "modelMae": 0.999354914
+      },
+      "oreb": {
+        "n": 44,
+        "baselineMae": 1.003896985,
+        "modelMae": 1.003896985
+      },
+      "dreb": {
+        "n": 44,
+        "baselineMae": 1.198390686,
+        "modelMae": 1.214327595
+      },
+      "ast": {
+        "n": 44,
+        "baselineMae": 1.378363164,
+        "modelMae": 1.281161899
+      },
+      "stl": {
+        "n": 44,
+        "baselineMae": 0.388246292,
+        "modelMae": 0.399367814
+      },
+      "blk": {
+        "n": 44,
+        "baselineMae": 0.563982189,
+        "modelMae": 0.56287173
+      },
+      "tov": {
+        "n": 44,
+        "baselineMae": 0.689745035,
+        "modelMae": 0.669063282
+      },
+      "fg2": {
+        "n": 43,
+        "baselineMae": 0.049829501,
+        "modelMae": 0.049829501
+      },
+      "fg3": {
+        "n": 40,
+        "baselineMae": 0.045848252,
+        "modelMae": 0.045848252
+      },
+      "ft": {
+        "n": 28,
+        "baselineMae": 0.069620145,
+        "modelMae": 0.069620145
+      }
+    },
+    "2025": {
+      "mpg": {
+        "n": 56,
+        "baselineMae": 6.268014572,
+        "modelMae": 5.85013324
+      },
+      "share": {
+        "n": 89,
+        "baselineMae": 0.191987371,
+        "modelMae": 0.177336343
+      },
+      "fga": {
+        "n": 56,
+        "baselineMae": 2.455383381,
+        "modelMae": 2.250566924
+      },
+      "fg3a": {
+        "n": 56,
+        "baselineMae": 2.522517552,
+        "modelMae": 2.187842942
+      },
+      "fta": {
+        "n": 56,
+        "baselineMae": 1.197274337,
+        "modelMae": 1.1596672
+      },
+      "oreb": {
+        "n": 56,
+        "baselineMae": 0.887296258,
+        "modelMae": 0.887296258
+      },
+      "dreb": {
+        "n": 56,
+        "baselineMae": 1.216660311,
+        "modelMae": 1.227161279
+      },
+      "ast": {
+        "n": 56,
+        "baselineMae": 1.618883544,
+        "modelMae": 1.401109581
+      },
+      "stl": {
+        "n": 56,
+        "baselineMae": 0.433233392,
+        "modelMae": 0.42692575
+      },
+      "blk": {
+        "n": 56,
+        "baselineMae": 0.407641681,
+        "modelMae": 0.397451209
+      },
+      "tov": {
+        "n": 56,
+        "baselineMae": 0.617769382,
+        "modelMae": 0.604300136
+      },
+      "fg2": {
+        "n": 51,
+        "baselineMae": 0.054005786,
+        "modelMae": 0.054005786
+      },
+      "fg3": {
+        "n": 48,
+        "baselineMae": 0.04673892,
+        "modelMae": 0.04673892
+      },
+      "ft": {
+        "n": 45,
+        "baselineMae": 0.089271311,
+        "modelMae": 0.089271311
+      }
+    }
+  }
+}

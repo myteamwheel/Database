@@ -1,0 +1,164 @@
+{
+  "version": "entry-college-residual-v1",
+  "targetYear": 2026,
+  "trainedThrough": 2025,
+  "sourceSha256": "432e1c4e7aa4bf868c4a40f8554f9f6873ab98330d55fe144c12babb67cb954b",
+  "lambda": 30,
+  "enabled": [
+    "mpg",
+    "share",
+    "fga",
+    "fg3a",
+    "fta",
+    "dreb",
+    "ast",
+    "stl",
+    "blk",
+    "tov"
+  ],
+  "models": {
+    "mpg": {
+      "n": 430,
+      "coefficients": [
+        0.661750358,
+        -0.219824841,
+        0.705382026,
+        0.987591135,
+        0.778569935
+      ]
+    },
+    "share": {
+      "n": 830,
+      "coefficients": [
+        -0.001161707,
+        0.051805613,
+        0.052964675,
+        -0.120349765,
+        0.024631467
+      ]
+    },
+    "fga": {
+      "n": 430,
+      "coefficients": [
+        -1.189478285,
+        1.806241311,
+        -0.417890506,
+        -1.424605037,
+        -0.086100648
+      ]
+    },
+    "fg3a": {
+      "n": 430,
+      "coefficients": [
+        -0.68815194,
+        3.642267862,
+        -0.342557229,
+        -0.283807122,
+        0.604176547
+      ]
+    },
+    "fta": {
+      "n": 430,
+      "coefficients": [
+        -0.2742042,
+        1.126616336,
+        -0.255626305,
+        -0.369811115,
+        -0.120068184
+      ]
+    },
+    "oreb": {
+      "n": 430,
+      "coefficients": [
+        -0.083113564,
+        0.758672407,
+        -0.098452798,
+        0.101010367,
+        -0.03988021
+      ]
+    },
+    "dreb": {
+      "n": 430,
+      "coefficients": [
+        -0.39922101,
+        0.754721719,
+        -0.223926272,
+        -0.064372664,
+        -0.27475067
+      ]
+    },
+    "ast": {
+      "n": 430,
+      "coefficients": [
+        -0.187880274,
+        1.808556172,
+        0.066619795,
+        -0.652271306,
+        0.34106746
+      ]
+    },
+    "stl": {
+      "n": 430,
+      "coefficients": [
+        -0.01048691,
+        0.211117614,
+        -0.038291212,
+        -0.011426744,
+        0.005770509
+      ]
+    },
+    "blk": {
+      "n": 430,
+      "coefficients": [
+        0.04365803,
+        0.405608947,
+        -0.131672955,
+        0.057552876,
+        0.02653613
+      ]
+    },
+    "tov": {
+      "n": 430,
+      "coefficients": [
+        -0.020128811,
+        0.382398652,
+        -0.099277131,
+        -0.25727549,
+        0.038563963
+      ]
+    },
+    "fg2": {
+      "n": 414,
+      "coefficients": [
+        -0.002586211,
+        0.016735645,
+        -0.00617339,
+        0.00384951,
+        0.001000174
+      ]
+    },
+    "fg3": {
+      "n": 366,
+      "coefficients": [
+        -0.003141574,
+        0.006987138,
+        0.000933038,
+        -0.007714004,
+        -0.004827876
+      ]
+    },
+    "ft": {
+      "n": 321,
+      "coefficients": [
+        -0.015878786,
+        0.023844227,
+        0.000262324,
+        -0.017379798,
+        -0.013056574
+      ]
+    }
+  },
+  "trainingPlayers": 830,
+  "protocol": "College-production residual adjustments to the historical entry-cohort model. Ridge penalty 30 fixed before holdout evaluation; 2023 development enables metrics improving MAE by at least 1%, then 2024/2025 holdouts score unchanged structure. Production refits through 2025 for 2026 entry.",
+  "boundary": "Retrospective unique-name NBA/college joins and NBA index entry labels; missing international/college inputs keep cohort fallbacks. Historical index coverage can omit undrafted nonappearers. Live age and team-minute reconciliation are evaluated separately."
+}

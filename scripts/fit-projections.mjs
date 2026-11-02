@@ -78,7 +78,9 @@ function rostersFor(league, T) {
 // Model development used DEV mode only: fit through 2023-24, check on 2024-25. The 2025-26 season is
 // the final exam, run by the default mode, and the card records its result as it came out.
 const DEV = process.argv[2] === 'dev';
-const LAST_TRAIN = DEV ? 2023 : 2024;
+const requestedEvaluationYear=process.env.PROJ_EVAL_TRAIN_YEAR===undefined?null:Number(process.env.PROJ_EVAL_TRAIN_YEAR);
+if(requestedEvaluationYear!==null&&(!process.env.PROJ_EVAL_ROWS||!Number.isInteger(requestedEvaluationYear)||requestedEvaluationYear<2015||requestedEvaluationYear>2024))throw new Error('Historical fit override requires evaluation-only output and a supported training year');
+const LAST_TRAIN = requestedEvaluationYear??(DEV ? 2023 : 2024);
 const NBA_TRAIN = [];
 for (let y = 2012; y <= LAST_TRAIN; y++) NBA_TRAIN.push(seasonName(y));
 const NBA_TEST = seasonName(LAST_TRAIN + 1);
@@ -659,7 +661,7 @@ if (process.env.PROJ_EVAL_ROWS) {
       },
     };
   });
-  fs.writeFileSync(process.env.PROJ_EVAL_ROWS, JSON.stringify({season:NBA_TEST,trainedThrough:NBA_TRAIN.at(-1),rows}));
+  fs.writeFileSync(process.env.PROJ_EVAL_ROWS, JSON.stringify({inputsSha256:crypto.createHash('sha256').update(raw).digest('hex'),season:NBA_TEST,trainedThrough:NBA_TRAIN.at(-1),rows,evaluationFit:{params:fitTrain.P,role:fitTrain.role}}));
   log(`Wrote ${rows.length} chronological evaluation rows to ${process.env.PROJ_EVAL_ROWS}`);
   process.exit(0);
 }

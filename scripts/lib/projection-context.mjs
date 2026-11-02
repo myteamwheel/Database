@@ -2,7 +2,7 @@
 // versioned: its historical accuracy must not be attributed to these new rules.
 import { RATE_STATS, PCT_STATS, seasonStart, seasonPriors, perGameLine, roleFeatures, dot, MIN_FEATURES, GP_FEATURES, ageInSeason } from './projection.mjs';
 
-export const CONTEXT_VERSION = 'context-3-two-way-contracts';
+export const CONTEXT_VERSION = 'context-4-college-entry';
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Explicit model convention, not today's age or a stale previous-season AGE field.
@@ -162,6 +162,15 @@ export function evaluateMinuteReconciliation(rows, { budget = 240, totalOpeningT
     mae: { legacy, reconciled, delta },
     limitations: 'Minute-only reconciliation check on history-eligible held-out players. Opening-roster rookie and older-history returner proxies reserve minutes but are not scored. Unsupported incomplete teams are excluded; rates, injuries and availability are held fixed.',
   };
+}
+
+/** A delayed debut still needs an entry model: draft year is not a played season.
+ * `hist` must include the complete available NBA history, including older fallbacks.
+ */
+export function eligibleEntryFallback(bio,hist,targetSeason){
+  const year=seasonStart(targetSeason);
+  if(!bio||!Array.isArray(hist)||hist.some(r=>r?.gp>0||r?.min>0))return false;
+  return [bio.fromYear,bio.draftYear].some(y=>Number.isInteger(y)&&y>=year-10&&y<=year);
 }
 
 /** Build only completed, first NBA seasons strictly before the forecast year. No target

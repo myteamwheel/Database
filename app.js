@@ -134,7 +134,7 @@ window.__siteFilterSummary = () => {
   for (const [key, [label, value]] of Object.entries(labels)) if (value) rows.push({ key, label, value });
   if ($('teamMode')?.value === 'only') rows.push({ key: 'teamMode', label: 'Team stats', value: 'Selected team only' });
   if ($('bothOnly')?.checked) rows.push({ key: 'both', label: 'League overlap', value: 'NBA and G League' });
-  if (isCurrentNbaRosterView()) rows.push({ key: 'rosterScope', label: 'Roster view', value: 'Current NBA rosters' });
+  if (isCurrentRosterView()) rows.push({ key: 'rosterScope', label: 'Roster view', value: 'Current NBA rosters' });
   else if ($('includeRosterOnly')?.checked) rows.push({ key: 'roster', label: 'Roster-only players', value: 'Included' });
   for (const [i, rule] of rules.entries()) rows.push({ key: `rule:${i}`, label: colDef(rule.key).label, value: `${rule.op} ${rule.value}` });
   return rows;
@@ -186,7 +186,7 @@ const get = (p, key) => {
   if(key.startsWith('sf.')){const [,view,stat]=key.split('.'),f=seasonFrame(p,view);return stat==='gp'?(f?.gp??null):(f?.perGame?.[stat]??null);}
   // Never render an old 2025-26 team as if it were the player's present NBA team. Historical
   // team identity stays in seasonTeam and is shown beside the player when it adds context.
-  if (key === 'team') return p.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p.team ?? null);
+  if (key === 'team') return p.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (isCurrentRosterView()?p.currentGLeagueRosterTeam||null:p.team??null);
   if (key === 'labScore') return p.labScore ?? null;
   if (key === 'viewRank') return viewRankOf.get(p.playerId) ?? null;
   if (key.startsWith('stats.')) return p.stats?.[key.slice(6)] ?? null;
@@ -198,6 +198,13 @@ const get = (p, key) => {
   if (key.startsWith('rb.')) return p.readinessBlocks?.[key.slice(3)] ?? null;
   if (key.startsWith('p36.')) return p.per36?.[key.slice(4)] ?? null;
   if (key.startsWith('p36n.')) return p.per36Nba?.[key.slice(5)] ?? null;
+  if(key.startsWith('tr.')){
+    const c=p.tulipRotation,sub=key.slice(3);
+    if(sub==='currentMpg')return p.seasonActual?.gp>0?p.seasonActual.perGame?.mpg:null;
+    if(sub==='observedGames')return p.seasonActual?.gp??null;
+    if(sub==='availability'&&c?.abstain)return ({incomplete_positional_capacity:'Listed positions cannot cover rotation',unsupported_roster_plan:'Plan unavailable',not_on_current_nba_roster:'No current NBA roster',not_supported_for_gleague:'NBA only'})[c.reason]||'Unavailable';
+    return c&&!c.abstain?c[sub]??null:null;
+  }
   if (key.startsWith('tb.')) {
     // TULIP Beta. Abstentions are real nulls so a player TULIP declined to judge sorts to the END,
     // never as 0.0 which would read as "already at the right workload".
@@ -333,7 +340,7 @@ function updatePublishedHeader() {
     + (ro ? ', plus ' + ro + ' additional players without a ' + DATA.season + ' stat line' : '') + '. ' + DATA.season
     + ' stats; NBA roster snapshot ' + (rosterAsOf || 'date unavailable') + '; site built ' + buildDate + '.'
     + (DATA.seasonProgress ? ` Current NBA season: ${DATA.seasonProgress.completedGames} completed games, fetched ${DATA.seasonProgress.asOf.slice(0,10)}.` : '')
-    + (DATA.currentGLeagueIndexMeta ? ` G League index: ${DATA.currentGLeagueIndexMeta.listedPlayers} provisionally listed players as of ${DATA.currentGLeagueIndexMeta.asOf.slice(0,10)}; opening rosters and assignments are unverified.` : '') + published;
+    + (DATA.currentGLeagueRosterMeta?` G League team rosters: ${DATA.currentGLeagueRosterMeta.listedPlayers} listings, fetched ${DATA.currentGLeagueRosterMeta.asOf.slice(0,10)}.`:DATA.currentGLeagueIndexMeta ? ` G League index: ${DATA.currentGLeagueIndexMeta.listedPlayers} provisionally listed players as of ${DATA.currentGLeagueIndexMeta.asOf.slice(0,10)}; opening rosters and assignments are unverified.` : '') + published;
   $('sourceLine').dataset.historicalText=$('sourceLine').textContent;
   $('seasonEyebrow').textContent = DATA.seasonType;
 }
@@ -356,12 +363,13 @@ function openDataStatus() {
     + '<p><strong>Latest official-stat change record:</strong> ' + Number(ch.added || 0) + ' added, '
     + Number(ch.removed || 0) + ' removed, ' + Number(ch.changed || 0) + ' changed rows; '
     + Number(ch.retainedSources || 0) + ' optional sources retained.</p>'
+    + (DATA.currentGLeagueRosterMeta?`<p><strong>G League official team rosters:</strong> ${DATA.currentGLeagueRosterMeta.listedPlayers.toLocaleString()} listings, fetched ${esc(dateTime(DATA.currentGLeagueRosterMeta.asOf))}. ${esc(DATA.currentGLeagueRosterMeta.note)}</p>`:'')
     + (DATA.currentGLeagueIndexMeta ? `<p><strong>G League player index:</strong> ${DATA.currentGLeagueIndexMeta.listedPlayers.toLocaleString()} provisionally listed players, fetched ${esc(dateTime(DATA.currentGLeagueIndexMeta.asOf))}. ${esc(DATA.currentGLeagueIndexMeta.note)}</p>` : '')
     + '<div class="metric-list">' + rows + '</div>'
     + '<p class="tiny">Transactions, injuries, or news marked “Not Configured” are not silently applied to forecasts. Public reload only retrieves the latest successfully published files; it never triggers source ingestion.</p>'
     + '<details class="owner-refresh"><summary>Refresh sources — website owner</summary>'
     + '<p><a id="ownerRefreshLink" href="https://github.com/myteamwheel/Database/actions/workflows/owner-source-refresh.yml" target="_blank" rel="noopener noreferrer">Open authenticated source refresh</a></p>'
-    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources include 2025-26 historical statistics, current NBA rosters, the provisional G League player index, transactions, individual bios, two-way contracts, dated injury reports, attributed NBA headlines and current NBA schedule/player totals. G League assignments are not verified.</p>'
+    + '<p>Sign in to GitHub with repository write access, choose <strong>v3-official-data</strong>, then Run workflow and confirm the refresh. Supported sources include 2025-26 historical statistics, current NBA rosters, the G League discovery index and all 31 official team rosters, separate G League competition results, transactions, individual bios, two-way contracts, dated injury reports, attributed NBA headlines and current NBA schedule/player totals. Exact-game NBA reports can verify an assignment for that game; continuous assignment/recall states remain unverified.</p>'
     + '<p>The run verifies the data and creates a review branch. Open its review link, pass the release checks and merge to publish. This does not immediately change the live site, retrain models or expose account credentials.</p></details>';
   $('dataStatusDialog').showModal();
 }
@@ -440,6 +448,14 @@ const BASE_COLS = {
   magnitudeRaw:{label:'Magnitude z',type:'3',help:'Shrunk weighted robust z-score before mapping'},
   gradeCoverage:{label:'Coverage',type:'1',help:'Percent of declared grade ingredients this player actually had'},
   gradeRaw:{label:'Raw Score',type:'2'}, gradeShrunk:{label:'Shrunk Score',type:'2'},
+  'tr.tulip':{label:'Rotation TULIP',type:'signed1',help:'Planned next-game minutes minus measured 2026-27 minutes per appearance. This is experimental decision support. No measured current-season baseline or a reported Out status leaves the directional score blank. The plan enforces listed positions, exact-game Out reports and 40-minute limits. It uses current-team observed/preseason or college workload plus the historical TULIP value signal. Improved winning is not established.'},
+  'tr.currentMpg':{label:'Actual 2026-27 MPG',type:'1',help:'Measured current NBA season minutes divided by appearances, including prior teams. These are conditional per-appearance averages from different games; adding them across a roster does not create a 240-minute rotation.'},
+  'tr.observedGames':{label:'Actual 2026-27 GP',type:'int',help:'Number of recorded NBA appearances in the current season. No appearance provides no measured MPG baseline for a directional rotation score.'},
+  'tr.recommendedMpg':{label:'Next-game planned MPG',type:'1',help:'Minutes in the next-game position-constrained rotation. Each feasible team plan has exactly 48 minutes at each of five positions and 240 total. Infeasible teams abstain and display the positional shortage. This is an experimental plan, not a verified coach decision.'},
+  'tr.gameDate':{label:'Game date',type:'text',help:'Local game date of the next verified scheduled NBA game for this team, based on the dated official schedule snapshot.'},
+  'tr.availability':{label:'Availability / plan status',type:'text',help:'Exact-game official Out reports remove a player from the rotation. Pending or missing matching reports are unverified. An infeasible positional plan is unavailable rather than an invented recommendation.'},
+  'tr.inputSupport':{label:'Input support',type:'text',help:'Coverage and sample support behind the inputs. LOW/MEDIUM/HIGH are not probabilities of the recommendation being correct. Pending reports reduce support; higher ratings are not manufactured to create more positive scores.'},
+  'tr.allocationDelta':{label:'Transfer vs baseline rotation',type:'signed1',help:'Difference from the workload-only position-constrained baseline. Both rotations obey the same roster and availability constraints and use 240 minutes; these transfers sum to zero.'},
   'tb.tulip':{label:'TULIP',type:'signed1',help:'WHAT: how many more (+) or fewer (-) minutes per game TULIP Beta RECOMMENDS for this player, under its heuristic, if the team\u0027s objective is to maximize winning. PLAIN: does this heuristic flag him as underutilized or overutilized by his current team? A positive value means the model recommends more minutes \u2014 it is not an established finding that he is being misused. FORMULA: starts from his team-relative value \u2014 shrunk BPM minus his team\u0027s minute-weighted average BPM, in league SD units \u2014 then compressed by three constraints: (1) WORKLOAD STATE, since a +1 SD player at 12 MPG has more room than one at 34; (2) ROLE EVIDENCE, which attenuates expansion where history does not support that workload; (3) ZERO-SUM ALLOCATION, so every minute granted is sourced from a team-mate and each team\u0027s ledger conserves. EXPERIMENTAL BETA: pre-registered causal testing on 2015-16 to 2023-24 did NOT establish that the exact MPG deltas maximize wins (reduced form -0.127 pts/SD, 95% CI [-1.756, 1.021]). The DIRECTION is mechanically determined by team-relative value and the MAGNITUDE is heuristic. The same evidence also did not validate the play-more/play-less direction as a win-improving coaching prescription. Treat as decision support only. Blank means TULIP abstained \u2014 blank is NOT zero and always sorts last.'},
   'tb.currentMpg':{label:'Baseline MPG',type:'1',help:'WHAT: the 2025-26 MPG baseline TULIP is recommending a change FROM. In this preseason build, players are grouped by their current 2026-27 roster, but this workload is last season\'s MPG, not current-season 2026-27 playing time.'},
   'tb.recommendedMpg':{label:'Recommended MPG',type:'1',help:'WHAT: the workload this experimental allocator suggests from the 2025-26 MPG baseline. PLAIN: baseline workload after applying the TULIP reallocation. FORMULA: Baseline MPG + TULIP, bounded to the feasible 0-40 MPG range. Historical workload and Role Evidence reduce confidence and attenuate positive expansion, but they are not a hard ceiling: a strong breakout signal can recommend a workload above anything the player has previously sustained.'},
@@ -694,9 +710,10 @@ const seasonViewColumns=view=>['select','viewRank','name','team','position',...[
 const PRESETS = {
   actual2627:seasonViewColumns('actual'),remaining2627:seasonViewColumns('remaining'),combined2627:seasonViewColumns('combined'),
   proj:['select','viewRank','name','proj.team','proj.status','proj.age','proj.gp','proj.mpg','proj.pts','proj.reb','proj.ast','proj.stl','proj.blk','proj.tov','proj.fg3m','proj.fgPct','proj.fg3Pct','proj.ftPct','proj.ts','proj.lastPts','proj.dPts'],
-  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tb.tulip','tb.recommendedMpg','tb.confidence','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
+  overall:['select','viewRank','rank','name','team','position','age','gp','mpg','grade','rateGrade','magnitudeGrade','tr.tulip','tr.recommendedMpg','tr.inputSupport','tulip.leagueDelta','pts','reb','ast','stl','blk','ts','usg','pie','netRtg','custom.twoWayIndex','reliabilityWeight'],
   workload:['select','viewRank','name','team','position','age','gp','mpg','grade','tc.capacityMpg','tc.teamASeasonMpg','tc.headroom','tc.evidence','tulip.leagueDelta'],
   capacity:['select','viewRank','name','team','position','age','gp','tc.teamASeasonMpg','tc.capacityMpg','tc.headroom','tc.interval50Low','tc.interval50High','tc.evidence','grade'],
+  tuliprotation:['select','viewRank','name','team','position','tr.gameDate','tr.observedGames','tr.currentMpg','tr.tulip','tr.recommendedMpg','tr.availability','tr.inputSupport'],
   tulipbeta:['select','viewRank','name','team','position','age','gp','tb.currentMpg','tb.tulip','tb.recommendedMpg','tb.confidence','tb.valueGapSd','tb.supportedCeiling','grade'],
   nbaready:['select','viewRank','name','team','position','age','gp','mpg','grade','nbaReadiness','rb.playmaking','rb.connecting','rb.defense','rb.hustle','rb.shooting'],
   per36:['select','viewRank','name','team','position','gp','minutes','mpg','p36.pts','p36.reb','p36.ast','p36.stl','p36.blk','p36.tov','p36.fg3','p36.ts','p36.fg3Pct'],
@@ -729,8 +746,8 @@ const PRESETS = {
 };
 
 /** Views that open on their own headline column rather than on grade. */
-const PRESET_SORT = { actual2627:'sf.actual.pts',remaining2627:'sf.remaining.pts',combined2627:'sf.combined.pts',tulipbeta:'tb.tulip', proj:'proj.pts', per36:'p36.pts', per36nba:'p36n.pts' };
-const PRESET_LABELS = {overall:'Overall',proj:'2026-27 Projections',workload:'Projected Role MPG',capacity:'Projected Role MPG (detail)',tulipbeta:'TULIP Beta',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
+const PRESET_SORT = { actual2627:'sf.actual.pts',remaining2627:'sf.remaining.pts',combined2627:'sf.combined.pts',tuliprotation:'tr.tulip',tulipbeta:'tb.tulip', proj:'proj.pts', per36:'p36.pts', per36nba:'p36n.pts' };
+const PRESET_LABELS = {overall:'Overall',proj:'2026-27 Projections',workload:'Projected Role MPG',capacity:'Projected Role MPG (detail)',tuliprotation:'TULIP · next-game rotation',tulipbeta:'TULIP · historical ledger',tulip:'Role Value (expansion)',nbaready:'NBA Readiness (G League)',per36:'Per 36 Minutes',per36nba:'Per 36 — NBA Equivalent (G League)',scoring:'Scoring',shooting:'Shooting',playmaking:'Playmaking',
   rebounding:'Rebounding',defense:'Defense',impact:'Impact & Ratings',shotprofile:'Shot Profile',
   custom:'Custom Metrics',customraw:'Custom: adjusted vs raw',components:'Grade Components',
   splitsExplorer:'Splits: scoring',splitsShooting:'Splits: efficiency',splitsMonthly:'Splits: by month',
@@ -772,10 +789,10 @@ const notApplicable = (p,key) => p.appeared===false && PERFORMANCE_ONLY.has(key)
 const formatCell = (p,key) => notApplicable(p,key)?'N/A':fmt(get(p,key),colDef(key).type);
 function currentPlayers(){return DATA?.leagues?.[league] || []}
 
-/** The current-roster view is NBA-only; G League has no equivalent published 2026-27 roster set. */
-function isCurrentNbaRosterView(){ return league === 'NBA' && $('rosterScope')?.value === 'current'; }
+/** Current NBA rosters and independently sourced G League team listings share the roster selector. */
+function isCurrentRosterView(){ return (league==='NBA'||!!DATA?.currentGLeagueRosterMeta)&&$('rosterScope')?.value==='current'; }
 
-function currentRosterCount(){ return currentPlayers().filter((p) => p.currentRoster).length; }
+function currentRosterCount(){ return currentPlayers().filter(p=>league==='NBA'?p.currentRoster:!!p.currentGLeagueRosterTeam).length; }
 
 /**
  * Make the two valid contexts explicit: historical performance and the live roster snapshot.
@@ -790,31 +807,32 @@ function updateRosterScopeUi(){
   const note = $('rosterScopeNote');
   if (!scopeControl || !scope || !note) return;
 
-  scopeControl.hidden = !nba;
-  if (!nba) {
+  if($('viewPreset').value==='tuliprotation')scope.value='current';
+  scopeControl.hidden = !nba&&!DATA?.currentGLeagueRosterMeta;
+  if (!nba && !DATA?.currentGLeagueRosterMeta) {
     note.hidden = true;
     if (rosterOnlyControl) rosterOnlyControl.hidden = false;
     return;
   }
 
-  const performanceCount = DATA?.counts?.NBA ?? currentPlayers().filter((p) => p.appeared).length;
+  const performanceCount = DATA?.counts?.[league] ?? currentPlayers().filter((p) => p.appeared).length;
   const rosterCount = currentRosterCount();
   scope.options[0].textContent = `2025-26 performance (${performanceCount.toLocaleString()})`;
-  scope.options[1].textContent = `Current NBA rosters (${rosterCount.toLocaleString()})`;
-  const current = isCurrentNbaRosterView();
+  scope.options[1].textContent = `Current ${nba?'NBA':'G League'} rosters (${rosterCount.toLocaleString()})`;
+  const current = isCurrentRosterView();
   if (rosterOnlyControl) rosterOnlyControl.hidden = current;
 
   // The league-tab count describes the active, top-level data scope—not a narrowed search.
-  $('nbaCount').textContent = (current ? rosterCount : performanceCount).toLocaleString();
-  $('nbaCount').title = current
-    ? `${rosterCount.toLocaleString()} players on the published current NBA roster snapshot`
-    : `${performanceCount.toLocaleString()} players with a 2025-26 NBA appearance`;
+  $(nba?'nbaCount':'gCount').textContent = (current ? rosterCount : performanceCount).toLocaleString();
+  $(nba?'nbaCount':'gCount').title = current
+    ? `${rosterCount.toLocaleString()} players on the published current ${nba?'NBA':'G League'} roster snapshot`
+    : `${performanceCount.toLocaleString()} players with a 2025-26 ${nba?'NBA':'G League'} appearance`;
 
-  const asOf = longDate(DATA?.currentRosterMeta?.asOf);
+  const asOf = longDate((nba?DATA?.currentRosterMeta:DATA?.currentGLeagueRosterMeta)?.asOf);
   note.hidden = !current;
   if (current) {
-    const withoutLine = currentPlayers().filter((p) => p.currentRoster && !p.appeared).length;
-    note.innerHTML = `<b>Current NBA rosters:</b> ${rosterCount.toLocaleString()} players as of ${esc(asOf || 'the published snapshot')}, including ${withoutLine.toLocaleString()} without a 2025-26 NBA appearance. Their performance grades and ranks are N/A; unavailable statistics show —. A recorded zero remains 0.`;
+    const withoutLine = currentPlayers().filter(p => (nba?p.currentRoster:!!p.currentGLeagueRosterTeam) && !p.appeared).length;
+    note.innerHTML = `<b>Current ${nba?'NBA':'G League'} rosters:</b> ${rosterCount.toLocaleString()} players as of ${esc(asOf || 'the published snapshot')}, including ${withoutLine.toLocaleString()} without a 2025-26 ${nba?'NBA':'G League'} appearance. ${nba?'':'Official team listings can include training-camp players; assignment and contract terms require separate evidence. '}Their performance grades and ranks are N/A; unavailable statistics show —. A recorded zero remains 0.`;
   }
 }
 
@@ -878,7 +896,7 @@ const COLUMN_HELP = {"name": "WHAT: player name. PLAIN: who this is. Click it to
 // Keep the published glossary synchronized with the real grade ingredients rather than the older
 // prose that predated the current model.
 Object.assign(COLUMN_HELP, {
-  team: 'WHAT: current NBA roster status. PLAIN: an NBA abbreviation means the player is on that current roster; No NBA roster means the published snapshot has no current NBA team for him. The 2025-26 performance team is shown separately beside a player when it differs. G League rows remain their 2025-26 team until new G League rosters are published.',
+  team: 'WHAT: current NBA roster status. PLAIN: an NBA abbreviation means the player is on that current roster; No NBA roster means the published snapshot has no current NBA team for him. The 2025-26 performance team is shown separately beside a player when it differs. G League roster mode uses official current team listings; performance mode preserves 2025-26 teams.',
   'components.scoring': 'WHAT: scoring component of the grade (30% weight). FORMULA: weighted percentile of points, free-throw attempts, three-point attempts and usage within the league.',
   'components.defense': 'WHAT: defense component (16% weight). FORMULA: weighted percentile of steals, blocks, defensive rating and defensive win shares.',
   'components.efficiency': 'WHAT: efficiency component (12% weight). FORMULA: weighted percentile of true shooting, effective field-goal percentage, turnovers and turnover percentage.',
@@ -1124,7 +1142,7 @@ function populateSelectors(){
   };
   const teamValues = league === 'NBA'
     ? players.map((p) => p.currentTeam).filter(Boolean)
-    : players.map((p) => p.team).filter(Boolean);
+    : players.map(p=>isCurrentRosterView()?p.currentGLeagueRosterTeam:p.team).filter(Boolean);
   fill('teamFilter', league === 'NBA' ? 'All current teams' : 'All teams',[...new Set(teamValues)].sort());
   if ($('teamMode')) {
     $('teamMode').options[0].textContent = league === 'NBA'
@@ -1146,7 +1164,7 @@ function populateSelectors(){
   const hasProj=players.some(p=>p.proj&&p.proj.abstain!==true);
   const current=$('viewPreset').value;
   $('viewPreset').innerHTML=Object.entries(PRESET_LABELS).filter(([k])=>
-    (!SEASON_VIEWS[k]||(league==='NBA'&&DATA.seasonProgress))&&(k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(!['capacity','workload'].includes(k)||hasCapacity)&&(!['nbaready','per36nba'].includes(k)||league==='GLEAGUE')&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
+    (!SEASON_VIEWS[k]||(league==='NBA'&&DATA.seasonProgress))&&(k!=='splits'||hasSplits)&&(k!=='tracking'||hasTracking)&&(k!=='splitsMonthly'||hasMonths)&&(!['capacity','workload'].includes(k)||hasCapacity)&&(!['nbaready','per36nba'].includes(k)||league==='GLEAGUE')&&(k!=='tuliprotation'||(league==='NBA'&&DATA.rotationPlans))&&(k!=='tulipbeta'||hasBeta)&&(k!=='proj'||hasProj)
   ).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
   // Keep the chosen view across a league switch when the other league offers it too.
   if([...$('viewPreset').options].some(o=>o.value===current)) $('viewPreset').value=current;
@@ -1168,10 +1186,11 @@ function positionMatches(p,fam){
   return f===fam||f.split('-').includes(fam);
 }
 
-/** NBA team filtering is current-roster filtering; G League remains season-team filtering. */
+/** NBA filters use current rosters; G League follows the explicitly selected roster/performance scope. */
 function playedFor(p,team){
   if(!team) return true;
   if(p.league==='NBA') return p.currentTeam===team;
+  if(isCurrentRosterView())return p.currentGLeagueRosterTeam===team;
   if(p.team===team) return true;
   return (p.teams||[]).some(s=>s.team===team);
 }
@@ -1244,23 +1263,24 @@ function filteredPlayers(){
   const minRel=Number($('minReliability').value)||0;
   const teamMode=$('teamMode')?.value||'season';
   const showRosterOnly=$('includeRosterOnly')?.checked;
-  const currentRosterView=!seasonView&&isCurrentNbaRosterView();
+  const currentRosterView=!seasonView&&isCurrentRosterView();
   let list=currentPlayers()
     .filter(p=>{
       const hay=fold([p.name,p.currentTeam,p.seasonTeam,p.team,p.position,p.country,p.college,...(p.teams||[]).map(s=>s.team)].filter(Boolean).join(' '));
       // A direct search should find a rookie or new signing even in the historical-stat view;
       // browsing them all belongs in the explicit Current NBA rosters view.
       const directRosterSearch=Boolean(q)&&hay.includes(q);
-      if(currentRosterView && !p.currentRoster) return false;
+      if(currentRosterView && !(p.league==='NBA'?p.currentRoster:p.currentGLeagueRosterTeam)) return false;
       if(!seasonView&&!currentRosterView && p.rosterOnly&&!showRosterOnly&&!directRosterSearch) return false;
       return (!q||hay.includes(q))&&(seasonView?(!team||p.currentTeam===team):playedFor(p,team))&&(!pos||positionMatches(p,pos))&&(!country||p.country===country)
         &&(!$('bothOnly').checked||p.bothLeagues);
     })
     // Scope BEFORE the numeric filters, so thresholds apply to the line actually displayed.
-    .map(p=>seasonView||$('viewPreset').value==='proj'?p:teamScoped(p,team,teamMode))
+    .map(p=>seasonView||$('viewPreset').value==='proj'||(currentRosterView&&league==='GLEAGUE')?p:teamScoped(p,team,teamMode))
     .filter(p=>{
       // Zero disables a minimum filter. A positive threshold requires an observed value.
       const meets=(v,min)=>min<=0||(finite(v)&&Number(v)>=min);
+      if($('viewPreset').value==='tuliprotation'){const f=p.seasonActual;return meets(f?.gp,minGp)&&meets(f?.perGame?.mpg,minMpg)&&meets(f?.totals?.min,minMin)&&applyRules(p);}
       if(seasonView){const f=seasonFrame(p,seasonView);return meets(f?.gp,minGp)&&meets(f?.perGame?.mpg,minMpg)&&meets(f?.totals?.min,minMin)&&applyRules(p);}
       const gradeOk=finite(p.grade)?p.grade>=minGrade:minGrade<=0&&(showRosterOnly||currentRosterView||Boolean(q)||p.teamScopedTo);
       return meets(p.gp,minGp)&&meets(p.mpg,minMpg)&&meets(p.minutes,minMin)&&gradeOk
@@ -1309,16 +1329,18 @@ function renderRules(){
 
 /** Title, breadcrumb and section highlight follow the league and the view. */
 function updatePageHead(){
-  const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj', currentRosterView=isCurrentNbaRosterView();
+  const preset=$('viewPreset').value, lg=league==='NBA'?'NBA':'G League', isProj=preset==='proj', currentRosterView=isCurrentRosterView();
   const seasonView=SEASON_VIEWS[preset];
+  const rotationView=preset==='tuliprotation';
   // A season-stint selector cannot rescope a preseason full-season forecast.
-  if($('teamMode')) $('teamMode').disabled=isProj||!!seasonView;
-  $('pageTitle').textContent=seasonView?`NBA ${PRESET_LABELS[preset]}`:isProj?`2026-27 ${lg} Projections`:currentRosterView?'2026-27 NBA Current Rosters':`2025-26 ${lg} Player Stats`;
-  $('crumbs').textContent=isProj
+  if($('teamMode')) $('teamMode').disabled=isProj||!!seasonView||(league==='GLEAGUE'&&currentRosterView);
+  $('pageTitle').textContent=preset==='tuliprotation'?'2026-27 TULIP Rotation Plans':seasonView?`NBA ${PRESET_LABELS[preset]}`:isProj?`2026-27 ${lg} Projections`:currentRosterView?`2026-27 ${lg} Current Rosters`:`2025-26 ${lg} Player Stats`;
+  $('crumbs').textContent=preset==='tuliprotation'?'NBA › Next scheduled game › Rotation TULIP':isProj
     ? `${lg} › 2026-27 › Projections`
-    : currentRosterView ? 'NBA › 2026-27 › Current rosters'
+    : currentRosterView ? `${lg} › 2026-27 › Current rosters`
       : `${lg} › 2025-26 › ${PRESET_LABELS[preset]||'Player stats'}`;
   document.querySelectorAll('.site-link[data-goto]').forEach(b=>b.classList.toggle('active',b.dataset.goto===(seasonView?'current':isProj?'proj':'stats')));
+  if(preset==='tuliprotation'){$('sourceLine').textContent='Experimental next-game plans use current rosters, observed/college workload, the historical TULIP value signal, listed positions and dated Out reports. TULIP compares the plan with measured 2026-27 MPG; a blank means no measured baseline, a reported Out status or no feasible plan. Open a player for the team allocation and its assumptions.';}
   $('projNote').hidden=!isProj;
   if(seasonView){
     const appearances=DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length;
@@ -1326,10 +1348,11 @@ function updatePageHead(){
     $('sourceLine').textContent=`Official NBA 2026-27 regular season: ${DATA.seasonProgress.completedGames} completed games; ${appearances.toLocaleString()} players with an appearance. Results checked ${DATA.seasonProgress.asOf.slice(0,10)}. Source details and coverage are in Data status.`;
     $('nbaCount').textContent=appearances.toLocaleString();
     $('nbaCount').title='Players with a 2026-27 NBA appearance; the table also includes non-appearing roster records';
-  }else if($('sourceLine').dataset.historicalText){$('sourceLine').textContent=$('sourceLine').dataset.historicalText;}
-  for(const id of ['minGrade','minReliability'])if($(id))$(id).disabled=!!seasonView;
+  }else if(preset!=='tuliprotation'&&$('sourceLine').dataset.historicalText){$('sourceLine').textContent=$('sourceLine').dataset.historicalText;}
+  for(const id of ['minGrade','minReliability'])if($(id))$(id).disabled=!!seasonView||rotationView;
+  if($('rosterScope'))$('rosterScope').disabled=rotationView;
   if($('seasonProgressNote')){$('seasonProgressNote').hidden=!seasonView;$('seasonProgressNote').textContent=seasonView?`As of ${DATA.seasonProgress.asOf.slice(0,10)}. ${seasonView==='actual'?'Measured regular-season results; zero appearances have no per-game average.':'Remaining per-game estimates blend preseason projections with observed games on the projected team; games use historical appearance rates and official upcoming Out listings. Open a player for assumptions and all three timeframes.'} Actual and combined totals include prior teams. Grade and reliability filters refer to 2025-26 and do not apply to these views.`:'';}
-  if($('rosterScopeControl'))$('rosterScopeControl').hidden=!!seasonView||league!=='NBA';
+  if($('rosterScopeControl'))$('rosterScopeControl').hidden=!!seasonView||(league!=='NBA'&&!DATA.currentGLeagueRosterMeta);
   if(DATA?.projectionMeta?.rostersAsOf) $('projRosterDate').textContent=longDate(DATA.projectionMeta.rostersAsOf);
   if($('projRosterContext')) $('projRosterContext').hidden=league!=='NBA';
   const scope=$('projScope');
@@ -1387,7 +1410,7 @@ function render(){
     ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
     : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
-  $('sortLabel').textContent=`· ${SEASON_VIEWS[$('viewPreset').value]?PRESET_LABELS[$('viewPreset').value]:$('viewPreset').value==='proj'?'2026-27 projections':isCurrentNbaRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
+  $('sortLabel').textContent=`· ${SEASON_VIEWS[$('viewPreset').value]?PRESET_LABELS[$('viewPreset').value]:$('viewPreset').value==='proj'?'2026-27 projections':isCurrentRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
   hideStatTip(true);   // a re-render replaces the header the panel was anchored to
   $('tableHead').innerHTML=cols.map(key=>{
@@ -1398,7 +1421,7 @@ function render(){
     // announces the current ordering to screen readers.
     if(key==='viewRank') return '<th scope="col" aria-label="Display row number; not sortable">#</th>';
     const aria = sortKey===key ? (sortDir<0?'descending':'ascending') : 'none';
-    const label=key==='team'&&league==='NBA'?(isCurrentNbaRosterView()?'Current team':'Current status'):d.label;
+    const label=key==='team'&&league==='NBA'?(isCurrentRosterView()?'Current team':'Current status'):d.label;
     return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
   $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
@@ -1424,7 +1447,7 @@ function cell(p,key){
       sub=esc(p.currentTeam||'No NBA roster')+' · '+esc(p.position||'—');
       if(p.currentRoster&&!p.appeared) sub+=' · Current roster, no 2025-26 NBA stats';
       if(p.seasonTeam&&p.seasonTeam!==p.currentTeam) sub+=' · 2025-26: '+esc(p.seasonTeam);
-    } else sub=(p.team?esc(p.team):p.currentGLeagueIndexTeam?`2026-27 index listing: ${esc(p.currentGLeagueIndexTeam)} (provisional)`:'No 2025-26 G League team')+' · '+esc(p.position||'—');
+    } else sub=(p.currentGLeagueRosterTeam?`Current G League listing: ${esc(p.currentGLeagueRosterTeam)}${p.team?` · 2025-26: ${esc(p.team)}`:''}`:DATA.currentGLeagueRosterMeta?`No current G League team listing${p.team?` · 2025-26: ${esc(p.team)}`:''}`:p.team?`2025-26: ${esc(p.team)}`:p.currentGLeagueIndexTeam?`2026-27 index listing: ${esc(p.currentGLeagueIndexTeam)} (provisional)`:'No 2025-26 G League team')+' · '+esc(p.position||'—');
     return `<td class="left player-cell"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button>${window.__wsOpenPlayer?`<button class="profile-link" data-profile="${esc(p.playerId)}" aria-label="Open full profile">↗</button>`:''}${p.bothLeagues?'<span class="both-badge">NBA ↔ G</span>':''}${multi}<span class="tiny">${sub}</span></td>`;
   }
   if(key==='grade')return `<td class="grade ${gradeClass(v)}">${formatCell(p,key)}</td>`;
@@ -1539,6 +1562,27 @@ function teamAllocationSort(roster,key){
 function teamAllocationDirection(p){
   return p.tulipBeta.tulip>0?'gaining':p.tulipBeta.tulip<0?'losing':'nochange';
 }
+function rotationPlanHtml(team){
+  const plan=DATA.rotationPlans?.[team];
+  if(!plan)return '';
+  if(plan.status==='unavailable')return `<details><summary>Next-game rotation plan unavailable</summary><p class="tiny">${esc(plan.reason)}</p></details>`;
+  const players=new Map(DATA.leagues.NBA.map(p=>[String(p.playerId),p]));
+  const shortage=Object.entries(plan.unfilledByPosition||{}).filter(([,v])=>v>0).map(([k,v])=>`${k}: ${num(v)} min`).join(', ');
+  return `<details class="proj-ranges"><summary>Next-game rotation plan · ${esc(plan.gameDate)} · ${esc(plan.matchup)}</summary>
+    <p>${plan.status==='infeasible'?`This roster cannot cover every listed position within the workload limits. Unfilled: ${esc(shortage)}.`:`${num(plan.allocatedMinutes,0)} minutes allocated across five positions.`}</p>
+    <p class="tiny"><b>Availability: ${esc(plan.availabilityStatus||'unverified')}.</b> ${esc(plan.targetDefinition)} ${esc(plan.availabilityDefinition)} ${esc(plan.evidence)}</p>
+    <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Player</th><th>Target MPG</th><th>Plan MPG</th>${['PG','SG','SF','PF','C'].map(k=>`<th>${k}</th>`).join('')}</tr></thead>
+    <tbody>${plan.players.slice().sort((a,b)=>b.minutes-a.minutes||a.id.localeCompare(b.id)).map(p=>`<tr><td class="left">${esc(players.get(p.id)?.name||p.id)}${p.out?' · Out':''}</td><td>${num(p.target)}</td><td><b>${num(p.minutes,0)}</b></td>${Object.values(p.byPosition).map(v=>`<td>${v?num(v,0):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${plan.unmodeled?.length?`<p class="tiny">Without a workload forecast: ${plan.unmodeled.map(p=>esc(p.name)).join(', ')}. They receive no invented minute estimate.</p>`:''}
+    <p class="tiny">Roster and schedule snapshot: ${esc(plan.asOf)}. Listed positions establish eligibility; they do not measure positional skill. Actual lineups and availability may differ.</p></details>`;
+}
+function openRotationAllocation(team){
+  if(!teamAllocDlg){teamAllocDlg=document.createElement('dialog');teamAllocDlg.id='teamAllocationDialog';teamAllocDlg.className='modal wide';document.body.appendChild(teamAllocDlg);teamAllocDlg.addEventListener('click',e=>{if(e.target.dataset?.taClose!==undefined)teamAllocDlg.close();});}
+  if(!team){teamAllocDlg.innerHTML=`${teamAllocationHeader('Next-game rotation plans')}<p class="tiny">Choose a current NBA team. Positional shortages and pending availability reports remain visible.</p><div class="raw-grid">${Object.keys(DATA.rotationPlans||{}).sort().map(t=>`<button type="button" class="button" data-rotation-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;}
+  else{teamAllocDlg.innerHTML=`${teamAllocationHeader(`Next-game rotation — ${esc(team)}`)}<p class="tiny">${esc(DATA.tulipRotationMeta?.method||'')} ${esc(DATA.tulipRotationMeta?.boundary||'')}</p>${rotationPlanHtml(team)}<div class="modal-actions"><button type="button" class="button" data-rotation-team="">Another team</button><button type="button" class="button" data-ta-close>Close</button></div>`;const details=teamAllocDlg.querySelector('details');if(details)details.open=true;}
+  if(!teamAllocDlg.open)teamAllocDlg.showModal();
+}
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-rotation-team]');if(b){e.preventDefault();openRotationAllocation(b.dataset.rotationTeam||null);}});
 function openTeamAllocation(team,{preserveState=false}={}){
   if(!teamAllocDlg){
     teamAllocDlg=document.createElement('dialog');
@@ -1590,6 +1634,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
   const filterButton=(value,label)=>`<button class="button secondary small" type="button" data-ta-filter="${value}"
     aria-pressed="${teamAllocState.filter===value}">${label}</button>`;
   teamAllocDlg.innerHTML=`${teamAllocationHeader(`TULIP Team Allocation — ${esc(team)}`)}
+    ${rotationPlanHtml(team)}
     <div class="player-grid">
       <div class="detail-card"><div class="k">Baseline eligible MPG</div><div class="v">${num(curTot)}</div></div>
       <div class="detail-card"><div class="k">Recommended eligible MPG</div><div class="v">${num(recTot)}</div></div>
@@ -1674,17 +1719,45 @@ document.addEventListener('change',e=>{
 });
 
 /* ------------------------------------------------------------------ 2026-27 PROJECTION */
-const longDate = (iso) => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+const longDate = (iso) => iso ? new Date(String(iso).slice(0,10) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
 const pctChange = (x, d=1) => finite(x) ? `${x > 0 ? '+' : ''}${(x * 100).toFixed(d)}%` : '—';
 
 /** The player-card section: last season beside the projection, and how the projection was built. */
+function rotationRecommendationCard(p){
+  const c=p.tulipRotation;if(!c||p.league!=='NBA')return '';
+  if(c.abstain)return `<section class="rotation-card"><div class="section-bar">Next-game rotation unavailable</div><p>${esc(get(p,'tr.availability'))}. ${p.currentTeam?`<button type="button" class="text-button" data-rotation-team="${esc(p.currentTeam)}">Review team constraints</button>`:''}</p></section>`;
+  return `<section class="rotation-card"><div class="section-bar">Next-game Rotation TULIP · ${esc(c.gameDate)}</div><div class="player-grid"><div class="detail-card"><div class="k">Measured 2026-27 MPG</div><div class="v">${num(c.currentMpg)}</div></div><div class="detail-card"><div class="k">Planned MPG</div><div class="v">${num(c.recommendedMpg,0)}</div></div><div class="detail-card"><div class="k">Rotation TULIP</div><div class="v">${signed(c.tulip)}</div></div></div><p class="tiny">${esc(c.interpretation)} ${esc(c.matchup)} · ${esc(c.availability)} · input support ${esc(c.inputSupport)}.</p><details><summary>Workload and value inputs</summary><p class="tiny">Workload/value target: ${num(c.targetMpg)} MPG. Workload-only baseline allocation: ${num(c.baselineAllocationMpg,0)}; transfer in the feasible rotation: ${signed(c.allocationDelta)}. ${esc(DATA.tulipRotationMeta?.boundary||'')}</p></details><button type="button" class="text-button" data-rotation-team="${esc(p.currentTeam)}">Review the full team rotation</button></section>`;
+}
+function gLeagueProgressCard(p){
+  const f=p.gLeagueSeasonActual;if(!f)return '';
+  return `<details class="proj-season-progress"><summary>${esc(f.season)} G League results by competition</summary><p class="tiny">Official statistics checked ${esc(dateTime(f.asOf))}. Competition phases stay separate. A missing average means no recorded appearance.</p>
+    <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Competition</th><th>GP</th><th>MPG</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead><tbody>${Object.values(f.phases).map(v=>`<tr><th class="left">${esc(v.label)}</th><td>${num(v.gp,0)}</td>${['mpg','pts','reb','ast'].map(k=>`<td>${num(v.perGame?.[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <p class="tiny">${esc(DATA.gLeagueSeasonProgress?.note||'')}</p><button type="button" class="text-button" data-gl-season-export="${esc(p.playerId)}">Export competition results</button></details>`;
+}
+function remainingReferenceHtml(f){
+  const ref=f.referenceRanges;if(!ref)return '';
+  const labels={gp:'Remaining games',mpg:'Minutes per appearance',pts:'Points per appearance',reb:'Rebounds per appearance',ast:'Assists per appearance',ptsTotal:'Remaining points total',minutesTotal:'Remaining minutes total'};
+  return `<details class="proj-ranges remaining-reference-ranges"><summary>Remaining-season reference ranges</summary><p class="tiny">${esc(ref.note)} Calibration: ${esc(ref.calibrationSeason)}; test: ${esc(ref.testSeason)}; coverage cohort: ${esc(ref.cohort)}.</p><div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Estimate</th><th>Low</th><th>Projection</th><th>High</th><th>Historical cohort coverage</th></tr></thead><tbody>${Object.entries(ref.ranges).map(([k,v])=>`<tr><th class="left">${labels[k]||esc(k)}</th><td>${num(v.low)}</td><td>${num(v.point)}</td><td>${num(v.high)}</td><td>${finite(v.testCoverage?.coverage)?num(v.testCoverage.coverage*100,1)+'% (n='+num(v.testCoverage.n,0)+')':'—'}</td></tr>`).join('')}</tbody></table></div></details>`;
+}
 function seasonProgressCard(p){
+  if(p.league==='GLEAGUE')return gLeagueProgressCard(p);
   const f=p.seasonForecast;
   if(!f || f.status==='unavailable') return '';
   const views=[f.actualToDate,f.remainingSeason,f.fullSeason];
   const rows=[['Games','gp'],['Minutes','mpg'],['Points','pts'],['Rebounds','reb'],['Assists','ast']];
-  return `<details class="proj-season-progress"><summary>2026-27 season progress</summary><p class="tiny">As of ${esc(f.asOf.slice(0,10))}. ${f.actualToDate.teamGamesElapsed} current-team games completed; ${f.remainingSeason.teamGamesRemaining} remain. Actuals include every team the player appeared for.</p><table class="compare-table"><caption>Per-game averages; games are season counts. No appearances means no measured average.</caption><thead><tr><th>Metric</th><th>Actual to date</th><th>Remaining estimate</th><th>Combined estimate</th></tr></thead><tbody>${rows.map(([label,key])=>`<tr><th scope="row">${label}</th>${views.map(v=>`<td>${num(key==='gp'?v.gp:v.perGame[key])}</td>`).join('')}</tr>`).join('')}</tbody></table><p class="tiny">${esc(f.assumption)}</p><button type="button" class="text-button" data-season-export="${esc(p.playerId)}">Export all three timeframes</button></details>`;
+  return `<details class="proj-season-progress"><summary>2026-27 season progress</summary><p class="tiny">As of ${esc(f.asOf.slice(0,10))}. ${f.actualToDate.teamGamesElapsed} current-team games completed; ${f.remainingSeason.teamGamesRemaining} remain. Actuals include every team the player appeared for.</p><table class="compare-table"><caption>Per-game averages; games are season counts. No appearances means no measured average.</caption><thead><tr><th>Metric</th><th>Actual to date</th><th>Remaining estimate</th><th>Combined estimate</th></tr></thead><tbody>${rows.map(([label,key])=>`<tr><th scope="row">${label}</th>${views.map(v=>`<td>${num(key==='gp'?v.gp:v.perGame[key])}</td>`).join('')}</tr>`).join('')}</tbody></table><p class="tiny">${esc(f.assumption)}</p>${f.roleUpdate?`<p class="tiny"><b>Estimated remaining role:</b> ${esc(f.roleUpdate.projectedRole||'unavailable')}; usage ${finite(f.roleUpdate.projectedUsage)?num(f.roleUpdate.projectedUsage*100,1)+'%':'—'}. ${esc(f.roleUpdate.usageDefinition||'')}</p>`:''}${remainingReferenceHtml(f)}<button type="button" class="text-button" data-season-export="${esc(p.playerId)}">Export all three timeframes</button></details>`;
 }
+document.addEventListener('click',e=>{
+  const button=e.target.closest?.('[data-gl-season-export]');if(!button)return;
+  const p=DATA.leagues.GLEAGUE.find(p=>String(p.playerId)===button.dataset.glSeasonExport),f=p?.gLeagueSeasonActual;if(!f)return;
+  const quote=v=>`"${String(v??'').replaceAll('"','""')}"`,lines=[['Player ID','Season','As of','Competition','Games','Stat','Per game','Total']];
+  for(const [type,v] of Object.entries(f.phases)){
+    if(!v.totals)lines.push([p.playerId,f.season,f.asOf,type,0,'No recorded appearance','','']);
+    else for(const [stat,total] of Object.entries(v.totals))lines.push([p.playerId,f.season,f.asOf,type,v.gp,stat,v.perGame?.[stat==='min'?'mpg':stat],total]);
+  }
+  const url=URL.createObjectURL(new Blob([lines.map(r=>r.map(quote).join(',')).join('\n')],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=url;link.download=`${p.playerId}_${f.season}_gleague_phases.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
 document.addEventListener('click',e=>{
   const button=e.target.closest?.('[data-season-export]');
   if(!button)return;
@@ -1706,7 +1779,7 @@ function projCard(p){
   const availability=(p.reportedAvailability||[]).filter(e=>!p.currentTeam||e.team===p.currentTeam);
   const report=availability.length?`<details class="proj-availability"><summary>NBA availability: ${esc(availability[0].status)} · ${esc(availability[0].gameDate)}</summary><ul>${availability.map(e=>`<li>${esc(e.gameDate)} · ${esc(e.status)}: ${esc(e.reason)}</li>`).join('')}</ul><p class="tiny"><a href="${esc(availability[0].source)}" target="_blank" rel="noopener">Official NBA report</a> · ${esc(availability[0].reportAt.replace('T',' ').replace('.000Z',' UTC'))}. This report covers the listed game.</p></details>`:'';
   const news=p.recentNews?.length?`<details class="proj-news"><summary>Recent NBA news</summary><ul>${p.recentNews.map(a=>`<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.headline)}</a> · ESPN · ${esc(a.published.slice(0,10))}</li>`).join('')}</ul><p class="tiny">Links from the latest ESPN feed, matched by tagged athlete names.</p></details>`:'';
-  if(c.abstain) return `<div class="proj-card"><div class="section-bar">2026-27 projection</div>
+  if(c.abstain) return `${gLeagueProgressCard(p)}<div class="proj-card"><div class="section-bar">2026-27 projection</div>
     <p class="tiny" style="margin:8px 10px">${c.team?`Current roster: ${esc(c.team)}. `:''}${esc(c.reason)} A zero would be a false claim, so none is shown.</p>${report}${news}</div>`;
   const w=c.why||{}, games=p.league==='NBA'?82:50;
   const latestHistory=(w.seasons||[]).slice().sort((a,b)=>b.season.localeCompare(a.season))[0];
@@ -1721,7 +1794,7 @@ function projCard(p){
     ${row('Blocks',p.blk,c.blk)}${row('Threes made',p.fg3,c.fg3m)}${row('Turnovers',p.tov,c.tov)}
     ${prow('FG%',p.fgPct,c.fgPct)}${prow('3P%',p.fg3Pct,c.fg3Pct)}${prow('FT%',p.ftPct,c.ftPct)}${prow('TS%',p.ts,c.ts)}
   </tbody></table>`;
-  const ranges=`<details class="proj-ranges"><summary>Show historical reference ranges</summary><p class="tiny">These ranges use residuals from the prior veteran model. The roster-minute and rookie additions have not been calibrated against those errors, so treat these as historical context rather than calibrated odds.</p>
+  const ranges=`<details class="proj-ranges preseason-reference-ranges"><summary>Show historical reference ranges</summary><p class="tiny">These ranges use residuals from the prior veteran model. The roster-minute and rookie additions have not been calibrated against those errors, so treat these as historical context rather than calibrated odds.</p>
     <table class="compare-table"><thead><tr><th scope="col" class="left">Metric</th><th scope="col">Low reference</th><th scope="col">Estimate</th><th scope="col">High reference</th></tr></thead><tbody>
     ${[['Games',c.gpLo,c.gp,c.gpHi],['Minutes',c.mpgLo,c.mpg,c.mpgHi],['Points',c.ptsLo,c.pts,c.ptsHi],['Rebounds',c.rebLo,c.reb,c.rebHi],['Assists',c.astLo,c.ast,c.astHi]].map(([l,lo,v,hi])=>`<tr><th scope="row" class="left">${l}</th><td>${num(lo)}</td><td><b>${num(v)}</b></td><td>${num(hi)}</td></tr>`).join('')}
     </tbody></table></details>`;
@@ -1732,8 +1805,14 @@ function projCard(p){
     'nba-roster':'on a 2026-27 NBA roster; this is his G League line if he plays there',gleague:`in the G League, last with ${esc(c.team)}`}[c.status]||'';
   items.push(`<b>Team.</b> ${statusText}.${c.status==='new'?` The legacy team-change factor adjusts shot volume ${Math.abs((w.team?.newTeam||0)*100).toFixed(0)}% in this estimate.`:''}`);
   if(w.seasons?.length) items.push(`<b>Seasons used.</b> ${w.seasons.map(x=>`${esc(x.season)} ${esc(x.team)}, ${x.gp} games (weight ${Number(x.weight).toFixed(2)})`).join('; ')}. ${Number(w.possessions||0).toLocaleString()} possessions in all.`);
-  if(w.ownShare&&c.basis==='rookie-cohort-fallback') items.push(`<b>Historical rookie cohort vs. position norm.</b> Comparable first-year players supply ${Math.round(w.ownShare.fga*100)}% of the shot-volume estimate, ${Math.round(w.ownShare.reb*100)}% of rebounds, ${Math.round(w.ownShare.ast*100)}% of assists and ${Math.round(w.ownShare.fg3*100)}% of three-point volume. His own NBA stats are not available; the rest is regressed to current positional rates.`);
+  if(w.ownShare&&c.basis==='rookie-cohort-fallback') items.push(`<b>Rookie cohort starting point.</b> Before college-production adjustments, comparable first-year players supply ${Math.round(w.ownShare.fga*100)}% of the shot-volume estimate, ${Math.round(w.ownShare.reb*100)}% of rebounds, ${Math.round(w.ownShare.ast*100)}% of assists and ${Math.round(w.ownShare.fg3*100)}% of three-point volume. His own NBA stats are not available; the rest is regressed to current positional rates.`);
   else if(w.ownShare) items.push(`<b>Own record vs. position norm.</b> His own numbers carry ${Math.round(w.ownShare.fga*100)}% of the weight on shot volume, ${Math.round(w.ownShare.reb*100)}% on rebounds, ${Math.round(w.ownShare.ast*100)}% on assists and ${Math.round(w.ownShare.fg3*100)}% on 3P%; the rest comes from a typical ${esc(p.positionFamily||'player')} at his position.`);
+  if(w.rookie?.production){
+    const cp=w.rookie.production;
+    const labels={mpg:'minutes before roster adjustment',share:'appearance share',fga:'shot volume',fg3a:'three-point volume',fta:'free-throw volume',dreb:'defensive rebounding',ast:'playmaking',stl:'steals',blk:'blocks',tov:'turnovers'};
+    const changed=Object.entries(cp.changes||{}).map(([k,v])=>`${labels[k]||k}: ${num(v.cohort,2)} → ${num(v.collegeAdjusted,2)}${k==='mpg'?' MPG':k==='share'?' fraction of team games':' per 100 possessions'}`).join('; ');
+    items.push(`<b>College production.</b> ${esc((cp.school||[]).join(' / '))}, season ending ${esc(cp.seasonEndYear)}: ${num(cp.games,0)} games and ${num(cp.minutes,0)} minutes. A model trained through ${esc(cp.trainedThrough)} adjusts the entry-cohort estimate from his own college production. ${esc(changed)}. Rates shown here precede team context. Shooting accuracy retains the cohort estimate because the college-percentage adjustment did not improve the development test.`);
+  }
   if(c.basis==='rookie-cohort-fallback') items.push(`<b>Age for cohort matching.</b> ${finite(c.age)&&w.rookie?.ageReference?.date?`${c.age} on ${esc(longDate(w.rookie.ageReference.date))}. Historical peers use the same reference date in their entry seasons; ${num(w.rookie.knownAgePeers,0)} of ${num(w.rookie.peers,0)} selected peers have a known age. This helps select comparable rookies; it is not a separate aging or development boost.`:'No verified birthdate is available, so age is omitted rather than guessed. Draft slot and position still inform the rookie cohort.'}`);
   else if(w.age&&finite(c.age)) items.push(`<b>Age ${c.age} in 2026-27.</b> Shot volume ${pctChange(w.age.scoring)}, free throws ${pctChange(w.age.freeThrows)}, rebounds ${pctChange(w.age.rebounds)}, assists ${pctChange(w.age.assists)}, steals ${pctChange(w.age.steals)}, blocks ${pctChange(w.age.blocks)}, from how players his age changed from one season to the next.`);
   if(finite(w.development)&&Math.abs(w.development)>=0.001) items.push(`<b>Early career.</b> Season ${w.yearsIn} in the league: shot volume ${pctChange(w.development)} for development, more for higher draft picks.`);
@@ -1741,7 +1820,7 @@ function projCard(p){
     const m=w.minutes, eff=m.effects||{};
     const parts=[['age',eff.age],['a new team',eff.newTeam],[`teammates' minutes`,eff.depth],['draft slot and youth',eff.draftAndYouth]]
       .filter(([,v])=>finite(v)&&Math.abs(v)>=0.1).map(([k,v])=>`${k} ${signed(v)}`);
-    const evidenceLead=c.basis==='rookie-cohort-fallback'?'No NBA role history; draft/position cohort and roster competition set his role':c.basis==='older-history-fallback'?`Older ${p.league==='NBA'?'NBA':'G League'} minutes from ${esc(w.fallback?.lastObservedSeason||'his last active season')} are discounted after a long gap; this is a low-support return estimate`:returner?`No recorded 2025-26 minutes; earlier history ends in ${esc(latestHistory.season)}`:`${num(m.last)} MPG in 2025-26`;
+    const evidenceLead=c.basis==='rookie-cohort-fallback'?`No NBA role history; draft/position cohort, ${w.rookie?.production?'learned college-production adjustments, ':''}and roster competition set his role`:c.basis==='older-history-fallback'?`Older ${p.league==='NBA'?'NBA':'G League'} minutes from ${esc(w.fallback?.lastObservedSeason||'his last active season')} are discounted after a long gap; this is a low-support return estimate`:returner?`No recorded 2025-26 minutes; earlier history ends in ${esc(latestHistory.season)}`:`${num(m.last)} MPG in 2025-26`;
     const recent=c.basis==='multi-year-history';
     items.push(`<b>Minutes.</b> ${evidenceLead}${recent&&finite(m.lateSeason)?`, ${num(m.lateSeason)} after the All-Star break`:''}${recent&&finite(m.startRate)?`, started ${Math.round(m.startRate*100)}% of his games`:''}. Projected ${num(m.projected)} per game he plays${finite(m.teamBudgetAdjustment)&&Math.abs(m.teamBudgetAdjustment)>=0.1?`; roster-minute allocation ${signed(m.teamBudgetAdjustment)} MPG`:''}.${parts.length?` Other model adjustments: ${parts.join(', ')}.`:''}`);
   }
@@ -1757,10 +1836,10 @@ function projCard(p){
   const s=w.pts100||{};
   const baselineLabel=c.basis==='rookie-cohort-fallback'?'rookie cohort':c.basis==='older-history-fallback'?'last active season':'last season';
   const blendLabel=c.basis==='rookie-cohort-fallback'?'cohort rates':'multi-season blend';
-  const steps=[[baselineLabel,s.last],[blendLabel,s.blended],['after age',s.aged],['with team context',s.final]].filter(([,v])=>finite(v));
+  const steps=[[baselineLabel,s.last],[blendLabel,s.blended],[w.rookie?.production?'with college production':'after age',s.aged],['with team context',s.final]].filter(([,v])=>finite(v));
   const chain=steps.length?`<div class="proj-steps"><b>Points per 100 possessions:</b> ${steps.map(([k,v])=>`<span>${num(v)} <i>${k}</i></span>`).join(' → ')}</div>`:'';
   return `<div class="proj-card"><div class="section-bar">2026-27 projection · ${esc(c.role||'projected role')}</div>
-    <p class="proj-context tiny">${esc(get(p,'proj.team'))} · ${esc(get(p,'proj.status'))}${c.basis==='rookie-cohort-fallback'?' · provisional cohort estimate; no personal NBA history':c.basis==='older-history-fallback'?' · low-support estimate from older NBA history':c.status==='unsigned'?' · conditional on signing and playing':p.league==='GLEAGUE'?' · G League forecast; team is last observed affiliation':''}.</p>
+    <p class="proj-context tiny">${esc(get(p,'proj.team'))} · ${esc(get(p,'proj.status'))}${c.basis==='rookie-cohort-fallback'?' · provisional cohort estimate; no personal NBA history':c.basis==='older-history-fallback'?' · low-support estimate from older NBA history':c.status==='unsigned'?' · conditional on signing and playing':p.league==='GLEAGUE'?(p.currentGLeagueRosterTeam?' · G League forecast; official current team listing, neutral team-rate context':' · conditional G League forecast; team is last observed affiliation'):''}.</p>
     ${p.rosterContext?`<p class="tiny">Two-way contract: ${esc(p.rosterContext.nbaTeam)} · affiliate ${esc(p.rosterContext.gLeagueAffiliate)}. Current G League assignment is unverified. Contract checked ${esc(p.rosterContext.asOf.slice(0,10))}.</p>`:''}
     ${returnerNote}${report}${news}<div class="proj-body"><div>${table}${seasonProgressCard(p)}${ranges}</div>
       <details class="proj-why"><summary>How this line was built</summary><ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>${chain}
@@ -1791,6 +1870,7 @@ function openProjectionMethod(){
   const w=pr.recencyWeights||[1,0,0], sw=pr.shootingWeights||[1,0,0];
   $('projMethodBody').innerHTML=`<div class="proj-method">
     <h2>How the 2026-27 projections work</h2>
+    ${DATA.forecastEvaluation?`<details class="proj-ranges"><summary>Current forecast pipeline · chronological evaluation</summary><p>Eight historical seasons replay the production forecast and current-season update. The final ${esc(DATA.forecastEvaluation.test.season)} holdout contains ${num(DATA.forecastEvaluation.test.players,0)} players observed in the first fourteen days, including later nonappearers.</p><p>Points per appearance: MAE ${num(DATA.forecastEvaluation.stats.pts.cohorts.all.modelMae,3)}. On paired veteran rows, the model is ${num(DATA.forecastEvaluation.stats.pts.cohorts.all.repeat.modelMae,3)} versus ${num(DATA.forecastEvaluation.stats.pts.cohorts.all.repeat.baselineMae,3)} repeating last season. Nominal 80% points reference coverage: ${num(DATA.forecastEvaluation.stats.pts.cohorts.all.coverage*100,1)}%.</p><p class="tiny">${esc(DATA.forecastEvaluation.boundary)}</p><a href="https://github.com/myteamwheel/Database/blob/v3-official-data/docs/FULL_FORECAST_EVALUATION.json" target="_blank" rel="noopener">Full evaluation and cohorts</a></details>`:''}
     <p>These are preseason estimates for the 2026-27 regular season. Veteran statistical rates and the base role model come from a frozen fitted card. The current roster-minute reconciliation and rookie fallback were added afterward; the historical accuracy table below does not validate those additions.</p>
     <h3>The formula</h3>
     <div class="formula">per-game stat = rate per 100 possessions x possessions per game
@@ -1811,8 +1891,8 @@ shooting % = (weighted makes + R x expected %) / (weighted attempts + R), then a
       <li><b>Roster shot-creation balance.</b> If his 2026-27 teammates create fewer shots than a typical rotation, he takes more, and the reverse. Strength ${team.usageMu??'—'} (0 would mean no effect).</li>
       <li><b>Team change.</b> The frozen model applies a ${Math.abs((team.movedUsage||0)*100).toFixed(0)}% shot-volume adjustment to a player marked as moving teams. This coefficient is a model assumption, not a promise about an individual.</li>
       <li><b>Pace.</b> Per-game numbers use his 2026-27 team's pace, which carries over from last season at a rate of ${team.paceRho??'—'}.</li>
-      <li><b>Roster opportunity.</b> The NBA roster snapshot is dated ${esc(longDate(m.rostersAsOf))}. For players with recent NBA history, the fitted role estimate is reconciled across the listed roster so expected minutes sum to 240 per team game after weighting by projected appearance share. This is a preseason allocation across everyone on the roster, not a guarantee that the team has a fixed 240-minute healthy rotation every night. Players without recent history use a separate rookie-cohort fallback based on draft slot, position, historical first-season roles and roster competition; it currently lacks verified college/international statistics and contract-security inputs.</li>
-      <li><b>Availability and uncertainty.</b> Games played is a historical participation estimate. The model has no verified live injury clearance or news feed. Displayed ranges come from the older veteran model and have not been recalibrated for the current roster-minute or rookie changes.</li>
+      <li><b>Roster opportunity.</b> The NBA roster snapshot is dated ${esc(longDate(m.rostersAsOf))}. For players with recent NBA history, the fitted role estimate is reconciled across the listed roster so expected minutes sum to 240 per team game after weighting by projected appearance share. This is a preseason allocation across everyone on the roster, not a guarantee that the team has a fixed 240-minute healthy rotation every night. Players without recent history use a separate rookie-cohort fallback based on draft slot, position, historical first-season roles and roster competition; verified college production adjusts forecasts where a unique source match exists. Missing college or international production retains the labeled cohort fallback; contract security and medical recovery are not inferred.</li>
+      <li><b>Availability and uncertainty.</b> Games played is a historical participation estimate. The remaining-season view uses dated official upcoming Out listings. Pending reports and future recovery dates remain unverified. Displayed ranges come from the older veteran model and have not been recalibrated for the current roster-minute or rookie changes.</li>
     </ul>
     <h3>Historical check of the frozen model</h3>
     <p>The base model was fitted on seasons through 2024-25 and tested on ${esc(b.season)} for ${b.n} players with an NBA history. The comparison is a useful baseline check, but it predates the current 2026-27 roster-minute reconciliation and rookie fallback. It is not an accuracy score for today’s full projection.</p>
@@ -1828,7 +1908,7 @@ shooting % = (weighted makes + R x expected %) / (weighted attempts + R), then a
       <p class="tiny">G League free throws: since 2019-20 one free throw can be worth the whole trip, so points per free throw made are taken from the league (about 1.67), not assumed to be 1.</p>`:''}
     <h3>What it does not know</h3>
     <ul>
-      <li>Injuries, trades, signings, contract type or role news after ${esc(longDate(m.rostersAsOf))}. For an unsigned player, this estimate assumes he signs and plays; it is not a current-roster statement.</li>
+      <li>Unreported injuries, future signings and changes after each displayed source snapshot. Remaining-season views incorporate the available dated Out reports and observed current-team games. For an unsigned player, this estimate assumes he signs and plays; it is not a current-roster statement.</li>
       <li>Coaching changes and scheme, beyond team pace and roster balance.</li>
       <li>College/international box-score production is not in the rookie fallback, and absence or return-to-play risk is not assessed from a verified medical source.</li>
       <li>Per-game rates are conditional on appearing; projected games are a separate estimate. Season totals multiply those two assumptions.</li>
@@ -1851,15 +1931,15 @@ function openPlayer(id){
     $('playerDialogBody').innerHTML=`<div class="player-hero"><div>
         <div class="eyebrow">${esc(p.leagueLabel)} · NO APPEARANCE</div>
         <h2>${esc(p.name)}</h2>
-        <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.currentGLeagueIndexTeam?`${p.currentGLeagueIndexTeam} (provisional index)`:p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
-        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':p.currentGLeagueIndexTeam?'Listed in the current G League player index, with no 2025-26 G League performance row. Opening roster membership, signed contract and NBA assignment are unverified.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
+        <p>${esc(p.league==='NBA'?(p.currentTeam||p.team||'Unsigned'):(p.currentGLeagueRosterTeam?`${p.currentGLeagueRosterTeam} (official team roster)`:DATA.currentGLeagueRosterMeta?'No current G League team listing':p.currentGLeagueIndexTeam?`${p.currentGLeagueIndexTeam} (provisional index)`:p.team||'—'))} · ${esc(p.position||'—')} · ${p.age??'—'} yrs · ${esc(p.height||'—')}</p>
+        <p class="tiny">${p.currentRoster?'On the current 2026-27 NBA roster snapshot with no 2025-26 NBA performance row.':p.currentGLeagueRosterTeam?'Listed on the official current G League team roster, with no 2025-26 performance row. A team listing does not establish NBA assignment or contract terms.':DATA.currentGLeagueRosterMeta?'Not listed by any of the 31 current official team-roster feeds. Any separate player-index listing is discovery evidence, not confirmed current membership.':p.currentGLeagueIndexTeam?'Listed in the current G League player index, with no 2025-26 G League performance row. Opening roster membership, signed contract and NBA assignment are unverified.':'Rostered in 2025-26 but never played a game.'}</p></div></div>
       <div class="player-grid">
         <div class="detail-card"><div class="k">Performance grade</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Rank</div><div class="v">N/A</div></div>
         <div class="detail-card"><div class="k">Games played</div><div class="v">0</div></div>
       </div>
       <p class="tiny">A grade of 0 would rank this player below everyone who did play, which is a
-      different and false claim, so no grade is assigned.</p>${projCard(p)}`;
+      different and false claim, so no grade is assigned.</p>${rotationRecommendationCard(p)}${projCard(p)}`;
     $('playerDialog').showModal();
     return;
   }
@@ -2021,7 +2101,7 @@ function openPlayer(id){
       ${p.cohortRanks?.team?`<div class="detail-card"><div class="k">2025-26 ${esc(p.seasonTeam||p.team)}</div><div class="v">#${p.cohortRanks.team.rank} <span class="tiny">of ${p.cohortRanks.team.of}</span></div></div>`:''}
       ${p.cohortRanks?.ageGroup?`<div class="detail-card"><div class="k">${(p.ageOpeningNight??p.age)<=23?'Age 23 and under':'Age 24+'} <span class="tiny">on opening night</span></div><div class="v">#${p.cohortRanks.ageGroup.rank} <span class="tiny">of ${p.cohortRanks.ageGroup.of}</span></div></div>`:''}
       ${customCards}
-    </div>${projCard(p)}${stints}${tbeta}${tcap}${crossover}
+    </div>${rotationRecommendationCard(p)}${projCard(p)}${stints}${$('viewPreset').value==='tulipbeta'?tbeta:`<details class="proj-ranges"><summary>Historical TULIP ledger · 2025-26 baseline</summary>${tbeta}</details>`}${tcap}${crossover}
     <details class="ws-disclosure"><summary>All retained source fields</summary><div class="ws-disclosure-body">${raw}</div></details>`;
   $('playerDialog').showModal();
 }
@@ -2241,11 +2321,13 @@ function bind(){
   document.querySelectorAll('.league-tab').forEach(b=>b.onclick=()=>switchLeague(b));
   ['searchInput','rosterScope','teamFilter','teamMode','positionFilter','countryFilter','minGp','minMpg','minMin','minGrade','minReliability','bothOnly','includeRosterOnly','rowLimit']
     .forEach(id=>$(id).addEventListener(id==='searchInput'?'input':'change',()=>{
+      if(id==='rosterScope')populateSelectors();
       render(); writeUrlState(id==='searchInput'?'replace':'push');
     }));
   // Opening TULIP Beta or the projections sorted by grade hides the point of them, so those views
   // select their own headline sort once. Any later manual sort is left alone.
   $('viewPreset').addEventListener('change',()=>{
+    if($('viewPreset').value==='tuliprotation'){$('rosterScope').value='current';populateSelectors();}
     const own=PRESET_SORT[$('viewPreset').value];
     if(own){
       sortKey=own; sortDir=-1;
@@ -2309,6 +2391,7 @@ async function init(){
     updatePublishedHeader();
     populateSelectors();fillMetricSelects();bind();restoreUrlState();render();
     if(window.__wsInit) window.__wsInit();
+    if(!window.__STANDALONE_DATA_LOADER)$('reloadDataBtn').disabled=false;
     // Links from other pages (History Lab) can open the projections directly.
     if(location.hash==='#projections' && !new URLSearchParams(location.search).has('view')) goTo('proj');
     writeUrlState('replace');

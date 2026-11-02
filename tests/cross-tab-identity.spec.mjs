@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const PAGE = process.env.CROSS_TAB_TEST_URL || 'file://' + fileURLToPath(new URL('../public/standalone.html', import.meta.url));
 const source = JSON.parse(fs.readFileSync(new URL('../public/data.json', import.meta.url), 'utf8'));
+const glRosterRaw=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-rosters.json',import.meta.url)));
+const glMembers=new Map(glRosterRaw.teams.flatMap(t=>{const raw=t.payload.resultSets.find(r=>r.name==='CommonTeamRoster'),i=raw.headers.indexOf('PLAYER_ID');return raw.rowSet.map(r=>[String(r[i]),t.team]);}));
 
 test('Role Value keeps every selectable unmodeled player without inventing an estimate', async ({ page }) => {
   const errors = [];
@@ -38,7 +40,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
     for (const [team, profile] of Object.entries(source.analysis.teams[league])) {
       await page.selectOption('#tfTeam', team);
       const members = source.leagues[league].filter(p => p.appeared && p.skillProfile && (league === 'NBA'
-        ? p.currentTeam === team : (p.teams?.length ? p.teams.map(x => x.team) : [p.team]).includes(team)));
+        ? p.currentTeam === team : source.currentGLeagueRosterMeta?glMembers.get(String(p.nbaPersonId))===team:(p.teams?.length ? p.teams.map(x => x.team) : [p.team]).includes(team)));
       await expect(page.locator('#workspace .ws-controls')).toContainText(`${members.length} measured player profiles`);
       await expect(page.locator('#workspace h3').filter({ hasText: 'measured fit results' })).toHaveText(`Top ${profile.topFits.length} measured fit results`);
       const actual = await page.locator('#workspace .compare-table tbody tr').evaluateAll(rows => rows.map(row => ({
@@ -82,7 +84,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
       await page.goto(`${PAGE}?${query}`);
       await expect(page.locator('#wsPlayerSel')).toHaveValue(String(p.playerId));
       await expect(page.locator('.ws-title h2')).toHaveText(p.name);
-      const teamText = league === 'NBA' ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster') : `${source.season} G League team: ${p.team}`;
+      const teamText = league === 'NBA' ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster') : `${source.season} performance team: ${p.team}`;
       if (p.appeared) {
         await expect(page.locator('.ws-title')).toContainText(teamText);
         await expect(page.locator('.ws-title')).toContainText(`${source.season} actuals: ${p.gp} games`);

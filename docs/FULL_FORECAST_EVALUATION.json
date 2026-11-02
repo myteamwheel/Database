@@ -1,0 +1,2631 @@
+{
+  "sourceSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
+  "implementationSha256": "8702a643c380c6c74b46928ab5f16578413779aa61496bcc2b4a4494375af200",
+  "version": "full-forecast-replay-v1",
+  "protocol": "Run the production buildProjections and buildSeasonForecasts functions at the end of each season’s first fourteen calendar days. Veteran parameters train only before the target season. The college-model metric-selection policy uses the development class three years before the target; college coefficients train only on earlier classes. After development on 2024-25 identified rookie undercoverage, pool historical replay residuals through 2024-25; condition on rookie/returner/mover status. Use 1/2/4 prediction bands at <80/<320/320+ observations, borrow a parent group below 40, then freeze and evaluate 2025-26 without using its outcomes to select widths. Both preseason context and current-team observed updates run through production code.",
+  "nominalCoverage": 0.8,
+  "boundary": "Roster membership is reconstructed from appearances known at the cutoff, not archived signed-contract rosters; signed nonappearers are unobserved and future entrants are counted outside the cohort. Listed positions and immutable birthdates use the preserved identity index. Historical schedule reconstruction uses final schedule dates. Historical injury/contract reports are unavailable, so those input states use the same unavailable fallback as production. Unit/source tests separately cover dated official Out reports and two-way ceilings. This is a chronological replay with stated source limitations, not a pristine prospective trial or proof of calibrated probabilities in 2026-27.",
+  "sourceManifest": {
+    "version": 1,
+    "records": [
+      {
+        "season": "2016-17",
+        "path": "scripts/data/projection/replay/2016-17.json.gz",
+        "rows": 26139,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2016-17/gamelog.json"
+        },
+        "rawSourceSha256": "de4aa5e2b0b2a65f2c5f30d57499e7f757c627d323a80ab2dab62f450ac841d4",
+        "decodedSha256": "9e986439dd81451e5c3b69036ce7df04a0d3ea6772903371cd4264d8e187d811",
+        "sha256": "ba6ee363fa2a80fa06f0a661ba627468092a90f08f2ccb3f58a0184f696f16e8"
+      },
+      {
+        "season": "2017-18",
+        "path": "scripts/data/projection/replay/2017-18.json.gz",
+        "rows": 26107,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2017-18/gamelog.json"
+        },
+        "rawSourceSha256": "b13d80ed281c65b1b8e50bbb3a04b4de73804dfad5216a8d7935424c7b22b7bd",
+        "decodedSha256": "8a9f95c568a909acccc884ab1ea383bb995611c65fc286097d4cf0fed26f38d6",
+        "sha256": "daf185ebf1d06b4332555ec2a65a1ac81aea32630f5dad8d3984e04bae7f04be"
+      },
+      {
+        "season": "2018-19",
+        "path": "scripts/data/projection/replay/2018-19.json.gz",
+        "rows": 26101,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2018-19/gamelog.json"
+        },
+        "rawSourceSha256": "d215a7467672b141348a70ab7da40b3cd32078bf911fc6c8f28841ce8935478c",
+        "decodedSha256": "394ed5063f63bfd67305749efe04cb8975ac13aecf4f884fd0a67de09d9288f5",
+        "sha256": "508e3702c88e6aba4446eff2893b9a1ffcf56fc5e750412301f3a38d157e0b4f"
+      },
+      {
+        "season": "2021-22",
+        "path": "scripts/data/projection/replay/2021-22.json.gz",
+        "rows": 26039,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2021-22/gamelog.json"
+        },
+        "rawSourceSha256": "30c55cc456650dcd95704b409452fe3975b853728e53cb0e457ff80cbb41d09f",
+        "decodedSha256": "beb9d1a3258880fe8aae90afe8c14629bd6405eee0cacc7884e23bdc607e38b3",
+        "sha256": "7426663fe33701abbc046d4528f9f5ad2139dec744eefaf3badd572f903b873e"
+      },
+      {
+        "season": "2022-23",
+        "path": "scripts/data/projection/replay/2022-23.json.gz",
+        "rows": 25895,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2022-23/gamelog.json"
+        },
+        "rawSourceSha256": "6c209fcdf3118c9614801c494c3b6888a359232cdb79305f955b67cd4ee603e0",
+        "decodedSha256": "2951e31dc115c7ad9b96b580bc280d267d92cd944eee42c50316f7df5344993f",
+        "sha256": "8539a261bae66bdce364a2a7aa3529e317caae9ed8125df0c44111f07f844125"
+      },
+      {
+        "season": "2023-24",
+        "path": "scripts/data/projection/replay/2023-24.json.gz",
+        "rows": 26401,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2023-24/gamelog.json"
+        },
+        "rawSourceSha256": "07d1bfd12748a27c36dc9593fff449f6c7f3358a370a0886bd16a4ddcc1ac836",
+        "decodedSha256": "d28c0038beb60c410fd68ace4dc3e7657908871bcb7294a88ee942c513cb3fdf",
+        "sha256": "c4f43dc924dd424aff73c7525a7f6f435fcd82eae6104ab350494698bab81bfb"
+      },
+      {
+        "season": "2024-25",
+        "path": "scripts/data/projection/replay/2024-25.json.gz",
+        "rows": 26306,
+        "source": {
+          "kind": "preserved-official-source-cache",
+          "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+          "path": "scripts/data/history/2024-25/gamelog.json"
+        },
+        "rawSourceSha256": "e09fbcc8d7062eeda34a13317ee6cd0d20bd35d548cb4881a10eadd21f3172c6",
+        "decodedSha256": "4ce76ccc39d57fc4eaf2d7961f5a07378abaab085e55baaf76a3f2eca5f3aad2",
+        "sha256": "a0d107c0cae8bbec0802574885ae5f91752e380797dc9f950a1c20b8f6871fd5"
+      },
+      {
+        "season": "2025-26",
+        "path": "scripts/data/projection/replay/2025-26.json.gz",
+        "rows": 26651,
+        "source": {
+          "kind": "official-api",
+          "url": "https://stats.gleague.nba.com/stats/leaguegamelog?Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2025-26&SeasonType=Regular%20Season&Sorter=DATE",
+          "fetchedAt": "2026-11-02T01:19:15.627599Z",
+          "note": "Shared official statistics host, explicitly LeagueID 00; preserved NBA person/game IDs."
+        },
+        "rawSourceSha256": "e676d6d8bead7cefa0425e6c2b9fed46983e8d5368e9a6595768d57c7354f859",
+        "decodedSha256": "5c758c67c5fdcc6485dc5cdacfe094570ad257d093df00a801b81dbf8326e4ac",
+        "sha256": "7ec7b116b9e19f0ca1a631e0c50f9c2cc09940da29f804bab216127604591944"
+      }
+    ]
+  },
+  "samples": [
+    {
+      "season": "2016-17",
+      "cutoff": "2016-11-07",
+      "players": 406
+    },
+    {
+      "season": "2017-18",
+      "cutoff": "2017-10-30",
+      "players": 416
+    },
+    {
+      "season": "2018-19",
+      "cutoff": "2018-10-29",
+      "players": 415
+    },
+    {
+      "season": "2021-22",
+      "cutoff": "2021-11-01",
+      "players": 431
+    },
+    {
+      "season": "2022-23",
+      "cutoff": "2022-10-31",
+      "players": 439
+    },
+    {
+      "season": "2023-24",
+      "cutoff": "2023-11-06",
+      "players": 445
+    },
+    {
+      "season": "2024-25",
+      "cutoff": "2024-11-04",
+      "players": 437
+    },
+    {
+      "season": "2025-26",
+      "cutoff": "2025-11-03",
+      "players": 441
+    }
+  ],
+  "calibration": {
+    "throughSeason": "2024-25",
+    "season": "2016-17 through 2024-25; normal 82-game seasons only",
+    "cutoff": "first fourteen calendar days per season",
+    "players": 2989,
+    "abstentions": 0,
+    "unmodeledFuturePlayers": 852
+  },
+  "test": {
+    "season": "2025-26",
+    "cutoff": "2025-11-03",
+    "players": 441,
+    "abstentions": 0,
+    "zeroFutureAppearances": 2,
+    "unmodeledFuturePlayers": 141
+  },
+  "stats": {
+    "gp": {
+      "bands": [
+        {
+          "upTo": 41.952115,
+          "n": 747,
+          "p10": -19.787065,
+          "p90": 32.592732
+        },
+        {
+          "upTo": 52.891472,
+          "n": 747,
+          "p10": -23.226056,
+          "p90": 21.833037
+        },
+        {
+          "upTo": 59.858602,
+          "n": 747,
+          "p10": -23.441416,
+          "p90": 16.249507
+        },
+        {
+          "upTo": null,
+          "n": 748,
+          "p10": -23.089157,
+          "p90": 10.61114
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 41.952115,
+            "n": 747,
+            "p10": -19.787065,
+            "p90": 32.592732
+          },
+          {
+            "upTo": 52.891472,
+            "n": 747,
+            "p10": -23.226056,
+            "p90": 21.833037
+          },
+          {
+            "upTo": 59.858602,
+            "n": 747,
+            "p10": -23.441416,
+            "p90": 16.249507
+          },
+          {
+            "upTo": null,
+            "n": 748,
+            "p10": -23.089157,
+            "p90": 10.61114
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 24.059696,
+            "n": 106,
+            "p10": -14.596621,
+            "p90": 38.382707
+          },
+          {
+            "upTo": 34.665376,
+            "n": 107,
+            "p10": -21.182328,
+            "p90": 32.592732
+          },
+          {
+            "upTo": 44.694555,
+            "n": 107,
+            "p10": -20.511842,
+            "p90": 30.855992
+          },
+          {
+            "upTo": null,
+            "n": 107,
+            "p10": -24.243622,
+            "p90": 19.953038
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -11.847727,
+            "p90": 40.649707
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 39.853124,
+            "n": 173,
+            "p10": -17.915804,
+            "p90": 36.482256
+          },
+          {
+            "upTo": 48.494485,
+            "n": 174,
+            "p10": -27.941008,
+            "p90": 24.521482
+          },
+          {
+            "upTo": 54.483511,
+            "n": 174,
+            "p10": -22.445572,
+            "p90": 19.824017
+          },
+          {
+            "upTo": null,
+            "n": 174,
+            "p10": -22.069132,
+            "p90": 15.478514
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -11.847727,
+            "p90": 40.649707
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2989,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 427,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 46,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 695,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 46,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 441,
+          "modelMae": 14.417942,
+          "coverage": 0.807256,
+          "repeat": {
+            "n": 382,
+            "modelMae": 13.82717,
+            "baselineMae": 15.921849
+          },
+          "avg3": {
+            "n": 382,
+            "modelMae": 13.82717,
+            "baselineMae": 15.589856
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 18.242942,
+          "coverage": 0.779661,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 22.012326,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 22.012326,
+            "baselineMae": 6.825203
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 22.012326,
+            "baselineMae": 1.116983
+          }
+        },
+        "movers": {
+          "n": 91,
+          "modelMae": 17.362233,
+          "coverage": 0.714286,
+          "repeat": {
+            "n": 91,
+            "modelMae": 17.362233,
+            "baselineMae": 18.414366
+          },
+          "avg3": {
+            "n": 91,
+            "modelMae": 17.362233,
+            "baselineMae": 17.868482
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 8.960823,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 8.960823,
+            "baselineMae": 19.439024
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 8.960823,
+            "baselineMae": 19.439024
+          }
+        }
+      }
+    },
+    "mpg": {
+      "bands": [
+        {
+          "upTo": 17.825862,
+          "n": 741,
+          "p10": -8.370504,
+          "p90": 5.128938
+        },
+        {
+          "upTo": 22.622283,
+          "n": 742,
+          "p10": -10.741402,
+          "p90": 4.105933
+        },
+        {
+          "upTo": 28.625035,
+          "n": 742,
+          "p10": -9.72019,
+          "p90": 4.421819
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -4.907568,
+          "p90": 2.275352
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 17.825862,
+            "n": 741,
+            "p10": -8.370504,
+            "p90": 5.128938
+          },
+          {
+            "upTo": 22.622283,
+            "n": 742,
+            "p10": -10.741402,
+            "p90": 4.105933
+          },
+          {
+            "upTo": 28.625035,
+            "n": 742,
+            "p10": -9.72019,
+            "p90": 4.421819
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -4.907568,
+            "p90": 2.275352
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 16.049436,
+            "n": 105,
+            "p10": -10.128885,
+            "p90": 6.398861
+          },
+          {
+            "upTo": 19.685314,
+            "n": 106,
+            "p10": -12.979802,
+            "p90": 4.650388
+          },
+          {
+            "upTo": 23.744304,
+            "n": 106,
+            "p10": -16.089448,
+            "p90": 4.851267
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -22.108787,
+            "p90": 3.644498
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -16.260878,
+            "p90": 8.303295
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 16.362745,
+            "n": 171,
+            "p10": -7.428335,
+            "p90": 5.210196
+          },
+          {
+            "upTo": 20.187403,
+            "n": 171,
+            "p10": -9.46988,
+            "p90": 2.758844
+          },
+          {
+            "upTo": 25.484699,
+            "n": 171,
+            "p10": -10.055004,
+            "p90": 4.967263
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -7.136739,
+            "p90": 3.120029
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -16.260878,
+            "p90": 8.303295
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 4.621502,
+          "coverage": 0.794989,
+          "repeat": {
+            "n": 380,
+            "modelMae": 4.22752,
+            "baselineMae": 4.764826
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 4.22752,
+            "baselineMae": 4.932993
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 7.159014,
+          "coverage": 0.881356,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 8.475746,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 8.475746,
+            "baselineMae": 3.894026
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 8.475746,
+            "baselineMae": 4.814541
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 5.267164,
+          "coverage": 0.755556,
+          "repeat": {
+            "n": 90,
+            "modelMae": 5.267164,
+            "baselineMae": 5.907567
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 5.267164,
+            "baselineMae": 6.020477
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 9.289067,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 9.289067,
+            "baselineMae": 11.26411
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 9.289067,
+            "baselineMae": 11.26411
+          }
+        }
+      }
+    },
+    "pts": {
+      "bands": [
+        {
+          "upTo": 6.755854,
+          "n": 741,
+          "p10": -3.605786,
+          "p90": 2.101111
+        },
+        {
+          "upTo": 8.981522,
+          "n": 742,
+          "p10": -5.139284,
+          "p90": 1.983047
+        },
+        {
+          "upTo": 12.927929,
+          "n": 742,
+          "p10": -5.626586,
+          "p90": 2.949881
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -3.970356,
+          "p90": 3.54144
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 6.755854,
+            "n": 741,
+            "p10": -3.605786,
+            "p90": 2.101111
+          },
+          {
+            "upTo": 8.981522,
+            "n": 742,
+            "p10": -5.139284,
+            "p90": 1.983047
+          },
+          {
+            "upTo": 12.927929,
+            "n": 742,
+            "p10": -5.626586,
+            "p90": 2.949881
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -3.970356,
+            "p90": 3.54144
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 6.231042,
+            "n": 105,
+            "p10": -3.843113,
+            "p90": 2.648965
+          },
+          {
+            "upTo": 7.670391,
+            "n": 106,
+            "p10": -5.446957,
+            "p90": 2.146749
+          },
+          {
+            "upTo": 9.137497,
+            "n": 106,
+            "p10": -6.576365,
+            "p90": 1.57642
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -8.8889,
+            "p90": 4.305053
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -6.487261,
+            "p90": 5.308514
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 6.113876,
+            "n": 171,
+            "p10": -3.064534,
+            "p90": 2.04136
+          },
+          {
+            "upTo": 7.899976,
+            "n": 171,
+            "p10": -4.669042,
+            "p90": 2.095124
+          },
+          {
+            "upTo": 10.296045,
+            "n": 171,
+            "p10": -4.961455,
+            "p90": 2.550416
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -4.848773,
+            "p90": 3.794605
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -6.487261,
+            "p90": 5.308514
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 2.717678,
+          "coverage": 0.781321,
+          "repeat": {
+            "n": 380,
+            "modelMae": 2.614712,
+            "baselineMae": 2.922887
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 2.614712,
+            "baselineMae": 2.974004
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 3.380851,
+          "coverage": 0.864407,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 5.342497,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 5.342497,
+            "baselineMae": 2.819975
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 5.342497,
+            "baselineMae": 3.105352
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 3.121974,
+          "coverage": 0.733333,
+          "repeat": {
+            "n": 90,
+            "modelMae": 3.121974,
+            "baselineMae": 3.433481
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 3.121974,
+            "baselineMae": 3.530459
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 4.87296,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 4.87296,
+            "baselineMae": 5.075
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 4.87296,
+            "baselineMae": 5.075
+          }
+        }
+      }
+    },
+    "reb": {
+      "bands": [
+        {
+          "upTo": 2.759342,
+          "n": 741,
+          "p10": -1.264343,
+          "p90": 0.751192
+        },
+        {
+          "upTo": 3.83594,
+          "n": 742,
+          "p10": -1.740809,
+          "p90": 0.712111
+        },
+        {
+          "upTo": 5.35917,
+          "n": 742,
+          "p10": -2.455139,
+          "p90": 0.816977
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -2.765533,
+          "p90": 1.143677
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 2.759342,
+            "n": 741,
+            "p10": -1.264343,
+            "p90": 0.751192
+          },
+          {
+            "upTo": 3.83594,
+            "n": 742,
+            "p10": -1.740809,
+            "p90": 0.712111
+          },
+          {
+            "upTo": 5.35917,
+            "n": 742,
+            "p10": -2.455139,
+            "p90": 0.816977
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -2.765533,
+            "p90": 1.143677
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 2.45424,
+            "n": 105,
+            "p10": -1.523397,
+            "p90": 0.935068
+          },
+          {
+            "upTo": 3.319905,
+            "n": 106,
+            "p10": -2.279945,
+            "p90": 0.975642
+          },
+          {
+            "upTo": 4.382989,
+            "n": 106,
+            "p10": -2.963833,
+            "p90": 0.867981
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -4.770513,
+            "p90": 1.499157
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -4.128429,
+            "p90": 1.415233
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 2.404208,
+            "n": 171,
+            "p10": -1.044339,
+            "p90": 0.893221
+          },
+          {
+            "upTo": 3.427663,
+            "n": 171,
+            "p10": -1.554191,
+            "p90": 0.881388
+          },
+          {
+            "upTo": 4.839346,
+            "n": 171,
+            "p10": -1.979797,
+            "p90": 0.976575
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -3.532565,
+            "p90": 0.84301
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -4.128429,
+            "p90": 1.415233
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 1.055556,
+          "coverage": 0.8041,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.992239,
+            "baselineMae": 1.01969
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.992239,
+            "baselineMae": 1.050194
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 1.463355,
+          "coverage": 0.813559,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 1.288085,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 1.288085,
+            "baselineMae": 0.501643
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 1.288085,
+            "baselineMae": 0.267018
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 1.23314,
+          "coverage": 0.755556,
+          "repeat": {
+            "n": 90,
+            "modelMae": 1.23314,
+            "baselineMae": 1.267279
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 1.23314,
+            "baselineMae": 1.350535
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 1.607593,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 1.607593,
+            "baselineMae": 1.582479
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 1.607593,
+            "baselineMae": 1.582479
+          }
+        }
+      }
+    },
+    "ast": {
+      "bands": [
+        {
+          "upTo": 1.109632,
+          "n": 741,
+          "p10": -0.553778,
+          "p90": 0.459679
+        },
+        {
+          "upTo": 1.672371,
+          "n": 742,
+          "p10": -0.873695,
+          "p90": 0.589071
+        },
+        {
+          "upTo": 2.843501,
+          "n": 742,
+          "p10": -1.133175,
+          "p90": 0.996748
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -1.487165,
+          "p90": 1.275128
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 1.109632,
+            "n": 741,
+            "p10": -0.553778,
+            "p90": 0.459679
+          },
+          {
+            "upTo": 1.672371,
+            "n": 742,
+            "p10": -0.873695,
+            "p90": 0.589071
+          },
+          {
+            "upTo": 2.843501,
+            "n": 742,
+            "p10": -1.133175,
+            "p90": 0.996748
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -1.487165,
+            "p90": 1.275128
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 0.993655,
+            "n": 105,
+            "p10": -0.623142,
+            "p90": 0.475806
+          },
+          {
+            "upTo": 1.399084,
+            "n": 106,
+            "p10": -1.025002,
+            "p90": 0.415432
+          },
+          {
+            "upTo": 1.97594,
+            "n": 106,
+            "p10": -1.366246,
+            "p90": 1.036695
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -2.374096,
+            "p90": 1.80346
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -1.115358,
+            "p90": 1.172627
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 0.991759,
+            "n": 171,
+            "p10": -0.458753,
+            "p90": 0.426162
+          },
+          {
+            "upTo": 1.522449,
+            "n": 171,
+            "p10": -0.774785,
+            "p90": 0.424578
+          },
+          {
+            "upTo": 2.425166,
+            "n": 171,
+            "p10": -1.137613,
+            "p90": 0.815002
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -1.446784,
+            "p90": 1.18141
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -1.115358,
+            "p90": 1.172627
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 0.699036,
+          "coverage": 0.788155,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.662055,
+            "baselineMae": 0.758697
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.662055,
+            "baselineMae": 0.798917
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 0.937214,
+          "coverage": 0.830508,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 0.697971,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 0.697971,
+            "baselineMae": 0.561152
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 0.697971,
+            "baselineMae": 0.470711
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 0.709263,
+          "coverage": 0.766667,
+          "repeat": {
+            "n": 90,
+            "modelMae": 0.709263,
+            "baselineMae": 0.794149
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 0.709263,
+            "baselineMae": 0.821993
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 1.51717,
+          "coverage": 0.5,
+          "repeat": {
+            "n": 2,
+            "modelMae": 1.51717,
+            "baselineMae": 1.655769
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 1.51717,
+            "baselineMae": 1.655769
+          }
+        }
+      }
+    },
+    "stl": {
+      "bands": [
+        {
+          "upTo": 0.511194,
+          "n": 741,
+          "p10": -0.27978,
+          "p90": 0.222231
+        },
+        {
+          "upTo": 0.681164,
+          "n": 742,
+          "p10": -0.371204,
+          "p90": 0.216851
+        },
+        {
+          "upTo": 0.912277,
+          "n": 742,
+          "p10": -0.450577,
+          "p90": 0.275808
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -0.465238,
+          "p90": 0.290724
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 0.511194,
+            "n": 741,
+            "p10": -0.27978,
+            "p90": 0.222231
+          },
+          {
+            "upTo": 0.681164,
+            "n": 742,
+            "p10": -0.371204,
+            "p90": 0.216851
+          },
+          {
+            "upTo": 0.912277,
+            "n": 742,
+            "p10": -0.450577,
+            "p90": 0.275808
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -0.465238,
+            "p90": 0.290724
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 0.510566,
+            "n": 105,
+            "p10": -0.362038,
+            "p90": 0.237301
+          },
+          {
+            "upTo": 0.631614,
+            "n": 106,
+            "p10": -0.522036,
+            "p90": 0.219812
+          },
+          {
+            "upTo": 0.76362,
+            "n": 106,
+            "p10": -0.525114,
+            "p90": 0.189454
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -0.787173,
+            "p90": 0.274748
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.513841,
+            "p90": 0.215813
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 0.439877,
+            "n": 171,
+            "p10": -0.235666,
+            "p90": 0.213475
+          },
+          {
+            "upTo": 0.603853,
+            "n": 171,
+            "p10": -0.350567,
+            "p90": 0.155748
+          },
+          {
+            "upTo": 0.834967,
+            "n": 171,
+            "p10": -0.450577,
+            "p90": 0.272371
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -0.481875,
+            "p90": 0.31667
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.513841,
+            "p90": 0.215813
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 0.226657,
+          "coverage": 0.813212,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.212568,
+            "baselineMae": 0.232908
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.212568,
+            "baselineMae": 0.215716
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 0.317405,
+          "coverage": 0.847458,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 0.19375,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 3,
+            "modelMae": 0.19375,
+            "baselineMae": 0.184849
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 0.19375,
+            "baselineMae": 0.185253
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 0.227642,
+          "coverage": 0.733333,
+          "repeat": {
+            "n": 90,
+            "modelMae": 0.227642,
+            "baselineMae": 0.244847
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 0.227642,
+            "baselineMae": 0.222557
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 0.226904,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 0.226904,
+            "baselineMae": 0.216239
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 0.226904,
+            "baselineMae": 0.216239
+          }
+        }
+      }
+    },
+    "blk": {
+      "bands": [
+        {
+          "upTo": 0.219092,
+          "n": 741,
+          "p10": -0.114162,
+          "p90": 0.128441
+        },
+        {
+          "upTo": 0.362725,
+          "n": 742,
+          "p10": -0.212841,
+          "p90": 0.167243
+        },
+        {
+          "upTo": 0.599978,
+          "n": 742,
+          "p10": -0.326691,
+          "p90": 0.215618
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -0.519916,
+          "p90": 0.239739
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 0.219092,
+            "n": 741,
+            "p10": -0.114162,
+            "p90": 0.128441
+          },
+          {
+            "upTo": 0.362725,
+            "n": 742,
+            "p10": -0.212841,
+            "p90": 0.167243
+          },
+          {
+            "upTo": 0.599978,
+            "n": 742,
+            "p10": -0.326691,
+            "p90": 0.215618
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -0.519916,
+            "p90": 0.239739
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 0.226432,
+            "n": 105,
+            "p10": -0.168342,
+            "p90": 0.140304
+          },
+          {
+            "upTo": 0.328441,
+            "n": 106,
+            "p10": -0.245986,
+            "p90": 0.20082
+          },
+          {
+            "upTo": 0.527521,
+            "n": 106,
+            "p10": -0.408003,
+            "p90": 0.284857
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -0.72037,
+            "p90": 0.439507
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.537355,
+            "p90": 0.238437
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 0.179386,
+            "n": 171,
+            "p10": -0.088985,
+            "p90": 0.107399
+          },
+          {
+            "upTo": 0.309291,
+            "n": 171,
+            "p10": -0.18567,
+            "p90": 0.201396
+          },
+          {
+            "upTo": 0.527441,
+            "n": 171,
+            "p10": -0.257682,
+            "p90": 0.188732
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -0.565827,
+            "p90": 0.163699
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.537355,
+            "p90": 0.238437
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 0.158615,
+          "coverage": 0.849658,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.15051,
+            "baselineMae": 0.1754
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.15051,
+            "baselineMae": 0.172196
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 0.210816,
+          "coverage": 0.864407,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 0.099386,
+          "coverage": 1,
+          "repeat": {
+            "n": 3,
+            "modelMae": 0.099386,
+            "baselineMae": 0.054202
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 0.099386,
+            "baselineMae": 0.129754
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 0.179146,
+          "coverage": 0.744444,
+          "repeat": {
+            "n": 90,
+            "modelMae": 0.179146,
+            "baselineMae": 0.201847
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 0.179146,
+            "baselineMae": 0.210702
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 0.12337,
+          "coverage": 1,
+          "repeat": {
+            "n": 2,
+            "modelMae": 0.12337,
+            "baselineMae": 0.180769
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 0.12337,
+            "baselineMae": 0.180769
+          }
+        }
+      }
+    },
+    "tov": {
+      "bands": [
+        {
+          "upTo": 0.774961,
+          "n": 741,
+          "p10": -0.374017,
+          "p90": 0.287147
+        },
+        {
+          "upTo": 1.075832,
+          "n": 742,
+          "p10": -0.556747,
+          "p90": 0.368016
+        },
+        {
+          "upTo": 1.613389,
+          "n": 742,
+          "p10": -0.721868,
+          "p90": 0.409334
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -0.739494,
+          "p90": 0.497184
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 0.774961,
+            "n": 741,
+            "p10": -0.374017,
+            "p90": 0.287147
+          },
+          {
+            "upTo": 1.075832,
+            "n": 742,
+            "p10": -0.556747,
+            "p90": 0.368016
+          },
+          {
+            "upTo": 1.613389,
+            "n": 742,
+            "p10": -0.721868,
+            "p90": 0.409334
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -0.739494,
+            "p90": 0.497184
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 0.768903,
+            "n": 105,
+            "p10": -0.468617,
+            "p90": 0.615006
+          },
+          {
+            "upTo": 0.965239,
+            "n": 106,
+            "p10": -0.644584,
+            "p90": 0.375448
+          },
+          {
+            "upTo": 1.239815,
+            "n": 106,
+            "p10": -0.893886,
+            "p90": 0.293093
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -1.128895,
+            "p90": 0.71011
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.842195,
+            "p90": 0.481125
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 0.684391,
+            "n": 171,
+            "p10": -0.32981,
+            "p90": 0.315897
+          },
+          {
+            "upTo": 0.95013,
+            "n": 171,
+            "p10": -0.453886,
+            "p90": 0.422411
+          },
+          {
+            "upTo": 1.344728,
+            "n": 171,
+            "p10": -0.667799,
+            "p90": 0.310632
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -0.765873,
+            "p90": 0.581215
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.842195,
+            "p90": 0.481125
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 0.328625,
+          "coverage": 0.842825,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.309316,
+            "baselineMae": 0.384348
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.309316,
+            "baselineMae": 0.378344
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 0.45299,
+          "coverage": 0.79661,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 0.241746,
+          "coverage": 1,
+          "repeat": {
+            "n": 3,
+            "modelMae": 0.241746,
+            "baselineMae": 0.180647
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 0.241746,
+            "baselineMae": 0.130662
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 0.352019,
+          "coverage": 0.811111,
+          "repeat": {
+            "n": 90,
+            "modelMae": 0.352019,
+            "baselineMae": 0.401753
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 0.352019,
+            "baselineMae": 0.383142
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 0.756776,
+          "coverage": 0.5,
+          "repeat": {
+            "n": 2,
+            "modelMae": 0.756776,
+            "baselineMae": 0.588034
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 0.756776,
+            "baselineMae": 0.588034
+          }
+        }
+      }
+    },
+    "fg3m": {
+      "bands": [
+        {
+          "upTo": 0.560174,
+          "n": 741,
+          "p10": -0.286959,
+          "p90": 0.222391
+        },
+        {
+          "upTo": 0.987744,
+          "n": 742,
+          "p10": -0.596861,
+          "p90": 0.476383
+        },
+        {
+          "upTo": 1.567885,
+          "n": 742,
+          "p10": -0.735353,
+          "p90": 0.498057
+        },
+        {
+          "upTo": null,
+          "n": 742,
+          "p10": -0.752384,
+          "p90": 0.51966
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 0.560174,
+            "n": 741,
+            "p10": -0.286959,
+            "p90": 0.222391
+          },
+          {
+            "upTo": 0.987744,
+            "n": 742,
+            "p10": -0.596861,
+            "p90": 0.476383
+          },
+          {
+            "upTo": 1.567885,
+            "n": 742,
+            "p10": -0.735353,
+            "p90": 0.498057
+          },
+          {
+            "upTo": null,
+            "n": 742,
+            "p10": -0.752384,
+            "p90": 0.51966
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 0.577265,
+            "n": 105,
+            "p10": -0.423684,
+            "p90": 0.36485
+          },
+          {
+            "upTo": 0.822148,
+            "n": 106,
+            "p10": -0.627093,
+            "p90": 0.459779
+          },
+          {
+            "upTo": 1.037986,
+            "n": 106,
+            "p10": -0.852602,
+            "p90": 0.535469
+          },
+          {
+            "upTo": null,
+            "n": 106,
+            "p10": -1.141357,
+            "p90": 0.703893
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.792945,
+            "p90": 0.538911
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 0.496926,
+            "n": 171,
+            "p10": -0.26414,
+            "p90": 0.209329
+          },
+          {
+            "upTo": 0.91147,
+            "n": 171,
+            "p10": -0.504343,
+            "p90": 0.348658
+          },
+          {
+            "upTo": 1.363982,
+            "n": 171,
+            "p10": -0.680731,
+            "p90": 0.367469
+          },
+          {
+            "upTo": null,
+            "n": 172,
+            "p10": -0.878901,
+            "p90": 0.51966
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 45,
+            "p10": -0.792945,
+            "p90": 0.538911
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2967,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 423,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 45,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 685,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 45,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 439,
+          "modelMae": 0.394136,
+          "coverage": 0.779043,
+          "repeat": {
+            "n": 380,
+            "modelMae": 0.382018,
+            "baselineMae": 0.373825
+          },
+          "avg3": {
+            "n": 380,
+            "modelMae": 0.382018,
+            "baselineMae": 0.384244
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 0.472184,
+          "coverage": 0.813559,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 0.659031,
+          "coverage": 0.333333,
+          "repeat": {
+            "n": 3,
+            "modelMae": 0.659031,
+            "baselineMae": 0.333962
+          },
+          "avg3": {
+            "n": 3,
+            "modelMae": 0.659031,
+            "baselineMae": 0.411785
+          }
+        },
+        "movers": {
+          "n": 90,
+          "modelMae": 0.415381,
+          "coverage": 0.7,
+          "repeat": {
+            "n": 90,
+            "modelMae": 0.415381,
+            "baselineMae": 0.44859
+          },
+          "avg3": {
+            "n": 90,
+            "modelMae": 0.415381,
+            "baselineMae": 0.439355
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 0.420923,
+          "coverage": 0.5,
+          "repeat": {
+            "n": 2,
+            "modelMae": 0.420923,
+            "baselineMae": 0.530556
+          },
+          "avg3": {
+            "n": 2,
+            "modelMae": 0.420923,
+            "baselineMae": 0.530556
+          }
+        }
+      }
+    },
+    "ptsTotal": {
+      "bands": [
+        {
+          "upTo": 272.643633,
+          "n": 747,
+          "p10": -175.455572,
+          "p90": 205.419406
+        },
+        {
+          "upTo": 448.786143,
+          "n": 747,
+          "p10": -260.737968,
+          "p90": 276.284126
+        },
+        {
+          "upTo": 748.159581,
+          "n": 747,
+          "p10": -337.866245,
+          "p90": 302.185523
+        },
+        {
+          "upTo": null,
+          "n": 748,
+          "p10": -451.350476,
+          "p90": 328.400735
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 272.643633,
+            "n": 747,
+            "p10": -175.455572,
+            "p90": 205.419406
+          },
+          {
+            "upTo": 448.786143,
+            "n": 747,
+            "p10": -260.737968,
+            "p90": 276.284126
+          },
+          {
+            "upTo": 748.159581,
+            "n": 747,
+            "p10": -337.866245,
+            "p90": 302.185523
+          },
+          {
+            "upTo": null,
+            "n": 748,
+            "p10": -451.350476,
+            "p90": 328.400735
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 166.99506,
+            "n": 106,
+            "p10": -126.841025,
+            "p90": 163.793083
+          },
+          {
+            "upTo": 233.784791,
+            "n": 107,
+            "p10": -187.039432,
+            "p90": 232.744069
+          },
+          {
+            "upTo": 349.774614,
+            "n": 107,
+            "p10": -236.646005,
+            "p90": 375.990719
+          },
+          {
+            "upTo": null,
+            "n": 107,
+            "p10": -287.693446,
+            "p90": 463.973862
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -123.039654,
+            "p90": 340.813185
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 236.14997,
+            "n": 173,
+            "p10": -159.180656,
+            "p90": 230.295459
+          },
+          {
+            "upTo": 361.85703,
+            "n": 174,
+            "p10": -249.077589,
+            "p90": 248.891376
+          },
+          {
+            "upTo": 528.452761,
+            "n": 174,
+            "p10": -318.135355,
+            "p90": 291.216664
+          },
+          {
+            "upTo": null,
+            "n": 174,
+            "p10": -378.525545,
+            "p90": 369.376631
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -123.039654,
+            "p90": 340.813185
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2989,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 427,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 46,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 695,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 46,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 441,
+          "modelMae": 207.824903,
+          "coverage": 0.76644,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 178.91262,
+          "coverage": 0.728814,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 363.116577,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "movers": {
+          "n": 91,
+          "modelMae": 214.357251,
+          "coverage": 0.714286,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 181.060279,
+          "coverage": 0.5,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        }
+      }
+    },
+    "minutesTotal": {
+      "bands": [
+        {
+          "upTo": 721.678209,
+          "n": 747,
+          "p10": -459.849554,
+          "p90": 609.456373
+        },
+        {
+          "upTo": 1142.937568,
+          "n": 747,
+          "p10": -629.366387,
+          "p90": 648.248366
+        },
+        {
+          "upTo": 1673.991312,
+          "n": 747,
+          "p10": -669.823157,
+          "p90": 632.048471
+        },
+        {
+          "upTo": null,
+          "n": 748,
+          "p10": -819.829085,
+          "p90": 396.006077
+        }
+      ],
+      "cohortBands": {
+        "all": [
+          {
+            "upTo": 721.678209,
+            "n": 747,
+            "p10": -459.849554,
+            "p90": 609.456373
+          },
+          {
+            "upTo": 1142.937568,
+            "n": 747,
+            "p10": -629.366387,
+            "p90": 648.248366
+          },
+          {
+            "upTo": 1673.991312,
+            "n": 747,
+            "p10": -669.823157,
+            "p90": 632.048471
+          },
+          {
+            "upTo": null,
+            "n": 748,
+            "p10": -819.829085,
+            "p90": 396.006077
+          }
+        ],
+        "rookies": [
+          {
+            "upTo": 448.589923,
+            "n": 106,
+            "p10": -324.55507,
+            "p90": 468.181921
+          },
+          {
+            "upTo": 621.88323,
+            "n": 107,
+            "p10": -478.689648,
+            "p90": 689.559668
+          },
+          {
+            "upTo": 888.789075,
+            "n": 107,
+            "p10": -563.020917,
+            "p90": 863.881802
+          },
+          {
+            "upTo": null,
+            "n": 107,
+            "p10": -630.490535,
+            "p90": 816.860602
+          }
+        ],
+        "returners": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -336.515351,
+            "p90": 880.733577
+          }
+        ],
+        "movers": [
+          {
+            "upTo": 649.07248,
+            "n": 173,
+            "p10": -424.388124,
+            "p90": 520.332178
+          },
+          {
+            "upTo": 940.113874,
+            "n": 174,
+            "p10": -609.214798,
+            "p90": 549.359475
+          },
+          {
+            "upTo": 1325.840195,
+            "n": 174,
+            "p10": -655.860941,
+            "p90": 698.760683
+          },
+          {
+            "upTo": null,
+            "n": 174,
+            "p10": -666.664555,
+            "p90": 557.768184
+          }
+        ],
+        "olderFallback": [
+          {
+            "upTo": null,
+            "n": 46,
+            "p10": -336.515351,
+            "p90": 880.733577
+          }
+        ]
+      },
+      "cohortCalibration": {
+        "all": {
+          "n": 2989,
+          "borrowedFrom": null
+        },
+        "rookies": {
+          "n": 427,
+          "borrowedFrom": null
+        },
+        "returners": {
+          "n": 46,
+          "borrowedFrom": null
+        },
+        "movers": {
+          "n": 695,
+          "borrowedFrom": null
+        },
+        "olderFallback": {
+          "n": 46,
+          "borrowedFrom": "returners"
+        }
+      },
+      "cohorts": {
+        "all": {
+          "n": 441,
+          "modelMae": 406.25769,
+          "coverage": 0.770975,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "rookies": {
+          "n": 59,
+          "modelMae": 406.027121,
+          "coverage": 0.728814,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "returners": {
+          "n": 3,
+          "modelMae": 566.423355,
+          "coverage": 0.666667,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "movers": {
+          "n": 91,
+          "modelMae": 431.786204,
+          "coverage": 0.703297,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        },
+        "olderFallback": {
+          "n": 2,
+          "modelMae": 365.894892,
+          "coverage": 1,
+          "repeat": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          },
+          "avg3": {
+            "n": 0,
+            "modelMae": null,
+            "baselineMae": null
+          }
+        }
+      }
+    }
+  }
+}

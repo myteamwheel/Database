@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 let server;
 let origin;
+let fixtureDataBytes=null;
 
 const typeFor = (p) => p.endsWith('.html') ? 'text/html' : p.endsWith('.js') ? 'text/javascript'
   : p.endsWith('.css') ? 'text/css' : p.endsWith('.json') ? 'application/json' : 'application/octet-stream';
@@ -15,6 +16,7 @@ const typeFor = (p) => p.endsWith('.html') ? 'text/html' : p.endsWith('.js') ? '
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://local').pathname);
+    if(pathname==='/__fixture-data'){res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(fixtureDataBytes);return;}
     const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
     const full = path.resolve(ROOT, rel);
     if (!full.startsWith(path.resolve(ROOT) + path.sep) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) {
@@ -57,10 +59,12 @@ const statusFor = (bytes, id='initial') => ({
 
 async function routePublication(page, { reloadBytes = null, badReloadHash = false } = {}) {
   const reloadText = reloadBytes || raw;
+  // Serve large payloads over HTTP instead of duplicating an 80MB body through CDP.
+  fixtureDataBytes=reloadText;
   await page.route('**/public/data.json*', async (route) => {
     const url = route.request().url();
     if (/[?&]v=/.test(url)) {
-      await route.fulfill({status:200,contentType:'application/json',body:reloadText});
+      await route.continue({url:origin+'/__fixture-data'});
     } else await route.continue();
   });
   await page.route('**/public/data-status.json*', async (route) => {
@@ -148,7 +152,9 @@ test('source refresh is a collapsed authenticated owner action, not a public ing
   await expect(details.locator('#ownerRefreshLink')).toHaveAttribute('rel','noopener noreferrer');
   await expect(details).toContainText('repository write access');
   await expect(details).toContainText('current NBA schedule/player totals');
-  await expect(details).toContainText('G League assignments are not verified');
+  await expect(details).toContainText('all 31 official team rosters');
+  await expect(details).toContainText('Exact-game NBA reports can verify an assignment for that game');
+  await expect(details).toContainText('continuous assignment/recall states remain unverified');
   await expect(details).toContainText('review branch');
   await expect(details).toContainText('does not immediately change the live site');
 });

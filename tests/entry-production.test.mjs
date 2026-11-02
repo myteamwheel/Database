@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {prepare} from '../scripts/lib/projection.mjs';
+import {verifyEntryProduction,collegeInputFor,applyEntryProduction,fitEntryModels,fitEntryCard,ENTRY_PRODUCTION_VERSION} from '../scripts/lib/entry-production.mjs';
+const data=JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/entry-production.json',import.meta.url)));
+verifyEntryProduction(data);
+assert.ok(data.records.length>2000);
+const bad=structuredClone(data);bad.records[0].totals.pts++;
+assert.throws(()=>verifyEntryProduction(bad),/accounting/);
+const duplicate=structuredClone(data);duplicate.records.push(duplicate.records[0]);assert.throws(()=>verifyEntryProduction(duplicate),/duplicate/);
+const row=data.records.find(r=>r.seasonEndYear===2026);
+assert.notEqual(collegeInputFor(data,row.playerId,2026),null);
+assert.ok((collegeInputFor(data,row.playerId,2025)?.seasonEndYear??0)<2026);
+assert.equal(collegeInputFor(data,row.playerId,2010),null);
+const original={mpg:20,share:0.5,pr:{rate:{fga:16,fg3a:4},pct:{fg3:0.3}},evidence:{coverage:{}}};
+const card={version:ENTRY_PRODUCTION_VERSION,trainedThrough:2025,enabled:['fga'],models:{fga:{coefficients:[2,0,0,0,0]},fg3:{coefficients:[1,0,0,0,0]}}};
+const adjusted=applyEntryProduction(original,{draftNumber:15,big:2},row,card);
+assert.equal(adjusted.pr.rate.fga,18);assert.equal(adjusted.pr.pct.fg3,0.3);assert.equal(original.pr.rate.fga,16);
+assert.equal(adjusted.evidence.coverage.preNbaProduction.available,true);
+assert.equal(applyEntryProduction(original,{},null,card),original);
+assert.deepEqual(fitEntryModels([]),{});
+console.log('College identity/season/accounting, chronological exclusion, disabled metrics and fallback controls passed.');
+
+const actualCard=JSON.parse(fs.readFileSync(new URL('../ENTRY_PRODUCTION_MODEL.json',import.meta.url)));
+const reproduced=fitEntryCard(prepare(JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json',import.meta.url)))),data,2026);
+assert.deepEqual(reproduced.models,actualCard.models);assert.deepEqual(reproduced.enabled,actualCard.enabled);
+console.log('Production and historical replays share the exact chronological college fitting policy.');

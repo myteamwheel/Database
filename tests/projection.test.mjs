@@ -60,7 +60,7 @@ check('confirmed two-way forecasts obey the current contract ceiling before rost
   const copy = JSON.parse(JSON.stringify(data));
   // Poison unanchored source AGE fields: neither known nor unknown rookie age may use them.
   for (const p of copy.leagues.NBA) if (p.proj?.basis === 'rookie-cohort-fallback') p.age=99;
-  buildProjections(copy, rawInputs, card, { roster, birthdates });
+  buildProjections(copy, rawInputs, card, { roster, birthdates,entryProduction:JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/projection/entry-production.json'))),entryCard:JSON.parse(fs.readFileSync(path.join(ROOT,'ENTRY_PRODUCTION_MODEL.json'))) });
   rebuiltData = copy;
   let diff = 0, first = '';
   const examples = [];
@@ -285,7 +285,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       && p.proj.why.rookie.ageReference.source==='unavailable'),`${unknown.length} unknown birthdates`);
   check('published rookie fallbacks carry the machine-readable coverage block',
     rookies.length > 0 && rookies.every((p) => p.proj.why?.rookie?.coverage
-      && p.proj.why.rookie.coverage.preNbaProduction.available === false
+      && p.proj.why.rookie.coverage.preNbaProduction.available === !!p.proj.why.rookie.production
       && p.proj.why.rookie.coverage.contractSecurity.available === false
       && p.proj.why.rookie.coverage.currentInjuryClearance.available === false),
     `${rookies.length} rookies`);
@@ -302,7 +302,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   check('projection metadata aggregates rookie input coverage',
     metaCov?.players === rookies.length
       && metaCov?.historicalCohort?.available === rookies.length
-      && metaCov?.preNbaProduction?.available === 0
+      && metaCov?.preNbaProduction?.available === rookies.filter(p=>p.proj.why.rookie.production).length
       && metaCov?.contractSecurity?.available === 0
       && metaCov?.currentInjuryClearance?.available === 0);
 
