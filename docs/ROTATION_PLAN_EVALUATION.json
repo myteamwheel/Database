@@ -1,0 +1,1147 @@
+{
+  "version": 1,
+  "protocol": "At each team’s 20th completed game, use observed per-team-game minutes as targets; allocate listed-position minutes, then score effective MPG over the next 30 team games. No outcome selects the step, bounds or objective.",
+  "boundary": "Workload allocator only. Listed positions come from the preserved player index, not an archived cutoff index. Appearance-derived membership omits signed nonappearers; future entrants remain an explicit unmodeled-minute total. Historical medical reports and TULIP value signals are not evaluated. This does not establish win-maximizing recommendations.",
+  "results": [
+    {
+      "season": "2023-24",
+      "team": "ATL",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.111,
+      "plannedMae": 4.348,
+      "unmodeledFutureMinutes": 1.733
+    },
+    {
+      "season": "2023-24",
+      "team": "BKN",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.079,
+      "plannedMae": 5.376,
+      "unmodeledFutureMinutes": 0.7
+    },
+    {
+      "season": "2023-24",
+      "team": "BOS",
+      "cutoff": "2023-12-04",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 14,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.637,
+      "plannedMae": 2.748,
+      "unmodeledFutureMinutes": 0.8
+    },
+    {
+      "season": "2023-24",
+      "team": "CHA",
+      "cutoff": "2023-12-08",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 9.682,
+      "plannedMae": 8.952,
+      "unmodeledFutureMinutes": 26.733
+    },
+    {
+      "season": "2023-24",
+      "team": "CHI",
+      "cutoff": "2023-11-30",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 14,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 7.093,
+      "plannedMae": 7.438,
+      "unmodeledFutureMinutes": 0.367
+    },
+    {
+      "season": "2023-24",
+      "team": "CLE",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 6.643,
+      "plannedMae": 6.869,
+      "unmodeledFutureMinutes": 0.133
+    },
+    {
+      "season": "2023-24",
+      "team": "DAL",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.92,
+      "plannedMae": 4.624,
+      "unmodeledFutureMinutes": 2.933
+    },
+    {
+      "season": "2023-24",
+      "team": "DEN",
+      "cutoff": "2023-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.658,
+      "plannedMae": 4.01,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "DET",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 8.665,
+      "plannedMae": 8.076,
+      "unmodeledFutureMinutes": 9.433
+    },
+    {
+      "season": "2023-24",
+      "team": "GSW",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "infeasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 8
+      },
+      "baselineMae": 5.814,
+      "plannedMae": 7.379,
+      "unmodeledFutureMinutes": 0.2
+    },
+    {
+      "season": "2023-24",
+      "team": "HOU",
+      "cutoff": "2023-12-11",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.988,
+      "plannedMae": 3.488,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "IND",
+      "cutoff": "2023-12-07",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 14,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.5,
+      "plannedMae": 5.021,
+      "unmodeledFutureMinutes": 12.467
+    },
+    {
+      "season": "2023-24",
+      "team": "LAC",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 15,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 6.052,
+      "plannedMae": 5.929,
+      "unmodeledFutureMinutes": 4.033
+    },
+    {
+      "season": "2023-24",
+      "team": "LAL",
+      "cutoff": "2023-11-30",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.524,
+      "plannedMae": 2.602,
+      "unmodeledFutureMinutes": 20.767
+    },
+    {
+      "season": "2023-24",
+      "team": "MEM",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.177,
+      "plannedMae": 5.404,
+      "unmodeledFutureMinutes": 19.4
+    },
+    {
+      "season": "2023-24",
+      "team": "MIA",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.55,
+      "plannedMae": 4.465,
+      "unmodeledFutureMinutes": 7.167
+    },
+    {
+      "season": "2023-24",
+      "team": "MIL",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.521,
+      "plannedMae": 3.407,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "MIN",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.589,
+      "plannedMae": 3.683,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "NOP",
+      "cutoff": "2023-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 6.057,
+      "plannedMae": 6.509,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "NYK",
+      "cutoff": "2023-12-05",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.938,
+      "plannedMae": 7.708,
+      "unmodeledFutureMinutes": 34.067
+    },
+    {
+      "season": "2023-24",
+      "team": "OKC",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 1.986,
+      "plannedMae": 5.548,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "ORL",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.352,
+      "plannedMae": 4.442,
+      "unmodeledFutureMinutes": 5.267
+    },
+    {
+      "season": "2023-24",
+      "team": "PHI",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 6.252,
+      "plannedMae": 6.927,
+      "unmodeledFutureMinutes": 3.967
+    },
+    {
+      "season": "2023-24",
+      "team": "PHX",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 7.133,
+      "plannedMae": 7.344,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2023-24",
+      "team": "POR",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 7.386,
+      "plannedMae": 7.517,
+      "unmodeledFutureMinutes": 5.767
+    },
+    {
+      "season": "2023-24",
+      "team": "SAC",
+      "cutoff": "2023-12-08",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.271,
+      "plannedMae": 3.352,
+      "unmodeledFutureMinutes": 1.733
+    },
+    {
+      "season": "2023-24",
+      "team": "SAS",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.609,
+      "plannedMae": 5.131,
+      "unmodeledFutureMinutes": 0.567
+    },
+    {
+      "season": "2023-24",
+      "team": "TOR",
+      "cutoff": "2023-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "infeasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 8
+      },
+      "baselineMae": 5.039,
+      "plannedMae": 5.14,
+      "unmodeledFutureMinutes": 50.333
+    },
+    {
+      "season": "2023-24",
+      "team": "UTA",
+      "cutoff": "2023-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 15,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.571,
+      "plannedMae": 6.044,
+      "unmodeledFutureMinutes": 0.367
+    },
+    {
+      "season": "2023-24",
+      "team": "WAS",
+      "cutoff": "2023-12-06",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.463,
+      "plannedMae": 3.182,
+      "unmodeledFutureMinutes": 7.6
+    },
+    {
+      "season": "2024-25",
+      "team": "ATL",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.941,
+      "plannedMae": 4.856,
+      "unmodeledFutureMinutes": 1.067
+    },
+    {
+      "season": "2024-25",
+      "team": "BKN",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 9.784,
+      "plannedMae": 8.454,
+      "unmodeledFutureMinutes": 46.1
+    },
+    {
+      "season": "2024-25",
+      "team": "BOS",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.947,
+      "plannedMae": 3.821,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "CHA",
+      "cutoff": "2024-11-30",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "infeasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 8
+      },
+      "baselineMae": 9.09,
+      "plannedMae": 9.594,
+      "unmodeledFutureMinutes": 45
+    },
+    {
+      "season": "2024-25",
+      "team": "CHI",
+      "cutoff": "2024-11-27",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.974,
+      "plannedMae": 4.894,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "CLE",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 15,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.501,
+      "plannedMae": 2.718,
+      "unmodeledFutureMinutes": 18.367
+    },
+    {
+      "season": "2024-25",
+      "team": "DAL",
+      "cutoff": "2024-11-30",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.354,
+      "plannedMae": 5.471,
+      "unmodeledFutureMinutes": 2.833
+    },
+    {
+      "season": "2024-25",
+      "team": "DEN",
+      "cutoff": "2024-12-05",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.529,
+      "plannedMae": 5.571,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "DET",
+      "cutoff": "2024-11-27",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.299,
+      "plannedMae": 4.346,
+      "unmodeledFutureMinutes": 0.267
+    },
+    {
+      "season": "2024-25",
+      "team": "GSW",
+      "cutoff": "2024-12-03",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "infeasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 48
+      },
+      "baselineMae": 3.908,
+      "plannedMae": 3.969,
+      "unmodeledFutureMinutes": 27.267
+    },
+    {
+      "season": "2024-25",
+      "team": "HOU",
+      "cutoff": "2024-11-27",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.108,
+      "plannedMae": 5.248,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "IND",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.996,
+      "plannedMae": 3.609,
+      "unmodeledFutureMinutes": 12.533
+    },
+    {
+      "season": "2024-25",
+      "team": "LAC",
+      "cutoff": "2024-11-27",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 14,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.385,
+      "plannedMae": 3.602,
+      "unmodeledFutureMinutes": 11.6
+    },
+    {
+      "season": "2024-25",
+      "team": "LAL",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 15,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.191,
+      "plannedMae": 4.142,
+      "unmodeledFutureMinutes": 25.533
+    },
+    {
+      "season": "2024-25",
+      "team": "MEM",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.31,
+      "plannedMae": 4.416,
+      "unmodeledFutureMinutes": 4.633
+    },
+    {
+      "season": "2024-25",
+      "team": "MIA",
+      "cutoff": "2024-12-04",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.103,
+      "plannedMae": 5.398,
+      "unmodeledFutureMinutes": 0.933
+    },
+    {
+      "season": "2024-25",
+      "team": "MIL",
+      "cutoff": "2024-12-03",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 2.615,
+      "plannedMae": 4.051,
+      "unmodeledFutureMinutes": 18.633
+    },
+    {
+      "season": "2024-25",
+      "team": "MIN",
+      "cutoff": "2024-12-02",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 15,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 1.958,
+      "plannedMae": 2.551,
+      "unmodeledFutureMinutes": 2.967
+    },
+    {
+      "season": "2024-25",
+      "team": "NOP",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 19,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 9.315,
+      "plannedMae": 8.951,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "NYK",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 13,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 1.965,
+      "plannedMae": 3.056,
+      "unmodeledFutureMinutes": 25.867
+    },
+    {
+      "season": "2024-25",
+      "team": "OKC",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.005,
+      "plannedMae": 7.322,
+      "unmodeledFutureMinutes": 13.1
+    },
+    {
+      "season": "2024-25",
+      "team": "ORL",
+      "cutoff": "2024-11-27",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 7.435,
+      "plannedMae": 7.62,
+      "unmodeledFutureMinutes": 0
+    },
+    {
+      "season": "2024-25",
+      "team": "PHI",
+      "cutoff": "2024-12-04",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 7.56,
+      "plannedMae": 9.167,
+      "unmodeledFutureMinutes": 2.267
+    },
+    {
+      "season": "2024-25",
+      "team": "PHX",
+      "cutoff": "2024-12-03",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.499,
+      "plannedMae": 4.639,
+      "unmodeledFutureMinutes": 8
+    },
+    {
+      "season": "2024-25",
+      "team": "POR",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.201,
+      "plannedMae": 3.713,
+      "unmodeledFutureMinutes": 0.667
+    },
+    {
+      "season": "2024-25",
+      "team": "SAC",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 4.007,
+      "plannedMae": 4.285,
+      "unmodeledFutureMinutes": 6.5
+    },
+    {
+      "season": "2024-25",
+      "team": "SAS",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 18,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.015,
+      "plannedMae": 4.97,
+      "unmodeledFutureMinutes": 3.467
+    },
+    {
+      "season": "2024-25",
+      "team": "TOR",
+      "cutoff": "2024-11-29",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 6.039,
+      "plannedMae": 6.321,
+      "unmodeledFutureMinutes": 26.033
+    },
+    {
+      "season": "2024-25",
+      "team": "UTA",
+      "cutoff": "2024-12-01",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 17,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 5.403,
+      "plannedMae": 5.151,
+      "unmodeledFutureMinutes": 4.467
+    },
+    {
+      "season": "2024-25",
+      "team": "WAS",
+      "cutoff": "2024-12-05",
+      "observedTeamGames": 20,
+      "heldoutTeamGames": 30,
+      "players": 16,
+      "status": "feasible",
+      "unfilledByPosition": {
+        "PG": 0,
+        "SG": 0,
+        "SF": 0,
+        "PF": 0,
+        "C": 0
+      },
+      "baselineMae": 3.244,
+      "plannedMae": 3.827,
+      "unmodeledFutureMinutes": 2.033
+    }
+  ]
+}

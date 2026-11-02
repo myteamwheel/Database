@@ -35,5 +35,8 @@ if(fs.existsSync(injuryFile)) {
   data.injuryMeta={source:injuries.source,asOf:injuries.asOf,reportAt:injuries.reportAt,confirmed:injuries.confirmed.length,unresolved:injuries.unresolved,notSubmitted:injuries.notSubmitted,pdfSha256:snapshot.pdfSha256};
   data.injuryMeta.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(injuryFile)).digest('hex');
 }
+for(const p of [...data.leagues.NBA,...data.leagues.GLEAGUE]){
+  p.reportedGLeagueAssignments=(p.reportedAvailability||[]).filter(a=>/G\s*League\s*-\s*On Assignment/i.test(a.reason||'')).map(a=>({status:'reported-for-game',gameDate:a.gameDate,matchup:a.matchup,nbaTeam:a.team,gLeagueTeam:p.currentGLeagueRosterTeam||null,reportAt:a.reportAt,asOf:a.asOf,source:a.source,note:'Official NBA game-specific assignment report. It is not a continuous assignment/recall ledger; later state requires a refreshed report.'}));
+}
 fs.writeFileSync(file,JSON.stringify(data));
 console.log(`Confirmed ${result.confirmed.length} two-way contracts; ${result.unresolved.length} source discrepancies remain explicit.`);

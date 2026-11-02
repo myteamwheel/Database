@@ -5,7 +5,7 @@ const read = name => fs.readFileSync(new URL(`../.github/workflows/${name}`,impo
 const deploy=read('deploy-pages.yml'), rebuild=read('rebuild-generated.yml');
 const paths=source=>source.split('    paths:')[1].split('  workflow_dispatch:')[0];
 assert.deepEqual([...paths(deploy).matchAll(/- '([^']+)'/g)].map(m=>m[1]),['public/**','.github/workflows/deploy-pages.yml']);
-for(const source of ['scripts/**','app.js','workspace.js','history-lab.js','history-lab.html','index.html','styles.css','package.json','package-lock.json','PROJECTION_2026_27.json']) assert.ok(paths(rebuild).includes(`'${source}'`),`${source} must rebuild before deployment`);
+for(const source of ['scripts/**','app.js','workspace.js','history-lab.js','history-lab.html','index.html','styles.css','package.json','package-lock.json','PROJECTION_2026_27.json','ENTRY_PRODUCTION_MODEL.json','FORECAST_REFERENCE_RANGES.json']) assert.ok(paths(rebuild).includes(`'${source}'`),`${source} must rebuild before deployment`);
 assert.ok(!paths(rebuild).includes("'public/**'"),'Generated artifacts must not recurse into rebuild');
 assert.ok(rebuild.indexOf('npm run build')<rebuild.indexOf('git push origin'),'Build before publishing');
 assert.ok(rebuild.indexOf('node scripts/verify-artifact.mjs')<rebuild.indexOf('git push origin'),'Verify artifacts before publishing');

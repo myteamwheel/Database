@@ -13,6 +13,8 @@ export function ownerRefreshStages({ season = SUPPORTED_BUILD_SEASON } = {}) {
     { id:'fetch-transactions', command:'npm', args:['run','fetch:transactions'] },
     { id:'fetch-live-roster', command:'npm', args:['run','fetch:live-roster'] },
     { id:'fetch-gleague-index', command:'npm', args:['run','fetch:gleague-index'] },
+    { id:'fetch-gleague-rosters', command:'npm', args:['run','fetch:gleague-rosters'] },
+    { id:'fetch-gleague-progress', command:'npm', args:['run','fetch:gleague-progress'] },
     { id:'fetch-two-way-roster', command:'npm', args:['run','fetch:two-way-roster'] },
     { id:'fetch-injuries', command:'npm', args:['run','fetch:injuries'] },
     { id:'fetch-news', command:'npm', args:['run','fetch:news'] },

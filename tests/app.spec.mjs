@@ -346,19 +346,19 @@ test.describe('roster-only players', () => {
     await page.click('.league-tab[data-league="GLEAGUE"]');
     await setVal(page,'#searchInput',target.name);
     await expect(page.locator('#tableBody')).toContainText(target.name);
-    await expect(page.locator('#tableBody')).toContainText('provisional');
+    await expect(page.locator('#tableBody')).toContainText('No current G League team listing');
     await page.locator('#tableBody .player-link').filter({hasText:target.name}).first().click();
-    await expect(page.locator('#playerDialogBody')).toContainText('Opening roster membership, signed contract and NBA assignment are unverified');
+    await expect(page.locator('#playerDialogBody')).toContainText('Not listed by any of the 31 current official team-roster feeds');
     expect(errors).toEqual([]);
   });
-  test('a prior no-appearance row also listed in the current index uses provisional wording', async ({ page }) => {
+  test('a roster-only player uses independently verified current G League team-listing wording', async ({ page }) => {
     const errors=await open(page);
-    const target=await page.evaluate(()=>DATA.leagues.GLEAGUE.find(p=>p.rosterOnly&&p.currentGLeagueIndexTeam&&!p.currentIndexOnly));
+    const target=await page.evaluate(()=>DATA.leagues.GLEAGUE.find(p=>p.rosterOnly&&p.currentGLeagueRosterTeam));
     expect(target).toBeTruthy();
     await page.click('.league-tab[data-league="GLEAGUE"]');
     await setVal(page,'#searchInput',target.name);
     await page.locator('#tableBody .player-link').filter({hasText:target.name}).first().click();
-    await expect(page.locator('#playerDialogBody')).toContainText('Opening roster membership, signed contract and NBA assignment are unverified');
+    await expect(page.locator('#playerDialogBody')).toContainText('Listed on the official current G League team roster');
     await expect(page.locator('#playerDialogBody')).not.toContainText('Rostered in 2025-26 but never played');
     expect(errors).toEqual([]);
   });

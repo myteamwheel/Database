@@ -29,6 +29,7 @@ try {
       if (!fs.existsSync(full)) fs.writeFileSync(full, `// fixture ${relativePath}\n`);
     }
   }
+  for(const file of ['FORECAST_REFERENCE_RANGES.json','ENTRY_PRODUCTION_MODEL.json','scripts/data/projection/entry-production.json'])fs.writeFileSync(path.join(root,file),'{}');
   fs.writeFileSync(path.join(root, 'PROJECTION_2026_27.json'), JSON.stringify({ id:'PROJECTION_2026_27' }));
   fs.writeFileSync(path.join(root, 'scripts/data/projection/inputs.json'), JSON.stringify({ fetchedAt:'2026-09-26T04:28:41.551Z' }));
   fs.writeFileSync(path.join(root, 'scripts/data/birthdates.json'), JSON.stringify({1:{birthdate:'2002-12-10'}}));

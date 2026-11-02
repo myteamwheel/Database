@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "records": [
+    {
+      "season": "2016-17",
+      "path": "scripts/data/projection/replay/2016-17.json.gz",
+      "rows": 26139,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2016-17/gamelog.json"
+      },
+      "rawSourceSha256": "de4aa5e2b0b2a65f2c5f30d57499e7f757c627d323a80ab2dab62f450ac841d4",
+      "decodedSha256": "9e986439dd81451e5c3b69036ce7df04a0d3ea6772903371cd4264d8e187d811",
+      "sha256": "ba6ee363fa2a80fa06f0a661ba627468092a90f08f2ccb3f58a0184f696f16e8"
+    },
+    {
+      "season": "2017-18",
+      "path": "scripts/data/projection/replay/2017-18.json.gz",
+      "rows": 26107,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2017-18/gamelog.json"
+      },
+      "rawSourceSha256": "b13d80ed281c65b1b8e50bbb3a04b4de73804dfad5216a8d7935424c7b22b7bd",
+      "decodedSha256": "8a9f95c568a909acccc884ab1ea383bb995611c65fc286097d4cf0fed26f38d6",
+      "sha256": "daf185ebf1d06b4332555ec2a65a1ac81aea32630f5dad8d3984e04bae7f04be"
+    },
+    {
+      "season": "2018-19",
+      "path": "scripts/data/projection/replay/2018-19.json.gz",
+      "rows": 26101,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2018-19/gamelog.json"
+      },
+      "rawSourceSha256": "d215a7467672b141348a70ab7da40b3cd32078bf911fc6c8f28841ce8935478c",
+      "decodedSha256": "394ed5063f63bfd67305749efe04cb8975ac13aecf4f884fd0a67de09d9288f5",
+      "sha256": "508e3702c88e6aba4446eff2893b9a1ffcf56fc5e750412301f3a38d157e0b4f"
+    },
+    {
+      "season": "2021-22",
+      "path": "scripts/data/projection/replay/2021-22.json.gz",
+      "rows": 26039,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2021-22/gamelog.json"
+      },
+      "rawSourceSha256": "30c55cc456650dcd95704b409452fe3975b853728e53cb0e457ff80cbb41d09f",
+      "decodedSha256": "beb9d1a3258880fe8aae90afe8c14629bd6405eee0cacc7884e23bdc607e38b3",
+      "sha256": "7426663fe33701abbc046d4528f9f5ad2139dec744eefaf3badd572f903b873e"
+    },
+    {
+      "season": "2022-23",
+      "path": "scripts/data/projection/replay/2022-23.json.gz",
+      "rows": 25895,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2022-23/gamelog.json"
+      },
+      "rawSourceSha256": "6c209fcdf3118c9614801c494c3b6888a359232cdb79305f955b67cd4ee603e0",
+      "decodedSha256": "2951e31dc115c7ad9b96b580bc280d267d92cd944eee42c50316f7df5344993f",
+      "sha256": "8539a261bae66bdce364a2a7aa3529e317caae9ed8125df0c44111f07f844125"
+    },
+    {
+      "season": "2023-24",
+      "path": "scripts/data/projection/replay/2023-24.json.gz",
+      "rows": 26401,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2023-24/gamelog.json"
+      },
+      "rawSourceSha256": "07d1bfd12748a27c36dc9593fff449f6c7f3358a370a0886bd16a4ddcc1ac836",
+      "decodedSha256": "d28c0038beb60c410fd68ace4dc3e7657908871bcb7294a88ee942c513cb3fdf",
+      "sha256": "c4f43dc924dd424aff73c7525a7f6f435fcd82eae6104ab350494698bab81bfb"
+    },
+    {
+      "season": "2024-25",
+      "path": "scripts/data/projection/replay/2024-25.json.gz",
+      "rows": 26306,
+      "source": {
+        "kind": "preserved-official-source-cache",
+        "repositoryCommit": "c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee",
+        "path": "scripts/data/history/2024-25/gamelog.json"
+      },
+      "rawSourceSha256": "e09fbcc8d7062eeda34a13317ee6cd0d20bd35d548cb4881a10eadd21f3172c6",
+      "decodedSha256": "4ce76ccc39d57fc4eaf2d7961f5a07378abaab085e55baaf76a3f2eca5f3aad2",
+      "sha256": "a0d107c0cae8bbec0802574885ae5f91752e380797dc9f950a1c20b8f6871fd5"
+    },
+    {
+      "season": "2025-26",
+      "path": "scripts/data/projection/replay/2025-26.json.gz",
+      "rows": 26651,
+      "source": {
+        "kind": "official-api",
+        "url": "https://stats.gleague.nba.com/stats/leaguegamelog?Counter=0&DateFrom=&DateTo=&Direction=ASC&LeagueID=00&PlayerOrTeam=P&Season=2025-26&SeasonType=Regular%20Season&Sorter=DATE",
+        "fetchedAt": "2026-11-02T01:19:15.627599Z",
+        "note": "Shared official statistics host, explicitly LeagueID 00; preserved NBA person/game IDs."
+      },
+      "rawSourceSha256": "e676d6d8bead7cefa0425e6c2b9fed46983e8d5368e9a6595768d57c7354f859",
+      "decodedSha256": "5c758c67c5fdcc6485dc5cdacfe094570ad257d093df00a801b81dbf8326e4ac",
+      "sha256": "7ec7b116b9e19f0ca1a631e0c50f9c2cc09940da29f804bab216127604591944"
+    }
+  ]
+}

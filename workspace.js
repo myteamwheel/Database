@@ -95,12 +95,12 @@
   /* ------------------------------------------------- shared UI fragments */
   // An old season team is history, not a current roster claim. Never fall back to it here.
   const teamOf = (p) => p?.compTarget ? (p.currentTeam || p.team || 'Brooklyn / Long Island')
-    : p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.team || '—');
+    : p?.league === 'NBA' ? (p.currentTeam || 'No NBA roster') : (p?.currentGLeagueRosterTeam || (window.DATA?.currentGLeagueRosterMeta?'No current G League listing':p?.team||'—'));
   const teamContext = (p) => p?.compTarget
     ? `Comparison target: ${p.currentTeam || p.team || 'Brooklyn / Long Island'}`
     : p?.league === 'NBA'
       ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster')
-      : `${window.DATA?.season || '2025-26'} G League team: ${p?.team || '—'}`;
+      : `Current G League team listing: ${p?.currentGLeagueRosterTeam||'not listed'} · ${window.DATA?.season||'2025-26'} performance team: ${p?.team||'—'}`;
   const rosterLabel = (p) => p?.compTarget
     ? `${teamOf(p)} · ${p.sourceMode === 'gleague' ? 'G League-sourced NBA comp' : 'pre-NBA-sourced NBA comp'}`
     : p?.currentRoster && !p.appeared
@@ -1013,13 +1013,13 @@
       const p = players().find((x) => String(x.playerId) === String(fit.playerId) && x.league === league());
       if (!p) return false;
       return league() === 'NBA' ? p.currentTeam === t.team
-        : (p.teams || []).some((x) => x.team === t.team) || p.team === t.team;
+        : window.DATA.currentGLeagueRosterMeta?p.currentGLeagueRosterTeam===t.team:(p.teams || []).some((x) => x.team === t.team) || p.team === t.team;
     };
     const rosterBasis = league() === 'NBA'
       ? 'NBA needs use 2025–26 profiles assigned to the current 2026–27 roster.'
-      : 'G League needs use 2025–26 team assignments and profiles.';
+      : window.DATA.currentGLeagueRosterMeta?'G League needs use measured 2025–26 profiles assigned to current official team-roster listings; training-camp listings do not establish contract terms or NBA assignments.':'G League needs use 2025–26 team assignments and profiles.';
     const fitRow = (f) => `<tr>
-      <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button>${isTeamMember(f) ? `<span class="team-fit-member">${league() === 'NBA' ? 'Already on roster' : '2025–26 team member'}</span>` : ''}</td>
+      <td class="left"><button class="player-link" data-goto="${esc(f.playerId)}">${esc(f.name)}</button>${isTeamMember(f) ? `<span class="team-fit-member">${league() === 'NBA' ? 'Already on roster' : window.DATA.currentGLeagueRosterMeta?'Current team listing':'2025–26 team member'}</span>` : ''}</td>
       <td>${gnum(f.grade)}</td><td><b>${f.score}/100</b></td>
       <td class="left tiny">${[...(f.strengths || []), ...(f.weaknesses || [])].map(esc).join('<br>') || '—'}</td></tr>`;
     const fitTable = (list) => `<div class="table-wrap"><table class="compare-table"><thead><tr>

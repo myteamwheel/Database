@@ -18,7 +18,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   projections: Object.freeze({
     label: '2026-27 player projections',
-    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/lib/projection-validation.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-roster-context.mjs'],
+    codeFiles: ['scripts/lib/projection.mjs','scripts/lib/projection-context.mjs','scripts/lib/entry-production.mjs','scripts/lib/projection-validation.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-gleague-progress.mjs','scripts/build-roster-context.mjs'],
     source: 'Frozen projection inputs/model card plus the published current-roster context',
   }),
   tulipEvidence: Object.freeze({
@@ -27,9 +27,9 @@ export const MODEL_OUTPUTS = Object.freeze({
     source: 'Published season/player history and current database rows; unavailable availability/transaction/lineup evidence stays unavailable',
   }),
   tulipBeta: Object.freeze({
-    label: 'TULIP Beta recommended-minute allocator',
-    codeFiles: ['scripts/lib/tulip-beta.mjs','scripts/lib/tulip-beta-diagnostics.mjs','scripts/build-v3.mjs'],
-    source: '2025-26 player value/workload evidence grouped by the published 2026-27 roster snapshot',
+    label: 'TULIP historical value and next-game rotation recommendations',
+    codeFiles: ['scripts/lib/tulip-beta.mjs','scripts/lib/tulip-beta-diagnostics.mjs','scripts/lib/rotation-plan.mjs','scripts/build-rotation-plan.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-v3.mjs'],
+    source: 'Historical value evidence plus current NBA rosters, college/observed-role workload forecasts, game-specific availability and position-constrained rotations',
   }),
   projectedRoleMpg: Object.freeze({
     label: 'Projected Role MPG',
@@ -99,7 +99,7 @@ function semanticModelVersion(key, publicData) {
     return id && ctx ? `${id}+${ctx}` : id;
   }
   if (key === 'tulipEvidence') return publicData?.tulipMeta?.version || null;
-  if (key === 'tulipBeta') return publicData?.tulipBetaMeta?.config?.version || null;
+  if (key === 'tulipBeta') return [publicData?.tulipBetaMeta?.config?.version,publicData?.tulipRotationMeta?.version].filter(Boolean).join('+')||null;
   if (key === 'projectedRoleMpg') return publicData?.tulipCapacityMeta?.version || null;
   if (key === 'playerComparisons') return publicData?.analysis?.playerCompsMeta?.version || null;
   return null;
@@ -115,8 +115,13 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     ...common,
     modelCardSha256: fileSha256(root, 'PROJECTION_2026_27.json'),
     projectionInputsSha256: fileSha256(root, 'scripts/data/projection/inputs.json'),
+    forecastReferencesSha256:fileSha256(root,'FORECAST_REFERENCE_RANGES.json'),
+    entryProductionSha256: fileSha256(root, 'scripts/data/projection/entry-production.json'),
+    entryProductionModelSha256: fileSha256(root, 'ENTRY_PRODUCTION_MODEL.json'),
     birthdatesSha256: fileSha256(root, 'scripts/data/birthdates.json'),
     seasonProgressSha256: fileSha256(root, 'scripts/data/live/season-progress.json', {optional:true}),
+    gLeagueProgressSha256:fileSha256(root,'scripts/data/live/gleague-progress.json',{optional:true}),
+    gLeagueRostersSha256: fileSha256(root, 'scripts/data/live/gleague-rosters.json', {optional:true}),
     gLeagueIndexSha256: fileSha256(root, 'scripts/data/live/gleague-index.json', {optional:true}),
     twoWayRosterSha256: fileSha256(root, 'scripts/data/live/two-way-roster.json', {optional:true}),
     injuriesSha256: fileSha256(root, 'scripts/data/live/injuries.json', {optional:true}),
@@ -128,6 +133,16 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
   if (key === 'tulipBeta') return {
     ...common,
     baselineSeason: publicData?.tulipBetaMeta?.baselineSeason || null,
+    rotationVersion:publicData?.tulipRotationMeta?.version||null,
+    projectionRawInputsSha256:fileSha256(root,'scripts/data/projection/inputs.json'),
+    birthdatesSha256:fileSha256(root,'scripts/data/birthdates.json'),
+    twoWayRosterSha256:fileSha256(root,'scripts/data/live/two-way-roster.json',{optional:true}),
+    rotationBaselineSeason:publicData?.tulipRotationMeta?.baselineSeason||null,
+    currentStatsSha256:fileSha256(root,'scripts/data/live/season-progress.json',{optional:true}),
+    injurySha256:fileSha256(root,'scripts/data/live/injuries.json',{optional:true}),
+    projectionCardSha256:fileSha256(root,'PROJECTION_2026_27.json'),
+    entryModelSha256:fileSha256(root,'ENTRY_PRODUCTION_MODEL.json'),
+    entryInputsSha256:fileSha256(root,'scripts/data/projection/entry-production.json'),
     rostersAsOf: publicData?.tulipBetaMeta?.rostersAsOf || publicData?.projectionMeta?.rostersAsOf || null,
     rosterSha256: publicData?.projectionMeta?.rosterSha256 || null,
   };
@@ -282,6 +297,8 @@ export function deriveSourceDomains({ root, publicData }) {
     if(!input||publicData[key].asOf!==input[dateKey]||publicData[key].sourceSha256!==fileSha256(root,`scripts/data/live/${file}`))throw new Error(`Published ${key} is stale; rebuild before publication.`);
   }
   if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
+  if(publicData?.gLeagueSeasonProgress&&publicData.gLeagueSeasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-progress.json'))throw new Error('Published G League phase results are stale; rebuild before publication.');
+  if(publicData?.currentGLeagueRosterMeta){const input=readJson(path.join(root,'scripts/data/live/gleague-rosters.json'));if(!input||input.fetchedAt!==publicData.currentGLeagueRosterMeta.asOf||publicData.currentGLeagueRosterMeta.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-rosters.json'))throw new Error('Published G League team rosters are stale; rebuild before publication.');}
   if(publicData?.currentGLeagueIndexMeta){
     const file='scripts/data/live/gleague-index.json';
     const input=readJson(path.join(root,file));

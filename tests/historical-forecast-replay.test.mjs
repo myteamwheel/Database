@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {historicalSnapshot} from '../scripts/lib/historical-forecast-replay.mjs';
+const line=(id,date,team,home,pts)=>({season:'2024-25',seasonType:'Regular Season',playerId:id,gameId:date==='2024-10-22'?'0022400001':'0022400002',gameDate:date,team,isHome:home,min:20,pts,reb:1,oreb:0,dreb:1,ast:2,stl:0,blk:0,tov:0,fgm:pts/2,fga:pts/2,fg3m:0,fg3a:0,ftm:0,fta:0});
+const rows=[line(1,'2024-10-22','AAA',true,10),line(2,'2024-10-22','BBB',false,8),line(1,'2024-11-10','AAA',false,50),line(3,'2024-11-10','BBB',true,60)];
+const a=historicalSnapshot(rows,'2024-25','2024-10-23');
+assert.equal(a.current.size,2);assert.equal(a.current.has(3),false);
+const stats=a.raw.stats.resultSets[0];assert.equal(stats.rowSet.length,2);assert.equal(stats.rowSet[0][stats.headers.indexOf('PTS')],10);
+const changed=structuredClone(rows);changed[2].pts=100;changed[2].fgm=50;changed[3].pts=200;changed[3].fgm=100;
+const b=historicalSnapshot(changed,'2024-25','2024-10-23');
+assert.deepEqual(a.raw,b.raw,'future scoring cannot enter as-of schedule scores or observed statistics');
+assert.deepEqual(a.current,b.current,'future entrants cannot enter the observed roster');
+assert.throws(()=>historicalSnapshot(rows,'2023-24','2024-10-23'),/scope/);
+console.log('Historical snapshot excludes future player identities, scoring and statistics.');

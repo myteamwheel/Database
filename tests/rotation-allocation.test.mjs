@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {allocateRotation,eligibleRotationSlots} from '../scripts/lib/rotation-allocation.mjs';
+assert.deepEqual(eligibleRotationSlots('F-C'),['SF','PF','C']);
+assert.deepEqual(eligibleRotationSlots(null),[]);
+const team=Array.from({length:10},(_,i)=>({id:String(i),position:['G','G','F','F','C'][i%5],target:24}));
+const result=allocateRotation(team);
+assert.equal(result.status,'feasible');assert.equal(result.allocatedMinutes,240);
+for(const p of result.players){assert.equal(p.minutes,24);assert.ok(p.minutes<=40);for(const [slot,min] of Object.entries(p.byPosition))if(min)assert.ok(eligibleRotationSlots(p.position).includes(slot));}
+assert.deepEqual(result.unfilledByPosition,{PG:0,SG:0,SF:0,PF:0,C:0});
+const out=allocateRotation(team.map(p=>({...p,out:p.id==='4'})));
+assert.equal(out.status,'infeasible');assert.equal(out.players.find(p=>p.id==='4').minutes,0);assert.equal(out.unfilledByPosition.C,8);
+const hybrid=allocateRotation([...team.map(p=>({...p,out:p.id==='4'})),{id:'flex',position:'F-C',target:12}]);
+assert.equal(hybrid.status,'feasible');
+assert.deepEqual(allocateRotation([...team].reverse()),result);
+assert.throws(()=>allocateRotation([...team,team[0]]),/identity/);
+assert.throws(()=>allocateRotation([{id:'x',position:'G',target:NaN}]),/target/);
+assert.equal(allocateRotation(team.map(p=>({...p,position:null}))).status,'infeasible');
+const unequal=allocateRotation(team.map((p,i)=>({...p,target:i===0?36:i===5?12:24})));
+assert.equal(unequal.players.find(p=>p.id==='0').minutes,36);
+assert.equal(unequal.players.find(p=>p.id==='5').minutes,12);
+console.log('Position, availability, capacity, residual reassignment and deterministic rotation controls passed.');

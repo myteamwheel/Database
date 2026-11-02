@@ -46,3 +46,9 @@ const preseason=structuredClone(schedule);
 preseason.leagueSchedule.gameDates[0].games.push({...games[0],gameId:'0012600001',gameStatus:3});
 assert.equal(parseSeasonProgress(preseason,stats,options).completedGames,0);
 console.log('Season progress passed: season/phase boundaries, identities, schedule coverage, future games, independent scoring controls and preseason empty data.');
+
+// Owner refresh must revalidate the entire prior snapshot, including the game log
+// that explains a corrected dashboard. Omitting it made all later refreshes fail.
+const saved={...options,schedule:finished,stats:lagged,gameLog};
+assert.equal(parseSeasonProgress(saved.schedule,saved.stats,saved).players[1].totals.pts,2);
+assert.throws(()=>parseSeasonProgress(saved.schedule,saved.stats,options),/Points|points/);
