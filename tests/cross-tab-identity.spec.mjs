@@ -84,7 +84,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
       await page.goto(`${PAGE}?${query}`);
       await expect(page.locator('#wsPlayerSel')).toHaveValue(String(p.playerId));
       await expect(page.locator('.ws-title h2')).toHaveText(p.name);
-      const teamText = league === 'NBA' ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster') : `${source.season} G League team: ${p.team}`;
+      const teamText = league === 'NBA' ? (p.currentTeam ? `Current NBA roster: ${p.currentTeam}` : 'No current NBA roster') : `${source.season} performance team: ${p.team}`;
       if (p.appeared) {
         await expect(page.locator('.ws-title')).toContainText(teamText);
         await expect(page.locator('.ws-title')).toContainText(`${source.season} actuals: ${p.gp} games`);

@@ -58,6 +58,7 @@ async function playerWith(page, direction) {
 }
 
 async function showPlayer(page, player) {
+  await page.selectOption('#viewPreset','tulipbeta');
   await page.evaluate((playerId) => openPlayer(playerId), player.playerId);
   await expect(page.locator('#playerDialog')).toHaveAttribute('open', '');
   return page.locator('.tulip-explanation');

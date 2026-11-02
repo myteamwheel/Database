@@ -53,6 +53,9 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const file=path.join(root,'public/data.json'),bytes=fs.readFileSync(path.join(root,'scripts/data/live/season-progress.json'));
   const data=JSON.parse(fs.readFileSync(file)),raw=JSON.parse(bytes);
   buildSeasonForecasts(data,raw,{sourceSha256:crypto.createHash('sha256').update(bytes).digest('hex'),referenceCard:JSON.parse(fs.readFileSync(path.join(root,'FORECAST_REFERENCE_RANGES.json')))});
+  const evidenceBytes=fs.readFileSync(path.join(root,'docs/FULL_FORECAST_EVALUATION.json')),evidence=JSON.parse(evidenceBytes);
+  if(crypto.createHash('sha256').update(evidenceBytes).digest('hex')!==JSON.parse(fs.readFileSync(path.join(root,'FORECAST_REFERENCE_RANGES.json'))).evaluationReportSha256)throw new Error('Forecast evaluation/reference hash mismatch');
+  data.forecastEvaluation={version:evidence.version,reportSha256:crypto.createHash('sha256').update(evidenceBytes).digest('hex'),protocol:evidence.protocol,boundary:evidence.boundary,test:evidence.test,stats:Object.fromEntries(Object.entries(evidence.stats).map(([k,v])=>[k,{cohorts:v.cohorts}]))};
   fs.writeFileSync(file,JSON.stringify(data));
   console.log(`Built ${data.seasonProgress.season} actual/remaining/combined views; ${data.seasonProgress.completedGames} completed regular-season games.`);
 }

@@ -116,6 +116,7 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     modelCardSha256: fileSha256(root, 'PROJECTION_2026_27.json'),
     projectionInputsSha256: fileSha256(root, 'scripts/data/projection/inputs.json'),
     forecastReferencesSha256:fileSha256(root,'FORECAST_REFERENCE_RANGES.json'),
+    forecastEvaluationSha256:fileSha256(root,'docs/FULL_FORECAST_EVALUATION.json'),
     entryProductionSha256: fileSha256(root, 'scripts/data/projection/entry-production.json'),
     entryProductionModelSha256: fileSha256(root, 'ENTRY_PRODUCTION_MODEL.json'),
     birthdatesSha256: fileSha256(root, 'scripts/data/birthdates.json'),

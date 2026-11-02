@@ -38,14 +38,14 @@ async function checkCard(card, p) {
   }
   await expect(card.locator('.proj-context')).toContainText(expectedTeam(p));
   await expect(card.locator('.proj-context')).toContainText(statuses[p.proj.status]);
-  for (const cls of ['proj-ranges', 'proj-why']) {
+  for (const cls of ['preseason-reference-ranges', 'proj-why']) {
     const detail = card.locator(`details.${cls}`);
     await expect(detail).not.toHaveAttribute('open', '');
     await detail.locator('summary').focus();
     await detail.locator('summary').press('Enter');
     await expect(detail).toHaveAttribute('open', '');
   }
-  const rangeRows = await card.locator('.proj-ranges tbody tr').evaluateAll(rows => Object.fromEntries(rows.map(r => [r.children[0].textContent, [...r.querySelectorAll('td')].map(c => c.textContent.trim())])));
+  const rangeRows = await card.locator('.preseason-reference-ranges tbody tr').evaluateAll(rows => Object.fromEntries(rows.map(r => [r.children[0].textContent, [...r.querySelectorAll('td')].map(c => c.textContent.trim())])));
   for (const key of ['gp', 'mpg', 'pts', 'reb', 'ast']) {
     expect(rangeRows[metrics[key]]).toEqual([numberText(p.proj[`${key}Lo`], key), numberText(p.proj[key], key), numberText(p.proj[`${key}Hi`], key)]);
   }
@@ -142,11 +142,11 @@ test.describe('2026-27 projections', () => {
     const id = await page.evaluate(() => DATA.leagues.NBA.find((p) => p.proj && !p.proj.abstain).playerId);
     await page.evaluate((pid) => openPlayer(pid), id);
     const card = page.locator('#playerDialogBody .proj-card');
-    await expect(card.locator('details.proj-ranges')).not.toHaveAttribute('open', '');
-    await card.locator('details.proj-ranges summary').click();
-    await expect(card.locator('details.proj-ranges table')).toBeVisible();
-    await expect(card.locator('details.proj-ranges')).toContainText('Low reference');
-    await expect(card.locator('details.proj-ranges')).toContainText('High reference');
+    await expect(card.locator('details.preseason-reference-ranges')).not.toHaveAttribute('open', '');
+    await card.locator('details.preseason-reference-ranges summary').click();
+    await expect(card.locator('details.preseason-reference-ranges table')).toBeVisible();
+    await expect(card.locator('details.preseason-reference-ranges')).toContainText('Low reference');
+    await expect(card.locator('details.preseason-reference-ranges')).toContainText('High reference');
     await page.click('[data-close="playerDialog"]');
     // Back to the season stats.
     await page.click('.site-link[data-goto="stats"]');

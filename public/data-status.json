@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261102021002-3cac605eb223",
+  "publicationId": "2025-26-20261102021002-c8835c9f6420",
   "season": "2025-26",
   "publishedAt": "2026-11-02T02:10:02.588Z",
   "buildGeneratedAt": "2026-11-02T02:10:02.588Z",
-  "dataSha256": "3cac605eb2237072318071240eda258ab50d9135d5b83d76db7e08fd0c5b85f6",
+  "dataSha256": "c8835c9f6420f9d3f156d520ac1c1dfb20b6ac248b6ca0ff9db012417be060cb",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261102020127-13d056ebcf9b",
-    "publishedAt": "2026-11-02T02:01:27.153Z",
-    "dataSha256": "13d056ebcf9ba4b05c41af29c508d61ab9ad5a7dc893981c441e2f365c8aecfe"
+    "publicationId": "2025-26-20261102021002-3cac605eb223",
+    "publishedAt": "2026-11-02T02:10:02.588Z",
+    "dataSha256": "3cac605eb2237072318071240eda258ab50d9135d5b83d76db7e08fd0c5b85f6"
   },
   "sourceDomains": {
     "officialStats": {
@@ -294,11 +294,11 @@
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "d55260896f41af72ed1d188400d8f0992e1ee0062c110d27c93e07893d56a155",
+        "codeVersionSha256": "68b7ea6c14f35eeee946a8889ca02fbfe90ad37554c10f044c0b9199714b8b4c",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "58fa2b0721c2cec1e63efdbac5d91c20ae64cd9d422e841731dd81433e81aafe"
+            "sha256": "03c0a665af5d4b728c3afb55cdd505efa908dcde73dac73886d7ea795889f0e0"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -391,7 +391,7 @@
         "label": "2026-27 player projections",
         "modelVersion": "PROJECTION_2026_27+context-4-college-entry",
         "semanticVersion": "PROJECTION_2026_27+context-4-college-entry",
-        "codeVersionSha256": "b8bce4f4b4909d8bc256a64ad5dd94ef79496ede02916cba71da959dd366b752",
+        "codeVersionSha256": "3eb52df8ceccfabd8b953f70d6e457d08ce92ae8408b6accbbe007ed2a54f9e3",
         "codeFiles": [
           {
             "path": "scripts/build-gleague-progress.mjs",
@@ -407,7 +407,7 @@
           },
           {
             "path": "scripts/build-season-progress.mjs",
-            "sha256": "f1e003e782ebcb7f785e157e8b52bf6d4dfea209fb37e652471405ac8af0e5c0"
+            "sha256": "9e3317fc757264e56e584a36f6bb4ce545afe8e4d8037c00a76cdaaf2c986fc5"
           },
           {
             "path": "scripts/lib/entry-production.mjs",
@@ -465,7 +465,8 @@
           "sourceManifestSha256": "3ee7ae9e3437a13d967fcc20481ab045cd7e54ede938f94c7d3037916424cdea",
           "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
           "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
-          "forecastReferencesSha256": "c220cb326ec99dcab74dda2ff8c944c71035cef2c24ec2e2ac44c3c925320ca1",
+          "forecastReferencesSha256": "c8ae7064c20cd411f8675d404715920af975d2e487acc1242be9b9a0e981d688",
+          "forecastEvaluationSha256": "13e1befb1ef3c93ad920fbdf5c476b042584c4fb243e6d5707229fa61833f481",
           "entryProductionSha256": "824a7e3a96553c4de6a4e96bc7d712a0131602fef331b5b5b6834300a4fe12c9",
           "entryProductionModelSha256": "1f697e135061847176618b5d47e1f9448591f21aa33f80afda1edb1cf3e7fdbe",
           "birthdatesSha256": "f39c85b51a1d304e23b746e3a6b8d92cae32f8e96c691b73136cea08a2ba5beb",
@@ -577,7 +578,7 @@
         "label": "TULIP historical value and next-game rotation recommendations",
         "modelVersion": "tulip-beta-support-v2+rotation-tulip-v1",
         "semanticVersion": "tulip-beta-support-v2+rotation-tulip-v1",
-        "codeVersionSha256": "655e353b1276f7929917ac098af89e8b666945a2fab22dda8d61cdfc598bec20",
+        "codeVersionSha256": "03f7725c146be66c8feb9833dc65d302eafe31345ef7a0db9abaab515e4454df",
         "codeFiles": [
           {
             "path": "scripts/build-projections.mjs",
@@ -589,7 +590,7 @@
           },
           {
             "path": "scripts/build-season-progress.mjs",
-            "sha256": "f1e003e782ebcb7f785e157e8b52bf6d4dfea209fb37e652471405ac8af0e5c0"
+            "sha256": "9e3317fc757264e56e584a36f6bb4ce545afe8e4d8037c00a76cdaaf2c986fc5"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -846,13 +847,13 @@
       },
       "teamFit": {
         "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
+        "modelVersion": "code-sha256:4d1ae9ba85307c148204a3368b7bc45fdebdd55fed740f25e472db61df90a5a8",
         "semanticVersion": null,
-        "codeVersionSha256": "ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
+        "codeVersionSha256": "4d1ae9ba85307c148204a3368b7bc45fdebdd55fed740f25e472db61df90a5a8",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "58fa2b0721c2cec1e63efdbac5d91c20ae64cd9d422e841731dd81433e81aafe"
+            "sha256": "03c0a665af5d4b728c3afb55cdd505efa908dcde73dac73886d7ea795889f0e0"
           },
           {
             "path": "scripts/build-v3.mjs",
@@ -1354,7 +1355,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:ed7c5283b1ee8edaf69190bf36a485d93843fda539dd6c662e96746a9c7a20a8",
+        "modelVersion": "code-sha256:4d1ae9ba85307c148204a3368b7bc45fdebdd55fed740f25e472db61df90a5a8",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,

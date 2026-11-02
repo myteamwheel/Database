@@ -52,10 +52,10 @@ test('season progress stays collapsed, opens by keyboard and exports every timef
   await page.evaluate(id=>openPlayer(id),p.playerId);
   const detail=page.locator('#playerDialogBody .proj-season-progress');
   await expect(detail).not.toHaveAttribute('open','');
-  await detail.locator('summary').focus();await page.keyboard.press('Enter');
+  await detail.locator(':scope > summary').focus();await page.keyboard.press('Enter');
   await expect(detail).toHaveAttribute('open','');
   await expect(detail).toContainText('Actual to date');
-  const row=detail.locator('tbody tr').filter({has:page.locator('th',{hasText:'Points'})});
+  const row=detail.locator(':scope > table > tbody > tr').filter({has:page.locator('th',{hasText:'Points'})});
   const values=await row.locator('td').allTextContents();
   expect(values).toEqual(['actualToDate','remainingSeason','fullSeason'].map(k=>p.seasonForecast[k].perGame.pts.toFixed(1)));
   const pending=page.waitForEvent('download');await detail.locator('[data-season-export]').click();
