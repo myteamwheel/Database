@@ -1,6 +1,7 @@
 import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
+import assert from 'node:assert/strict';
 const source=JSON.parse(fs.readFileSync(new URL('../public/data.json',import.meta.url)));
 const url=new URL('../public/standalone.html',import.meta.url).href;
 async function open(page){
@@ -27,17 +28,19 @@ test('current-season tables render all three timeframes and export the selected 
     const rendered=await page.locator('#tableBody tr').evaluateAll(rows=>rows.map(r=>({id:r.querySelector('[data-player]')?.dataset.player,cells:[...r.children].map(c=>c.textContent.trim())})));
     expect(records.length).toBe(source.leagues.NBA.length);expect(rendered.length).toBe(records.length);
     const players=new Map(source.leagues.NBA.map(p=>[String(p.playerId),p]));
+    // These are already captured values: native assertions retain every cell check
+    // without creating tens of thousands of browser test reporting steps.
     for(const [i,row] of rendered.entries()){
-      const p=players.get(row.id);expect(p).toBeTruthy();
+      const p=players.get(row.id);assert.ok(p, `Unknown rendered player ${row.id}`);
       const f=label==='actual'?p.seasonActual:p.seasonForecast?.[label==='remaining'?'remainingSeason':'fullSeason'];
-      expect(records[i][headers.indexOf('Player')]).toBe(p.name);
+      assert.equal(records[i][headers.indexOf('Player')],p.name);
       for(const [key,heading] of Object.entries({gp:'GP',mpg:'MIN',pts:'PTS',reb:'REB',ast:'AST',fgPct:'FG% (pct pts)'})){
         const value=key==='gp'?f?.gp:f?.perGame?.[key],pct=key==='fgPct';
         const expected=value==null?'':(value*(pct?100:1)).toFixed(1);
-        const col=headers.indexOf(heading);expect(col).toBeGreaterThan(-1);
-        expect(records[i][col],`${p.name} ${label} ${key}`).toBe(expected);
+        const col=headers.indexOf(heading);assert.ok(col>=0, `Missing export heading ${heading}`);
+        assert.equal(records[i][col],expected,`${p.name} ${label} ${key}`);
         // The rendered table also has a leading selection checkbox, omitted from CSV.
-        expect(row.cells[col+1],`${p.name} visible ${label} ${key}`).toBe(expected?expected+(pct?'%':''):'—');
+        assert.equal(row.cells[col+1],expected?expected+(pct?'%':''):'—',`${p.name} visible ${label} ${key}`);
       }
     }
     expect(csv).not.toMatch(/NaN|undefined/);

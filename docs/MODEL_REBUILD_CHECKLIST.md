@@ -26,6 +26,8 @@ Final holdout: 441 observed players, including two with no later appearance. Per
 
 ## Current-season and prior-season review navigation
 
+Tracked in [PR #45](https://github.com/myteamwheel/Database/pull/45). PR #44 passed all 19 required checks and was merged as `1429f21`; publication remains a separate live-verification step. The navigation follow-up has independent current-grade/source tests, lossless artifact verification and desktop/mobile/CSV browser coverage.
+
 The user subsequently requested the current season first and the prior-season accuracy review second. The implementation adds these two tabs ahead of the historical Database, with the current season as the default landing page.
 
 - Current 2026–27 NBA grades are computed from official current-season base and advanced inputs using the existing grade model, including separate per-36 and magnitude grades, coverage and sample shrinkage. The original 2025–26 grade is preserved. Current TULIP remains the explicitly experimental next-game plan, using measured current workload/availability and historical value evidence.

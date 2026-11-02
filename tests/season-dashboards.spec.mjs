@@ -6,7 +6,10 @@ test('current season opens first, uses actual current grades and exposes rotatio
  await expect(page.locator('.season-hero h2')).toContainText('Current results');await expect(page.locator('.season-table > table > thead')).toContainText('2026–27 Grade');await expect(page.locator('.season-table > table > thead')).toContainText('Rotation TULIP');
  const p=await page.evaluate(()=>DATA.leagues.NBA.find(p=>p.currentRoster&&p.currentGrades['Regular Season'].grade!==null));
  await page.fill('#seasonSearch',p.name);const row=page.locator('.season-table tbody tr').first();await expect(row).toContainText(String(p.seasonActual.gp));await expect(row.locator('.season-grade')).toHaveText((Math.floor(p.currentGrades['Regular Season'].grade*10000)/10000).toFixed(4));
- expect(p.currentGrades['Regular Season'].grade).not.toBe(p.grade);expect(errors).toEqual([]);
+ expect(p.currentGrades['Regular Season'].grade).not.toBe(p.grade);
+ const pending=page.waitForEvent('download');await page.click('#seasonExport');const stream=await(await pending).createReadStream();let csv='';for await(const chunk of stream)csv+=chunk;
+ for(const heading of ['TS% (pct pts)','USG% (pct pts)','PIE (pct pts)','Net rating'])expect(csv.split('\n')[0]).toContain(heading);
+ expect(csv).toContain(String(p.currentGrades['Regular Season'].usg*100));expect(errors).toEqual([]);
 });
 test('second tab compares the correct 2025 season and clearly distinguishes a reconstructed forecast from an archive',async({page})=>{
  const errors=await open(page);await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-notice')).toContainText('not a saved 2025–26 prediction release');await expect(page.locator('.season-summary')).toContainText('mean absolute error');
