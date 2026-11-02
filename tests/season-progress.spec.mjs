@@ -1,10 +1,11 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 const source=JSON.parse(fs.readFileSync(new URL('../public/data.json',import.meta.url)));
 const url=new URL('../public/standalone.html',import.meta.url).href;
 async function open(page){
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(url);await page.waitForSelector('#tableBody tr td');
+  await page.goto(legacyDatabaseUrl(url));await page.waitForSelector('#tableBody tr td');
   await page.locator('[data-goto="current"]').click();return errors;
 }
 test('current-season tables render all three timeframes and export the selected view',async({page})=>{

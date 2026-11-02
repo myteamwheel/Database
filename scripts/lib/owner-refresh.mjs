@@ -19,6 +19,7 @@ export function ownerRefreshStages({ season = SUPPORTED_BUILD_SEASON } = {}) {
     { id:'fetch-injuries', command:'npm', args:['run','fetch:injuries'] },
     { id:'fetch-news', command:'npm', args:['run','fetch:news'] },
     { id:'fetch-season-progress', command:'npm', args:['run','fetch:season-progress'] },
+    { id:'fetch-current-grade-inputs', command:'npm', args:['run','fetch:current-grade-inputs'] },
     // Training inputs are hash-pinned to the fitted model card. Refreshing them
     // is a separate, explicitly validated model refit, not routine ingestion.
     { id:'fetch-bios', command:'npm', args:['run','fetch:bios'] },

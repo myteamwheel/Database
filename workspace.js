@@ -10,7 +10,7 @@
   const pctS = (v) => (fin(v) ? `${(Number(v) * 100).toFixed(1)}%` : '—');
   const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-  let MODE = 'database';
+  let MODE = 'current';
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
@@ -35,7 +35,7 @@
 
   /* ------------------------------------------------------------- mode nav */
   const MODES = [
-    ['database', 'Database'], ['player', 'Player'], ['compare', 'Compare'],
+    ['current','2026–27 Season'], ['seasonreview','2025–26 Review'], ['database', '2025–26 Database'], ['player', 'Player'], ['compare', 'Compare'],
     ['scatter', 'Scatter'], ['similarity', 'Player Comps'], ['teamfit', 'Team Fit'],
     ['tulip', 'Role Value'],
   ];
@@ -49,6 +49,7 @@
   function renderNav() {
     $('modeNav').innerHTML = MODES.map(([k, label]) =>
       `<button class="mode-tab${MODE === k ? ' active' : ''}" data-mode="${k}">${esc(label)}</button>`).join('');
+    document.querySelectorAll('[data-season-mode]').forEach(b=>{b.onclick=()=>changeMode(b.dataset.seasonMode);b.classList.toggle('active',b.dataset.seasonMode===MODE);});
     document.querySelectorAll('[data-mode]').forEach((b) => {
       b.onclick = () => changeMode(b.dataset.mode);
     });
@@ -60,7 +61,8 @@
     const isDb = MODE === 'database';
     const lg = league() === 'NBA' ? 'NBA' : 'G League';
     document.querySelectorAll('.site-link[data-goto]').forEach((b) => {
-      if (isComp) b.classList.toggle('active', b.dataset.goto === 'comps');
+      if(['current','seasonreview'].includes(MODE))b.classList.remove('active');
+      else if (isComp) b.classList.toggle('active', b.dataset.goto === 'comps');
       else if (MODE !== 'database') b.classList.toggle('active', b.dataset.goto === 'stats');
     });
     if (isComp) {
@@ -71,25 +73,28 @@
       // Returning from Player Comps previously left its title, crumbs and eyebrow behind on every
       // other analysis tab. Keep the persistent page chrome synchronized with the active tool.
       const labels = Object.fromEntries(MODES);
-      const title = MODE === 'player' ? 'Player Analysis'
+      const title = MODE === 'current'?'2026–27 Season':MODE === 'seasonreview'?'2025–26 Review':MODE === 'player' ? 'Player Analysis'
         : MODE === 'compare' ? 'Player Comparison'
         : MODE === 'scatter' ? 'Scatter & Correlation'
         : MODE === 'teamfit' ? 'Team Fit'
         : MODE === 'tulip' ? 'Role Value' : (labels[MODE] || 'Analysis');
       if ($('pageTitle')) $('pageTitle').textContent = `${lg} ${title}`;
-      const period = MODE === 'compare' && $('viewPreset')?.value === 'proj' ? '2026-27 projections' : '2025-26';
+      const period = MODE==='current'?'2026-27':MODE === 'compare' && $('viewPreset')?.value === 'proj' ? '2026-27 projections' : '2025-26';
       if ($('crumbs')) $('crumbs').textContent = `${lg} › ${period} › ${title}`;
-      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = '2025-26 analysis workspace';
+      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = MODE==='current'?'2026-27 measured results':'2025-26 analysis workspace';
     }
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
-    const fn = { player: viewPlayer, compare: viewCompare, scatter: viewScatter,
+    $('nbaCount').textContent=(MODE==='current'?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
+    $('gCount').textContent=(MODE==='current'?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
+    if(MODE==='current')$('sourceLine').textContent='2026–27 official results and advanced statistics. NBA checked '+(window.DATA.seasonProgress?.asOf||'unavailable')+'. Grades reflect only this season; planned rotation minutes remain estimates.';
+    const fn = { current:viewCurrentSeason, seasonreview:viewSeasonReview, player: viewPlayer, compare: viewCompare, scatter: viewScatter,
                  similarity: viewSimilarity, teamfit: viewTeamFit, tulip: viewTulip }[MODE];
     $('workspace').innerHTML = fn ? fn() : '';
     if (fn === viewScatter) drawScatter();
     if (fn === viewTulip) drawFrontier();
-    wire();
+    wire();wireSeasonDashboard();
   }
 
   /* ------------------------------------------------- shared UI fragments */
@@ -1404,6 +1409,55 @@
     // Player Comps tab flash the right title before incorrectly opening the Player mode.
     document.querySelectorAll('#workspace [data-goto]').forEach((b) => {
       b.onclick = () => { state.player = b.dataset.goto; changeMode('player'); };
+    });
+  }
+
+  const seasonUi={phase:'Showcase',metric:'pts',sort:'grade',dir:-1,limit:50,query:null};
+  const seasonMetrics={pts:'Points',mpg:'Minutes',gp:'Games',reb:'Rebounds',ast:'Assists',stl:'Steals',blk:'Blocks',tov:'Turnovers',fg3m:'Threes made',ts:'True shooting',boxGrade:'Comparable box-score grade'};
+  function seasonNumber(v,key=''){return !fin(v)?'—':key==='ts'?pctS(v):key.toLowerCase().includes('grade')?gnum(v,4):num(v,key==='gp'?0:1);}
+  function seasonControls(review=false){
+    return `<div class="season-controls"><label>Search player<input id="seasonSearch" type="search" value="${esc(seasonUi.query??$('searchInput')?.value??'')}" placeholder="Name or team"></label>${!review&&league()==='GLEAGUE'?`<label>Competition<select id="seasonPhase"><option value="Showcase" ${seasonUi.phase==='Showcase'?'selected':''}>Tip-Off Tournament / Showcase</option><option value="Regular Season" ${seasonUi.phase==='Regular Season'?'selected':''}>Regular season</option></select></label>`:''}${review?`<label>Compare metric<select id="reviewMetric">${Object.entries(seasonMetrics).map(([k,v])=>`<option value="${k}" ${seasonUi.metric===k?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`:`<label>Sort by<select id="seasonSort">${Object.entries({grade:'Performance grade',rateGrade:'Per-36 grade',magnitudeGrade:'Magnitude grade',tulip:'Rotation TULIP',pts:'Points',mpg:'Minutes',name:'Player'}).map(([k,v])=>`<option value="${k}" ${seasonUi.sort===k?'selected':''}>${v}</option>`).join('')}</select></label>`}<label>Rows<select id="seasonLimit">${[50,100,1000].map(n=>`<option value="${n}" ${seasonUi.limit===n?'selected':''}>${n===1000?'All':n}</option>`).join('')}</select></label><button class="button" type="button" id="seasonExport">Export this view</button></div>`;
+  }
+  function seasonFiltered(rows){const q=fold(seasonUi.query??$('searchInput')?.value??'');return rows.filter(p=>!q||fold(p.name+' '+(p.currentTeam||p.team||'')+' '+(p.currentGLeagueRosterTeam||'')).includes(q));}
+  function currentSeasonRows(){
+    const phase=league()==='NBA'?'Regular Season':seasonUi.phase;
+    return seasonFiltered(window.DATA.leagues[league()].filter(p=>league()==='NBA'?(p.currentRoster||p.seasonActual?.gp>0):(p.currentGLeagueRosterTeam||p.gLeagueSeasonActual?.phases?.[phase]?.gp>0))).map(p=>{
+      const a=league()==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase],g=p.currentGrades?.[phase]||{};
+      return {...p,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,tulip:p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.tulip:null,pts:a?.perGame?.pts,mpg:a?.perGame?.mpg};
+    }).sort((a,b)=>{const key=seasonUi.sort;if(key==='name')return a.name.localeCompare(b.name);const x=a[key],y=b[key];return fin(x)&&fin(y)?y-x||a.name.localeCompare(b.name):fin(x)?-1:fin(y)?1:a.name.localeCompare(b.name);});
+  }
+  function viewCurrentSeason(){
+    const rows=currentSeasonRows(),measured=rows.filter(p=>p.seasonActualView?.gp>0),lg=league()==='NBA'?'NBA':'G League';
+    return `<section class="season-dashboard"><div class="season-hero"><div class="eyebrow">2026–27 · CURRENT SEASON</div><h2>Current results, grades & TULIP</h2><p>${lg==='NBA'?'Measured season-to-date performance beside experimental next-game rotation decisions.':'Official team listings and measured results, kept separate for each competition.'} Grades use 2026–27 inputs; previous-season grades are not carried forward.</p><div class="season-summary"><span><b>${measured.length}</b> players with results</span><span><b>${rows.length}</b> matching players</span><span><b>${lg==='NBA'?window.DATA.seasonProgress?.completedGames??'—':'Separate phases'}</b> ${lg==='NBA'?'completed league games':'no phase mixing'}</span></div></div>
+      ${seasonControls()}${!measured.length?'<p class="season-notice">No published player results in this competition yet. Listed players remain searchable; stats, grades and TULIP are unavailable until supported by measured data.</p>':''}
+      <details class="season-method"><summary>What the current-season grades and TULIP mean</summary><p>${esc(window.DATA.currentGradeMeta?.note||'Current-season grades are not yet published.')}</p><p>Grades are descriptive, not a prediction. Early-season samples are shrunk. Rotation TULIP is planned next-game MPG minus measured current-season MPG, not the performance grade. Out players, missing baselines or infeasible plans have no directional score. G League rotation TULIP is unavailable because the NBA rotation-value model is not validated there.</p><p>Source checked ${esc(window.DATA.currentGradeMeta?.cohorts?.[league()+':'+(league()==='NBA'?'Regular Season':seasonUi.phase)]?.asOf||'not available')}. Open a player for underlying inputs, grade coverage and team constraints.</p></details>
+      <div class="table-wrap season-table"><table><thead><tr><th>Player</th><th>Current team</th><th>GP</th><th>MPG</th><th>2026–27 Grade</th><th>Rate grade</th><th>Magnitude</th><th>Rotation TULIP</th><th>Planned MPG</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>3PM</th><th>TS%</th><th>USG%</th><th>PIE</th><th>Net rating</th></tr></thead><tbody>${rows.slice(0,seasonUi.limit).map(p=>{const a=p.seasonActualView,g=p.currentGradeView;return `<tr><td><button class="player-link" data-season-player="${esc(p.playerId)}">${esc(p.name)}</button></td><td>${esc(league()==='NBA'?p.currentTeam||'No current NBA roster':p.currentGLeagueRosterTeam||'No current listing')}</td><td>${seasonNumber(a?.gp,'gp')}</td><td>${seasonNumber(a?.perGame?.mpg)}</td><td class="season-grade">${seasonNumber(g.grade,'grade')}</td><td>${seasonNumber(g.rateGrade,'grade')}</td><td>${seasonNumber(g.magnitudeGrade,'grade')}</td><td>${fin(p.tulip)?(p.tulip>0?'+':'')+num(p.tulip):'—'}</td><td>${seasonNumber(p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.recommendedMpg:null)}</td>${['pts','reb','ast','stl','blk','fg3m'].map(k=>`<td>${seasonNumber(a?.perGame?.[k])}</td>`).join('')}<td>${pctS(g.ts)}</td><td>${pctS(g.usg)}</td><td>${pctS(g.pie)}</td><td>${num(g.netRtg)}</td></tr>`;}).join('')||'<tr><td colspan="19">No matching players</td></tr>'}</tbody></table></div><p class="tiny">Showing ${Math.min(rows.length,seasonUi.limit)} of ${rows.length}. Blank = unavailable; zero is shown only when measured. Planned MPG and TULIP are experimental decisions, not actual game results.</p></section>`;
+  }
+  function reviewRows(){return seasonFiltered(window.DATA.seasonReview?.leagues?.[league()]?.rows||[]);}
+  const reviewValue=(p,side)=>seasonUi.metric==='boxGrade'?p[side==='model'?'modelBoxGrade':'actualBoxGrade']:p[side]?.[seasonUi.metric];
+  function viewSeasonReview(){
+    const source=window.DATA.seasonReview,all=reviewRows(),matched=all.filter(p=>fin(reviewValue(p,'model'))&&fin(reviewValue(p,'actual'))),errors=matched.map(p=>reviewValue(p,'model')-reviewValue(p,'actual')),mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null,metric=seasonMetrics[seasonUi.metric],rows=all.slice().sort((a,b)=>{const x=reviewValue(a,'actual'),y=reviewValue(b,'actual');return fin(x)&&fin(y)?y-x:fin(x)?-1:fin(y)?1:a.name.localeCompare(b.name);});
+    return `<section class="season-dashboard"><div class="season-hero"><div class="eyebrow">2025–26 · PREDICTIONS VS RESULTS</div><h2>How close were the estimates?</h2><p>Side-by-side averages and errors for ${league()==='NBA'?'NBA regular-season':'G League regular-season'} results. ${matched.length} comparable ${esc(metric.toLowerCase())} rows in the current search.</p><div class="season-summary"><span><b>${seasonNumber(mean(errors.map(Math.abs)),seasonUi.metric)}</b> mean absolute error</span><span><b>${seasonNumber(mean(errors),seasonUi.metric)}</b> average forecast minus actual</span><span><b>${matched.length} / ${all.length}</b> measured players with a comparable estimate</span></div></div>
+      <p class="season-notice"><b>Retrospective backtest, not a saved 2025–26 prediction release.</b> No dated pre-season archive is present. Parameters train through 2024–25. This view must not be interpreted as a forecast published before the games.</p>${seasonControls(true)}
+      <details class="season-method"><summary>Scope, grades, TULIP and evaluation limits</summary><p>${esc(source?.boundary||'Season review data not published.')}</p><p>${esc(source?.leagues?.[league()]?.boxGradeFormula||'')}</p><p>The comparison metric uses regular-season results for both leagues. The full historical G League grade and Role Evidence use its separately labeled regular + Showcase database scope. TULIP is not an observable outcome: we show the historical indicator, but cannot call a final-minute difference its accuracy. Missing replay rows remain blank, including unsupported first-season histories.</p></details>
+      <div class="table-wrap season-table"><table><thead><tr><th>Player</th><th>2025–26 team</th><th>Replay ${esc(metric)}</th><th>Actual ${esc(metric)}</th><th>Replay − actual</th><th>Absolute error</th><th>${league()==='GLEAGUE'?'Combined-season':'Full-season'} grade</th><th>Historical ${league()==='NBA'?'TULIP':'Role Evidence'}</th><th>All stats / evidence</th></tr></thead><tbody>${rows.slice(0,seasonUi.limit).map(p=>{const pred=reviewValue(p,'model'),actual=reviewValue(p,'actual'),error=fin(pred)&&fin(actual)?pred-actual:null;return `<tr><td>${esc(p.name)}</td><td>${esc(p.team)}</td><td>${seasonNumber(pred,seasonUi.metric)}</td><td>${seasonNumber(actual,seasonUi.metric)}</td><td>${seasonNumber(error,seasonUi.metric)}</td><td>${seasonNumber(fin(error)?Math.abs(error):null,seasonUi.metric)}</td><td>${seasonNumber(p.grade,'grade')}</td><td>${seasonNumber(league()==='NBA'?p.historicalTulip:p.tulipEvidence)}</td><td><details><summary>${p.model?'Compare all averages':'No supported replay'}</summary><table class="compare-table"><thead><tr><th>Metric</th><th>Replay</th><th>Actual</th></tr></thead><tbody>${Object.entries(seasonMetrics).map(([k,l])=>`<tr><th>${esc(l)}</th><td>${seasonNumber(k==='boxGrade'?p.modelBoxGrade:p.model?.[k],k)}</td><td>${seasonNumber(k==='boxGrade'?p.actualBoxGrade:p.actual?.[k],k)}</td></tr>`).join('')}</tbody></table><p class="tiny">Full grade scope: ${esc(p.fullGradeScope)}. ${p.model?'Retrospective, trained through 2024–25.':'No comparison is invented.'}</p></details></td></tr>`;}).join('')}</tbody></table></div><p class="tiny">Showing ${Math.min(rows.length,seasonUi.limit)} of ${rows.length}. Errors use all comparable matching rows, not only displayed rows. NBA and G League are scored separately.</p></section>`;
+  }
+  function wireSeasonDashboard(){
+    if(!['current','seasonreview'].includes(MODE))return;
+    const redraw=()=>{render();window.__siteUrlChanged?.('replace');};
+    $('seasonSearch')?.addEventListener('input',e=>{const start=e.target.selectionStart;seasonUi.query=e.target.value;if($('searchInput'))$('searchInput').value=e.target.value;redraw();$('seasonSearch')?.focus();$('seasonSearch')?.setSelectionRange(start,start);});
+    for(const [id,key] of [['seasonPhase','phase'],['reviewMetric','metric'],['seasonSort','sort'],['seasonLimit','limit']])$(id)?.addEventListener('change',e=>{seasonUi[key]=key==='limit'?Number(e.target.value):e.target.value;redraw();});
+    document.querySelectorAll('[data-season-player]').forEach(b=>b.onclick=()=>{
+      const p=window.DATA.leagues[league()].find(p=>String(p.playerId)===b.dataset.seasonPlayer);window.openPlayer(b.dataset.seasonPlayer);
+      const phase=league()==='NBA'?'Regular Season':seasonUi.phase,a=league()==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase],g=p.currentGrades?.[phase]||{},body=$('playerDialogBody');
+      const history=document.createElement('details'),summary=document.createElement('summary');summary.textContent='2025–26 historical profile and forecast inputs';history.append(summary);for(const node of [...body.childNodes])history.append(node);
+      body.innerHTML=`<section class="rotation-card"><div class="eyebrow">2026–27 · ${esc(phase)}</div><h2>${esc(p.name)}</h2><div class="season-summary"><span><b>${seasonNumber(g.grade,'grade')}</b>Current performance grade</span><span><b>${seasonNumber(g.rateGrade,'grade')}</b>Per-36 grade</span><span><b>${seasonNumber(g.magnitudeGrade,'grade')}</b>Magnitude grade</span></div><p>${seasonNumber(a?.gp,'gp')} games · ${seasonNumber(a?.perGame?.mpg)} MPG · ${seasonNumber(a?.perGame?.pts)} PTS · ${seasonNumber(a?.perGame?.reb)} REB · ${seasonNumber(a?.perGame?.ast)} AST.</p><p>Rotation TULIP: ${seasonNumber(p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.tulip:null)} · next-game planned MPG: ${seasonNumber(p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.recommendedMpg:null)}.</p><details><summary>Current grade components and coverage</summary><p>${g.coverage?g.coverage.have+' of '+g.coverage.of+' ingredients available; sample reliability '+g.reliability+'%.':'No measured appearance; no grade is invented.'}</p><p>${Object.entries(g.components||{}).map(([k,v])=>esc(k)+': '+num(v)).join(' · ')}</p><p class="tiny">${esc(window.DATA.currentGradeMeta.note)} Rotation TULIP blends current workload and availability with historical value evidence; it is not a performance grade.</p></details></section>`;body.append(history);
+    });
+    $('seasonExport')?.addEventListener('click',()=>{
+      const quote=v=>'"'+String(v??'').replaceAll('"','""')+'"';let lines;
+      if(MODE==='seasonreview'){lines=[['Player ID','Player','League','Season','Basis','Metric','Replay','Actual','Error','Full historical grade','Full grade scope','Historical TULIP / Role Evidence']];for(const p of reviewRows())for(const k of Object.keys(seasonMetrics)){const pred=k==='boxGrade'?p.modelBoxGrade:p.model?.[k],a=k==='boxGrade'?p.actualBoxGrade:p.actual?.[k];lines.push([p.playerId,p.name,league(),'2025-26','retrospective backtest',k,pred,a,fin(pred)&&fin(a)?pred-a:null,p.grade,p.fullGradeScope,league()==='NBA'?p.historicalTulip:p.tulipEvidence]);}}
+      else{lines=[['Player ID','Player','League','Season','Competition','Current team','GP','MPG','Grade','Rate grade','Magnitude grade','Rotation TULIP','Planned MPG','PTS','REB','AST','STL','BLK','3PM']];for(const p of currentSeasonRows()){const a=p.seasonActualView;lines.push([p.playerId,p.name,league(),'2026-27',league()==='NBA'?'Regular Season':seasonUi.phase,league()==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,a?.gp,a?.perGame?.mpg,p.grade,p.rateGrade,p.magnitudeGrade,p.tulip,p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.recommendedMpg:null,...['pts','reb','ast','stl','blk','fg3m'].map(k=>a?.perGame?.[k])]);}}
+      const url=URL.createObjectURL(new Blob([lines.map(r=>r.map(quote).join(',')).join('\n')],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=league()+'_'+(MODE==='current'?'2026-27_current':'2025-26_retrospective-review')+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     });
   }
 

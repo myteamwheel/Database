@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,7 @@ const glMembers=new Map(glRosterRaw.teams.flatMap(t=>{const raw=t.payload.result
 test('Role Value keeps every selectable unmodeled player without inventing an estimate', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => window.DATA && window.__wsRestoreUrlState);
   let checked = 0;
   for (const league of ['NBA', 'GLEAGUE']) {

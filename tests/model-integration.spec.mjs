@@ -1,9 +1,10 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import {test,expect} from '@playwright/test';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const ROOT=path.join(path.dirname(fileURLToPath(import.meta.url)),'..');
 const PAGE=process.env.MODEL_INTEGRATION_URL||'file://'+path.join(ROOT,'public/standalone.html');
-async function open(page){const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(PAGE);await page.waitForFunction(()=>window.DATA?.rotationPlans&&document.querySelector('#tableBody tr td'));return errors;}
+async function open(page){const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(legacyDatabaseUrl(PAGE));await page.waitForFunction(()=>window.DATA?.rotationPlans&&document.querySelector('#tableBody tr td'));return errors;}
 test('next-game TULIP reconciles both rotations and exposes constraints',async({page})=>{
  const errors=await open(page);await page.selectOption('#viewPreset','tuliprotation');
  await expect(page.locator('#pageTitle')).toHaveText('2026-27 TULIP Rotation Plans');

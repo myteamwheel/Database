@@ -105,7 +105,7 @@ test('failed publication validation leaves the currently loaded DATA untouched',
   const next = JSON.parse(raw);
   next.publicationTestMarker = 'must-not-apply';
   await routePublication(page, {reloadBytes:JSON.stringify(next), badReloadHash:true});
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   expect(await page.evaluate(() => DATA.publicationTestMarker || null)).toBeNull();
 
@@ -116,7 +116,7 @@ test('failed publication validation leaves the currently loaded DATA untouched',
 
 test('data status dialog reports every source independently and labels unsupported domains', async ({page}) => {
   await routePublication(page);
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   await page.click('#dataStatusBtn');
   await expect(page.locator('#dataStatusDialog')).toHaveAttribute('open', '');
@@ -131,7 +131,7 @@ test('data status dialog reports every source independently and labels unsupport
 
 test('reload rejects malformed data even when its hash matches', async ({page}) => {
   await routePublication(page,{reloadBytes:JSON.stringify({...baseData,counts:null})});
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   const before=await page.locator('#tableBody').innerText();
   await page.click('#reloadDataBtn');
@@ -142,7 +142,7 @@ test('reload rejects malformed data even when its hash matches', async ({page}) 
 
 test('source refresh is a collapsed authenticated owner action, not a public ingestion request',async({page})=>{
   await routePublication(page);
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   await page.click('#dataStatusBtn');
   const details=page.locator('#dataStatusBody details.owner-refresh');
@@ -161,7 +161,7 @@ test('source refresh is a collapsed authenticated owner action, not a public ing
 
 test('reload fails closed when hash verification is unavailable', async ({page}) => {
   await routePublication(page);
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   await page.evaluate(()=>Object.defineProperty(globalThis.crypto,'subtle',{value:undefined,configurable:true}));
   await page.click('#reloadDataBtn');
@@ -170,7 +170,7 @@ test('reload fails closed when hash verification is unavailable', async ({page})
 
 test('offline snapshot does not promise a network reload', async ({page}) => {
   await routePublication(page);
-  await page.goto(`${origin}/index.html`);
+  await page.goto(`${origin}/index.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   await page.evaluate(()=>{ window.__STANDALONE_DATA_LOADER=async()=>({data:DATA,status:DATA_STATUS}); updatePublishedHeader(); });
   await expect(page.locator('#reloadDataBtn')).toBeDisabled();
@@ -178,7 +178,7 @@ test('offline snapshot does not promise a network reload', async ({page}) => {
 });
 
 test('generated standalone snapshot loads its packed data and disables reload', async ({page}) => {
-  await page.goto(`${origin}/public/standalone.html`);
+  await page.goto(`${origin}/public/standalone.html?mode=database`);
   await page.waitForSelector('#tableBody tr td');
   await expect(page.locator('#reloadDataBtn')).toBeDisabled();
   await expect(page.locator('#reloadStatus')).toContainText(/offline snapshot/i);

@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 // Automated regression gate for the built standalone page.
 // Runs headless against public/standalone.html; `npm run verify` fails if anything here fails.
 import { test, expect } from '@playwright/test';
@@ -13,7 +14,7 @@ async function open(page) {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => document.querySelector('#tableBody tr td'), null, { timeout: 60000 });
   return errors;
 }
@@ -541,7 +542,7 @@ test.describe('analysis workspace', () => {
   test('mode navigation exposes every tool and Player Comps has a top-level tab', async ({ page }) => {
     const errors = await open(page);
     const modes = await page.$$eval('[data-mode]', (b) => b.map((x) => x.dataset.mode));
-    expect(modes).toEqual(['database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
+    expect(modes).toEqual(['current','seasonreview','database', 'player', 'compare', 'scatter', 'similarity', 'teamfit', 'tulip']);
     expect(await page.$$eval('.site-link[data-goto="comps"]', (b) => b.length)).toBe(1);
     await page.click('.site-link[data-goto="comps"]');
     await page.waitForTimeout(350);

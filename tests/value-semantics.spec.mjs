@@ -1,10 +1,11 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const PAGE=process.env.VALUE_TEST_URL||'file://'+fileURLToPath(new URL('../public/standalone.html',import.meta.url));
 const source=JSON.parse(fs.readFileSync(new URL('../public/data.json',import.meta.url),'utf8'));
 test.beforeEach(async({page})=>{
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(()=>window.DATA&&document.querySelector('#tableBody tr td'));
 });
 

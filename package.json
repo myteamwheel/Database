@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-v3.mjs && node scripts/build-roster-context.mjs && node scripts/build-gleague-progress.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-season-progress.mjs && node scripts/build-rotation-plan.mjs && node scripts/build-player-comps.mjs && node scripts/build-transactions.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
+    "build": "node scripts/build-v3.mjs && node scripts/build-roster-context.mjs && node scripts/build-gleague-progress.mjs && node scripts/build-crossleague.mjs && node scripts/enrich-tulip-beta-trace.mjs && node scripts/build-projections.mjs && node scripts/build-season-progress.mjs && node scripts/build-rotation-plan.mjs && node scripts/build-player-comps.mjs && node scripts/build-transactions.mjs && node scripts/build-season-dashboards.mjs && node scripts/publish-data-status.mjs && node scripts/build-artifact.mjs",
     "fetch:two-way-roster": "node scripts/fetch-two-way-roster.mjs",
     "fetch:gleague-index": "node scripts/fetch-live-gleague-index.mjs",
     "fetch:injuries": "node scripts/fetch-injuries.mjs",
@@ -79,7 +79,7 @@
     "refresh:owner": "node scripts/owner-refresh.mjs",
     "test:owner-refresh": "node tests/owner-refresh.test.mjs && node tests/live-roster.test.mjs && node tests/live-gleague-index.test.mjs && node tests/transactions.test.mjs && node tests/transaction-context.test.mjs && node tests/deployment-routing.test.mjs && node tests/owner-source-workflow.test.mjs && npm run test:gleague-rosters",
     "verify:publication": "node scripts/verify-publication-status.mjs",
-    "test:review": "node --test tests/review-regressions.test.mjs && node tests/projection-validation.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/projection-context-reconciliation.test.mjs && node tests/value-semantics.test.mjs && npm run test:interval-calibration && npm run test:cross-tabs && npm run test:rotation",
+    "test:review": "node --test tests/review-regressions.test.mjs && node tests/projection-validation.test.mjs && node tests/forecast-timeframes.test.mjs && node tests/projection-context-reconciliation.test.mjs && node tests/value-semantics.test.mjs && npm run test:interval-calibration && npm run test:cross-tabs && npm run test:rotation && node tests/season-dashboards.test.mjs",
     "test:interval-calibration": "node tests/interval-calibration.test.mjs",
     "evaluate:forecast-intervals": "node scripts/evaluate-forecast-intervals.mjs",
     "test:cross-tabs": "node tests/cross-tab-consistency.test.mjs && node tests/current-roster-consistency.test.mjs",
@@ -90,7 +90,8 @@
     "fetch:gleague-rosters": "node scripts/fetch-gleague-rosters.mjs",
     "test:gleague-rosters": "node tests/gleague-rosters.test.mjs && node tests/gleague-progress.test.mjs",
     "fetch:gleague-progress": "node scripts/fetch-gleague-progress.mjs",
-    "evaluate:full-forecast": "node scripts/evaluate-full-forecast.mjs"
+    "evaluate:full-forecast": "node scripts/evaluate-full-forecast.mjs",
+    "fetch:current-grade-inputs": "node scripts/fetch-current-grade-inputs.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
