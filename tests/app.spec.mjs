@@ -342,7 +342,13 @@ test.describe('team scoping', () => {
 test.describe('roster-only players', () => {
   test('G League index-only players are discoverable without a false roster or assignment claim', async ({ page }) => {
     const errors=await open(page);
-    const target=await page.evaluate(()=>DATA.leagues.GLEAGUE.find(p=>p.currentIndexOnly));
+    // Exercise index-only semantics even after opening rosters absorb every current
+    // index listing; the live feed need not permanently contain this edge case.
+    const target=await page.evaluate(()=>{
+      const existing=DATA.leagues.GLEAGUE.find(p=>p.currentIndexOnly);if(existing)return existing;
+      const fixture=DATA.leagues.GLEAGUE.find(p=>p.rosterOnly&&!p.appeared);
+      if(!fixture)return null;fixture.currentGLeagueIndexTeam=fixture.currentGLeagueRosterTeam||'AUS';fixture.currentGLeagueRosterTeam=null;fixture.currentIndexOnly=true;return fixture;
+    });
     expect(target).toBeTruthy();expect(target.appeared).toBe(false);expect(target.team).toBe(null);
     await page.click('.league-tab[data-league="GLEAGUE"]');
     await setVal(page,'#searchInput',target.name);

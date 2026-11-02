@@ -1,0 +1,1 @@
+export const DAILY_REFRESH_SCHEDULE=Object.freeze({timezone:'America/New_York',times:['07:17','10:17'],workflowUrl:'https://github.com/myteamwheel/Database/actions/workflows/daily-season-refresh.yml',description:'Automatic updates at 7:17 AM and 10:17 AM New York time. GitHub scheduling and source publication can be delayed. Only fully validated snapshots are published.'});

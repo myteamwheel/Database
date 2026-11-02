@@ -13,7 +13,7 @@ const COVERAGE_SET = new Set(COVERAGE_STATES);
 export const MODEL_OUTPUTS = Object.freeze({
   performanceGrades: Object.freeze({
     label: 'Performance grades and custom metrics',
-    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs','scripts/build-season-dashboards.mjs','app.js','workspace.js'],
+    codeFiles: ['scripts/lib/grades.mjs','scripts/lib/metrics.mjs','scripts/lib/sources.mjs','scripts/lib/roster.mjs','scripts/build-v3.mjs','scripts/build-season-dashboards.mjs','scripts/build-current-participants.mjs','app.js','workspace.js'],
     source: '2025-26 official NBA/G League snapshots with labeled Basketball-Reference fields; 2026-27 grades use separate current-season official base and advanced tables',
   }),
   projections: Object.freeze({
@@ -111,6 +111,8 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     buildGeneratedAt: publicData?.generatedAt || null,
     sourceManifestSha256,
     currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
+    dailyRefreshSha256:fileSha256(root,'scripts/data/live/daily-refresh.json',{optional:true}),
+    currentTeamsSha256:fileSha256(root,'scripts/data/live/current-team-stats.json',{optional:true}),
     seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
   };
   if (key === 'projections') return {
@@ -201,6 +203,8 @@ export function deriveModelProvenance({ root, publicData }) {
     buildCommit: publicData?.provenance?.buildCommit || null,
     sourceManifestSha256,
     currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
+    dailyRefreshSha256:fileSha256(root,'scripts/data/live/daily-refresh.json',{optional:true}),
+    currentTeamsSha256:fileSha256(root,'scripts/data/live/current-team-stats.json',{optional:true}),
     seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
     dependencyAudit:{policy:'transitive-static-esm-v1',nodeMajor:process.versions.node.split('.')[0],codeFiles:DEPENDENCY_AUDIT_FILES.map(relativePath=>({path:relativePath,sha256:fileSha256(root,relativePath)}))},
     outputs,
@@ -302,6 +306,8 @@ export function deriveSourceDomains({ root, publicData }) {
     if(!input||publicData[key].asOf!==input[dateKey]||publicData[key].sourceSha256!==fileSha256(root,`scripts/data/live/${file}`))throw new Error(`Published ${key} is stale; rebuild before publication.`);
   }
   if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
+  if(publicData?.dailyRefresh&&publicData.dailyRefresh.sourceSha256!==fileSha256(root,'scripts/data/live/daily-refresh.json'))throw new Error('Daily refresh metadata is stale');
+  if(publicData?.currentTeamStats&&publicData.currentTeamStats.sourceSha256!==fileSha256(root,'scripts/data/live/current-team-stats.json'))throw new Error('Current team statistics are stale');
   if(publicData?.currentGradeMeta&&publicData.currentGradeMeta.sourceSha256!==fileSha256(root,'scripts/data/live/current-grade-inputs.json'))throw new Error('Current-season grades are stale');
   if(publicData?.seasonReview&&publicData.seasonReview.sourceSha256!==fileSha256(root,'scripts/data/projection/season-review-2025-26.json'))throw new Error('Season review is stale');
   if(publicData?.gLeagueSeasonProgress&&publicData.gLeagueSeasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-progress.json'))throw new Error('Published G League phase results are stale; rebuild before publication.');
