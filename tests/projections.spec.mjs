@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 // 2026-27 projections in the browser: the view, the player card and the method page.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
@@ -61,7 +62,7 @@ async function open(page) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => document.querySelector('#tableBody tr td'), null, { timeout: 60000 });
   return errors;
 }

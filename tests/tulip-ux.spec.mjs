@@ -1,3 +1,4 @@
+import {legacyDatabaseUrl} from './helpers/legacy-database-url.mjs';
 // Regression coverage for the TULIP Beta explanation/product-polish pass.
 //
 // TULIP UX regression suite. The allocator intentionally changed to current-roster scope and a
@@ -17,7 +18,7 @@ async function open(page) {
     if (message.type() === 'error') errors.push(message.text());
   });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
-  await page.goto(PAGE);
+  await page.goto(legacyDatabaseUrl(PAGE));
   await page.waitForFunction(() => document.querySelector('#tableBody tr td'), null, { timeout: 60000 });
   return errors;
 }

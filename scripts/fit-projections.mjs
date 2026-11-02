@@ -663,7 +663,7 @@ if (process.env.PROJ_EVAL_ROWS) {
   });
   fs.writeFileSync(process.env.PROJ_EVAL_ROWS, JSON.stringify({inputsSha256:crypto.createHash('sha256').update(raw).digest('hex'),season:NBA_TEST,trainedThrough:NBA_TRAIN.at(-1),rows,evaluationFit:{params:fitTrain.P,role:fitTrain.role}}));
   log(`Wrote ${rows.length} chronological evaluation rows to ${process.env.PROJ_EVAL_ROWS}`);
-  process.exit(0);
+  if(!process.env.PROJ_EVAL_ALL_LEAGUES)process.exit(0);
 }
 if (process.env.PROJ_DEBUG) {
   const bias = (k) => testRows.reduce((s, r) => s + r.line[k] - (k === 'gp' ? Math.min(1, r.q.actual.gp / D.nba.teamGames(r.q.T, r.q.actual.team)) * 82 : actualLine(r.q.actual)[k]), 0) / testRows.length;
@@ -768,6 +768,13 @@ if (process.env.PROJ_DEBUG) {
 if (DEV) {
   log('\nDEV mode: stopping before the refit and the card.');
   process.exit(0);
+}
+if(process.env.PROJ_EVAL_ALL_LEAGUES){
+  if(!process.env.PROJ_EVAL_ROWS)throw new Error('All-league export requires evaluation-only path');
+  const nba=JSON.parse(fs.readFileSync(process.env.PROJ_EVAL_ROWS));
+  const gl=glRows.map(r=>({playerId:r.q.pid,season:GL_TEST,model:r.line,actual:r.act,repeat:r.rep}));
+  fs.writeFileSync(process.env.PROJ_EVAL_ROWS,JSON.stringify({...nba,gleagueRows:gl,gleagueTrainedThrough:GL_TRAIN.at(-1),retrospective:true,publicationBoundary:'Reconstructed after the outcome using parameters trained on earlier seasons; not an archived pre-season publication.'}));
+  log(`Wrote ${nba.rows.length} NBA and ${gl.length} G League retrospective rows`);process.exit(0);
 }
 const glFitFinal = fitGLeague([...GL_TRAIN, GL_TEST]);
 const glBands = {};
