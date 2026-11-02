@@ -88,7 +88,15 @@
     if (isDb) { window.__wsRender(); return; }
     $('nbaCount').textContent=(MODE==='current'?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
     $('gCount').textContent=(MODE==='current'?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
-    if(MODE==='current')$('sourceLine').textContent='2026–27 official results and advanced statistics. NBA checked '+(window.DATA.seasonProgress?.asOf||'unavailable')+'. Grades reflect only this season; planned rotation minutes remain estimates.';
+    if(MODE==='current'){
+      const scope=league()+':'+(league()==='NBA'?'Regular Season':seasonUi.phase);
+      const checked=window.DATA.currentGradeMeta?.cohorts?.[scope]?.asOf?.slice(0,10)||'unavailable';
+      $('sourceLine').textContent=`2026–27 ${lg} results and advanced statistics. Sources checked ${checked}. Grades reflect this season; planned minutes remain estimates.`;
+    }else if(MODE==='seasonreview'){
+      $('sourceLine').textContent='2025–26 measured results compared with retrospective estimates trained through 2024–25. NBA and G League are evaluated separately.';
+    }else if($('sourceLine').dataset.historicalText){
+      $('sourceLine').textContent=$('sourceLine').dataset.historicalText;
+    }
     const fn = { current:viewCurrentSeason, seasonreview:viewSeasonReview, player: viewPlayer, compare: viewCompare, scatter: viewScatter,
                  similarity: viewSimilarity, teamfit: viewTeamFit, tulip: viewTulip }[MODE];
     $('workspace').innerHTML = fn ? fn() : '';
@@ -1414,7 +1422,7 @@
 
   const seasonUi={phase:'Showcase',metric:'pts',sort:'grade',dir:-1,limit:50,query:null};
   const seasonMetrics={pts:'Points',mpg:'Minutes',gp:'Games',reb:'Rebounds',ast:'Assists',stl:'Steals',blk:'Blocks',tov:'Turnovers',fg3m:'Threes made',ts:'True shooting',boxGrade:'Comparable box-score grade'};
-  function seasonNumber(v,key=''){return !fin(v)?'—':key==='ts'?pctS(v):key.toLowerCase().includes('grade')?gnum(v,4):num(v,key==='gp'?0:1);}
+  function seasonNumber(v,key=''){const text=!fin(v)?'—':key==='ts'?pctS(v):key.toLowerCase().includes('grade')?gnum(v,4):num(v,key==='gp'?0:1);return /^-0(?:\.0+)?%?$/.test(text)?text.slice(1):text;}
   function seasonControls(review=false){
     return `<div class="season-controls"><label>Search player<input id="seasonSearch" type="search" value="${esc(seasonUi.query??$('searchInput')?.value??'')}" placeholder="Name or team"></label>${!review&&league()==='GLEAGUE'?`<label>Competition<select id="seasonPhase"><option value="Showcase" ${seasonUi.phase==='Showcase'?'selected':''}>Tip-Off Tournament / Showcase</option><option value="Regular Season" ${seasonUi.phase==='Regular Season'?'selected':''}>Regular season</option></select></label>`:''}${review?`<label>Compare metric<select id="reviewMetric">${Object.entries(seasonMetrics).map(([k,v])=>`<option value="${k}" ${seasonUi.metric===k?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`:`<label>Sort by<select id="seasonSort">${Object.entries({grade:'Performance grade',rateGrade:'Per-36 grade',magnitudeGrade:'Magnitude grade',tulip:'Rotation TULIP',pts:'Points',mpg:'Minutes',name:'Player'}).map(([k,v])=>`<option value="${k}" ${seasonUi.sort===k?'selected':''}>${v}</option>`).join('')}</select></label>`}<label>Rows<select id="seasonLimit">${[50,100,1000].map(n=>`<option value="${n}" ${seasonUi.limit===n?'selected':''}>${n===1000?'All':n}</option>`).join('')}</select></label><button class="button" type="button" id="seasonExport">Export this view</button></div>`;
   }

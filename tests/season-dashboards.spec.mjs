@@ -12,14 +12,14 @@ test('current season opens first, uses actual current grades and exposes rotatio
  expect(csv).toContain(String(p.currentGrades['Regular Season'].usg*100));expect(errors).toEqual([]);
 });
 test('second tab compares the correct 2025 season and clearly distinguishes a reconstructed forecast from an archive',async({page})=>{
- const errors=await open(page);await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-notice')).toContainText('not a saved 2025–26 prediction release');await expect(page.locator('.season-summary')).toContainText('mean absolute error');
+ const errors=await open(page);await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-notice')).toContainText('not a saved 2025–26 prediction release');await expect(page.locator('.season-summary')).toContainText('mean absolute error');await expect(page.locator('#sourceLine')).toContainText('2025–26 measured results');await expect(page.locator('#sourceLine')).not.toContainText('2026–27');await expect(page.locator('.season-summary')).not.toContainText('-0.0');
  const p=await page.evaluate(()=>DATA.seasonReview.leagues.NBA.rows.find(p=>p.model));await page.fill('#seasonSearch',p.name);await expect(page.locator('.season-table tbody tr').first()).toContainText(p.actual.pts.toFixed(1));
  await page.selectOption('#reviewMetric','boxGrade');await expect(page.locator('.season-table > table > thead')).toContainText('Comparable box-score grade');
  const pending=page.waitForEvent('download');await page.click('#seasonExport');expect((await pending).suggestedFilename()).toContain('2025-26_retrospective-review');expect(errors).toEqual([]);
 });
 test('G League current phases have no invented grades and its review compares regular-season metrics',async({page})=>{
  const errors=await open(page);await page.click('.league-tab[data-league="GLEAGUE"]');await expect(page.locator('.season-notice')).toContainText('No published player results');
- await expect(page.locator('.season-grade').first()).toHaveText('—');await page.selectOption('#seasonPhase','Regular Season');await expect(page.locator('.season-notice')).toBeVisible();
+ await expect(page.locator('#sourceLine')).toContainText('G League');await expect(page.locator('.season-grade').first()).toHaveText('—');await page.selectOption('#seasonPhase','Regular Season');await expect(page.locator('.season-notice')).toBeVisible();
  await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-hero')).toContainText('G League regular-season');await expect(page.locator('.season-table > table > thead')).toContainText('Combined-season grade');
  const p=await page.evaluate(()=>DATA.seasonReview.leagues.GLEAGUE.rows.find(p=>p.model));await page.fill('#seasonSearch',p.name);await expect(page.locator('.season-table tbody tr').first()).toContainText(p.actual.pts.toFixed(1));expect(errors).toEqual([]);
 });
