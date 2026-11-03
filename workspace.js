@@ -1454,7 +1454,7 @@
     const phase=league()==='NBA'?'Regular Season':seasonUi.phase;
     return seasonFiltered(window.DATA.leagues[league()].filter(p=>league()==='NBA'?(p.currentRoster||p.seasonActual?.gp>0):(p.currentGLeagueRosterTeam||p.gLeagueSeasonActual?.phases?.[phase]?.gp>0))).map(p=>{
       const a=league()==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase],g=p.currentGrades?.[phase]||{};
-      return {...p,...a?.perGame,...g,gp:a?.gp,team:league()==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,planned:p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.recommendedMpg:null,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,tulip:p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.tulip:null,pts:a?.perGame?.pts,mpg:a?.perGame?.mpg};
+      return {...p,...Object.fromEntries(['pts','reb','ast','stl','blk','fg3m','mpg'].map(k=>[k,a?.perGame?.[k]??null])),...Object.fromEntries(['ts','usg','pie','netRtg'].map(k=>[k,g[k]??null])),gp:a?.gp,team:league()==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,planned:p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.recommendedMpg:null,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,tulip:p.tulipRotation&&!p.tulipRotation.abstain?p.tulipRotation.tulip:null,pts:a?.perGame?.pts,mpg:a?.perGame?.mpg};
     }).sort((a,b)=>compareValues(a[seasonUi.sort],b[seasonUi.sort],seasonUi.dir)||a.name.localeCompare(b.name));
   }
   function currentScoreStatus(p){

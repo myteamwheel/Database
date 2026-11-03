@@ -268,7 +268,7 @@
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "0dc2fac1c97814a13d5532ce2ddf001370e97b133284e2949d1a11e293e743b5",
+        "codeVersionSha256": "be9436818cc1cf6e996bde535e53f1e16513d66b3bce70d38eef99679af9ee10",
         "codeFiles": [
           {
             "path": "app.js",
@@ -392,7 +392,7 @@
           },
           {
             "path": "workspace.js",
-            "sha256": "9c02d6eda8e72f32a153142dcad0904d31e294629d6c72ef434ebb05873548b6"
+            "sha256": "ac2dcf1e68adfe84d67295fe4b90c973140184bc7f88c3365e997093a3ed01ad"
           }
         ],
         "dependencyPolicy": "transitive-static-esm-v1",
@@ -889,9 +889,9 @@
       },
       "teamFit": {
         "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:55e0843f3418acbe1f91de1eae2e40c3b6679f554012d58de73b5ed8b1a81ccd",
+        "modelVersion": "code-sha256:ca08941e957c7f5f4c7756c74765ed94ce3b5badcb696d821e3401466547311e",
         "semanticVersion": null,
-        "codeVersionSha256": "55e0843f3418acbe1f91de1eae2e40c3b6679f554012d58de73b5ed8b1a81ccd",
+        "codeVersionSha256": "ca08941e957c7f5f4c7756c74765ed94ce3b5badcb696d821e3401466547311e",
         "codeFiles": [
           {
             "path": "app.js",
@@ -975,7 +975,7 @@
           },
           {
             "path": "workspace.js",
-            "sha256": "9c02d6eda8e72f32a153142dcad0904d31e294629d6c72ef434ebb05873548b6"
+            "sha256": "ac2dcf1e68adfe84d67295fe4b90c973140184bc7f88c3365e997093a3ed01ad"
           }
         ],
         "dependencyPolicy": "transitive-static-esm-v1",
@@ -1405,7 +1405,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:55e0843f3418acbe1f91de1eae2e40c3b6679f554012d58de73b5ed8b1a81ccd",
+        "modelVersion": "code-sha256:ca08941e957c7f5f4c7756c74765ed94ce3b5badcb696d821e3401466547311e",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,

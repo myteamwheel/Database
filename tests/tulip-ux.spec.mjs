@@ -226,7 +226,7 @@ test.describe('TULIP Team Allocation controls', () => {
     await expect(select).toBeVisible();
     await expect(select).toHaveValue('tulip');
     expect(await select.locator('option').evaluateAll((options) => options.map((option) => option.value)))
-      .toEqual(['tulip', 'current', 'recommended', 'support']);
+      .toEqual(['name', 'tulip', 'current', 'recommended', 'support']);
 
     const ids = () => page.locator('[data-ta-roster-body] tr [data-player]')
       .evaluateAll((buttons) => buttons.map((button) => String(button.dataset.player)));
