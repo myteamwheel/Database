@@ -1,5 +1,15 @@
 # Model and website rebuild — authoritative checklist
 
+## November 3 — G League spreadsheet integration
+
+- [x] Read and reconciled the supplied native workbook against all 31 fresh official team roster tables: 480 current listings, 552 tracked records, 38 newly added official records and 72 historical leads absent from the current lists.
+- [x] Updated PLAYER INDEX and all 31 team tabs in place, preserving stable tracker IDs, original historical evidence and game-average formulas. Added official person IDs, current team, height, weight, birth date and school. Exact normalized-name matching handles punctuation/suffixes; unverified nickname identities remain separate leads.
+- [x] Updated dashboard, team verification, roster audit, source notes and research queue. Readback matched all 15,484 index cells and every written team-tab cell. Filters include the added columns and roster-audit rows. Native visual access was disabled; formatting and formulas were checked through the Sheets API.
+- [x] Implemented a collapsed G League roster tracker in the current-season view, with team rosters, bios, player links, sortable columns, source links, spreadsheet access and a separately collapsed historical-lead list.
+- [x] Daily website builds reconcile the frozen tracker history against newly fetched official team rosters. Spreadsheet edits are a dated November 3 snapshot; no unattended Google Sheets write integration is claimed.
+- [x] Reconciliation/source-boundary tests and all five roster/season browser checks pass. Compacted the browser payload so historical notes remain in the workbook/source and the standalone artifact stays within its publication limit.
+- [ ] Merge, deploy and verify this roster integration on the live site.
+
 ## Current audit correction — November 2, 2026
 
 This section supersedes completion counts in the historical notes below. An implemented model is not evidence that every accumulated user request is complete.
