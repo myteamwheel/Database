@@ -1,5 +1,25 @@
 # Model and website rebuild — authoritative checklist
 
+## Current audit correction — November 2, 2026
+
+This section supersedes completion counts in the historical notes below. An implemented model is not evidence that every accumulated user request is complete.
+
+- [x] Current-season and retrospective-review tables: every displayed sortable field, both directions, missing values last, sorting before the row limit and CSV export.
+- [x] Reversible ordering for team totals, current rotations, historical TULIP, Team Fit, History Lab and player selectors.
+- [x] Main TULIP navigation opens current next-game plans; historical ledger remains separately accessible. Generic Player tables label avoids conflicting season labels.
+- [x] Player style blueprint directly below the target name, before overall matches and blend logos.
+- [x] Daily pipeline includes news and bio fetching, with source/public-output rollback. Reviewed the exact official Karim Lopez encoding correction and refreshed transactions and news.
+- [x] Public reload and authenticated owner source-update controls clearly separate reading published data from ingesting/publishing sources.
+- [ ] Deployment and live verification of these corrections: pending release checks.
+- [ ] First unattended morning run: still requires an observed successful run.
+- [ ] G League next-game TULIP: a supported model is not implemented. Current grades are produced when official phase results exist.
+- [ ] ATL, DET and TOR plans: exact-game Out exclusions leave only 40 eligible center minutes against 48 required. No unverified position or minute assignment is invented.
+- [ ] Complete current-season comparison/Team Fit coverage and full style descriptions for players without usable histories remain outstanding.
+- [ ] Missing rookie inputs and current grading ingredients remain disclosed; comprehensive G League news coverage is unavailable.
+- [ ] Original 2025–26 preseason predictions are absent. The retrospective review cannot be relabeled as contemporaneous forecast accuracy.
+
+The sections below are dated implementation/release history, not a blanket claim that all requests are finished.
+
 ## November 2 follow-up — automatic morning updates
 
 The earlier completion statement did **not** cover unattended daily publication: the owner refresh was manual and review-only. This follow-up adds the explicitly requested automatic path; the manual historical refresh remains available.
@@ -9,11 +29,12 @@ The earlier completion statement did **not** cover unattended daily publication:
 - [x] Every measured participant must have a current grade. TULIP displays a supported score or a specific reason; no games, unavailable evidence, reported Out status and infeasible rotations do not become invented zeros. NBA rotation TULIP remains unsupported for G League.
 - [x] Daily source/public-output rollback on required-stage failure; optional invalid transaction/contract/injury updates retain verified snapshots with a visible notice. Publication allows only current source snapshots and generated web files, refuses concurrent branch changes and never force-pushes.
 - [x] Visible local-time source check, overdue warning, refresh-run link, collapsed team results and exported score statuses.
-- [ ] Complete a real current-source ingestion, release CI, initial scheduled-workflow dispatch and live verification. GitHub scheduling and official source publication may be delayed; the second morning run picks up late results.
+- [x] Real current-source ingestion and release verification: 92 NBA games and 442 graded participants; all 19 PR #46 checks passed at `ad8e665`. Merged as `ab35608`; rebuilt release `69dbf35` deployed successfully in [Pages run 41544325237](https://github.com/myteamwheel/Database/actions/runs/41544325237). All seven public assets match the release bytes and all five focused live browser checks pass.
+- [ ] First unattended refresh run remains to be observed. Workflow `405095167` is active on production with the morning schedule above; no run had occurred at this release verification. GitHub scheduling and official source publication may be delayed; the second morning run picks up late results.
 
-## Final-five implementation — 18/18 implemented
+## Historical final-five implementation record
 
-All **18 implementation items are implemented** in `finish/model-integration`; the final five are covered below. Release verification is tracked in [PR #44](https://github.com/myteamwheel/Database/pull/44) and the [Pages deployment workflow](https://github.com/myteamwheel/Database/actions/workflows/deploy-pages.yml): require passing exact-commit checks, merge, generated-artifact rebuild and matching live files before calling a release published. A checked implementation is not a promise of perfect future accuracy, known recovery dates, or win-maximizing minutes. Earlier 13/18 counts below describe earlier releases.
+The earlier `finish/model-integration` release implemented the 18 planned code items with the limits listed below; it did not complete every accumulated request. Release verification is tracked in [PR #44](https://github.com/myteamwheel/Database/pull/44) and the [Pages deployment workflow](https://github.com/myteamwheel/Database/actions/workflows/deploy-pages.yml). Earlier completion counts describe those releases; the current audit above governs remaining work.
 
 | Item | Implemented completion evidence | Explicit limits |
 | --- | --- | --- |

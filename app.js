@@ -1551,14 +1551,26 @@ function whyTulipBlock(p,c){
 // "play him more" claims; read as a team ledger it is obvious that every added minute is taken from
 // a team-mate. This view exists so the conservation is visible rather than implied.
 let teamAllocDlg = null;
-const teamAllocState={team:null,filter:'all',sort:'tulip'};
+const teamAllocState={team:null,filter:'all',sort:'tulip',dir:-1};
+// Complete, unpaginated tables only. Paginated views sort their source rows before slicing.
+function sortVisibleTable(button){
+  const table=button.closest('table'),head=button.closest('th'),index=Number(button.dataset.rowSort);
+  const dir=head.getAttribute('aria-sort')==='descending'?1:head.getAttribute('aria-sort')==='ascending'?-1:button.dataset.sortKind==='text'?1:-1;
+  const value=row=>{const cell=row.cells[index];if(!cell)return null;const v=cell.dataset.sortValue??cell.textContent.trim();return button.dataset.sortKind==='text'?v:(v===''||v==='—'?null:Number(v.replace(/[%+,]/g,'')));};
+  const rows=[...table.tBodies[0].rows].filter(r=>r.cells.length>index);
+  rows.sort((a,b)=>{const x=value(a),y=value(b),missing=v=>v==null||(typeof v==='number'&&!Number.isFinite(v));return missing(x)?(missing(y)?0:1):missing(y)?-1:dir*(typeof x==='number'?x-y:x.localeCompare(y));});
+  rows.forEach(row=>table.tBodies[0].append(row));
+  table.querySelectorAll('thead th').forEach(th=>th.removeAttribute('aria-sort'));
+  head.setAttribute('aria-sort',dir===1?'ascending':'descending');
+}
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-row-sort]');if(b)sortVisibleTable(b);});
 const teamAllocationHeader=(title)=>`<div class="modal-sticky-head"><h2>${title}</h2><button class="modal-x" type="button" data-ta-close aria-label="Close TULIP team allocation">×</button></div>`;
 function teamAllocationSort(roster,key){
   const support={HIGH:3,MEDIUM:2,LOW:1};
-  const val=(p)=>key==='current'?p.tulipBeta.currentMpg
+  const val=(p)=>key==='name'?p.name:key==='current'?p.tulipBeta.currentMpg
     :key==='recommended'?p.tulipBeta.recommendedMpg
     :key==='support'?(support[p.tulipBeta.confidence]||0):p.tulipBeta.tulip;
-  return roster.slice().sort((a,b)=>(val(b)-val(a))||a.name.localeCompare(b.name));
+  return roster.slice().sort((a,b)=>teamAllocState.dir*(key==='name'?val(a).localeCompare(val(b)):val(a)-val(b))||a.name.localeCompare(b.name));
 }
 function teamAllocationDirection(p){
   return p.tulipBeta.tulip>0?'gaining':p.tulipBeta.tulip<0?'losing':'nochange';
@@ -1572,14 +1584,14 @@ function rotationPlanHtml(team){
   return `<details class="proj-ranges"><summary>Next-game rotation plan · ${esc(plan.gameDate)} · ${esc(plan.matchup)}</summary>
     <p>${plan.status==='infeasible'?`This roster cannot cover every listed position within the workload limits. Unfilled: ${esc(shortage)}.`:`${num(plan.allocatedMinutes,0)} minutes allocated across five positions.`}</p>
     <p class="tiny"><b>Availability: ${esc(plan.availabilityStatus||'unverified')}.</b> ${esc(plan.targetDefinition)} ${esc(plan.availabilityDefinition)} ${esc(plan.evidence)}</p>
-    <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Player</th><th>Target MPG</th><th>Plan MPG</th>${['PG','SG','SF','PF','C'].map(k=>`<th>${k}</th>`).join('')}</tr></thead>
-    <tbody>${plan.players.slice().sort((a,b)=>b.minutes-a.minutes||a.id.localeCompare(b.id)).map(p=>`<tr><td class="left">${esc(players.get(p.id)?.name||p.id)}${p.out?' · Out':''}</td><td>${num(p.target)}</td><td><b>${num(p.minutes,0)}</b></td>${Object.values(p.byPosition).map(v=>`<td>${v?num(v,0):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="table-wrap"><table class="compare-table"><thead><tr>${['Player','Target MPG','Plan MPG','PG','SG','SF','PF','C'].map((k,i)=>`<th ${i===2?'aria-sort="descending"':''}><button class="table-sort" data-row-sort="${i}" data-sort-kind="${i?'number':'text'}">${k}</button></th>`).join('')}</tr></thead>
+    <tbody>${plan.players.slice().sort((a,b)=>b.minutes-a.minutes||a.id.localeCompare(b.id)).map(p=>`<tr><td class="left">${esc(players.get(p.id)?.name||p.id)}${p.out?' · Out':''}</td><td data-sort-value="${p.target}">${num(p.target)}</td><td><b>${num(p.minutes,0)}</b></td>${['PG','SG','SF','PF','C'].map(k=>`<td data-sort-value="${p.byPosition[k]||0}">${p.byPosition[k]?num(p.byPosition[k],0):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     ${plan.unmodeled?.length?`<p class="tiny">Without a workload forecast: ${plan.unmodeled.map(p=>esc(p.name)).join(', ')}. They receive no invented minute estimate.</p>`:''}
     <p class="tiny">Roster and schedule snapshot: ${esc(plan.asOf)}. Listed positions establish eligibility; they do not measure positional skill. Actual lineups and availability may differ.</p></details>`;
 }
 function openRotationAllocation(team){
   if(!teamAllocDlg){teamAllocDlg=document.createElement('dialog');teamAllocDlg.id='teamAllocationDialog';teamAllocDlg.className='modal wide';document.body.appendChild(teamAllocDlg);teamAllocDlg.addEventListener('click',e=>{if(e.target.dataset?.taClose!==undefined)teamAllocDlg.close();});}
-  if(!team){teamAllocDlg.innerHTML=`${teamAllocationHeader('Next-game rotation plans')}<p class="tiny">Choose a current NBA team. Positional shortages and pending availability reports remain visible.</p><div class="raw-grid">${Object.keys(DATA.rotationPlans||{}).sort().map(t=>`<button type="button" class="button" data-rotation-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;}
+  if(!team){teamAllocDlg.innerHTML=`${teamAllocationHeader('Next-game rotation plans')}<p class="tiny">Choose a current NBA team. Positional shortages and pending availability reports remain visible.</p><details><summary>Historical workload model</summary><p>The older TULIP Beta ledger redistributes historical workloads; it is separate from the current next-game plan.</p><button class="button" data-teamalloc="">Open historical TULIP ledger</button></details><div class="raw-grid">${Object.keys(DATA.rotationPlans||{}).sort().map(t=>`<button type="button" class="button" data-rotation-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;}
   else{teamAllocDlg.innerHTML=`${teamAllocationHeader(`Next-game rotation — ${esc(team)}`)}<p class="tiny">${esc(DATA.tulipRotationMeta?.method||'')} ${esc(DATA.tulipRotationMeta?.boundary||'')}</p>${rotationPlanHtml(team)}<div class="modal-actions"><button type="button" class="button" data-rotation-team="">Another team</button><button type="button" class="button" data-ta-close>Close</button></div>`;const details=teamAllocDlg.querySelector('details');if(details)details.open=true;}
   if(!teamAllocDlg.open)teamAllocDlg.showModal();
 }
@@ -1607,6 +1619,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
     teamAllocState.team=team;
     teamAllocState.filter='all';
     teamAllocState.sort='tulip';
+    teamAllocState.dir=-1;
   }
   const baseRoster=all.filter(p=>p.league==='NBA'&&p.currentTeam===team&&p.tulipBeta&&!p.tulipBeta.abstain);
   const roster=teamAllocationSort(baseRoster,teamAllocState.sort);
@@ -1669,16 +1682,18 @@ function openTeamAllocation(team,{preserveState=false}={}){
       </div>
       <label>Sort allocation table
         <select data-ta-sort aria-label="Sort allocation table">
+          <option value="name" ${teamAllocState.sort==='name'?'selected':''}>Player</option>
           <option value="tulip" ${teamAllocState.sort==='tulip'?'selected':''}>TULIP</option>
           <option value="current" ${teamAllocState.sort==='current'?'selected':''}>Baseline MPG</option>
           <option value="recommended" ${teamAllocState.sort==='recommended'?'selected':''}>Recommended MPG</option>
           <option value="support" ${teamAllocState.sort==='support'?'selected':''}>Support</option>
         </select>
       </label>
+      <label>Order<select data-ta-dir aria-label="Allocation sort direction"><option value="-1" ${teamAllocState.dir===-1?'selected':''}>High to low / Z–A</option><option value="1" ${teamAllocState.dir===1?'selected':''}>Low to high / A–Z</option></select></label>
     </div>
     <div class="table-wrap"><table class="compare-table"><thead><tr>
       <th class="left">Player</th>${[['current','tb.currentMpg','Baseline MPG'],['tulip','tb.tulip','TULIP'],['recommended','tb.recommendedMpg','Recommended MPG'],['support','tb.confidence','Support']]
-        .map(([k,help,label])=>`<th class="sortable" tabindex="0" data-ta-col="${k}" data-help="${help}" aria-sort="${teamAllocState.sort===k?'descending':'none'}">${label}${teamAllocState.sort===k?' ↓':''}</th>`).join('')}<th>Role evidence</th></tr></thead>
+        .map(([k,help,label])=>`<th class="sortable" tabindex="0" data-ta-col="${k}" data-help="${help}" aria-sort="${teamAllocState.sort===k?(teamAllocState.dir===1?'ascending':'descending'):'none'}">${label}${teamAllocState.sort===k?(teamAllocState.dir===1?' ↑':' ↓'):''}</th>`).join('')}<th>Role evidence</th></tr></thead>
       <tbody data-ta-roster-body>${visible.map(p=>`<tr data-ta-direction="${teamAllocationDirection(p)}">
         <td class="left"><button class="player-link" data-player="${esc(p.playerId)}">${esc(p.name)}</button></td>
         <td>${num(p.tulipBeta.currentMpg)}</td>
@@ -1694,7 +1709,7 @@ function openTeamAllocation(team,{preserveState=false}={}){
       <button class="button" data-ta-close>Close</button></div>`;
   // Same header contract as the main table: click sorts, press and hold explains.
   teamAllocDlg.querySelectorAll('[data-ta-col]').forEach(th=>wireHeader(th, th.dataset.help, ()=>{
-    teamAllocState.sort=th.dataset.taCol; openTeamAllocation(team,{preserveState:true});
+    teamAllocState.dir=teamAllocState.sort===th.dataset.taCol?-teamAllocState.dir:-1;teamAllocState.sort=th.dataset.taCol; openTeamAllocation(team,{preserveState:true});
   }));
   if(!teamAllocDlg.open) teamAllocDlg.showModal();
 }
@@ -1703,7 +1718,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const btn=document.getElementById('tulipAllocBtn');
   if(btn) btn.addEventListener('click',()=>{
     const t=($('teamFilter')&&$('teamFilter').value)||'';
-    openTeamAllocation(t&&t!=='All teams'?t:null);
+    openRotationAllocation(t&&t!=='All teams'?t:null);
   });
 });
 document.addEventListener('click',e=>{
@@ -1715,6 +1730,7 @@ document.addEventListener('click',e=>{
   if(pl && teamAllocDlg && teamAllocDlg.open){ teamAllocDlg.close(); openPlayer(pl.dataset.player); }
 });
 document.addEventListener('change',e=>{
+  const order=e.target.closest?.('[data-ta-dir]');if(order&&teamAllocState.team){teamAllocState.dir=Number(order.value);openTeamAllocation(teamAllocState.team,{preserveState:true});return;}
   const s=e.target.closest && e.target.closest('[data-ta-sort]');
   if(s&&teamAllocState.team){ teamAllocState.sort=s.value; openTeamAllocation(teamAllocState.team,{preserveState:true}); }
 });

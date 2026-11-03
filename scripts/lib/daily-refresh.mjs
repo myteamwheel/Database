@@ -1,9 +1,11 @@
 import fs from 'node:fs';import path from 'node:path';
 import {defaultStageRunner} from './owner-refresh.mjs';
-export const DAILY_SOURCE_FILES=['roster.json','gleague-index.json','gleague-rosters.json','gleague-progress.json','transactions.json','season-progress.json','current-grade-inputs.json','current-team-stats.json','two-way-roster.json','injuries.json','daily-refresh.json'].map(f=>'scripts/data/live/'+f);
+export const DAILY_SOURCE_FILES=['roster.json','gleague-index.json','gleague-rosters.json','gleague-progress.json','transactions.json','season-progress.json','current-grade-inputs.json','current-team-stats.json','two-way-roster.json','injuries.json','news.json','daily-refresh.json'].map(f=>'scripts/data/live/'+f).concat('scripts/data/player_bios.json');
 export const DAILY_ARTIFACT_FILES=['public/data.json','public/data-status.json','public/standalone.html'];
 export function dailyRefreshStages(){return [
  ...['transactions','live-roster','gleague-index','gleague-rosters','two-way-roster','injuries','season-progress','gleague-progress','current-grade-inputs','current-teams'].map(name=>({id:'fetch-'+name,command:'npm',args:['run','fetch:'+name],optional:['transactions','two-way-roster','injuries'].includes(name),file:{transactions:'transactions.json','two-way-roster':'two-way-roster.json',injuries:'injuries.json'}[name]})),
+ {id:'fetch-news',command:'npm',args:['run','fetch:news'],optional:true,file:'news.json'},
+ {id:'fetch-bios',command:'npm',args:['run','fetch:bios']},
  {id:'build',command:'npm',args:['run','build']},
  {id:'verify',command:'npm',args:['run','verify']},
  {id:'verify-freshness',command:'node',args:['scripts/verify-daily-refresh.mjs']},

@@ -121,7 +121,7 @@
       team: $('hTeam').value, opponent: $('hOpponent').value, started: $('hStarted').value,
       from: $('hFrom').value, to: $('hTo').value,
       minMinutes: Number($('hMinMinutes').value) || 0, minGames: Math.max(1, Number($('hMinGames').value) || 1),
-      sort: $('hSort').value, rawLimit: Math.max(1, Number($('hRawLimit').value) || 100),
+      sort: $('hSort').value, dir:Number($('hOrder').value), gameDir:Number($('hGameOrder').value), rawLimit: Math.max(1, Number($('hRawLimit').value) || 100),
     };
   }
 
@@ -168,9 +168,10 @@
     }
     const key = f.sort;
     out.sort((a, b) => {
-      const av = key === 'games' ? a.games : key === 'starts' ? a.starts : a[key + 'Pg'];
-      const bv = key === 'games' ? b.games : key === 'starts' ? b.starts : b[key + 'Pg'];
-      return (Number(bv) || 0) - (Number(av) || 0) || a.name.localeCompare(b.name);
+      if(key==='name')return f.dir*a.name.localeCompare(b.name);
+      const value=p=>key==='games'?p.games:key==='starts'?(p.knownStarts?p.starts:null):key==='startPct'?p.startPct:p[key+'Pg'];
+      const av=value(a),bv=value(b);
+      return av==null?(bv==null?a.name.localeCompare(b.name):1):bv==null?-1:f.dir*(av-bv)||a.name.localeCompare(b.name);
     });
     return out;
   }
@@ -226,9 +227,10 @@
     $('hPlayerNext').disabled = PLAYER_PAGE >= pages - 1;
   }
 
+  const sortedGames=()=>{const dir=filters().gameDir;return FILTERED.slice().sort((a,b)=>dir*(String(val(a,'gameDate')).localeCompare(String(val(b,'gameDate')))||String(val(a,'gameId')).localeCompare(String(val(b,'gameId'))))||playerName(a.playerId).localeCompare(playerName(b.playerId)));};
   function renderGames() {
     const f = filters();
-    const sorted = FILTERED.slice().sort((a, b) => String(val(b, 'gameDate')).localeCompare(String(val(a, 'gameDate'))) || String(val(b, 'gameId')).localeCompare(String(val(a, 'gameId'))) || playerName(a.playerId).localeCompare(playerName(b.playerId)));
+    const sorted = sortedGames();
     const pages = Math.max(1, Math.ceil(sorted.length / f.rawLimit));
     PAGE = Math.min(PAGE, pages - 1);
     const chunk = sorted.slice(PAGE * f.rawLimit, (PAGE + 1) * f.rawLimit);
@@ -256,17 +258,17 @@
   }
   function exportGames() {
     const rows = [['Player','Player ID',...PRODUCT.rowSchema]];
-    for (const e of FILTERED) rows.push([playerName(e.playerId), e.playerId, ...e.row]);
+    for (const e of sortedGames()) rows.push([playerName(e.playerId), e.playerId, ...e.row]);
     download('history-game-rows.csv', rows);
   }
 
   function reset() {
     for (const id of ['hPlayer','hSeason','hPhase','hTeam','hOpponent','hStarted','hFrom','hTo']) $(id).value = '';
-    $('hMinMinutes').value = '0'; $('hMinGames').value = '1'; $('hSort').value = 'pts'; $('hRawLimit').value = '100'; apply();
+    $('hMinMinutes').value = '0'; $('hMinGames').value = '1'; $('hSort').value = 'pts'; $('hOrder').value='-1'; $('hGameOrder').value='-1'; $('hRawLimit').value = '100'; apply();
   }
 
   function bind() {
-    for (const id of ['hPlayer','hSeason','hPhase','hTeam','hOpponent','hStarted','hFrom','hTo','hMinMinutes','hMinGames','hSort','hRawLimit']) {
+    for (const id of ['hPlayer','hSeason','hPhase','hTeam','hOpponent','hStarted','hFrom','hTo','hMinMinutes','hMinGames','hSort','hOrder','hGameOrder','hRawLimit']) {
       $(id).addEventListener(id === 'hPlayer' ? 'input' : 'change', apply);
     }
     $('hReset').onclick = reset;
