@@ -51,7 +51,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
         score: row.children[2].textContent.trim(),
         member: !!row.querySelector('.team-fit-member'),
       })));
-      expect(actual).toEqual(profile.topFits.map(fit => ({ id: String(fit.playerId), name: fit.name,
+      expect(actual).toEqual(profile.topFits.slice().sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name)).map(fit => ({ id: String(fit.playerId), name: fit.name,
         grade: fit.grade == null ? '—' : (Math.floor(fit.grade * 100) / 100).toFixed(2),
         score: `${fit.score}/100`, member: members.some(p => String(p.playerId) === String(fit.playerId)),
       })));

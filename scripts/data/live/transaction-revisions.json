@@ -1,5 +1,11 @@
 [
   {
+    "beforeSha256": "46dd50c623befb0edfc778324a6918733b8a903093d07780ff003c89083d6df2",
+    "afterSha256": "7dddd859ae132eadf816c5d6a42db079988f63b8f6b0bfd2df8f791f5c222cd6",
+    "reviewedOn": "2026-11-02",
+    "reason": "Official source restored Karim Lopez from Karim L?pez in the description and slug. Verified player 1643510, team, July 29 event date, signing action and rookie-scale contract are unchanged. This reverses the previously reviewed encoding correction only."
+  },
+  {
     "beforeSha256": "7dddd859ae132eadf816c5d6a42db079988f63b8f6b0bfd2df8f791f5c222cd6",
     "afterSha256": "46dd50c623befb0edfc778324a6918733b8a903093d07780ff003c89083d6df2",
     "reviewedOn": "2026-10-26",
