@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261103013049-0faa678613db",
+  "publicationId": "2025-26-20261103174239-cf746110d4f4",
   "season": "2025-26",
-  "publishedAt": "2026-11-03T01:30:49-05:00",
-  "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-  "dataSha256": "0faa678613db0c5cedc05e7483cbf63ae78bdf048f80ecdc57138cd7229b66fd",
+  "publishedAt": "2026-11-03T17:42:39.378Z",
+  "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+  "dataSha256": "cf746110d4f44cd032ba07ef9068041794263c9ce593f1566b03a8daca27d9b9",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261103034349-13cd92753b6e",
-    "publishedAt": "2026-11-03T03:43:49.089Z",
-    "dataSha256": "13cd92753b6e3ee5915b7542634039d14ed239a79a210b6ad5e56f90af414ebf"
+    "publicationId": "2025-26-20261103013049-0faa678613db",
+    "publishedAt": "2026-11-03T01:30:49-05:00",
+    "dataSha256": "0faa678613db0c5cedc05e7483cbf63ae78bdf048f80ecdc57138cd7229b66fd"
   },
   "sourceDomains": {
     "officialStats": {
@@ -243,8 +243,8 @@
   },
   "modelProvenance": {
     "schemaVersion": 1,
-    "buildCommit": "3028e35",
-    "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+    "buildCommit": "b4ef23c",
+    "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
     "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
     "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
     "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -398,8 +398,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -483,8 +483,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -595,8 +595,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -738,8 +738,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -846,8 +846,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -862,11 +862,11 @@
         "label": "Historical player comparisons",
         "modelVersion": "4.3.0",
         "semanticVersion": "4.3.0",
-        "codeVersionSha256": "9472fca475ff1152b40d8827d50055b6e055ff376bd099b59e80974be997b1fb",
+        "codeVersionSha256": "6b8bf6f01db34e43fb310d3246acfd482c87b8b74bbf526a286d0c75f3350350",
         "codeFiles": [
           {
             "path": "scripts/build-player-comps.mjs",
-            "sha256": "8f4682e3d29c1659c9bcebbb4c3f66dc6b2b95be041abb78d08883956d7904ad"
+            "sha256": "d5b818fff2c2aa8266fa87b34b5a748bd5c8fe373baca5eabd740e2e5054c023"
           },
           {
             "path": "scripts/lib/comparison-profiles.mjs",
@@ -876,8 +876,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -981,8 +981,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",
@@ -1016,8 +1016,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-03T01:30:49-05:00",
-          "sourceManifestSha256": "7c892f98e1f2c8adf7c766c9ef6080dedfb95307adc813a33f4e9de2a86dc9da",
+          "buildGeneratedAt": "2026-11-03T17:42:39.378Z",
+          "sourceManifestSha256": "c6ef4c9cd2eec6364802f55900061a1b5c2872282be07366bccd03ec631c17c1",
           "currentGradeInputsSha256": "9af51fa846e4793d91b558e89f23a3328e5346c40a741bc66644e7a823583052",
           "dailyRefreshSha256": "652c05f2d110afef6045ff9580f3194bfb92cc8ecc8615f7018b437738bdc97a",
           "currentTeamsSha256": "5d8f89b33114962bcaa5fd4d0bb61dfc367004b21c61c730ebec169b455fedbc",

@@ -41,12 +41,25 @@ const patterns = new Set();
 
 for (const league of ['NBA', 'GLEAGUE']) {
   const sets = data.analysis.playerComps[league];
-  const expected = data.leagues[league].filter((p) => p.appeared && Number(p.minutes) > 0);
+  const eligible=p=>p.appeared && Number(p.minutes)>0 || !p.appeared && league==='NBA' && p.seasonActual?.gp>=3 && p.seasonActual?.totals?.min>=100;
+  const expected = data.leagues[league].filter(eligible);
+  if(league==='NBA'){
+    const currentOnly=expected.filter(p=>!p.appeared);
+    assert.ok(currentOnly.length>0,'the current-season comparison path needs a real measured player');
+    for(const p of currentOnly){
+      const set=sets[String(p.playerId)];
+      assert.equal(set.targetBasis,'measured-2026-27-provisional');
+      assert.equal(set.targetSeason,'2026-27');
+      assert.equal(set.targetGames,p.seasonActual.gp);
+      assert.match(set.targetHistoryNote,/measured 2026-27 NBA games/);
+      assert.ok(Math.abs(set.targetStats.ts-p.seasonActual.perGame.ts)<0.00051);
+    }
+  }
   const adv = inputs[league === 'NBA' ? 'nba' : 'gleague']['2025-26'].adv;
   const pidIndex = adv.headers.indexOf('PLAYER_ID'), tsIndex = adv.headers.indexOf('TS_PCT');
   const sourceTs = new Map(adv.rows.map((row) => [String(row[pidIndex]), row[tsIndex]]));
-  assert.equal(Object.keys(sets).length, expected.length, `${league}: comparisons must exist only for players with current-season appearances`);
-  for (const p of data.leagues[league].filter((player) => !player.appeared || !(player.minutes > 0))) {
+  assert.equal(Object.keys(sets).length, expected.length, `${league}: comparisons must have a measured target`);
+  for (const p of data.leagues[league].filter((player) => !eligible(player))) {
     assert.equal(sets[String(p.playerId)], undefined, `${p.name}: no-appearance player must not receive an invented comparison`);
   }
 
@@ -90,7 +103,7 @@ for (const league of ['NBA', 'GLEAGUE']) {
     assert.deepEqual(set.top3.map((x) => String(x.playerId)), set.blend.map((x) => String(x.playerId)), `${p.name}: order mismatch`);
     assert.ok(set.top3.every((x) => x.league === league), `${p.name}: cross-league comp`);
     assert.ok(set.top3.every((x) => String(x.playerId) !== String(p.playerId)), `${p.name}: self comp`);
-    const ts = sourceTs.get(String(p.nbaPersonId ?? p.playerId));
+    const ts = p.appeared?sourceTs.get(String(p.nbaPersonId ?? p.playerId)):p.seasonActual?.perGame?.ts;
     if (typeof ts === 'number') assert.ok(Math.abs(set.targetStats.ts - ts) <= 0.000501,
       `${p.name}: comparison percentage lost its displayed decimal precision`);
     for (const comp of set.top3.filter((x) => !x.referenceProfile?.seasons?.includes('2025-26'))) {

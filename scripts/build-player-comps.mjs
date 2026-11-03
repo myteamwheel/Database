@@ -671,6 +671,31 @@ function currentSiteTarget(p) {
   };
 }
 
+// A player without a 2025-26 line can acquire a measured 2026-27 profile.
+// Use only this season's recorded counting/shooting values; old site fields and
+// projected rates must never leak into a current-season comparison target.
+function measuredCurrentTarget(p) {
+  const actual=p.league==='NBA'?p.seasonActual:null;
+  if (!actual || actual.gp<3 || actual.totals?.min<100) return null;
+  const a=actual.perGame,t=actual.totals;
+  const target=currentSiteTarget({
+    ...p,team:p.currentTeam,age:null,gp:actual.gp,minutes:t.min,
+    mpg:a.mpg,pts:a.pts,reb:a.reb,oreb:a.oreb,dreb:a.dreb,
+    ast:a.ast,stl:a.stl,blk:a.blk,tov:a.tov,fga:a.fga,fg3a:a.fg3a,
+    fta:a.fta,fg3Pct:t.fg3a>=15?a.fg3Pct:null,
+    fgPct:a.fgPct,ftPct:t.fta>=10?a.ftPct:null,ts:a.ts,
+    efg:t.fga>0?(t.fgm+0.5*t.fg3m)/t.fga:null,
+    usg:null,pf:null,plusMinus:null,astPct:null,astRatio:null,
+    orebPct:null,drebPct:null,rebPct:null,offRtg:null,defRtg:null,
+    netRtg:null,tmTovPct:null,pie:null,pace:null,
+  });
+  target.season='2026-27';target.seasonType='Regular Season';
+  target.targetBasis='measured-2026-27-provisional';
+  target.targetSourceSeasons=['2026-27'];
+  target.targetHistoryNote=`Uses ${actual.gp} measured 2026-27 NBA games and ${Math.round(t.min)} minutes. Early-season rates are shrunk before matching; unmeasured role and defense fields are omitted. Historical references are descriptive, not forecasts.`;
+  return target;
+}
+
 function fmtSize(x) {
   if (!fin(x)) return null;
   const ft = Math.floor(x / 12), inch = Math.round((x - ft * 12) * 10) / 10;
@@ -946,17 +971,18 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   const minMinutes = lg === 'NBA' ? 300 : 200;
   const referencePool = stableReferenceProfiles(pool, minMinutes);
   for (const p of data.leagues?.[lg] || []) {
-    // A roster listing is not a statistical target. Keep no-appearance players searchable in the
-    // site, but do not invent a current-season comp from their old career line.
-    if (!p.appeared || !(p.minutes > 0)) continue;
-    const target = currentHistoricalTarget(p, pool);
+    // A roster listing alone is not a statistical target. A new measured
+    // current-season sample may become one once it reaches three games/100 minutes.
+    const target = p.appeared && p.minutes > 0 ? currentHistoricalTarget(p, pool) : measuredCurrentTarget(p);
     if (!target) continue;
     // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
     target.name = p.name;
     if (!target.matchFeatures) {
-      target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.season}`));
+      // The historical reference pool ends in 2025-26. Anchor provisional
+      // current rates to the most recent same-league season's distribution.
+      target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.targetBasis==='measured-2026-27-provisional'?'2025-26':target.season}`));
     }
-    const targetDeep = deepOverlay(target.targetBasis === 'historical-fallback' ? null : p);
+    const targetDeep = deepOverlay(['historical-fallback','measured-2026-27-provisional'].includes(target.targetBasis) ? null : p);
     // Every target sees exactly the same representative identity for each historical player.
     // The nearest overall players and the reconstruction blend are separate outputs.
     const bestByPlayer = new Map();
@@ -1284,7 +1310,7 @@ const targetedPlayerCatalog = [];
 // shipping a broken comparison card for an edge-case player.
 for (const lg of ['NBA', 'GLEAGUE']) {
   const expectedIds = (data.leagues?.[lg] || [])
-    .filter((p) => p.appeared && Number(p.minutes) > 0)
+    .filter((p) => (p.appeared && Number(p.minutes) > 0) || (!p.appeared && !!measuredCurrentTarget(p)))
     .map((p) => String(p.playerId));
   const unexpected = Object.keys(result[lg]).filter((id) => !expectedIds.includes(id));
   const missing = expectedIds.filter((id) => !result[lg][id]);

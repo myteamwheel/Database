@@ -10,11 +10,11 @@ This section supersedes completion counts in the historical notes below. An impl
 - [x] Player style blueprint directly below the target name, before overall matches and blend logos.
 - [x] Daily pipeline includes news and bio fetching, with source/public-output rollback. Reviewed the exact official Karim Lopez encoding correction and refreshed transactions and news.
 - [x] Public reload and authenticated owner source-update controls clearly separate reading published data from ingesting/publishing sources.
-- [ ] Deployment and live verification of these corrections: pending release checks.
-- [ ] First unattended morning run: still requires an observed successful run.
+- [x] Sorting, navigation and refresh corrections deployed by [PR #47](https://github.com/myteamwheel/Database/pull/47), rebuilt as `b4ef23c` and verified in [Pages run 41590726349](https://github.com/myteamwheel/Database/actions/runs/41590726349). Live season sorting and current TULIP navigation checks pass.
+- [ ] First unattended morning run: still requires an observed successful run. The GitHub workflow is active, but its run list remained empty at the November 3 check after both scheduled times. Scheduling syntax matches GitHub's published timezone format; the end-to-end refresh is not yet proven.
 - [ ] G League next-game TULIP: a supported model is not implemented. Current grades are produced when official phase results exist.
 - [ ] ATL, DET and TOR plans: exact-game Out exclusions leave only 40 eligible center minutes against 48 required. No unverified position or minute assignment is invented.
-- [ ] Complete current-season comparison/Team Fit coverage and full style descriptions for players without usable histories remain outstanding.
+- [ ] Complete current-season comparison/Team Fit coverage and full style descriptions for players without usable histories remain outstanding. A follow-up now builds provisional historical style comparisons for 17 NBA players with no 2025–26 line but at least three measured 2026–27 games and 100 minutes. Smaller or absent samples remain unmodeled.
 - [ ] Missing rookie inputs and current grading ingredients remain disclosed; comprehensive G League news coverage is unavailable.
 - [ ] Original 2025–26 preseason predictions are absent. The retrospective review cannot be relabeled as contemporaneous forecast accuracy.
 
