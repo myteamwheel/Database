@@ -143,6 +143,7 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     birthdatesSha256:fileSha256(root,'scripts/data/birthdates.json'),
     twoWayRosterSha256:fileSha256(root,'scripts/data/live/two-way-roster.json',{optional:true}),
     rotationBaselineSeason:publicData?.tulipRotationMeta?.baselineSeason||null,
+    rotationCenterEvidenceSha256:fileSha256(root,'scripts/data/rotation-center-evidence.json',{optional:true}),
     currentStatsSha256:fileSha256(root,'scripts/data/live/season-progress.json',{optional:true}),
     injurySha256:fileSha256(root,'scripts/data/live/injuries.json',{optional:true}),
     projectionCardSha256:fileSha256(root,'PROJECTION_2026_27.json'),

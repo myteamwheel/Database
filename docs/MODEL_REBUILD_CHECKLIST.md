@@ -1,5 +1,12 @@
 # Model and website rebuild — authoritative checklist
 
+## November 3 — secondary center eligibility
+
+- [x] Checked official center evidence for teams that lacked eight center minutes under listed positions alone. Paul Reed, Trayce Jackson-Davis and Isaiah Jackson have completed NBA box scores showing center starts. The NBA's 2026 draft notes list Zuby Ejiofor as a forward-center.
+- [x] Allow these secondary center options only when the same team and player still match, the evidence predates the planned game, and the listed centers cannot cover the game. Keep exact-game Out exclusions and the 40-minute player cap. Limit each added center option to 12 modeled center minutes and show the evidence in the rotation details.
+- [x] Rebuilt the previously infeasible ATL, DET and TOR plans at 240 minutes each in the test snapshot. A missing or unsupported secondary position still produces a visible shortage.
+- [ ] Deploy and verify this follow-up on Pages.
+
 ## November 3 — prediction archive search and refresh repair candidate
 
 - [x] Searched connected Drive for NBA/G League forecast, projection, prediction and database spreadsheets, including older native spreadsheets and Excel files. Inspected the relevant workbook metadata, headers and dated ledger/manifest evidence.
