@@ -8,7 +8,7 @@
 - [x] Implemented a collapsed G League roster tracker in the current-season view, with team rosters, bios, player links, sortable columns, source links, spreadsheet access and a separately collapsed historical-lead list.
 - [x] Daily website builds reconcile the frozen tracker history against newly fetched official team rosters. Spreadsheet edits are a dated November 3 snapshot; no unattended Google Sheets write integration is claimed.
 - [x] Reconciliation/source-boundary tests and all five roster/season browser checks pass. Compacted the browser payload so historical notes remain in the workbook/source and the standalone artifact stays within its publication limit.
-- [ ] Merge, deploy and verify this roster integration on the live site.
+- [x] Merged in PR #49 as `214bcef`, rebuilt as `1f386fc`, and deployed successfully in [Pages run 41760835643](https://github.com/myteamwheel/Database/actions/runs/41760835643). The live workspace matches the release; all three live roster/sorting checks pass.
 
 ## Current audit correction — November 2, 2026
 
@@ -21,7 +21,7 @@ This section supersedes completion counts in the historical notes below. An impl
 - [x] Daily pipeline includes news and bio fetching, with source/public-output rollback. Reviewed the exact official Karim Lopez encoding correction and refreshed transactions and news.
 - [x] Public reload and authenticated owner source-update controls clearly separate reading published data from ingesting/publishing sources.
 - [x] Sorting, navigation and refresh corrections deployed by [PR #47](https://github.com/myteamwheel/Database/pull/47), rebuilt as `b4ef23c` and verified in [Pages run 41590726349](https://github.com/myteamwheel/Database/actions/runs/41590726349). Live season sorting and current TULIP navigation checks pass.
-- [ ] First unattended morning run: still requires an observed successful run. The GitHub workflow is active, but its run list remained empty at the November 3 check after both scheduled times. Scheduling syntax matches GitHub's published timezone format; the end-to-end refresh is not yet proven.
+- [ ] First successful unattended morning refresh: the first scheduled run [41704570385](https://github.com/myteamwheel/Database/actions/runs/41704570385) executed and failed at the official NBA player-index fetch with a 30-second timeout. Publication was skipped and the prior snapshot was preserved. A successful complete ingestion/publication run remains unverified.
 - [ ] G League next-game TULIP: a supported model is not implemented. Current grades are produced when official phase results exist.
 - [ ] ATL, DET and TOR plans: exact-game Out exclusions leave only 40 eligible center minutes against 48 required. No unverified position or minute assignment is invented.
 - [ ] Complete current-season comparison/Team Fit coverage and full style descriptions for players without usable histories remain outstanding. A follow-up now builds provisional historical style comparisons for 17 NBA players with no 2025–26 line but at least three measured 2026–27 games and 100 minutes. Smaller or absent samples remain unmodeled.
@@ -40,7 +40,7 @@ The earlier completion statement did **not** cover unattended daily publication:
 - [x] Daily source/public-output rollback on required-stage failure; optional invalid transaction/contract/injury updates retain verified snapshots with a visible notice. Publication allows only current source snapshots and generated web files, refuses concurrent branch changes and never force-pushes.
 - [x] Visible local-time source check, overdue warning, refresh-run link, collapsed team results and exported score statuses.
 - [x] Real current-source ingestion and release verification: 92 NBA games and 442 graded participants; all 19 PR #46 checks passed at `ad8e665`. Merged as `ab35608`; rebuilt release `69dbf35` deployed successfully in [Pages run 41544325237](https://github.com/myteamwheel/Database/actions/runs/41544325237). All seven public assets match the release bytes and all five focused live browser checks pass.
-- [ ] First unattended refresh run remains to be observed. Workflow `405095167` is active on production with the morning schedule above; no run had occurred at this release verification. GitHub scheduling and official source publication may be delayed; the second morning run picks up late results.
+- [ ] First successful unattended refresh remains to be observed. Workflow `405095167` is active; its first scheduled run hit an official-source timeout and preserved the published snapshot, as recorded above.
 
 ## Historical final-five implementation record
 
