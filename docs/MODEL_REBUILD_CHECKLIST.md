@@ -7,6 +7,7 @@
 - [ ] Original 2025–26 preseason forecast accuracy remains unsupported: no qualifying dated archive was found in the accessible files searched. Existing retrospective results retain their label. The separate 2026–27 workbook is a candidate external baseline, pending a complete source/hash/identity review; its values have not been substituted for this site's model forecasts.
 - [x] Added bounded NBA roster retries and a fallback to the league's alternate stats host. A live fallback probe returned 522 validated active NBA records after a simulated primary outage. Failed validation still preserves the previous release.
 - [x] Added 49 verified individual birthdates and filled additional gaps from official G League roster biographies. All 71 NBA entry estimates in the rebuilt snapshot now have verified ages. The historical replay reproduced the previous evaluation results and the missing-age fallback remains tested.
+- [x] Bounded the supplemental bio stage to two minutes. A timeout preserves the last verified bio cache, records the retained source and lets the required games, grades and roster verification continue.
 - [ ] Verify a complete unattended production refresh and Pages publication after the retry repair ships.
 
 ## November 3 — G League spreadsheet integration

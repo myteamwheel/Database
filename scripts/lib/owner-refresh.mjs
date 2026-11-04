@@ -46,6 +46,7 @@ export function defaultStageRunner(root, extraEnv = {}) {
       encoding:'utf8',
       env:{ ...process.env, ...extraEnv },
       stdio:['ignore','pipe','pipe'],
+      ...(stage.timeoutMs ? { timeout: stage.timeoutMs } : {}),
     });
     return {
       code: result.status ?? 1,

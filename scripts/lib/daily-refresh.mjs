@@ -5,7 +5,9 @@ export const DAILY_ARTIFACT_FILES=['public/data.json','public/data-status.json',
 export function dailyRefreshStages(){return [
  ...['transactions','live-roster','gleague-index','gleague-rosters','two-way-roster','injuries','season-progress','gleague-progress','current-grade-inputs','current-teams'].map(name=>({id:'fetch-'+name,command:'npm',args:['run','fetch:'+name],optional:['transactions','two-way-roster','injuries'].includes(name),file:{transactions:'transactions.json','two-way-roster':'two-way-roster.json',injuries:'injuries.json'}[name]})),
  {id:'fetch-news',command:'npm',args:['run','fetch:news'],optional:true,file:'news.json'},
- {id:'fetch-bios',command:'npm',args:['run','fetch:bios']},
+ // Supplemental biographies must not consume the morning results window. Run
+ // Node directly so the timeout terminates the fetch process, not an npm wrapper.
+ {id:'fetch-bios',command:process.execPath,args:['scripts/fetch-player-bios.mjs'],optional:true,sourcePath:'scripts/data/player_bios.json',timeoutMs:120000},
  {id:'build',command:'npm',args:['run','build']},
  {id:'verify',command:'npm',args:['run','verify']},
  {id:'verify-freshness',command:'node',args:['scripts/verify-daily-refresh.mjs']},
@@ -34,9 +36,10 @@ export async function runDailyRefresh({root,runStage=null,now=()=>new Date().toI
     const info=path.join(root,'scripts/data/live/daily-refresh.json');fs.mkdirSync(path.dirname(info),{recursive:true});fs.writeFileSync(info,JSON.stringify({version:1,checkedAt:now(),retainedSources:record.retainedSources})+'\n');
    }
    let result;try{result=await runner(stage);}catch(error){result={code:1,stderr:error.message};}
-   const canRetain=result.code!==0&&stage.optional&&backups.get(path.join(root,'scripts/data/live',stage.file));
+   const sourcePath=stage.optional?path.join(root,stage.sourcePath??`scripts/data/live/${stage.file}`):null;
+   const canRetain=result.code!==0&&sourcePath&&backups.get(sourcePath);
    record.stages.push({id:stage.id,status:result.code===0?'ok':canRetain?'retained':'failed',stdout:String(result.stdout||'').slice(-3000),stderr:String(result.stderr||'').slice(-3000)});save();
-   if(canRetain){fs.writeFileSync(path.join(root,'scripts/data/live',stage.file),backups.get(path.join(root,'scripts/data/live',stage.file)));record.retainedSources.push({source:stage.id,reason:'Refresh failed validation; previous verified snapshot retained. See the Actions run for details.'});}
+   if(canRetain){fs.writeFileSync(sourcePath,backups.get(sourcePath));record.retainedSources.push({source:stage.id,reason:'Source update did not complete; previous verified snapshot retained. See the Actions run for details.'});}
    else if(result.code!==0)throw new Error(stage.id+': '+(result.stderr||result.stdout||'failed'));
   }
   record.state='verified-ready-to-publish';
