@@ -72,14 +72,26 @@ test.describe('2026-27 projections', () => {
     const errors=await open(page);
     const rookies=source.leagues.NBA.filter(p=>p.proj?.basis==='rookie-cohort-fallback');
     const known=rookies.find(p=>p.proj.age!==null),unknown=rookies.find(p=>p.proj.age===null);
-    expect(known).toBeTruthy();expect(unknown).toBeTruthy();
-    for(const p of [known,unknown]){
-      await page.evaluate(id=>openPlayer(id),p.playerId);
+    expect(known).toBeTruthy();
+    for(const missingAge of [false,true]){
+      const p=missingAge?(unknown??known):known;
+      await page.evaluate(({id,simulateMissingAge})=>{
+        if(simulateMissingAge){
+          const player=DATA.leagues.NBA.find(row=>row.playerId===id);
+          player.birthdate=null;
+          player.proj.age=null;
+          const entry=player.proj.why.rookie;
+          entry.age=null;
+          entry.ageReference={...entry.ageReference,birthdate:null,source:'unavailable'};
+          entry.coverage.entryAge={available:false,status:'unavailable',source:null};
+        }
+        openPlayer(id);
+      },{id:p.playerId,simulateMissingAge:missingAge&&!unknown});
       const detail=page.locator('#playerDialogBody .proj-card .proj-why');
       await detail.locator('summary').click();
       await expect(detail).toContainText('Age for cohort matching');
       await expect(detail).not.toContainText('from how players his age changed');
-      if(p===known){await expect(detail).toContainText(`${p.proj.age} on February 1, 2027`);await expect(detail).toContainText('not a separate aging or development boost');}
+      if(!missingAge){await expect(detail).toContainText(`${p.proj.age} on February 1, 2027`);await expect(detail).toContainText('not a separate aging or development boost');}
       else await expect(detail).toContainText('age is omitted rather than guessed');
       await page.keyboard.press('Escape');
     }

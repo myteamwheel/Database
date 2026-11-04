@@ -9,12 +9,13 @@ import { perGameLine, ageLookup, projectRates, seasonPriors, prepare, AGE_MIN, R
 import { reconcileMinutes, reconciliationBudget, historicalFallbackEvidence, rookieInputCoverage, summarizeRookieCoverage, rookieAgeAtReference, rookieCohort } from '../scripts/lib/projection-context.mjs';
 import { validateProjectionAccounting } from '../scripts/lib/projection-validation.mjs';
 import { verifyLiveRosterSnapshot } from '../scripts/lib/live-roster.mjs';
+import { loadBirthdateEvidence } from '../scripts/lib/birthdate-evidence.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rawInputs = fs.readFileSync(path.join(ROOT, 'scripts/data/projection/inputs.json'));
 const card = JSON.parse(fs.readFileSync(path.join(ROOT, 'PROJECTION_2026_27.json'), 'utf8'));
 const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/data.json'), 'utf8'));
-const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/birthdates.json'),'utf8'));
+const birthdates = loadBirthdateEvidence(ROOT);
 const liveRosterPath = path.join(ROOT, 'scripts/data/live/roster.json');
 const roster = fs.existsSync(liveRosterPath)
   ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(liveRosterPath, 'utf8'))) : null;
@@ -267,9 +268,15 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
   const rookies = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'rookie-cohort-fallback');
   // Independent calendar oracle: derive from raw published DOB components, never the
-  // production age helper or stale player AGE. Non-vacuous known/unknown populations.
+  // production age helper or stale player AGE. Explicitly preserve a missing-DOB
+  // fixture even when the current roster has complete verified birthdate coverage.
   const known = rookies.filter(p => typeof p.birthdate === 'string');
   const unknown = rookies.filter(p => !p.birthdate);
+  const missingDobPlayer=structuredClone(known[0]);
+  missingDobPlayer.birthdate=null;missingDobPlayer.age=99;
+  const missingDobData={leagues:{NBA:[missingDobPlayer],GLEAGUE:[]}};
+  buildProjections(missingDobData,rawInputs,card,{roster,birthdates});
+  unknown.push(missingDobData.leagues.NBA[0]);
   check('all known rookie birthdates enter cohort matching at the stated reference date',
     known.length > 0 && known.every(p => {
       const [year,month,day]=p.birthdate.slice(0,10).split('-').map(Number);

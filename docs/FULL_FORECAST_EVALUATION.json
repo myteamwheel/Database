@@ -1,6 +1,6 @@
 {
   "sourceSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
-  "implementationSha256": "8702a643c380c6c74b46928ab5f16578413779aa61496bcc2b4a4494375af200",
+  "implementationSha256": "d6a530af06589f0e0054e51e1003685501e66e371e87ee7916f20b842e076d4a",
   "version": "full-forecast-replay-v1",
   "protocol": "Run the production buildProjections and buildSeasonForecasts functions at the end of each season’s first fourteen calendar days. Veteran parameters train only before the target season. The college-model metric-selection policy uses the development class three years before the target; college coefficients train only on earlier classes. After development on 2024-25 identified rookie undercoverage, pool historical replay residuals through 2024-25; condition on rookie/returner/mover status. Use 1/2/4 prediction bands at <80/<320/320+ observations, borrow a parent group below 40, then freeze and evaluate 2025-26 without using its outcomes to select widths. Both preseason context and current-team observed updates run through production code.",
   "nominalCoverage": 0.8,

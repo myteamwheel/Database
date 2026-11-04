@@ -30,12 +30,13 @@ export function parseIndividualBio(body,id) {
 export function individualBioPeople(root,{missingSizeOnly=false}={}) {
   const data=JSON.parse(fs.readFileSync(path.join(root,'public/data.json'),'utf8')),people=new Map();
   const add=(id,name)=>{if(personId(id))people.set(id,name);};
-  for(const league of ['NBA','GLEAGUE'])for(const p of data.leagues[league])if(!missingSizeOnly||!p.height||!p.weight)add(p.nbaPersonId,p.name);
+  const knownDates=new Map([...data.leagues.NBA,...data.leagues.GLEAGUE].filter(p=>validBirthdate(p.birthdate)).map(p=>[Number(p.nbaPersonId),p.birthdate]));
+  for(const league of ['NBA','GLEAGUE'])for(const p of data.leagues[league])if(!missingSizeOnly||!p.height||!p.weight||(p.currentRoster&&!knownDates.has(Number(p.nbaPersonId))))add(p.nbaPersonId,p.name);
   // Include newly signed/rookie players before they appear in the rebuilt product.
   const rosterFile=path.join(root,'scripts/data/live/roster.json');
   if(fs.existsSync(rosterFile)) {
     const roster=verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(rosterFile,'utf8'))),pos=k=>roster.headers.indexOf(k);
-    for(const r of roster.rows)if(!missingSizeOnly||!r[pos('HEIGHT')]||!r[pos('WEIGHT')])add(r[pos('PERSON_ID')],`${r[pos('PLAYER_FIRST_NAME')]} ${r[pos('PLAYER_LAST_NAME')]}`.trim());
+    for(const r of roster.rows)if(!missingSizeOnly||!r[pos('HEIGHT')]||!r[pos('WEIGHT')]||!knownDates.has(Number(r[pos('PERSON_ID')])))add(r[pos('PERSON_ID')],`${r[pos('PLAYER_FIRST_NAME')]} ${r[pos('PLAYER_LAST_NAME')]}`.trim());
   }
   return people;
 }

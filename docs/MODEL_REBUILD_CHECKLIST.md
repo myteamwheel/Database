@@ -1,5 +1,23 @@
 # Model and website rebuild — authoritative checklist
 
+## November 3 — secondary center eligibility
+
+- [x] Checked official center evidence for teams that lacked eight center minutes under listed positions alone. Paul Reed, Trayce Jackson-Davis and Isaiah Jackson have completed NBA box scores showing center starts. The NBA's 2026 draft notes list Zuby Ejiofor as a forward-center.
+- [x] Allow these secondary center options only when the same team and player still match, the evidence predates the planned game, and the listed centers cannot cover the game. Keep exact-game Out exclusions and the 40-minute player cap. Limit each added center option to 12 modeled center minutes and show the evidence in the rotation details.
+- [x] Rebuilt the previously infeasible ATL, DET and TOR plans at 240 minutes each in the committed snapshot. Also verified 30 feasible teams in a rehearsal with 107 completed games, including a new center shortage for LAC. A missing or unsupported secondary position still produces a visible shortage.
+- [x] Fixed a daily verification assumption exposed by a fresh official injury report with 119 player entries and zero pending teams. The verification still reproduces the PDF and rejects malformed evidence.
+- [ ] Deploy and verify this follow-up on Pages.
+
+## November 3 — prediction archive search and refresh repair candidate
+
+- [x] Searched connected Drive for NBA/G League forecast, projection, prediction and database spreadsheets, including older native spreadsheets and Excel files. Inspected the relevant workbook metadata, headers and dated ledger/manifest evidence.
+- [x] Found a frozen October 15, 2026 NBA forecast with 609 player forecasts and a separate original v1 archive. Its 2025–26 history tab contains measured results, not 2025–26 preseason predictions. The 2025 draft and career ledgers inspected record calls made in 2026. These sources must not be imported as contemporaneous 2025–26 predictions.
+- [ ] Original 2025–26 preseason forecast accuracy remains unsupported: no qualifying dated archive was found in the accessible files searched. Existing retrospective results retain their label. The separate 2026–27 workbook is a candidate external baseline, pending a complete source/hash/identity review; its values have not been substituted for this site's model forecasts.
+- [x] Added bounded NBA roster retries and a fallback to the league's alternate stats host. A live fallback probe returned 522 validated active NBA records after a simulated primary outage. Failed validation still preserves the previous release.
+- [x] Added 49 verified individual birthdates and filled additional gaps from official G League roster biographies. All 71 NBA entry estimates in the rebuilt snapshot now have verified ages. The historical replay reproduced the previous evaluation results and the missing-age fallback remains tested.
+- [x] Bounded the supplemental bio stage to two minutes. A timeout preserves the last verified bio cache, records the retained source and lets the required games, grades and roster verification continue.
+- [ ] Verify a complete unattended production refresh and Pages publication after the retry repair ships.
+
 ## November 3 — G League spreadsheet integration
 
 - [x] Read and reconciled the supplied native workbook against all 31 fresh official team roster tables: 480 current listings, 552 tracked records, 38 newly added official records and 72 historical leads absent from the current lists.

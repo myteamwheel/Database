@@ -37,3 +37,24 @@ console.log('Rotation TULIP: measured baseline, exact conservation, missing/Out 
 
 current.forEach(p=>p.reportedAvailability=[]);full.rotationPlans=buildRotationPlans(full,snapshot);attachRotationRecommendations(full);
 assert.equal(full.rotationPlans.AAA.availabilityStatus,'no-matching-game-report');assert.equal(current[1].tulipRotation.inputSupport,'LOW');
+
+// A completed center start adds bounded eligibility only for the same current
+// player and team, and only when the primary plan lacks center minutes.
+const start={gameId:'0022600008',gameStatus:3,gameDateEst:'2026-10-30T00:00:00',homeTeam:{teamTricode:'AAA'},awayTeam:{teamTricode:'BBB'}};
+const withStart=structuredClone(snapshot);
+withStart.schedule.leagueSchedule.gameDates[0].games.unshift(start);
+current[2].nbaPersonId=123;
+const verifiedStart={playerId:123,team:'AAA',date:'2026-10-30',gameId:start.gameId,kind:'official-start',source:'https://www.nba.com/game/bbb-vs-aaa-0022600008/box-score'};
+assert.equal(buildRotationPlans(full,withStart,{centerEvidence:[verifiedStart]}).AAA.extraPositions,undefined);
+current[4].reportedAvailability=[{status:'Out',gameDate:'2026-11-01',matchup:'BBB@AAA'}];
+for(const stale of [{...verifiedStart,team:'BBB'},{...verifiedStart,date:'2026-11-01'},{...verifiedStart,playerId:456}]){
+  assert.equal(buildRotationPlans(full,withStart,{centerEvidence:[stale]}).AAA.status,'infeasible');
+}
+const rescued=buildRotationPlans(full,withStart,{centerEvidence:[verifiedStart]}).AAA;
+assert.equal(rescued.status,'feasible');
+assert.equal(rescued.allocatedMinutes,240);
+assert.equal(rescued.players.find(p=>p.id==='4').minutes,0);
+const secondaryMinutes=rescued.players.find(p=>p.id==='2').byPosition.C;
+assert.ok(secondaryMinutes>=8&&secondaryMinutes<=12);
+assert.equal(rescued.extraPositions[0].source,verifiedStart.source);
+assert.equal(rescued.baselinePlayers.reduce((sum,p)=>sum+p.minutes,0),240);

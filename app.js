@@ -1582,12 +1582,13 @@ function rotationPlanHtml(team){
   const players=new Map(DATA.leagues.NBA.map(p=>[String(p.playerId),p]));
   const shortage=Object.entries(plan.unfilledByPosition||{}).filter(([,v])=>v>0).map(([k,v])=>`${k}: ${num(v)} min`).join(', ');
   return `<details class="proj-ranges"><summary>Next-game rotation plan · ${esc(plan.gameDate)} · ${esc(plan.matchup)}</summary>
-    <p>${plan.status==='infeasible'?`This roster cannot cover every listed position within the workload limits. Unfilled: ${esc(shortage)}.`:`${num(plan.allocatedMinutes,0)} minutes allocated across five positions.`}</p>
+    <p>${plan.status==='infeasible'?`This roster cannot cover every position within the workload limits. Unfilled: ${esc(shortage)}.`:`${num(plan.allocatedMinutes,0)} minutes allocated across five positions.`}</p>
     <p class="tiny"><b>Availability: ${esc(plan.availabilityStatus||'unverified')}.</b> ${esc(plan.targetDefinition)} ${esc(plan.availabilityDefinition)} ${esc(plan.evidence)}</p>
+    ${plan.extraPositions?.length?`<p class="tiny"><b>Secondary center options:</b> ${plan.extraPositions.map(p=>`${esc(p.name)} (<a href="${esc(p.source)}" target="_blank" rel="noopener">${p.kind==='official-start'?'official center start':'official draft position'}</a>, up to ${num(p.centerLimit,0)} modeled minutes)`).join(', ')}.</p>`:''}
     <div class="table-wrap"><table class="compare-table"><thead><tr>${['Player','Target MPG','Plan MPG','PG','SG','SF','PF','C'].map((k,i)=>`<th ${i===2?'aria-sort="descending"':''}><button class="table-sort" data-row-sort="${i}" data-sort-kind="${i?'number':'text'}">${k}</button></th>`).join('')}</tr></thead>
     <tbody>${plan.players.slice().sort((a,b)=>b.minutes-a.minutes||a.id.localeCompare(b.id)).map(p=>`<tr><td class="left">${esc(players.get(p.id)?.name||p.id)}${p.out?' · Out':''}</td><td data-sort-value="${p.target}">${num(p.target)}</td><td><b>${num(p.minutes,0)}</b></td>${['PG','SG','SF','PF','C'].map(k=>`<td data-sort-value="${p.byPosition[k]||0}">${p.byPosition[k]?num(p.byPosition[k],0):'—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     ${plan.unmodeled?.length?`<p class="tiny">Without a workload forecast: ${plan.unmodeled.map(p=>esc(p.name)).join(', ')}. They receive no invented minute estimate.</p>`:''}
-    <p class="tiny">Roster and schedule snapshot: ${esc(plan.asOf)}. Listed positions establish eligibility; they do not measure positional skill. Actual lineups and availability may differ.</p></details>`;
+    <p class="tiny">Roster and schedule snapshot: ${esc(plan.asOf)}. Eligibility uses listed positions and any secondary evidence shown above. Actual lineups and availability may differ.</p></details>`;
 }
 function openRotationAllocation(team){
   if(!teamAllocDlg){teamAllocDlg=document.createElement('dialog');teamAllocDlg.id='teamAllocationDialog';teamAllocDlg.className='modal wide';document.body.appendChild(teamAllocDlg);teamAllocDlg.addEventListener('click',e=>{if(e.target.dataset?.taClose!==undefined)teamAllocDlg.close();});}

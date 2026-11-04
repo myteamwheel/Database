@@ -16,6 +16,17 @@ try{
  assert.equal(failed.state,'failed');for(const f of [...DAILY_SOURCE_FILES,...DAILY_ARTIFACT_FILES])assert.equal(fs.readFileSync(path.join(root,f),'utf8'),'original');
  const calls=[];const good=await runDailyRefresh({root,runStage:async s=>{calls.push(s.id);return {code:0};}});assert.equal(good.state,'verified-ready-to-publish');assert.deepEqual(calls,dailyRefreshStages().map(s=>s.id));assert.equal(calls.at(-1),'verify-freshness');
  const optional=await runDailyRefresh({root,runStage:async s=>({code:s.id==='fetch-transactions'?1:0})});assert.equal(optional.state,'verified-ready-to-publish');assert.equal(optional.retainedSources[0].source,'fetch-transactions');assert.equal(fs.readFileSync(path.join(root,'scripts/data/live/transactions.json'),'utf8'),'original');assert.ok(!calls.includes('fetch-official'),'historical/model inputs stay frozen');
+ const bioCache=path.join(root,'scripts/data/player_bios.json');
+ const unavailableBios=await runDailyRefresh({root,runStage:async stage=>{
+  if(stage.id!=='fetch-bios')return {code:0};
+  assert.equal(stage.command,process.execPath);
+  assert.equal(stage.timeoutMs,120000);
+  fs.writeFileSync(bioCache,'partial bio update');
+  return {code:1,stderr:'Bio process timed out'};
+ }});
+ assert.equal(unavailableBios.state,'verified-ready-to-publish');
+ assert.equal(unavailableBios.retainedSources[0].source,'fetch-bios');
+ assert.equal(fs.readFileSync(bioCache,'utf8'),'original');
 }finally{fs.rmSync(root,{recursive:true,force:true});}
 const stamp='2026-11-02T12:30:00Z',fresh={leagues:{NBA:[],GLEAGUE:[]},seasonProgress:{asOf:stamp},gLeagueSeasonProgress:{asOf:stamp},currentTeamStats:{asOf:stamp},currentGradeMeta:{cohorts:Object.fromEntries(CURRENT_SCOPES.map(([l,t])=>[l+':'+t,{asOf:stamp}]))}};
 assert.doesNotThrow(()=>verifyDailyFreshness(fresh,{now:new Date(stamp)}));assert.throws(()=>verifyDailyFreshness(fresh,{now:new Date('2026-11-03T12:30:00Z')}),/fresh/);fresh.leagues.NBA.push({name:'Missing',seasonActual:{gp:1}});assert.throws(()=>verifyDailyFreshness(fresh,{now:new Date(stamp)}),/missing a current grade/);

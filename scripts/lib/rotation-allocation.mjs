@@ -33,7 +33,11 @@ export function allocateRotation(players,{minutesPerSlot=48,ceiling=40,step=1}={
       const high=k*step,low=(k-1)*step;
       edge(source,i+1,1,((high-p.target)**2-(low-p.target)**2)/(p.mobility??1));
     }
-    return Object.fromEntries(p.slots.map(slot=>[slot,edge(i+1,slotStart+SLOTS.indexOf(slot),Math.floor(p.cap/step+1e-8),0)]));
+    return Object.fromEntries(p.slots.map(slot=>{
+      const slotCap=slot==='C'&&p.centerLimit!==undefined?Math.min(p.cap,p.centerLimit):p.cap;
+      if(!Number.isFinite(slotCap)||slotCap<0)throw new Error('Invalid center eligibility limit');
+      return [slot,edge(i+1,slotStart+SLOTS.indexOf(slot),Math.floor(slotCap/step+1e-8),0)];
+    }));
   });
   for(let j=0;j<5;j++)edge(slotStart+j,sink,minutesPerSlot/step,0);
   const required=5*minutesPerSlot/step;let flow=0;

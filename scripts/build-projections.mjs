@@ -5,6 +5,7 @@
 // anything; refitting is scripts/fit-projections.mjs.
 //
 // Usage: node scripts/build-projections.mjs
+import {loadBirthdateEvidence} from './lib/birthdate-evidence.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -353,7 +354,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const livePath = path.join(ROOT, 'scripts/data/live/roster.json');
   const roster = fs.existsSync(livePath)
     ? verifyLiveRosterSnapshot(JSON.parse(fs.readFileSync(livePath, 'utf8'))) : null;
-  const birthdates = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/data/birthdates.json'), 'utf8'));
+  const birthdates = loadBirthdateEvidence(ROOT);
   const { nba, gleague } = buildProjections(data, fs.readFileSync(INPUTS), JSON.parse(fs.readFileSync(CARD, 'utf8')), { roster, birthdates, entryProduction:JSON.parse(fs.readFileSync(path.join(ROOT,'scripts/data/projection/entry-production.json'))),entryCard:JSON.parse(fs.readFileSync(path.join(ROOT,'ENTRY_PRODUCTION_MODEL.json'))) });
   fs.writeFileSync(DATA, JSON.stringify(data));
   console.log(`2026-27 projections: NBA ${nba.scored} projected (${nba.moved} on new teams, ${nba.unsigned} not on a roster), ${nba.abstained} without recent NBA minutes`);
