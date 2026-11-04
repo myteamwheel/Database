@@ -1,11 +1,13 @@
 import {parseCurrentTeams} from './lib/current-teams.mjs';
 import {DAILY_REFRESH_SCHEDULE} from './lib/refresh-schedule.mjs';
+import {attachGLeagueTracker} from './lib/gleague-tracker.mjs';
 import fs from 'node:fs';import crypto from 'node:crypto';
 import {loadOfficial} from './lib/sources.mjs';
 import {advancedTable,gradeCurrentRows} from './lib/current-season-grades.mjs';
 import {parseSeasonProgress} from './lib/season-progress.mjs';import {parseGLeagueProgress} from './lib/gleague-progress.mjs';import {buildSeasonReview} from './lib/season-review.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL('../'+p,import.meta.url)));
 const data=read('public/data.json'),nbaRaw=read('scripts/data/live/season-progress.json'),glRaw=read('scripts/data/live/gleague-progress.json'),input=read('scripts/data/live/current-grade-inputs.json');
+attachGLeagueTracker(data,read('scripts/data/gleague-tracker-source.json'),read('scripts/data/live/gleague-rosters.json'));
 if(input.version!==1||input.season!=='2026-27'||input.records?.length!==3||!Number.isFinite(Date.parse(input.fetchedAt)))throw new Error('Invalid current-grade source snapshot');
 const nba=parseSeasonProgress(nbaRaw.schedule,nbaRaw.stats,nbaRaw),gl=parseGLeagueProgress(glRaw);
 const records=new Map(input.records.map(r=>[r.leagueId+':'+r.seasonType,r]));if(records.size!==3)throw new Error('Duplicate current-grade source scope');

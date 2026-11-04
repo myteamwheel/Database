@@ -88,7 +88,7 @@
     "fit:entry-production": "node scripts/fit-entry-production.mjs",
     "evaluate:rotation": "node scripts/evaluate-rotation-plan.mjs",
     "fetch:gleague-rosters": "node scripts/fetch-gleague-rosters.mjs",
-    "test:gleague-rosters": "node tests/gleague-rosters.test.mjs && node tests/gleague-progress.test.mjs",
+    "test:gleague-rosters": "node tests/gleague-rosters.test.mjs && node tests/gleague-tracker.test.mjs && node tests/gleague-progress.test.mjs",
     "fetch:gleague-progress": "node scripts/fetch-gleague-progress.mjs",
     "evaluate:full-forecast": "node scripts/evaluate-full-forecast.mjs",
     "fetch:current-grade-inputs": "node scripts/fetch-current-grade-inputs.mjs",
