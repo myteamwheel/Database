@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';
+import {fetchOfficialRoster} from '../scripts/lib/live-roster.mjs';
+import {rosterBirthdate,mergeBirthdateEvidence} from '../scripts/lib/birthdate-evidence.mjs';
+const root=new URL('../',import.meta.url),read=f=>JSON.parse(fs.readFileSync(new URL(f,root)));
+const calls=[],sources=[],body={resultSets:[]};
+const result=await fetchOfficialRoster('https://stats.nba.com/stats/playerindex?LeagueID=00&Season=2026-27',{pause:async()=>{},onSource:s=>sources.push(s),fetchImpl:async url=>{calls.push(url);if(calls.length===1)throw new DOMException('timeout','TimeoutError');if(calls.length===2)return {ok:false,status:503};return {ok:true,json:async()=>body};}});
+assert.equal(result,body);assert.equal(calls.length,3);assert.match(calls[2],/^https:\/\/stats\.gleague\.nba\.com\/stats\/playerindex\?LeagueID=00&Season=2026-27$/);assert.deepEqual(sources,[calls[2]]);
+await assert.rejects(fetchOfficialRoster('https://other.example/playerindex',{fetchImpl:async()=>{throw Error('must not fetch');}}),/Unexpected/);
+let failures=0;await assert.rejects(fetchOfficialRoster('https://stats.nba.com/stats/playerindex',{pause:async()=>{},fetchImpl:async()=>{failures++;throw Error('offline');}}),/offline/);assert.equal(failures,3);
+assert.equal(rosterBirthdate('FEB 29, 2004'),'2004-02-29');assert.equal(rosterBirthdate('FEB 29, 2003'),null);assert.equal(rosterBirthdate('JUN 31, 2004'),null);assert.equal(rosterBirthdate('unknown'),null);
+const roster=read('scripts/data/live/gleague-rosters.json'),old=read('scripts/data/birthdates.json'),bios=read('scripts/data/player_bios.json'),merged=mergeBirthdateEvidence(old,bios,roster);
+for(const [id,r] of Object.entries(old))if(r.birthdate)assert.deepEqual(merged[id],r,'existing dated evidence is preserved');
+const first=Object.entries(merged).find(([id])=>!old[id]?.birthdate);assert.ok(first);assert.ok(first[1].source);
+assert.deepEqual(mergeBirthdateEvidence({1:{birthdate:'2000-01-01'}},{1:{birthdate:'2001-01-01'}},null)[1],{birthdate:'2000-01-01'});
+console.log('Official roster timeout recovery, bounded mirror fallback, source attribution and verified birth-date merging passed.');

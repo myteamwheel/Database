@@ -5,6 +5,7 @@
 // official source as the backbone and keeps Basketball-Reference as a second opinion.
 // That closes v2's real gaps: G League ages (38% missing), G League listed positions
 // (68% inferred), and the entire BPM/VORP-family impact tier (100% missing).
+import {loadBirthdateEvidence} from './lib/birthdate-evidence.mjs';
 import {verifyGLeagueRosters} from './lib/gleague-rosters.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -51,8 +52,7 @@ const priorCapacityById = new Map((priorPublished?.leagues?.NBA || [])
   .filter((r) => r?.tulipCapacity)
   .map((r) => [String(r.nbaPersonId ?? r.playerId), r.tulipCapacity]));
 /** Birthdates, so age is stated against a fixed date instead of inherited from a source. */
-const bdPath = path.join(ROOT, 'scripts/data/birthdates.json');
-const birthdates = fs.existsSync(bdPath) ? JSON.parse(fs.readFileSync(bdPath, 'utf8')) : {};
+const birthdates = loadBirthdateEvidence(ROOT);
 
 // Current 2026-27 NBA roster identity comes from the same committed NBA.com player-index snapshot
 // used by the projection system. Keep it separate from 2025-26 season-team history.

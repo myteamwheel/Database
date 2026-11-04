@@ -36,5 +36,14 @@ try {
   fs.writeFileSync(path.join(root,'scripts/data/live/roster.json'),JSON.stringify({source:'stats.nba.com/stats/playerindex',season:'2026-27',fetchedAt:'2026-10-01T00:00:00Z',headers:columns,rows}));
   const all=individualBioPeople(root);assert.equal(all.size,401);assert.equal(all.has(null),false);assert.equal(all.get(2),'New Player 0');
   const missing=individualBioPeople(root,{missingSizeOnly:true});assert.equal(missing.size,400);assert.equal(missing.has(1),false);
+  fs.writeFileSync(path.join(root,'public/data.json'),JSON.stringify({leagues:{NBA:[
+    {nbaPersonId:1,name:'Current missing birthday',height:'6-6',weight:210,currentRoster:true},
+    {nbaPersonId:500,name:'Known birthday',height:'6-6',weight:210,currentRoster:true,birthdate:'2000-02-29'},
+    {nbaPersonId:501,name:'Historical only',height:'6-6',weight:210}
+  ],GLEAGUE:[]}}));
+  const birthdays=individualBioPeople(root,{missingSizeOnly:true});
+  assert.equal(birthdays.has(1),true,'current players with measured size still need missing birthdates fetched');
+  assert.equal(birthdays.has(500),false,'known complete bios do not need another request');
+  assert.equal(birthdays.has(501),false,'missing-size-only refresh does not expand to all historical players');
 } finally {fs.rmSync(root,{recursive:true,force:true});}
 console.log('Individual bio refresh passed: exact identity/schema/calendar, G League fallback, retryable nulls, failed-cache preservation, no blank downgrades and newly rostered rookie coverage');

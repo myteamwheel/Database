@@ -57,8 +57,10 @@ export async function refreshLiveRoster({ file, season = '2026-27', minRows = 40
   const params = new URLSearchParams({ College: '', Country: '', DraftPick: '', DraftRound: '',
     DraftYear: '', Height: '', Historical: '0', LeagueID: '00', Season: season,
     SeasonType: 'Regular Season', TeamID: '0', Weight: '' });
-  const payload = await fetchJson(`https://stats.nba.com/stats/playerindex?${params}`);
+  let retrievalSource=null;
+  const payload = await fetchJson(`https://stats.nba.com/stats/playerindex?${params}`,{onSource:value=>{retrievalSource=value;}});
   const roster = parseLiveRoster(payload, { season, fetchedAt: now(), minRows });
+  if(retrievalSource)roster.retrievalSource=retrievalSource;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.tmp-${process.pid}`;
   try {
@@ -70,9 +72,14 @@ export async function refreshLiveRoster({ file, season = '2026-27', minRows = 40
   return roster;
 }
 
-async function fetchOfficialRoster(url) {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(30000),
+export async function fetchOfficialRoster(url,{fetchImpl=fetch,pause=ms=>new Promise(r=>setTimeout(r,ms)),timeoutMs=20000,onSource=()=>{}}={}) {
+  const primary=new URL(url);
+  if(primary.origin!=='https://stats.nba.com'||primary.pathname!=='/stats/playerindex')throw new Error('Unexpected official roster URL');
+  const mirror=new URL(url);mirror.hostname='stats.gleague.nba.com';
+  let failure;
+  for(const source of [url,url,mirror.href])try{
+  const response = await fetchImpl(source, {
+    signal: AbortSignal.timeout(timeoutMs),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125.0 Safari/537.36',
       Referer: 'https://www.nba.com/', Origin: 'https://www.nba.com', Accept: 'application/json',
@@ -80,7 +87,9 @@ async function fetchOfficialRoster(url) {
     },
   });
   if (!response.ok) throw new Error(`Official roster request failed: HTTP ${response.status}`);
-  return response.json();
+  const payload=await response.json();onSource(source);return payload;
+  }catch(error){failure=error;if(source!==mirror.href)await pause(1500);}
+  throw failure;
 }
 import fs from 'node:fs';
 import path from 'node:path';
