@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { verifyLiveRosterSnapshot } from '../scripts/lib/live-roster.mjs';
 
 let mod = null;
 let captureMod = null;
@@ -265,12 +266,13 @@ if (importError) {
     if (typeof readGitFile === 'function') {
       const testPath = 'tests/forecast-archive.test.mjs';
       const original = fs.readFileSync(testPath);
+      const expected = execFileSync('git', ['show', `HEAD:${testPath}`]);
       try {
         fs.appendFileSync(testPath, '\n// working-tree-only mutation\n');
         const committed = readGitFile('HEAD', testPath);
         check('git-ref reads ignore working-tree mutations',
           !committed.equals(fs.readFileSync(testPath))
-            && committed.equals(original));
+            && committed.equals(expected));
       } finally {
         fs.writeFileSync(testPath, original);
       }
@@ -347,6 +349,21 @@ if (importError) {
         archive.sources.publicData.sha256 === crypto.createHash('sha256').update(rawDataFixture).digest('hex')
           && archive.sources.projectionCard.sha256 === crypto.createHash('sha256').update(rawCardFixture).digest('hex')
           && archive.sources.projectionInputs.sha256 === crypto.createHash('sha256').update(rawInputsFixture).digest('hex'));
+
+      const roster=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/roster.json',import.meta.url)));
+      const liveData=structuredClone(fixtureData);
+      liveData.projectionMeta.rosterSha256=crypto.createHash('sha256').update(JSON.stringify(verifyLiveRosterSnapshot(roster))).digest('hex');
+      const retrievedBytes=Buffer.from(JSON.stringify({...roster,retrievalSource:'https://stats.gleague.nba.com/stats/playerindex?LeagueID=00'}));
+      const liveCapture={data:liveData,card:fixtureCard,rawData:Buffer.from(JSON.stringify(liveData)),rawCard:rawCardFixture,
+        rawInputs:rawInputsFixture,rosterBytes:retrievedBytes,sourceCommit:'a'.repeat(40),publishedAt:'2026-09-29T12:00:00Z',
+        publicationBasis:'source-commit-time',forecastId:'live-roster-retrieval-metadata'};
+      const liveArchive=buildArchive(liveCapture);
+      check('capture matches the validated live roster and preserves the exact raw source hash',
+        liveArchive.model.rosterSha256===liveData.projectionMeta.rosterSha256
+          && liveArchive.sources.liveRoster.sha256===crypto.createHash('sha256').update(retrievedBytes).digest('hex'));
+      roster.rows[0][roster.headers.indexOf('PLAYER_FIRST_NAME')]='Changed roster row';
+      check('capture rejects changes to validated live roster rows',
+        throws(()=>buildArchive({...liveCapture,rosterBytes:Buffer.from(JSON.stringify(roster))}),/roster.*hash/i));
 
       const badRosterData = JSON.parse(JSON.stringify(fixtureData));
       badRosterData.projectionMeta.rosterSha256 = '0'.repeat(64);
