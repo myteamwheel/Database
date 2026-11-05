@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { prepare } from './lib/projection.mjs';
+import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
 import {
   sha256,
   extractArchivedPlayer,
@@ -99,8 +100,10 @@ export function buildArchive({
 
   const inputBytes = Buffer.isBuffer(rawInputs) ? rawInputs : Buffer.from(rawInputs);
   const inputData = JSON.parse(inputBytes.toString('utf8'));
+  // Match the projection builder's validated roster. Keep the raw bytes hash
+  // separately so retrieval metadata remains part of the archive provenance.
   const rosterPayload = rosterBytes
-    ? JSON.parse((Buffer.isBuffer(rosterBytes) ? rosterBytes : Buffer.from(rosterBytes)).toString('utf8'))
+    ? verifyLiveRosterSnapshot(JSON.parse(Buffer.from(rosterBytes).toString('utf8')))
     : inputData.rosters2627;
   const rosterHash = sha256(JSON.stringify(rosterPayload));
   if (meta.rosterSha256 !== rosterHash) {
