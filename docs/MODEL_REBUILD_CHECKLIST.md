@@ -1,12 +1,19 @@
 # Model and website rebuild — authoritative checklist
 
+## November 4 — production refresh and roster evidence
+
+- [x] PR #51 passed all 19 GitHub checks and merged as `828851f`. Pages run [41768280699](https://github.com/myteamwheel/Database/actions/runs/41768280699) published the rebuilt release with roster retries and verified secondary center roles.
+- [x] The manually triggered [production refresh](https://github.com/myteamwheel/Database/actions/runs/41768320532) published 107 completed NBA games and 448 graded participants through [Pages run 41769628983](https://github.com/myteamwheel/Database/actions/runs/41769628983). The live publication status matches that release.
+- [ ] The next [scheduled refresh](https://github.com/myteamwheel/Database/actions/runs/41901045282) retained the published snapshot after an archive hash mismatch. The builder excludes retrieval metadata from the validated roster identity. This follow-up uses that same validated identity in archive capture and preserves the exact raw source hash separately. Verify a successful unattended publish after deployment.
+- [ ] The entry forecast follow-up uses verified positions where the frozen index lacks them, distinguishes confirmed undrafted players from missing draft evidence, and supplies the verified birthdate for Karim López. Verify the rebuilt fields and publish this follow-up.
+
 ## November 3 — secondary center eligibility
 
 - [x] Checked official center evidence for teams that lacked eight center minutes under listed positions alone. Paul Reed, Trayce Jackson-Davis and Isaiah Jackson have completed NBA box scores showing center starts. The NBA's 2026 draft notes list Zuby Ejiofor as a forward-center.
 - [x] Allow these secondary center options only when the same team and player still match, the evidence predates the planned game, and the listed centers cannot cover the game. Keep exact-game Out exclusions and the 40-minute player cap. Limit each added center option to 12 modeled center minutes and show the evidence in the rotation details.
 - [x] Rebuilt the previously infeasible ATL, DET and TOR plans at 240 minutes each in the committed snapshot. Also verified 30 feasible teams in a rehearsal with 107 completed games, including a new center shortage for LAC. A missing or unsupported secondary position still produces a visible shortage.
 - [x] Fixed a daily verification assumption exposed by a fresh official injury report with 119 player entries and zero pending teams. The verification still reproduces the PDF and rejects malformed evidence.
-- [ ] Deploy and verify this follow-up on Pages.
+- [x] Published in PR #51 and verified in the November 4 release above.
 
 ## November 3 — prediction archive search and refresh repair candidate
 
