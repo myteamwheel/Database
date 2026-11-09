@@ -9,6 +9,10 @@ const valid=fixture();assert.equal(parseCurrentTeams(valid).scopes['NBA:Regular 
 for(const mutate of [x=>x.records[0].games.resultSets[0].rowSet.pop(),x=>x.records[0].stats.resultSets[0].rowSet[0][2]=2,x=>x.records[0].games.parameters.LeagueID='20',x=>x.records.push(x.records[0])]){const x=structuredClone(valid);mutate(x);assert.throws(()=>parseCurrentTeams(x));}
 const corrected=structuredClone(valid);corrected.records[0].stats.resultSets[0].rowSet[0][5]=1;const fixed=parseCurrentTeams(corrected).scopes['NBA:Regular Season'];assert.equal(fixed.corrections.length,1);assert.equal(fixed.teams[0].totals.pts,0,'identical game exposure reconciles dashboard corrections to logs');
 const data={leagues:{NBA:[],GLEAGUE:[]}},table={headers:['PLAYER_ID','PLAYER_NAME'],rowSet:[[123,'Signed Then Waived']]};appendCurrentParticipants(data,{NBA:[table],GLEAGUE:[]});appendCurrentParticipants(data,{NBA:[table],GLEAGUE:[]});assert.equal(data.leagues.NBA.length,1);assert.equal(data.leagues.NBA[0].currentRoster,false);assert.equal(data.leagues.NBA[0].grade,null);
+const dual={leagues:{NBA:[{nbaPersonId:124,currentTeam:'CLE',currentRoster:true}],GLEAGUE:[]}};
+appendCurrentParticipants(dual,{NBA:[],GLEAGUE:[{headers:['PLAYER_ID','PLAYER_NAME'],rowSet:[[123,'Unsigned Player'],[124,'Dual League Player']]}]});
+assert.equal(dual.leagues.GLEAGUE[0].currentNbaTeam,null);
+assert.equal(dual.leagues.GLEAGUE[1].currentNbaTeam,'CLE');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'daily-refresh-'));
 try{
  for(const f of [...DAILY_SOURCE_FILES,...DAILY_ARTIFACT_FILES]){const p=path.join(root,f);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,'original');}
