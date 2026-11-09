@@ -33,6 +33,13 @@ for (const status of [true,false,[1],{},null,'',' 1','1.0',2,-1]) {
 }
 const inactive=row(123);inactive[headers.indexOf('ROSTER_STATUS')]=0;
 assert.equal(parseLiveRoster({resultSets:[{headers,rowSet:[inactive,row(203999)]}]},options).rows.length,1);
+const unassigned=row(124);unassigned[headers.indexOf('ROSTER_STATUS')]=null;unassigned[headers.indexOf('TEAM_ID')]=0;unassigned[headers.indexOf('TEAM_ABBREVIATION')]=null;
+assert.deepEqual(parseLiveRoster({resultSets:[{headers,rowSet:[unassigned,row(203999)]}]},options).rows,[row(203999)]);
+assert.throws(()=>verifyLiveRosterSnapshot({...parsed,rows:[...parsed.rows,unassigned]},{minRows:1}),/non-active rows/);
+for (const [teamId,team] of [[1610612743,null],[0,'DEN'],[null,null]]) {
+  const ambiguous=[...unassigned];ambiguous[headers.indexOf('TEAM_ID')]=teamId;ambiguous[headers.indexOf('TEAM_ABBREVIATION')]=team;
+  assert.throws(()=>parseLiveRoster({resultSets:[{headers,rowSet:[ambiguous,row(203999)]}]},options),/roster status/);
+}
 assert.throws(()=>parseLiveRoster({resultSets:[{headers:[...headers,'PERSON_ID'],rowSet:[[...row(203999),999]]}]},options),/duplicate columns/);
 for(const minRows of [0,-1,1.5,true,'1',Infinity])assert.throws(()=>parseLiveRoster(response,{...options,minRows}),/minimum row count/);
 assert.throws(() => verifyLiveRosterSnapshot({ ...parsed, source: 'other.example' }, { minRows: 2 }), /source/i);
