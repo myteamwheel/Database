@@ -10,6 +10,13 @@ const corrupt=structuredClone(snapshot);corrupt.rows[1][0]=corrupt.rows[0][0];
 assert.throws(()=>verifyGLeagueIndex(corrupt),/duplicate/);
 const old=structuredClone(snapshot);old.scope='confirmed-assignment';
 assert.throws(()=>verifyGLeagueIndex(old),/scope/);
+const withUnassigned={resultSets:[{headers:[...snapshot.headers,'ROSTER_STATUS'],rowSet:snapshot.rows.map(r=>[...r,1])}]};
+withUnassigned.resultSets[0].rowSet.push([999999,'Unassigned','Player',null,0,null,null]);
+assert.equal(parseGLeagueIndex(withUnassigned,{fetchedAt:snapshot.fetchedAt}).rows.length,snapshot.rows.length);
+for(const [team,teamId] of [['CLC',0],[null,1610612739],[null,null]]) {
+ const ambiguous=structuredClone(withUnassigned);const r=ambiguous.resultSets[0].rowSet.at(-1);r[3]=team;r[4]=teamId;
+ assert.throws(()=>parseGLeagueIndex(ambiguous,{fetchedAt:snapshot.fetchedAt}),/status/);
+}
 const table={resultSets:[{headers:[...snapshot.headers,'ROSTER_STATUS'],rowSet:snapshot.rows.map(r=>[...r,1])}]};
 table.resultSets[0].rowSet[0][3]='BAD';
 assert.throws(()=>parseGLeagueIndex(table,{fetchedAt:snapshot.fetchedAt}),/unassigned/);

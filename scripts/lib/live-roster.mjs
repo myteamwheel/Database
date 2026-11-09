@@ -21,10 +21,14 @@ export function parseLiveRoster(payload, { season, fetchedAt, minRows = 400, req
   const rows = [];
   const seen = new Set();
   const idPos = sourceHeaders.indexOf('PERSON_ID');
+  const teamIdPos = sourceHeaders.indexOf('TEAM_ID');
   const teamPos = sourceHeaders.indexOf('TEAM_ABBREVIATION');
   const statusPos = sourceHeaders.indexOf('ROSTER_STATUS');
   for (const source of table.rowSet) {
     if (!Array.isArray(source) || source.length !== sourceHeaders.length) throw new Error('Roster row has invalid width.');
+    // The NBA index can include unassigned players with no status and no team.
+    // Only skip this documented shape; ambiguous status/team combinations fail closed.
+    if (source[statusPos] === null && canonicalInteger(source[teamIdPos]) === 0 && source[teamPos] === null) continue;
     const status=canonicalInteger(source[statusPos]);
     if (status !== 0 && status !== 1) throw new Error('Roster row has invalid roster status.');
     if (status === 0) continue;

@@ -14,6 +14,8 @@ export function parseGLeagueIndex(payload, { season = '2026-27', fetchedAt, minR
   const rows = [], seen = new Set(), teams = new Set();
   for (const row of table.rowSet) {
     if (!Array.isArray(row) || row.length !== table.headers.length) throw new Error('Invalid G League player-index row width');
+    // The index also returns unassigned players with no status or team.
+    if (row[ix.ROSTER_STATUS] === null && row[ix.TEAM_ID] === 0 && row[ix.TEAM_ABBREVIATION] === null) continue;
     if (![0,1].includes(row[ix.ROSTER_STATUS])) throw new Error('Invalid G League index status');
     if (row[ix.ROSTER_STATUS] === 0) continue;
     const id = row[ix.PERSON_ID], team = row[ix.TEAM_ABBREVIATION];
