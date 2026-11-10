@@ -13,6 +13,7 @@ const dual={leagues:{NBA:[{nbaPersonId:124,currentTeam:'CLE',currentRoster:true}
 appendCurrentParticipants(dual,{NBA:[],GLEAGUE:[{headers:['PLAYER_ID','PLAYER_NAME'],rowSet:[[123,'Unsigned Player'],[124,'Dual League Player']]}]});
 assert.equal(dual.leagues.GLEAGUE[0].currentNbaTeam,null);
 assert.equal(dual.leagues.GLEAGUE[1].currentNbaTeam,'CLE');
+for(const player of dual.leagues.GLEAGUE)assert.deepEqual(player.tulipBeta,{abstain:true,status:'BETA',reason:'not_supported_for_gleague'});
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'daily-refresh-'));
 try{
  for(const f of [...DAILY_SOURCE_FILES,...DAILY_ARTIFACT_FILES]){const p=path.join(root,f);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,'original');}
