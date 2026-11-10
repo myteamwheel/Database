@@ -14,6 +14,8 @@ appendCurrentParticipants(dual,{NBA:[],GLEAGUE:[{headers:['PLAYER_ID','PLAYER_NA
 assert.equal(dual.leagues.GLEAGUE[0].currentNbaTeam,null);
 assert.equal(dual.leagues.GLEAGUE[1].currentNbaTeam,'CLE');
 for(const player of dual.leagues.GLEAGUE)assert.deepEqual(player.tulipBeta,{abstain:true,status:'BETA',reason:'not_supported_for_gleague'});
+for(const player of dual.leagues.GLEAGUE)assert.deepEqual(player.tulipCapacity,{abstain:true,reason:'not_validated_for_gleague',version:'TULIP_CAPACITY_V1'});
+assert.deepEqual(data.leagues.NBA[0].tulipCapacity,{abstain:true,reason:'no_game_log_for_source_season',version:'TULIP_CAPACITY_V1'});
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'daily-refresh-'));
 try{
  for(const f of [...DAILY_SOURCE_FILES,...DAILY_ARTIFACT_FILES]){const p=path.join(root,f);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,'original');}
