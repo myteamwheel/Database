@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import {parseIndividualBio,validBirthdate,fetchIndividualBio,refreshIndividualBioCache,individualBioPeople} from '../scripts/lib/individual-bios.mjs';
+import {parseIndividualBio,validBirthdate,fetchIndividualBio,refreshIndividualBioCache,individualBioPeople,individualBioPosition} from '../scripts/lib/individual-bios.mjs';
+
+assert.equal(individualBioPosition('Forward-Center'), 'F-C');
+assert.equal(individualBioPosition('Guard'), 'G');
+assert.equal(individualBioPosition('unknown'), null);
 const headers=['PERSON_ID','HEIGHT','WEIGHT','BIRTHDATE','POSITION'];
 const body=(id=1,date='2000-02-29T00:00:00')=>({resultSets:[{name:'CommonPlayerInfo',headers,rowSet:[[id,'6-6','210',date,'Forward']]}]});
 const bio=parseIndividualBio(body(),1);

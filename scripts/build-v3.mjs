@@ -6,6 +6,7 @@
 // That closes v2's real gaps: G League ages (38% missing), G League listed positions
 // (68% inferred), and the entire BPM/VORP-family impact tier (100% missing).
 import {loadBirthdateEvidence} from './lib/birthdate-evidence.mjs';
+import {individualBioPosition} from './lib/individual-bios.mjs';
 import {verifyGLeagueRosters} from './lib/gleague-rosters.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -135,7 +136,7 @@ function extraFor(dir, files) {
   return out;
 }
 
-/** Per-player bio lookups for the 39 players absent from the bulk bio dashboards. */
+/** Verified per-player bios supplement missing bulk-dashboard fields. */
 const bioPatchPath = path.join(ROOT, 'scripts/data/player_bios.json');
 const bioPatch = fs.existsSync(bioPatchPath) ? JSON.parse(fs.readFileSync(bioPatchPath, 'utf8')) : {};
 
@@ -575,16 +576,21 @@ const existingNba = new Set(nba.records.map((r) => Number(r.nbaPersonId ?? r.pla
 for (const [pid, team] of currentNbaRoster) {
   if (existingNba.has(pid)) continue;
   const e = currentNbaRosterBio.get(pid) || {};
-  const heightInches = heightInchesFromRoster(e.HEIGHT);
+  const patch = bioPatch[String(pid)];
+  const position = e.POSITION || individualBioPosition(patch?.position);
+  const height = e.HEIGHT || patch?.height || null;
+  const heightInches = heightInchesFromRoster(height);
+  const draftNumber = num(e.DRAFT_NUMBER) ?? num(patch?.draftNumber);
   nba.records.push({
     league: 'NBA', leagueLabel: 'NBA', season: SEASON,
     playerId: String(pid), nbaPersonId: pid, brefId: null,
     name: [e.PLAYER_FIRST_NAME, e.PLAYER_LAST_NAME].filter(Boolean).join(' ').trim() || String(pid),
     team: null, seasonTeam: null, currentTeam: team, currentRoster: true, currentTeamStatus: 'new',
     teamCount: 0, teams: [],
-    position: e.POSITION || null, positionSource: e.POSITION ? 'current-roster-listed' : null,
-    positionFamily: positionFamily(e.POSITION), height: e.HEIGHT || null, heightInches,
-    weight: num(e.WEIGHT), college: null, country: e.COUNTRY || null, jersey: null,
+    position, positionSource: e.POSITION ? 'current-roster-listed' : position ? 'official-individual-bio' : null,
+    positionFamily: positionFamily(position), height, heightInches,
+    weight: num(e.WEIGHT) ?? num(patch?.weight), college: null, country: e.COUNTRY || null, jersey: null,
+    draftNumber, draftStatus: draftNumber > 0 ? 'drafted' : patch?.draftNumber === 'Undrafted' ? 'verified-undrafted' : null,
     birthdate: birthdates[String(pid)]?.birthdate || null,
     ageOpeningNight: ageAt(birthdates[String(pid)]?.birthdate, OPENING_NIGHT),
     ageFeb1: ageAt(birthdates[String(pid)]?.birthdate, FEB_FIRST),

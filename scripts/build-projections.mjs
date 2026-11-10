@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   prepare, historyBefore, projectionHistory, seasonPriors, teamPaces, leagueTrend, projectRates, roleFeatures, dot,
   applyTeamContext, projectedPace, perGameLine, rosterDepth, prevSeason,
-  MIN_FEATURES, GP_FEATURES, RATE_STATS,
+  MIN_FEATURES, GP_FEATURES, RATE_STATS, bigness,
 } from './lib/projection.mjs';
 import { CONTEXT_VERSION, eligibleEntryFallback, reconcileMinutes, reconciliationBudget, rookieCohort, rookieProjection, rookieAgeAtReference, historicalRoleProjection, evaluateRookieFallback, summarizeRookieCoverage } from './lib/projection-context.mjs';
 import { verifyLiveRosterSnapshot } from './lib/live-roster.mjs';
@@ -115,9 +115,13 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
       const pid = Number(p.nbaPersonId);
       const history = projectionHistory(L, pid, T);
       const hist = history.hist;
-      const bio = D.bio.get(pid);
+      let bio = D.bio.get(pid);
       const team26 = isNba ? D.rosters2627.get(pid) || null : null;
-      let rookie = isNba && team26 && eligibleEntryFallback(bio,hist,T)
+      const isEntry = isNba && team26 && eligibleEntryFallback(bio,hist,T);
+      const entryPosition = isEntry && !bio.position && ['current-roster-listed','official-individual-bio'].includes(p.positionSource) ? p.position : null;
+      if(entryPosition)bio={...bio,position:entryPosition,big:bigness(entryPosition,bio.heightIn)};
+      if(isEntry&&!bio.draftNumber&&Number.isInteger(p.draftNumber)&&p.draftNumber>0)bio={...bio,draftNumber:p.draftNumber};
+      let rookie = isEntry
         ? rookieProjection(bio, rookieAgeAtReference(p.birthdate, T), rookies, ctx.priors) : null;
       if(rookie&&entryProduction)rookie=applyEntryProduction(rookie,bio,collegeInputFor(entryProduction,pid,targetYear),entryCard);
       if(rookie&&entryProduction&&!rookie.evidence.production){const past=entryProduction.records.filter(r=>r.playerId===String(pid)&&r.seasonEndYear<targetYear-3);rookie.evidence.productionFallback={status:'cohort-fallback',reason:past.length?'College production is older than the three-year input window; no stale college adjustment is applied.':'No uniquely matched recent NCAA production; international or unmatched players retain the draft/position/age cohort.',lastCollegeSeason:past.length?Math.max(...past.map(r=>r.seasonEndYear)):null};}
@@ -130,6 +134,8 @@ export function buildProjections(data, rawInputs, card, { roster = null, birthda
       };
       if (rookie) rookie.evidence.coverage.entryAge.source = Number.isFinite(rookie.pr.age)
         ? 'Official birthdate; whole-year age at forecast-season February 1' : null;
+      if(rookie&&entryPosition)rookie.evidence.coverage.position.source=p.positionSource==='official-individual-bio'?'Official NBA individual bio':'Current NBA roster index';
+      if(rookie&&p.draftStatus==='verified-undrafted')rookie.evidence.coverage.draftSlot={available:false,status:'verified-undrafted',source:'Official NBA individual bio'};
       if (!hist.some(Boolean) && !rookie) {
         p.proj = { abstain: true, team: team26, reason: isNba
           ? 'No NBA minutes in 2023-24, 2024-25 or 2025-26 to project from.'

@@ -267,6 +267,10 @@ for (const lg of ['NBA', 'GLEAGUE']) {
       && summary.currentInjuryClearance.available === 0);
 
   const rookies = rebuiltData.leagues.NBA.filter((p) => p.proj?.basis === 'rookie-cohort-fallback');
+  const historicalBios = prepare(JSON.parse(rawInputs)).bio;
+  const sourcedEntryPositions = rookies.filter(p => ['current-roster-listed','official-individual-bio'].includes(p.positionSource) && !historicalBios.get(Number(p.nbaPersonId))?.position);
+  check('entry cohorts use a sourced position when the historical index lacks one',
+    sourcedEntryPositions.every(p => p.proj.why.rookie.position === p.position && p.proj.why.rookie.coverage.position.available), `${sourcedEntryPositions.length} sourced entries`);
   // Independent calendar oracle: derive from raw published DOB components, never the
   // production age helper or stale player AGE. Explicitly preserve a missing-DOB
   // fixture even when the current roster has complete verified birthdate coverage.

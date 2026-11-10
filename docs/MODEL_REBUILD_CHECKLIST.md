@@ -1,12 +1,19 @@
 # Model and website rebuild — authoritative checklist
 
+## November 4 — production refresh and roster evidence
+
+- [x] PR #51 passed all 19 GitHub checks and merged as `828851f`. Pages run [41768280699](https://github.com/myteamwheel/Database/actions/runs/41768280699) published the rebuilt release with roster retries and verified secondary center roles.
+- [x] The manually triggered [production refresh](https://github.com/myteamwheel/Database/actions/runs/41768320532) published 107 completed NBA games and 448 graded participants through [Pages run 41769628983](https://github.com/myteamwheel/Database/actions/runs/41769628983). The live publication status matches that release.
+- [ ] The next [scheduled refresh](https://github.com/myteamwheel/Database/actions/runs/41901045282) retained the published snapshot after an archive hash mismatch. The builder excludes retrieval metadata from the validated roster identity. This follow-up uses that same validated identity in archive capture and preserves the exact raw source hash separately. Verify a successful unattended publish after deployment.
+- [ ] The entry forecast follow-up uses verified positions where the frozen index lacks them, distinguishes confirmed undrafted players from missing draft evidence, and supplies the verified birthdate for Karim López. Verify the rebuilt fields and publish this follow-up.
+
 ## November 3 — secondary center eligibility
 
 - [x] Checked official center evidence for teams that lacked eight center minutes under listed positions alone. Paul Reed, Trayce Jackson-Davis and Isaiah Jackson have completed NBA box scores showing center starts. The NBA's 2026 draft notes list Zuby Ejiofor as a forward-center.
 - [x] Allow these secondary center options only when the same team and player still match, the evidence predates the planned game, and the listed centers cannot cover the game. Keep exact-game Out exclusions and the 40-minute player cap. Limit each added center option to 12 modeled center minutes and show the evidence in the rotation details.
 - [x] Rebuilt the previously infeasible ATL, DET and TOR plans at 240 minutes each in the committed snapshot. Also verified 30 feasible teams in a rehearsal with 107 completed games, including a new center shortage for LAC. A missing or unsupported secondary position still produces a visible shortage.
 - [x] Fixed a daily verification assumption exposed by a fresh official injury report with 119 player entries and zero pending teams. The verification still reproduces the PDF and rejects malformed evidence.
-- [ ] Deploy and verify this follow-up on Pages.
+- [x] Published in PR #51 and verified in the November 4 release above.
 
 ## November 3 — prediction archive search and refresh repair candidate
 
@@ -39,9 +46,9 @@ This section supersedes completion counts in the historical notes below. An impl
 - [x] Daily pipeline includes news and bio fetching, with source/public-output rollback. Reviewed the exact official Karim Lopez encoding correction and refreshed transactions and news.
 - [x] Public reload and authenticated owner source-update controls clearly separate reading published data from ingesting/publishing sources.
 - [x] Sorting, navigation and refresh corrections deployed by [PR #47](https://github.com/myteamwheel/Database/pull/47), rebuilt as `b4ef23c` and verified in [Pages run 41590726349](https://github.com/myteamwheel/Database/actions/runs/41590726349). Live season sorting and current TULIP navigation checks pass.
-- [ ] First successful unattended morning refresh: the first scheduled run [41704570385](https://github.com/myteamwheel/Database/actions/runs/41704570385) executed and failed at the official NBA player-index fetch with a 30-second timeout. Publication was skipped and the prior snapshot was preserved. A successful complete ingestion/publication run remains unverified.
+- [ ] First successful unattended morning refresh remains unverified. The first scheduled run [41704570385](https://github.com/myteamwheel/Database/actions/runs/41704570385) timed out fetching the NBA player index; a later scheduled run failed the archive check described above. Both preserved the prior publication.
 - [ ] G League next-game TULIP: a supported model is not implemented. Current grades are produced when official phase results exist.
-- [ ] ATL, DET and TOR plans: exact-game Out exclusions leave only 40 eligible center minutes against 48 required. No unverified position or minute assignment is invented.
+- [x] The earlier ATL, DET and TOR center shortages were addressed using verified secondary-center evidence, as recorded in the November 3 section above. Future infeasible plans remain visibly marked rather than inventing assignments.
 - [ ] Complete current-season comparison/Team Fit coverage and full style descriptions for players without usable histories remain outstanding. A follow-up now builds provisional historical style comparisons for 17 NBA players with no 2025–26 line but at least three measured 2026–27 games and 100 minutes. Smaller or absent samples remain unmodeled.
 - [ ] Missing rookie inputs and current grading ingredients remain disclosed; comprehensive G League news coverage is unavailable.
 - [ ] Original 2025–26 preseason predictions are absent. The retrospective review cannot be relabeled as contemporaneous forecast accuracy.

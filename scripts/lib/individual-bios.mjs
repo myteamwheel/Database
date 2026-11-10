@@ -11,6 +11,12 @@ export function validBirthdate(value) {
 }
 const text=value=>value==null||value===''?null:(typeof value==='string'?value.trim()||null:typeof value==='number'&&Number.isFinite(value)?String(value):null);
 
+export function individualBioPosition(value) {
+  if(typeof value!=='string')return null;
+  const position=value.trim().toUpperCase().replaceAll('GUARD','G').replaceAll('FORWARD','F').replaceAll('CENTER','C');
+  return /^(G|F|C|G-F|F-G|F-C|C-F)$/.test(position)?position:null;
+}
+
 export function parseIndividualBio(body,id) {
   if(!personId(id))throw new Error('Invalid requested bio identity');
   const sets=Array.isArray(body?.resultSets)?body.resultSets:[];
