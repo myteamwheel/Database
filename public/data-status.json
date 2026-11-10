@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "publicationId": "2025-26-20261109223129-6f7f13b8f062",
+  "publicationId": "2025-26-20261109230759-7459d0113c74",
   "season": "2025-26",
-  "publishedAt": "2026-11-09T22:31:29-05:00",
-  "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-  "dataSha256": "6f7f13b8f06277a6f7e00167ce9a37a5a5be17e1b9ddd3b0382be2b858401ad3",
+  "publishedAt": "2026-11-09T23:07:59-05:00",
+  "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+  "dataSha256": "7459d0113c745af146445e192175ba7d3d305308ba208343612f57549dfa75dc",
   "previousSuccessfulPublication": {
-    "publicationId": "2025-26-20261109171707-2bdafcde3bd3",
-    "publishedAt": "2026-11-09T17:17:07-05:00",
-    "dataSha256": "2bdafcde3bd38866aae14058a7801cdade786bc58be4220a97b8a74ee126169c"
+    "publicationId": "2025-26-20261109223129-6f7f13b8f062",
+    "publishedAt": "2026-11-09T22:31:29-05:00",
+    "dataSha256": "6f7f13b8f06277a6f7e00167ce9a37a5a5be17e1b9ddd3b0382be2b858401ad3"
   },
   "sourceDomains": {
     "officialStats": {
@@ -310,8 +310,8 @@
   },
   "modelProvenance": {
     "schemaVersion": 1,
-    "buildCommit": "9176652",
-    "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+    "buildCommit": "7a4ed9b",
+    "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
     "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
     "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
     "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -335,11 +335,11 @@
         "label": "Performance grades and custom metrics",
         "modelVersion": "3.4",
         "semanticVersion": "3.4",
-        "codeVersionSha256": "63b0ace5ec37f55a909d6190b612f68e4b26b68c1bc6b1ca1eb0f3728ba2b40a",
+        "codeVersionSha256": "21cc33dea02fad214859bf8077cac2bb6d5e5df61dd42b43beef86f5b4b5c156",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "14fa965c6e1b48817ab436c642f20bbc107225616f703e34313804f9c11b70ac"
+            "sha256": "9d9eb5fa64d361ad64dc86ffea41cacb59d3eecad708c703dbc4ebfed02e7a09"
           },
           {
             "path": "scripts/build-current-participants.mjs",
@@ -351,7 +351,7 @@
           },
           {
             "path": "scripts/build-v3.mjs",
-            "sha256": "e07f78dfe729e113739514e6e609b4ddfec714382fbec23619fb414ba1d1720b"
+            "sha256": "fd48693990c1909e68fcedbd53ebf415f2e8511a25e9d3a558e3abfb3f43ae24"
           },
           {
             "path": "scripts/lib/analysis.mjs",
@@ -407,7 +407,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/live-gleague-index.mjs",
@@ -481,8 +481,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -496,7 +496,7 @@
         "label": "2026-27 player projections",
         "modelVersion": "PROJECTION_2026_27+context-4-college-entry",
         "semanticVersion": "PROJECTION_2026_27+context-4-college-entry",
-        "codeVersionSha256": "093314fe1cc6db4b03ce963cac1e076de80afe1f15389086a1c9dca4a741591e",
+        "codeVersionSha256": "d36aa313360f72272384cc87998989be3c2d4152409564ddae91ae4875b85dab",
         "codeFiles": [
           {
             "path": "scripts/build-gleague-progress.mjs",
@@ -504,7 +504,7 @@
           },
           {
             "path": "scripts/build-projections.mjs",
-            "sha256": "7de89e0392aa46d7427bb037ff3d983d650c7b0dea42cfecb012ee06493017de"
+            "sha256": "2057c980e7576c594408edcf6baaf9929c500675d7373ccd7bf21faafc280187"
           },
           {
             "path": "scripts/build-roster-context.mjs",
@@ -540,7 +540,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/injury-report.mjs",
@@ -582,19 +582,20 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
           "seasonReviewSha256": "626bf9e1e05fb4783a1db45febc04b43e11854ee5bf958e9562846f8cd351dba",
           "modelCardSha256": "149d59e0f8c1ebae2cc8b157799116656afd5f713fcacdee2997d7310925f91a",
           "projectionInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
-          "forecastReferencesSha256": "f0e8ec999a3f6160fe0375a852ae04abee388521910f2d90966918279f3b042e",
-          "forecastEvaluationSha256": "d2d5fb57be34af01c0d52510afcb63f2142063f32f3201babd88821a9ac60155",
+          "forecastReferencesSha256": "54b36fccdff459e1c5978c4b03817064e56ea3950abeefab59cf41a108c324e2",
+          "forecastEvaluationSha256": "b4a4738866dc0c3fd85416a0fa7234453a178c50e34cafc27e467e33cb2b03d8",
           "entryProductionSha256": "824a7e3a96553c4de6a4e96bc7d712a0131602fef331b5b5b6834300a4fe12c9",
           "entryProductionModelSha256": "1f697e135061847176618b5d47e1f9448591f21aa33f80afda1edb1cf3e7fdbe",
           "birthdatesSha256": "f39c85b51a1d304e23b746e3a6b8d92cae32f8e96c691b73136cea08a2ba5beb",
+          "individualBiosSha256": "0cac28052bf9c9a0629cccc7ee2e5c6dac04ea9e490c1f51475765671950c9d4",
           "seasonProgressSha256": "df1a17d845c430814bcc56307fbb0abfbc64325c73ef4084ddcae8c702a9156d",
           "gLeagueProgressSha256": "7203fe90cec68d0d89f223cdb06e2607bfb0e7d7943b872c8c87d2f09e502611",
           "gLeagueRostersSha256": "90698deec8a403bc806189e488ca55ba58e5401257c3e442c7f8bc123122064a",
@@ -612,11 +613,11 @@
         "label": "TULIP role evidence",
         "modelVersion": "TULIP Evidence v0.1",
         "semanticVersion": "TULIP Evidence v0.1",
-        "codeVersionSha256": "790c23d6e7cd4a840f15e151d5898dd7fffc0a015f4df7b8f80f6183d389186d",
+        "codeVersionSha256": "02ef6f9c312c374c279fd77d90dee10365d3fd553e19fae2e0811dcb14cf5908",
         "codeFiles": [
           {
             "path": "scripts/build-v3.mjs",
-            "sha256": "e07f78dfe729e113739514e6e609b4ddfec714382fbec23619fb414ba1d1720b"
+            "sha256": "fd48693990c1909e68fcedbd53ebf415f2e8511a25e9d3a558e3abfb3f43ae24"
           },
           {
             "path": "scripts/lib/analysis.mjs",
@@ -648,7 +649,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/live-gleague-index.mjs",
@@ -706,8 +707,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -719,11 +720,11 @@
         "label": "TULIP historical value and next-game rotation recommendations",
         "modelVersion": "tulip-beta-support-v2+rotation-tulip-v2",
         "semanticVersion": "tulip-beta-support-v2+rotation-tulip-v2",
-        "codeVersionSha256": "3c3069cf758da5633b399c43f83f6ef06335770de2d989c8c3059e67714a884d",
+        "codeVersionSha256": "1e22287f971338b2c49846f70f5dab1444877ea2f4423950040c74f8075e5d20",
         "codeFiles": [
           {
             "path": "scripts/build-projections.mjs",
-            "sha256": "7de89e0392aa46d7427bb037ff3d983d650c7b0dea42cfecb012ee06493017de"
+            "sha256": "2057c980e7576c594408edcf6baaf9929c500675d7373ccd7bf21faafc280187"
           },
           {
             "path": "scripts/build-rotation-plan.mjs",
@@ -735,7 +736,7 @@
           },
           {
             "path": "scripts/build-v3.mjs",
-            "sha256": "e07f78dfe729e113739514e6e609b4ddfec714382fbec23619fb414ba1d1720b"
+            "sha256": "fd48693990c1909e68fcedbd53ebf415f2e8511a25e9d3a558e3abfb3f43ae24"
           },
           {
             "path": "scripts/lib/analysis.mjs",
@@ -779,7 +780,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/live-gleague-index.mjs",
@@ -861,8 +862,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -871,6 +872,7 @@
           "rotationVersion": "rotation-tulip-v2",
           "projectionRawInputsSha256": "d6591b7be506ab239b4ac8d05b9287eb992755dbf2de301cc8bc5f06e00f7d6c",
           "birthdatesSha256": "f39c85b51a1d304e23b746e3a6b8d92cae32f8e96c691b73136cea08a2ba5beb",
+          "individualBiosSha256": "0cac28052bf9c9a0629cccc7ee2e5c6dac04ea9e490c1f51475765671950c9d4",
           "twoWayRosterSha256": "fb425a03366034c4a1ec63cf58432fba986f26d31a3c822feff7e1e9e28c9d93",
           "rotationBaselineSeason": "2026-27",
           "rotationCenterEvidenceSha256": "f7722a903a0416f045c66c48b88d2253f7a3d79ab8498067e5dc91ff26bc616c",
@@ -888,11 +890,11 @@
         "label": "Projected Role MPG",
         "modelVersion": "TULIP_CAPACITY_V1",
         "semanticVersion": "TULIP_CAPACITY_V1",
-        "codeVersionSha256": "790c23d6e7cd4a840f15e151d5898dd7fffc0a015f4df7b8f80f6183d389186d",
+        "codeVersionSha256": "02ef6f9c312c374c279fd77d90dee10365d3fd553e19fae2e0811dcb14cf5908",
         "codeFiles": [
           {
             "path": "scripts/build-v3.mjs",
-            "sha256": "e07f78dfe729e113739514e6e609b4ddfec714382fbec23619fb414ba1d1720b"
+            "sha256": "fd48693990c1909e68fcedbd53ebf415f2e8511a25e9d3a558e3abfb3f43ae24"
           },
           {
             "path": "scripts/lib/analysis.mjs",
@@ -924,7 +926,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/live-gleague-index.mjs",
@@ -982,8 +984,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -1012,8 +1014,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -1025,17 +1027,17 @@
       },
       "teamFit": {
         "label": "Skill profiles, similarity, archetypes and Team Fit",
-        "modelVersion": "code-sha256:1dce777088685e092e2fedef0bfac4df0670abd8f10b2c8f7a27780ce9bb09dd",
+        "modelVersion": "code-sha256:6e398d8c1bcf1d0104b728fb0765c7011402cad48ff7ae63d690f1baff6a2b34",
         "semanticVersion": null,
-        "codeVersionSha256": "1dce777088685e092e2fedef0bfac4df0670abd8f10b2c8f7a27780ce9bb09dd",
+        "codeVersionSha256": "6e398d8c1bcf1d0104b728fb0765c7011402cad48ff7ae63d690f1baff6a2b34",
         "codeFiles": [
           {
             "path": "app.js",
-            "sha256": "14fa965c6e1b48817ab436c642f20bbc107225616f703e34313804f9c11b70ac"
+            "sha256": "9d9eb5fa64d361ad64dc86ffea41cacb59d3eecad708c703dbc4ebfed02e7a09"
           },
           {
             "path": "scripts/build-v3.mjs",
-            "sha256": "e07f78dfe729e113739514e6e609b4ddfec714382fbec23619fb414ba1d1720b"
+            "sha256": "fd48693990c1909e68fcedbd53ebf415f2e8511a25e9d3a558e3abfb3f43ae24"
           },
           {
             "path": "scripts/lib/analysis.mjs",
@@ -1067,7 +1069,7 @@
           },
           {
             "path": "scripts/lib/individual-bios.mjs",
-            "sha256": "5b911d51d61296eab7376353b97da95ec57a00f71030f51362faeec936210ca3"
+            "sha256": "add329ff146675db86a0bccfa68843d5f244c32ee98b14f4a1b5f155c8c33eb1"
           },
           {
             "path": "scripts/lib/live-gleague-index.mjs",
@@ -1129,8 +1131,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -1164,8 +1166,8 @@
         "dependencyPolicy": "transitive-static-esm-v1",
         "inputVersion": {
           "season": "2025-26",
-          "buildGeneratedAt": "2026-11-09T22:31:29-05:00",
-          "sourceManifestSha256": "b8e8b6b17d0969a2f6038f95d1ad778cbd084f9731cfd8ffeacf4ec534cd5d76",
+          "buildGeneratedAt": "2026-11-09T23:07:59-05:00",
+          "sourceManifestSha256": "c4688b3c77c4299b09c2130c8249a8032be317d8129f8b3effe873be6cbe128d",
           "currentGradeInputsSha256": "acc86e8f10f34fdac3d6f233b3a929834b4f0390f222b6932bbd36f433d646fe",
           "dailyRefreshSha256": "e91b6164ca5ae744ab85b8dfaf674f629a362bd5f9b138484c47773ff3fd1ddb",
           "currentTeamsSha256": "0df136c8ff8615bbecdc9231a60a2ea64ec3dd3395287b376d41c39b954ec839",
@@ -1553,7 +1555,7 @@
         "boundary": "Comparison similarity/blend fit is heuristic descriptive matching, not a calibrated probability or future-career prediction."
       },
       "teamFit": {
-        "modelVersion": "code-sha256:1dce777088685e092e2fedef0bfac4df0670abd8f10b2c8f7a27780ce9bb09dd",
+        "modelVersion": "code-sha256:6e398d8c1bcf1d0104b728fb0765c7011402cad48ff7ae63d690f1baff6a2b34",
         "evidenceStatus": "descriptive",
         "predictiveAccuracyClaim": {
           "supported": false,
