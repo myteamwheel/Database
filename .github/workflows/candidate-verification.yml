@@ -14,6 +14,8 @@ concurrency:
 jobs:
   verify-candidate:
     runs-on: ubuntu-24.04
+    # Browser and system libraries match package-lock.json; no apt mirror dependency.
+    container: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac
     steps:
       - uses: actions/checkout@v7
         with:
@@ -39,7 +41,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Install Chromium for full browser regression
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Validate candidate-verification plan
         run: npm run test:candidate-verification

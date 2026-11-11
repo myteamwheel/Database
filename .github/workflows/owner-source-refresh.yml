@@ -22,6 +22,8 @@ jobs:
   refresh:
     if: github.ref == 'refs/heads/v3-official-data' && inputs.confirm_refresh == true
     runs-on: ubuntu-24.04
+    # Browser and system libraries match package-lock.json; no apt mirror dependency.
+    container: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -33,7 +35,7 @@ jobs:
       - name: Install verification dependencies
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Hydrate the immutable historical evidence cache
         run: |
           git archive c17bc8d7cf2e41822a8bcf6fbf4b0b62bca095ee \

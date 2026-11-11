@@ -37,6 +37,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-24.04
+    # Browser and system libraries match package-lock.json; no apt mirror dependency.
+    container: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac
     steps:
       - uses: actions/checkout@v7
 
@@ -47,7 +49,7 @@ jobs:
       - name: Gate the exact published payload and UI
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
           npm run audit
           npm run audit:presets
           npm run test:projections
