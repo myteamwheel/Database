@@ -81,13 +81,13 @@
       if ($('pageTitle')) $('pageTitle').textContent = `${lg} ${title}`;
       const period = MODE==='current'?seasonUi.year:MODE==='seasonreview'?'2026-27':MODE === 'compare' && $('viewPreset')?.value === 'proj' ? '2026-27 projections' : '2025-26';
       if ($('crumbs')) $('crumbs').textContent = `${lg} › ${period} › ${title}`;
-      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = MODE==='current'?'2026-27 measured results':'2025-26 analysis workspace';
+      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = MODE==='current'?seasonUi.year+' measured results':MODE==='seasonreview'?'2026-27 saved forecast comparison':'2025-26 analysis workspace';
     }
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
-    $('nbaCount').textContent=(MODE==='current'?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
-    $('gCount').textContent=(MODE==='current'?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
+    $('nbaCount').textContent=(MODE==='current'&&seasonUi.year==='2026-27'?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
+    $('gCount').textContent=(MODE==='current'&&seasonUi.year==='2026-27'?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
     if(MODE==='current'){
       const scope=league()+':'+(league()==='NBA'?'Regular Season':seasonUi.phase);
       const checked=window.DATA.currentGradeMeta?.cohorts?.[scope]?.asOf?.slice(0,10)||'unavailable';
