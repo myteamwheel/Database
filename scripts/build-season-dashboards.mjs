@@ -1,10 +1,11 @@
 import {parseCurrentTeams} from './lib/current-teams.mjs';
 import {DAILY_REFRESH_SCHEDULE} from './lib/refresh-schedule.mjs';
 import {attachGLeagueTracker} from './lib/gleague-tracker.mjs';
+import {readVerifiedForecast} from './verify-forecast-archive.mjs';
+import {savedForecastReview} from './lib/saved-forecast-review.mjs';
 import fs from 'node:fs';import crypto from 'node:crypto';
-import {loadOfficial} from './lib/sources.mjs';
 import {advancedTable,gradeCurrentRows} from './lib/current-season-grades.mjs';
-import {parseSeasonProgress} from './lib/season-progress.mjs';import {parseGLeagueProgress} from './lib/gleague-progress.mjs';import {buildSeasonReview} from './lib/season-review.mjs';
+import {parseSeasonProgress} from './lib/season-progress.mjs';import {parseGLeagueProgress} from './lib/gleague-progress.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL('../'+p,import.meta.url)));
 const data=read('public/data.json'),nbaRaw=read('scripts/data/live/season-progress.json'),glRaw=read('scripts/data/live/gleague-progress.json'),input=read('scripts/data/live/current-grade-inputs.json');
 attachGLeagueTracker(data,read('scripts/data/gleague-tracker-source.json'),read('scripts/data/live/gleague-rosters.json'));
@@ -30,8 +31,6 @@ for(const type of ['Showcase','Regular Season'])if(Boolean(data.currentTeamStats
 data.refreshSchedule=DAILY_REFRESH_SCHEDULE;
 const dailyFile=new URL('./data/live/daily-refresh.json',import.meta.url);
 if(fs.existsSync(dailyFile)){data.dailyRefresh=JSON.parse(fs.readFileSync(dailyFile));data.dailyRefresh.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(dailyFile)).digest('hex');}
-const reviewPath='scripts/data/projection/season-review-2025-26.json';
-const glAdvanced=new Map(loadOfficial('official_gleague_regular','advanced').map(r=>[r.PLAYER_ID,r]));
-const gLeagueRegular=Object.fromEntries(loadOfficial('official_gleague_regular','base_totals').map(r=>[r.PLAYER_ID,{gp:r.GP,mpg:r.GP?r.MIN/r.GP:null,...Object.fromEntries(Object.entries({pts:'PTS',reb:'REB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fg3m:'FG3M'}).map(([k,v])=>[k,r.GP?r[v]/r.GP:null])),ts:glAdvanced.get(r.PLAYER_ID)?.TS_PCT??null,fgPct:r.FGA?r.FGM/r.FGA:null,fg3Pct:r.FG3A?r.FG3M/r.FG3A:null,ftPct:r.FTA?r.FTM/r.FTA:null}]));
-data.seasonReview=buildSeasonReview(data,read(reviewPath),{gLeagueRegular});data.seasonReview.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(new URL('../'+reviewPath,import.meta.url))).digest('hex');
-fs.writeFileSync(new URL('../public/data.json',import.meta.url),JSON.stringify(data));console.log('Built current-season grades and explicit retrospective season-review rows',Object.fromEntries(Object.entries(data.seasonReview.leagues).map(([k,v])=>[k,{actual:v.measured,backtest:v.projected}])));
+delete data.seasonReview;
+data.savedForecastReview=savedForecastReview(readVerifiedForecast({forecastId:'2026-27-preseason-2026-09-29-e718284'}).archive);
+fs.writeFileSync(new URL('../public/data.json',import.meta.url),JSON.stringify(data));console.log('Built current-season grades and verified September 29 preseason forecast comparison');
