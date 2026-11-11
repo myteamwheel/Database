@@ -1511,7 +1511,7 @@
       const parts=Object.entries(source.scales).map(([k,v])=>fin(model?.[k])&&fin(actual?.[k])?Math.abs(model[k]-actual[k])/v:null);
       return {...f,team:league()==='NBA'?p?.currentTeam:p?.currentGLeagueRosterTeam,model,actual,aggregate:parts.every(fin)?parts.reduce((s,v)=>s+v,0)/parts.length:null};
     }));
-    return sortRows(rows,p=>{const a=reviewValue(p,'actual'),m=reviewValue(p,'model'),e=fin(a)&&fin(m)?m-a:null;return ({model:m,actual:a,error:e,absolute:fin(e)?Math.abs(e):null})[seasonUi.reviewSort]??p[seasonUi.reviewSort];},seasonUi.reviewDir);
+    return sortRows(rows,p=>{const a=reviewValue(p,'actual'),m=reviewValue(p,'model'),e=fin(a)&&fin(m)?m-a:null,values={model:m,actual:a,error:e,absolute:fin(e)?Math.abs(e):null};return Object.hasOwn(values,seasonUi.reviewSort)?values[seasonUi.reviewSort]:p[seasonUi.reviewSort];},seasonUi.reviewDir);
   }
   const reviewValue=(p,side)=>p[side]?.[seasonUi.metric];
   function viewSeasonReview(){
