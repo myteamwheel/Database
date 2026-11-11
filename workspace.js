@@ -1439,8 +1439,8 @@
     const active=seasonUi[review?'reviewSort':'sort']===key,dir=seasonUi[review?'reviewDir':'dir'];
     return `<th aria-sort="${active?(dir===1?'ascending':'descending'):'none'}"><button class="table-sort" data-season-sort="${key}">${esc(label)}${active?(dir===1?' ↑':' ↓'):''}</button></th>`;
   };
-  const seasonMetrics={pts:'Points',mpg:'Minutes',reb:'Rebounds',ast:'Assists',stl:'Steals',blk:'Blocks',tov:'Turnovers',fg3m:'Threes made',ts:'True shooting'};
-  function seasonNumber(v,key=''){const text=!fin(v)?'—':key==='ts'?pctS(v):key.toLowerCase().includes('grade')?gnum(v,4):num(v,key==='gp'?0:1);return /^-0(?:\.0+)?%?$/.test(text)?text.slice(1):text;}
+  const seasonMetrics={pts:'Points',mpg:'Minutes',reb:'Rebounds',oreb:'Offensive rebounds',dreb:'Defensive rebounds',ast:'Assists',stl:'Steals',blk:'Blocks',tov:'Turnovers',fgm:'Field goals made',fga:'Field goal attempts',fg3m:'Threes made',fg3a:'Three-point attempts',ftm:'Free throws made',fta:'Free throw attempts',fgPct:'FG%',fg3Pct:'3P%',ftPct:'FT%',ts:'True shooting'};
+  function seasonNumber(v,key=''){const text=!fin(v)?'—':key==='ts'||key.endsWith('Pct')?pctS(v):key.toLowerCase().includes('grade')?gnum(v,4):num(v,key==='gp'?0:1);return /^-0(?:\.0+)?%?$/.test(text)?text.slice(1):text;}
   function seasonControls(review=false){
     const options=(fields,selected)=>Object.entries(fields).map(([k,v])=>`<option value="${k}" ${selected===k?'selected':''}>${esc(v)}</option>`).join('');
     const dir=seasonUi[review?'reviewDir':'dir'];
