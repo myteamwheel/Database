@@ -113,7 +113,9 @@ const out = path.join(ROOT, 'public/standalone.html');
 fs.writeFileSync(out, html, 'ascii');
 const mb = (s) => (s / 1e6).toFixed(2) + ' MB';
 const bytes = fs.statSync(out).size;
-const MAX_STANDALONE_BYTES = 16_000_000;
+// Current-season specialist ledgers are included losslessly alongside history.
+// GitHub Pages serves this download; the old 16 MB project budget excluded them.
+const MAX_STANDALONE_BYTES = 32_000_000;
 if (bytes > MAX_STANDALONE_BYTES) {
   throw new Error(`standalone artifact ${mb(bytes)} exceeds ${mb(MAX_STANDALONE_BYTES)} publish ceiling`);
 }

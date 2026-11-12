@@ -155,8 +155,13 @@ window.__siteClearAllFilters = () => {
 };
 
 /** Reverse the columnar encoding used by the standalone build. */
+function expandCurrentStatistics(d){
+  if(!d?.currentStatColumns)return d;
+  for(const [lg,players]of Object.entries(d.leagues))for(const p of players)for(const [phase,g]of Object.entries(p.currentGrades||{}))if(Array.isArray(g.stats)){const keys=d.currentStatColumns[lg+':'+phase];if(!keys||keys.length!==g.stats.length)throw Error('Current specialist column schema mismatch');g.stats=Object.fromEntries(keys.flatMap((k,i)=>g.stats[i]==='\u0000~'?[]:[[k,g.stats[i]]]));}
+  return d;
+}
 function rehydrate(d) {
-  if (!d || d.encoding !== 'columnar-v1') return d;   // idempotent: safe to call twice
+  if (!d || d.encoding !== 'columnar-v1') return expandCurrentStatistics(d);   // idempotent: safe to call twice
   const ABSENT = d.absent ?? '\u0000~';
   const out = { ...d, encoding: 'rehydrated', leagues: {} };
   for (const lg of Object.keys(d.leagues)) {
@@ -174,7 +179,7 @@ function rehydrate(d) {
       return p;
     });
   }
-  return out;
+  return expandCurrentStatistics(out);
 }
 
 /** 2026-27 roster situation, as shown in the Status column. */
@@ -2398,6 +2403,7 @@ window.__wsCompared=()=>[...compared];
 window.__wsLabel=(k)=>colDef(k).label;
 window.__wsFormatCell=formatCell;
 window.__wsFmt=(v,k)=>fmt(v,colDef(k).type);
+window.__seasonLedgerSchema=()=>Object.fromEntries(['scoring','shooting','playmaking','rebounding','defense','impact','shotprofile','custom','customraw','components','splitsExplorer','splitsMonthly','splitsShooting','tracking','per36'].map(name=>[name,PRESETS[name].filter(k=>!['select','viewRank','rank'].includes(k)).map(key=>({key,label:colDef(key).label,type:colDef(key).type}))]));
 window.__wsProjCard=projCard;
 
 window.addEventListener('popstate',()=>{

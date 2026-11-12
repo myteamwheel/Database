@@ -3,6 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {fetchJson} from './lib/refresh.mjs';
 import {parseSeasonProgress} from './lib/season-progress.mjs';
+import {completedDay,windowedUrl} from './lib/completed-window.mjs';
 
 const root=path.join(path.dirname(fileURLToPath(import.meta.url)),'..');
 const season='2026-27';
@@ -10,13 +11,14 @@ const params=new URLSearchParams({College:'',Conference:'',Country:'',DateFrom:'
 const gameParams=new URLSearchParams({Counter:'0',DateFrom:'',DateTo:'',Direction:'ASC',LeagueID:'00',PlayerOrTeam:'P',Season:season,SeasonType:'Regular Season',Sorter:'DATE'});
 const sourceUrls={schedule:'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',stats:`https://stats.gleague.nba.com/stats/leaguedashplayerstats?${params.toString().replaceAll('+','%20')}`,gameLog:`https://stats.gleague.nba.com/stats/leaguegamelog?${gameParams.toString().replaceAll('+','%20')}`};
 const fetchStats=async url=>{const response=await fetch(url,{signal:AbortSignal.timeout(30000),headers:{'User-Agent':'Mozilla/5.0',Referer:'https://stats.gleague.nba.com/',Origin:'https://stats.gleague.nba.com','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});if(!response.ok)throw new Error('Official shared NBA stats HTTP '+response.status);const body=await response.json();if(!body?.resultSets)throw new Error('Official NBA statistics response is missing its table');return body;};
-const [schedule,stats,gameLog]=await Promise.all([
-  fetchJson(sourceUrls.schedule),
-  fetchStats(sourceUrls.stats),
-  fetchStats(sourceUrls.gameLog),
-]);
+const now=new Date(),schedule=await fetchJson(sourceUrls.schedule);
+const candidate=completedDay({now,schedule});
+const glLogs=await Promise.all(['Showcase','Regular Season'].map(type=>{const u=new URL(sourceUrls.gameLog);u.searchParams.set('LeagueID','20');u.searchParams.set('PlayerOrTeam','T');u.searchParams.set('SeasonType',type);return fetchStats(windowedUrl(u.href,candidate));}));
+const completedThrough=completedDay({now,schedule,gameLogs:glLogs});
+sourceUrls.stats=windowedUrl(sourceUrls.stats,completedThrough);sourceUrls.gameLog=windowedUrl(sourceUrls.gameLog,completedThrough);
+const [stats,gameLog]=await Promise.all([fetchStats(sourceUrls.stats),fetchStats(sourceUrls.gameLog)]);
 const fetchedAt=new Date().toISOString();
-const progress=parseSeasonProgress(schedule,stats,{season,fetchedAt,gameLog,sourceUrls});
+const progress=parseSeasonProgress(schedule,stats,{season,fetchedAt,gameLog,sourceUrls,completedThrough});
 const file=path.join(root,'scripts/data/live/season-progress.json');
 if(fs.existsSync(file)) {
   const old=JSON.parse(fs.readFileSync(file,'utf8'));
@@ -25,6 +27,6 @@ if(fs.existsSync(file)) {
 }
 fs.mkdirSync(path.dirname(file),{recursive:true});
 const temp=`${file}.tmp-${process.pid}`;
-try {fs.writeFileSync(temp,JSON.stringify({season,fetchedAt,schedule,stats,gameLog,sourceUrls})+'\n');fs.renameSync(temp,file);}
+try {fs.writeFileSync(temp,JSON.stringify({season,fetchedAt,completedThrough,schedule,stats,gameLog,sourceUrls})+'\n');fs.renameSync(temp,file);}
 finally {if(fs.existsSync(temp))fs.rmSync(temp);}
 console.log(JSON.stringify({season,fetchedAt,status:progress.status,completedGames:progress.completedGames,players:Object.keys(progress.players).length,officialDashboardCorrections:progress.sourceCorrections}));

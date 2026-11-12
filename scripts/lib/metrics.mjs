@@ -139,6 +139,7 @@ export function normalize(o) {
     tov36: p36(t.TOV), pf36: p36(t.PF), pfd36: p36(t.PFD),
     fgm36: p36(t.FGM), fga36: p36(t.FGA), fg3m36: p36(t.FG3M), fg3a36: p36(t.FG3A),
     ftm36: p36(t.FTM), fta36: p36(t.FTA), fg2m36: p36(ex.FG2M), fg2a36: p36(ex.FG2A),
+    ftPoints36: p36(ex.FT_POINTS ?? t.FTM),
     pm36: p36(t.PLUS_MINUS),
     paintPts36: fromPerGame36(o.misc.PTS_PAINT), fbPts36: fromPerGame36(o.misc.PTS_FB),
     offTovPts36: fromPerGame36(o.misc.PTS_OFF_TOV), secondPts36: fromPerGame36(o.misc.PTS_2ND_CHANCE),
@@ -180,7 +181,7 @@ export function computeCustom(rows, opts = {}) {
     if (!fin(x.fg2m36) || !fin(x.fg3m36)) return null;
     const u2 = fin(x.pctUast2pm) ? x.pctUast2pm : 0;
     const u3 = fin(x.pctUast3pm) ? x.pctUast3pm : 0;
-    return u2 * x.fg2m36 * 2 + u3 * x.fg3m36 * 3 + (x.ftm36 || 0);
+    return u2 * x.fg2m36 * 2 + u3 * x.fg3m36 * 3 + (x.ftPoints36 || 0);
   });
   const rawSituational = n.map((x) => (fin(x.fbPts36) && fin(x.offTovPts36) && fin(x.secondPts36)
     ? x.fbPts36 + x.offTovPts36 + x.secondPts36 : null));

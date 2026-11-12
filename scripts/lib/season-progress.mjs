@@ -1,4 +1,5 @@
 import { combineForecastTimeframes } from './forecast-timeframes.mjs';
+import {gameInWindow} from './completed-window.mjs';
 
 export const SEASON_PROGRESS_VERSION = 1;
 const TEAMS = 'ATL BOS BKN CHA CHI CLE DAL DEN DET GSW HOU IND LAC LAL MEM MIA MIL MIN NOP NYK OKC ORL PHI PHX POR SAC SAS TOR UTA WAS'.split(' ');
@@ -6,14 +7,14 @@ const STATS = {min:'MIN',pts:'PTS',reb:'REB',oreb:'OREB',dreb:'DREB',ast:'AST',s
 const COUNT_COLUMNS=Object.values(STATS).filter(k=>k!=='MIN');
 const zero = () => Object.fromEntries(Object.keys(STATS).map(k => [k,0]));
 
-export function reconcileGameLog(schedule,stats,gameLog,season) {
+export function reconcileGameLog(schedule,stats,gameLog,season,completedThrough=null) {
   const table=gameLog?.resultSets?.[0],headers=table?.headers;
   const needed=['PLAYER_ID','TEAM_ABBREVIATION','GAME_ID','MIN',...COUNT_COLUMNS];
   if(!Array.isArray(headers)||!Array.isArray(table?.rowSet)||new Set(headers).size!==headers.length||needed.some(k=>!headers.includes(k)))throw new Error('Invalid official player game-log schema');
   const ix=Object.fromEntries(headers.map((k,i)=>[k,i]));
   const games=new Map();
   for(const day of schedule.leagueSchedule.gameDates)for(const g of day.games){
-    if(!String(g.gameId).startsWith(`002${season.slice(2,4)}`)||g.gameStatus!==3)continue;
+    if(!String(g.gameId).startsWith(`002${season.slice(2,4)}`)||g.gameStatus!==3||!gameInWindow(g,completedThrough))continue;
     games.set(g.gameId,new Map([[g.homeTeam.teamTricode,g.homeTeam.score],[g.awayTeam.teamTricode,g.awayTeam.score]]));
   }
   const totals=new Map(),byPlayerTeam=new Map(),teamPoints=new Map(),teamCounts=new Map(),seen=new Set();
@@ -51,7 +52,7 @@ export function reconcileGameLog(schedule,stats,gameLog,season) {
   return {totals,byPlayerTeam,corrections,completedGames:games.size,source:'stats.nba.com/stats/leaguegamelog?PlayerOrTeam=P'};
 }
 
-export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog,sourceUrls=null} = {}) {
+export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog,sourceUrls=null,completedThrough=null} = {}) {
   if(sourceUrls){
     const allowed={schedule:'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',stats:/^https:\/\/stats\.(?:gleague\.)?nba\.com\/stats\/leaguedashplayerstats\?/,gameLog:/^https:\/\/stats\.(?:gleague\.)?nba\.com\/stats\/leaguegamelog\?/};
     if(sourceUrls.schedule!==allowed.schedule||!allowed.stats.test(sourceUrls.stats)||!allowed.gameLog.test(sourceUrls.gameLog)||new URL(sourceUrls.stats).searchParams.get('LeagueID')!=='00'||new URL(sourceUrls.gameLog).searchParams.get('LeagueID')!=='00')throw new Error('Invalid official NBA source URLs');
@@ -83,9 +84,9 @@ export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog
       if (home===away) throw new Error('Schedule repeats a team');
       for (const team of [home,away]) {
         teams[team].scheduled++;
-        if (game.gameStatus===3) teams[team].completed++;
+        if (game.gameStatus===3&&gameInWindow(game,completedThrough)) teams[team].completed++;
       }
-      if (game.gameStatus===3) {
+      if (game.gameStatus===3&&gameInWindow(game,completedThrough)) {
         if (!Number.isFinite(Date.parse(game.gameDateTimeUTC)) || Date.parse(game.gameDateTimeUTC)>Date.parse(fetchedAt)) throw new Error('Future completed game');
         if (![game.homeTeam.score,game.awayTeam.score].every(n=>Number.isSafeInteger(n)&&n>=0)) throw new Error('Invalid final score');
         completedPoints+=game.homeTeam.score+game.awayTeam.score;
@@ -98,7 +99,7 @@ export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog
   if (!Array.isArray(table?.headers) || !Array.isArray(table?.rowSet) || new Set(table.headers).size!==table.headers.length) throw new Error('Invalid player totals table');
   const required=['PLAYER_ID','GP',...Object.values(STATS)];
   if (required.some(k=>!table.headers.includes(k))) throw new Error('Missing player totals columns');
-  const reconciled=gameLog?reconcileGameLog(schedule,stats,gameLog,season):null;
+  const reconciled=gameLog?reconcileGameLog(schedule,stats,gameLog,season,completedThrough):null;
   const players={};
   for (const row of table.rowSet) {
     if (!Array.isArray(row) || row.length!==table.headers.length) throw new Error('Malformed player totals row');
@@ -118,7 +119,7 @@ export function parseSeasonProgress(schedule, stats, {season, fetchedAt, gameLog
   if (completedGames>0 && (playerGames<completedGames*10 || playerGames>completedGames*36)) throw new Error('Schedule/player statistics coverage mismatch');
   const playerPoints=Object.values(players).reduce((n,p)=>n+p.totals.pts,0);
   if (playerPoints!==completedPoints) throw new Error(`Schedule/player points mismatch (schedule ${completedPoints}, player totals ${playerPoints}; completed games ${completedGames}); sources are incomplete or out of sync`);
-  return {version:SEASON_PROGRESS_VERSION,season,fetchedAt,completedGames,teams,players,
+  return {version:SEASON_PROGRESS_VERSION,season,fetchedAt,completedThrough,completedGames,teams,players,
     sourceCorrections:reconciled?.corrections||[],
     status:completedGames?'in-season':'preseason',
     scheduleSource:sourceUrls?.schedule||'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json',
