@@ -45,7 +45,7 @@ for(const p of data.leagues.NBA) {
   p.seasonForecast.roleUpdate.usageDefinition='Estimated share of on-court team shooting possessions ending in a field-goal attempt, free-throw trip or turnover; blends own observed current-team counts with the preseason team-context prior. This is a model estimate, not verified future coach intent.';
   p.seasonForecast.assumption='Remaining games use the preseason appearance rate, exclude upcoming games officially listed Out, and apply a two-way ceiling when verified. Active-but-unused two-way games are unavailable, so the true remaining eligibility may be lower. Per-game rates blend the preseason forecast with official current-season performance, using stronger shrinkage for noisy shooting and rebounds. This does not establish a future role or recovery date.';
 }
-data.seasonProgress={version:progress.version,season:progress.season,asOf:progress.fetchedAt,completedThrough:progress.completedThrough,status:progress.status,completedGames:progress.completedGames,teams:progress.teams,sourceSha256,sources:[progress.scheduleSource,progress.statsSource,progress.gameLogSource].filter(Boolean),sourceCorrections:progress.sourceCorrections};
+data.seasonProgress={version:progress.version,season:progress.season,asOf:progress.fetchedAt,status:progress.status,completedGames:progress.completedGames,teams:progress.teams,sourceSha256,sources:[progress.scheduleSource,progress.statsSource,progress.gameLogSource].filter(Boolean),sourceCorrections:progress.sourceCorrections};
 return data;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
