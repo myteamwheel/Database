@@ -53,7 +53,7 @@ jobs:
           node scripts/publish-daily-refresh.mjs
           # GITHUB_TOKEN pushes do not trigger ordinary workflows. Explicitly
           # request Pages; its independent payload/UI gates still run before deploy.
-          gh workflow run deploy-pages.yml --ref v3-official-data
+          node scripts/dispatch-pages.mjs
       - name: Record outcome
         if: always()
         run: |

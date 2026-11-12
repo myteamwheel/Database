@@ -38,7 +38,7 @@ try{
 const stamp='2026-11-02T12:30:00Z',fresh={leagues:{NBA:[],GLEAGUE:[]},seasonProgress:{asOf:stamp},gLeagueSeasonProgress:{asOf:stamp},currentTeamStats:{asOf:stamp},currentGradeMeta:{cohorts:Object.fromEntries(CURRENT_SCOPES.map(([l,t])=>[l+':'+t,{asOf:stamp}]))}};
 assert.doesNotThrow(()=>verifyDailyFreshness(fresh,{now:new Date(stamp)}));assert.throws(()=>verifyDailyFreshness(fresh,{now:new Date('2026-11-03T12:30:00Z')}),/fresh/);fresh.leagues.NBA.push({name:'Missing',seasonActual:{gp:1}});assert.throws(()=>verifyDailyFreshness(fresh,{now:new Date(stamp)}),/missing a current grade/);
 const workflow=fs.readFileSync('.github/workflows/daily-season-refresh.yml','utf8'),publish=fs.readFileSync('scripts/publish-daily-refresh.mjs','utf8');
-assert.match(workflow,/cron: '17 7,10 \* \* \*'/);assert.match(workflow,/timezone: America\/New_York/);assert.equal(DAILY_REFRESH_SCHEDULE.timezone,'America/New_York');assert.match(workflow,/github.ref == 'refs\/heads\/v3-official-data'/);assert.ok(workflow.indexOf('npm run refresh:daily')<workflow.indexOf('node scripts/publish-daily-refresh.mjs'));assert.ok(workflow.indexOf('node scripts/publish-daily-refresh.mjs')<workflow.indexOf('gh workflow run deploy-pages.yml'));assert.match(publish,/FETCH_HEAD.*expected/);assert.doesNotMatch(publish,/--force|rebase/);assert.ok(DAILY_SOURCE_FILES.every(f=>f.startsWith('scripts/data/live/')||f==='scripts/data/player_bios.json'));
+assert.match(workflow,/cron: '17 7,10 \* \* \*'/);assert.match(workflow,/timezone: America\/New_York/);assert.equal(DAILY_REFRESH_SCHEDULE.timezone,'America/New_York');assert.match(workflow,/github.ref == 'refs\/heads\/v3-official-data'/);assert.ok(workflow.indexOf('npm run refresh:daily')<workflow.indexOf('node scripts/publish-daily-refresh.mjs'));assert.ok(workflow.indexOf('node scripts/publish-daily-refresh.mjs')<workflow.indexOf('node scripts/dispatch-pages.mjs'));assert.match(publish,/FETCH_HEAD.*expected/);assert.doesNotMatch(publish,/--force|rebase/);assert.ok(DAILY_SOURCE_FILES.every(f=>f.startsWith('scripts/data/live/')||f==='scripts/data/player_bios.json'));
 // Execute the publisher against a fake git transport: refuse an advanced base,
 // unexpected staged file or failed push, and never silently deploy after failure.
 const pubRoot=fs.mkdtempSync(path.join(os.tmpdir(),'daily-publish-'));
@@ -63,3 +63,11 @@ esac
 console.log('Daily refresh: schedules, source/competition integrity, missing participant inclusion, fail-safe rollback, current-grade coverage and publication sequencing passed.');
 
 assert.ok(dailyRefreshStages().some(s=>s.id==='fetch-news'));assert.ok(dailyRefreshStages().some(s=>s.id==='fetch-bios'));
+// The browser image does not require GitHub CLI for the final deployment dispatch.
+const {dispatchPages}=await import('../scripts/dispatch-pages.mjs');
+let dispatch;
+await dispatchPages({repository:'myteamwheel/Database',token:'mock',fetcher:async(url,options)=>{dispatch={url,options};return {status:204};}});
+assert.equal(dispatch.url,'https://api.github.com/repos/myteamwheel/Database/actions/workflows/deploy-pages.yml/dispatches');
+assert.deepEqual(JSON.parse(dispatch.options.body),{ref:'v3-official-data'});
+await assert.rejects(dispatchPages({repository:'myteamwheel/Database',token:'mock',fetcher:async()=>({status:403})}),/403/);
+await assert.rejects(dispatchPages({repository:'other/repo',token:'mock',fetcher:async()=>{throw Error('Must not transmit');}}),/Production repository/);
