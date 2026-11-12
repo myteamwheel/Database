@@ -11,7 +11,7 @@ test('season and review sort the complete matching set in both directions, with 
    for(const dir of ['1','-1']){await page.selectOption('#seasonDir',dir);
     const result=await page.locator('.season-table > table').evaluate((table,{key,dir})=>{
      const index=[...table.querySelectorAll('thead button[data-season-sort]')].findIndex(b=>b.dataset.seasonSort===key);
-     const text=['name','team'].includes(key);const vals=[...table.tBodies[0].rows].map(r=>r.cells[index].textContent.trim()).map(s=>text?s:s==='—'||!/^[+−-]?\d/.test(s)?null:Number(s.replace(/[%+]/g,'')));
+     const text=['name','team','position'].includes(key);const vals=[...table.tBodies[0].rows].map(r=>r.cells[index].textContent.trim()).map(s=>s==='—'||s==='No current listing'?null:text?s:!/^[+−-]?\d/.test(s)?null:Number(s.replace(/[%+]/g,'')));
      const present=vals.filter(v=>v!==null);return {ordered:present.every((v,i)=>!i||Number(dir)*(text?present[i-1].localeCompare(v):present[i-1]-v)<=0),missingLast:vals.slice(present.length).every(v=>v===null)};
     },{key,dir});expect(result,mode+' '+key+' '+dir).toEqual({ordered:true,missingLast:true});
    }

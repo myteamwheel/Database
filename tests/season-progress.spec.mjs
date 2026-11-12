@@ -7,7 +7,7 @@ const url=new URL('../public/standalone.html',import.meta.url).href;
 async function open(page){
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(legacyDatabaseUrl(url));await page.waitForSelector('#tableBody tr td');
-  await page.locator('[data-goto="current"]').click();return errors;
+  await page.selectOption('#viewPreset','actual2627');return errors;
 }
 test('current-season tables render all three timeframes and export the selected view',async({page})=>{
   const errors=await open(page);
