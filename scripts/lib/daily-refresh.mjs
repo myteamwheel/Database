@@ -1,9 +1,9 @@
 import fs from 'node:fs';import path from 'node:path';
 import {defaultStageRunner} from './owner-refresh.mjs';
-export const DAILY_SOURCE_FILES=['roster.json','gleague-index.json','gleague-rosters.json','gleague-progress.json','transactions.json','season-progress.json','current-grade-inputs.json','current-team-stats.json','two-way-roster.json','injuries.json','news.json','daily-refresh.json'].map(f=>'scripts/data/live/'+f).concat('scripts/data/player_bios.json');
+export const DAILY_SOURCE_FILES=['roster.json','gleague-index.json','gleague-rosters.json','gleague-progress.json','transactions.json','season-progress.json','current-grade-inputs.json','current-team-stats.json','current-specialist-inputs.json','two-way-roster.json','injuries.json','news.json','daily-refresh.json'].map(f=>'scripts/data/live/'+f).concat('scripts/data/player_bios.json');
 export const DAILY_ARTIFACT_FILES=['public/data.json','public/data-status.json','public/standalone.html'];
 export function dailyRefreshStages(){return [
- ...['transactions','live-roster','gleague-index','gleague-rosters','two-way-roster','injuries','season-progress','gleague-progress','current-grade-inputs','current-teams'].map(name=>({id:'fetch-'+name,command:'npm',args:['run','fetch:'+name],optional:['transactions','two-way-roster','injuries'].includes(name),file:{transactions:'transactions.json','two-way-roster':'two-way-roster.json',injuries:'injuries.json'}[name]})),
+ ...['transactions','live-roster','gleague-index','gleague-rosters','two-way-roster','injuries','season-progress','gleague-progress','current-grade-inputs','current-teams','current-specialists'].map(name=>({id:'fetch-'+name,command:'npm',args:['run','fetch:'+name],optional:['transactions','two-way-roster','injuries'].includes(name),file:{transactions:'transactions.json','two-way-roster':'two-way-roster.json',injuries:'injuries.json'}[name]})),
  {id:'fetch-news',command:'npm',args:['run','fetch:news'],optional:true,file:'news.json'},
  // Supplemental biographies must not consume the morning results window. Run
  // Node directly so the timeout terminates the fetch process, not an npm wrapper.

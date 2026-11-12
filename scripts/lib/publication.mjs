@@ -113,6 +113,7 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
     dailyRefreshSha256:fileSha256(root,'scripts/data/live/daily-refresh.json',{optional:true}),
     currentTeamsSha256:fileSha256(root,'scripts/data/live/current-team-stats.json',{optional:true}),
+    currentSpecialistSha256:fileSha256(root,'scripts/data/live/current-specialist-inputs.json',{optional:true}),
     seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
   };
   if (key === 'projections') return {
@@ -208,6 +209,7 @@ export function deriveModelProvenance({ root, publicData }) {
     currentGradeInputsSha256:fileSha256(root,'scripts/data/live/current-grade-inputs.json',{optional:true}),
     dailyRefreshSha256:fileSha256(root,'scripts/data/live/daily-refresh.json',{optional:true}),
     currentTeamsSha256:fileSha256(root,'scripts/data/live/current-team-stats.json',{optional:true}),
+    currentSpecialistSha256:fileSha256(root,'scripts/data/live/current-specialist-inputs.json',{optional:true}),
     seasonReviewSha256:fileSha256(root,'scripts/data/projection/season-review-2025-26.json',{optional:true}),
     dependencyAudit:{policy:'transitive-static-esm-v1',nodeMajor:process.versions.node.split('.')[0],codeFiles:DEPENDENCY_AUDIT_FILES.map(relativePath=>({path:relativePath,sha256:fileSha256(root,relativePath)}))},
     outputs,
@@ -311,6 +313,7 @@ export function deriveSourceDomains({ root, publicData }) {
   if(publicData?.seasonProgress&&publicData.seasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/season-progress.json'))throw new Error('Published current-season statistics are stale; rebuild before publication.');
   if(publicData?.dailyRefresh&&publicData.dailyRefresh.sourceSha256!==fileSha256(root,'scripts/data/live/daily-refresh.json'))throw new Error('Daily refresh metadata is stale');
   if(publicData?.currentTeamStats&&publicData.currentTeamStats.sourceSha256!==fileSha256(root,'scripts/data/live/current-team-stats.json'))throw new Error('Current team statistics are stale');
+  if(publicData?.currentSpecialistMeta&&publicData.currentSpecialistMeta.sourceSha256!==fileSha256(root,'scripts/data/live/current-specialist-inputs.json'))throw new Error('Current specialist statistics are stale');
   if(publicData?.currentGradeMeta&&publicData.currentGradeMeta.sourceSha256!==fileSha256(root,'scripts/data/live/current-grade-inputs.json'))throw new Error('Current-season grades are stale');
   if(publicData?.seasonReview&&publicData.seasonReview.sourceSha256!==fileSha256(root,'scripts/data/projection/season-review-2025-26.json'))throw new Error('Season review is stale');
   if(publicData?.gLeagueSeasonProgress&&publicData.gLeagueSeasonProgress.sourceSha256!==fileSha256(root,'scripts/data/live/gleague-progress.json'))throw new Error('Published G League phase results are stale; rebuild before publication.');

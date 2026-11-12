@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {specialistJobs,validateSpecialist,specialistMaps,specialistStats} from '../scripts/lib/current-specialists.mjs';
+import {packCurrentStatistics,unpackCurrentStatistics} from '../scripts/lib/current-stat-columns.mjs';
+const jobs=specialistJobs('00','Regular Season','2026-11-10'),job=jobs.find(j=>j.name==='pt_drives');
+assert.ok(jobs.some(j=>j.name==='hustle'));assert.ok(jobs.some(j=>j.name==='sit_clutch'));assert.ok(jobs.some(j=>j.name==='sit_month12'));
+for(const j of jobs)assert.equal(new URL(j.url).searchParams.get('DateTo'),'11/10/2026');
+const payload={parameters:{LeagueID:'00',Season:'2026-27',SeasonType:'Regular Season',DateTo:'11/10/2026'},resultSets:[{headers:['PLAYER_ID','GP','DRIVES'],rowSet:[[123,4,5]]}]};
+assert.equal(validateSpecialist(payload,job,'2026-11-10')[0].DRIVES,5);
+assert.throws(()=>validateSpecialist(payload,job,'2026-11-11'),/window/);
+assert.throws(()=>validateSpecialist({...payload,parameters:{...payload.parameters,LeagueID:'20'}},job,'2026-11-10'),/league/);
+assert.throws(()=>validateSpecialist({...payload,resultSets:[{...payload.resultSets[0],rowSet:[[123,4,5],[123,4,5]]}]},job,'2026-11-10'),/Duplicate/);
+const snapshot={season:'2026-27',completedThrough:'2026-11-10',records:[{...job,status:'available',payload},{...jobs[0],status:'unavailable',reason:'Source did not publish'}]};
+const maps=specialistMaps(snapshot,'00','Regular Season','2026-11-10');assert.equal(specialistStats(maps,123).trk_drives_drives,5);assert.deepEqual(specialistStats(maps,999),{});assert.throws(()=>specialistMaps(snapshot,'00','Regular Season','2026-11-11'),/cutoff/);
+console.log('Current specialist sources: season/league/date isolation, missing-not-zero, unique IDs and current tracking mapping passed');
+const sample={leagues:{NBA:[{currentGrades:{'Regular Season':{stats:{a:0,b:null,c:false}}}},{currentGrades:{'Regular Season':{stats:{d:5}}}}],GLEAGUE:[]}},before=structuredClone(sample);
+packCurrentStatistics(sample);const encoded=structuredClone(sample);packCurrentStatistics(sample);assert.deepEqual(sample,encoded,'Repacking must be deterministic');unpackCurrentStatistics(sample);delete sample.currentStatColumns;assert.deepEqual(sample,before,'Zero, missing, null and false must survive compact transport');
+const split=new Map([[123,{GP:2,PTS:30,FGA:20,FTA:4,MIN:40,PLUS_MINUS:8}]]);split.perMode='Totals';const sp=specialistStats({sit_home:split},123,'NBA');assert.equal(sp.sit_home_pts,15);assert.equal(sp.sit_home_plusminus,4);assert.equal(specialistStats({sit_home:split},123,'GLEAGUE').sit_home_ts,null,'Never invent G League TS using one-point free-throw assumptions');

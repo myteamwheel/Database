@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {completedDay,apiDate,windowedUrl,gameInWindow} from '../scripts/lib/completed-window.mjs';
+const schedule={leagueSchedule:{gameDates:[{games:[{gameStatus:2,gameDateEst:'2026-11-11T00:00:00Z'}]}]}};
+assert.equal(completedDay({now:new Date('2026-11-12T02:00:00Z'),schedule}),'2026-11-10');
+assert.equal(completedDay({now:new Date('2026-11-12T05:30:00Z'),schedule}),'2026-11-10','Yesterday game still live after midnight must be excluded');
+assert.equal(completedDay({now:new Date('2026-11-12T12:17:00Z')}),'2026-11-11');
+assert.equal(completedDay({now:new Date('2026-03-09T11:17:00Z')}),'2026-03-08','DST must use New York calendar dates');
+assert.equal(completedDay({now:new Date('2026-11-12T05:30:00Z'),gameLogs:[{resultSets:[{headers:['GAME_DATE','WL'],rowSet:[['2026-11-11',null]]}]}]}),'2026-11-10');
+assert.equal(new URL(windowedUrl('https://stats.gleague.nba.com/stats/leaguegamelog?LeagueID=20','2026-11-10')).searchParams.get('DateTo'),'11/10/2026');
+assert.equal(apiDate('2026-11-10'),'11/10/2026');assert.equal(gameInWindow({gameDateEst:'2026-11-11T00:00:00Z'},'2026-11-10'),false);
+console.log('Completed-day cutoff: both leagues, live games after midnight, DST and shared DateTo passed');

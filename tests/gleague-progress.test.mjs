@@ -4,6 +4,7 @@ const source=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-pr
 const result=parseGLeagueProgress(source);assert.equal(Object.keys(result.phases).length,2);
 for(const p of Object.values(result.phases))assert.equal(p.status,Object.keys(p.players).length?'results-available':'no-published-player-results');
 const fixture=structuredClone(source),t=fixture.phases[0].stats.resultSets[0],ix=Object.fromEntries(t.headers.map((k,i)=>[k,i]));
+delete fixture.phases[0].gameLog;delete fixture.phases[0].teamGameLog; // Isolate the free-throw fixture from real final-game evidence.
 const row=Array(t.headers.length).fill(0);for(const [k,v] of Object.entries({PLAYER_ID:12345,GP:1,MIN:20,PTS:12,FGM:3,FGA:7,FG3M:1,FG3A:3,FTM:3,FTA:4,OREB:1,DREB:2,REB:3}))row[ix[k]]=v;
 t.rowSet=[row]; // Seven field-goal points + five free-throw points from three makes.
 assert.equal(parseGLeagueProgress(fixture).phases.Showcase.players[12345].totals.freeThrowPoints,5);

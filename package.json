@@ -91,10 +91,11 @@
     "test:gleague-rosters": "node tests/gleague-rosters.test.mjs && node tests/gleague-tracker.test.mjs && node tests/gleague-progress.test.mjs",
     "fetch:gleague-progress": "node scripts/fetch-gleague-progress.mjs",
     "evaluate:full-forecast": "node scripts/evaluate-full-forecast.mjs",
+    "fetch:current-specialists": "node scripts/fetch-current-specialists.mjs",
     "fetch:current-grade-inputs": "node scripts/fetch-current-grade-inputs.mjs",
     "fetch:current-teams": "node scripts/fetch-current-teams.mjs",
     "refresh:daily": "node scripts/daily-refresh.mjs",
-    "test:daily-refresh": "node tests/daily-refresh.test.mjs"
+    "test:daily-refresh": "node tests/daily-refresh.test.mjs && node tests/completed-window.test.mjs && node tests/current-specialists.test.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
