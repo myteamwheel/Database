@@ -1,3 +1,4 @@
+import {reconcileSpears} from './lib/gleague-spears.mjs';
 import fs from 'node:fs';import {parseGLeagueProgress} from './lib/gleague-progress.mjs';
 import {windowedUrl} from './lib/completed-window.mjs';
 import {fetchJson} from './lib/refresh.mjs';
@@ -12,7 +13,7 @@ for(const apiSeasonType of ['Showcase','Regular Season']){
  const log=new URL(JSON.parse(fs.readFileSync(new URL('./data/live/season-progress.json',import.meta.url))).sourceUrls.gameLog);log.searchParams.set('LeagueID','20');log.searchParams.set('SeasonType',apiSeasonType);
  const gameLogSource=log.href;log.searchParams.set('PlayerOrTeam','T');const teamGameLogSource=log.href;
  const [gameLog,teamGameLog]=await Promise.all([fetchJson(gameLogSource),fetchJson(teamGameLogSource)]);
- phases.push({apiSeasonType,source,stats:await response.json(),gameLogSource,gameLog,teamGameLogSource,teamGameLog});
+ phases.push({apiSeasonType,source,stats:reconcileSpears(await response.json()),gameLogSource,gameLog,teamGameLogSource,teamGameLog});
 }
 const snapshot={version:1,season:'2026-27',fetchedAt:new Date().toISOString(),completedThrough,phases},checked=parseGLeagueProgress(snapshot);
 const file=new URL('./data/live/gleague-progress.json',import.meta.url),tmp=new URL('./data/live/gleague-progress.json.tmp-'+process.pid,import.meta.url);
