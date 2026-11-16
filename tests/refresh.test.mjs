@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { refreshSources, diffResultTables, archiveSeasonSnapshot } from '../scripts/lib/refresh.mjs';
+import { refreshSources, diffResultTables, archiveSeasonSnapshot, fetchJson } from '../scripts/lib/refresh.mjs';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'database-refresh-test-'));
 const outDir = path.join(root, 'source');
@@ -17,6 +17,30 @@ const fetchFor = (items) => async (url) => {
 };
 
 try {
+  const headers = { Origin: 'https://stats.gleague.nba.com', Referer: 'https://stats.gleague.nba.com/' };
+  const pauses = [];
+  let requests = 0;
+  const recovered = await fetchJson('https://test.invalid/gleague', {
+    headers, pause: async ms => pauses.push(ms),
+    fetchImpl: async (url, options) => {
+      assert.deepEqual(options.headers, headers);
+      assert.equal(options.signal.aborted, false);
+      requests++;
+      if (requests === 1) throw new DOMException('Source timed out', 'TimeoutError');
+      if (requests === 2) return { ok: false, status: 503 };
+      return { ok: true, json: async () => table() };
+    }
+  });
+  assert.deepEqual(recovered, table());
+  assert.equal(requests, 3);
+  assert.deepEqual(pauses, [1500, 3000]);
+  let exhausted = 0;
+  await assert.rejects(fetchJson('https://test.invalid/gleague', {
+    pause: async () => {},
+    fetchImpl: async () => { exhausted++; throw new Error('Endpoint unavailable'); }
+  }), /Endpoint unavailable/);
+  assert.equal(exhausted, 3);
+
   const first = await refreshSources({ jobs: [spec()], outDir, season: '2025-26', seasonType: 'Regular Season',
     leagueId: '00', fetchImpl: fetchFor({ base_totals: table() }), pauseMs: 0, now: '2026-09-28T00:00:00Z' });
   assert.equal(first.changed, 1);
