@@ -8,12 +8,12 @@ const phases=[];
 for(const apiSeasonType of ['Showcase','Regular Season']){
  const params=new URLSearchParams({College:'',Conference:'',Country:'',DateFrom:'',DateTo:'',Division:'',DraftPick:'',DraftYear:'',GameScope:'',GameSegment:'',Height:'',LastNGames:'0',LeagueID:'20',Location:'',MeasureType:'Base',Month:'0',OpponentTeamID:'0',Outcome:'',PORound:'0',PaceAdjust:'N',PerMode:'Totals',Period:'0',PlayerExperience:'',PlayerPosition:'',PlusMinus:'N',Rank:'N',Season:'2026-27',SeasonSegment:'',SeasonType:apiSeasonType,ShotClockRange:'',StarterBench:'',TeamID:'0',TwoWay:'0',VsConference:'',VsDivision:'',Weight:''});
  const source=windowedUrl('https://stats.gleague.nba.com/stats/leaguedashplayerstats?'+params,completedThrough);
- const response=await fetch(source,{signal:AbortSignal.timeout(30000),headers:{'User-Agent':'Mozilla/5.0',Referer:'https://stats.gleague.nba.com/',Origin:'https://stats.gleague.nba.com','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});
- if(!response.ok)throw new Error('G League current stats HTTP '+response.status+': '+(await response.text()).slice(0,800));
+ // Retry transient endpoint failures just like the player and team game logs.
+ const stats=await fetchJson(source,{headers:{'User-Agent':'Mozilla/5.0',Referer:'https://stats.gleague.nba.com/',Origin:'https://stats.gleague.nba.com','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});
  const log=new URL(JSON.parse(fs.readFileSync(new URL('./data/live/season-progress.json',import.meta.url))).sourceUrls.gameLog);log.searchParams.set('LeagueID','20');log.searchParams.set('SeasonType',apiSeasonType);
  const gameLogSource=log.href;log.searchParams.set('PlayerOrTeam','T');const teamGameLogSource=log.href;
  const [gameLog,teamGameLog]=await Promise.all([fetchJson(gameLogSource),fetchJson(teamGameLogSource)]);
- phases.push({apiSeasonType,source,stats:reconcileSpears(await response.json()),gameLogSource,gameLog,teamGameLogSource,teamGameLog});
+ phases.push({apiSeasonType,source,stats:reconcileSpears(stats),gameLogSource,gameLog,teamGameLogSource,teamGameLog});
 }
 const snapshot={version:1,season:'2026-27',fetchedAt:new Date().toISOString(),completedThrough,phases},checked=parseGLeagueProgress(snapshot);
 const file=new URL('./data/live/gleague-progress.json',import.meta.url),tmp=new URL('./data/live/gleague-progress.json.tmp-'+process.pid,import.meta.url);

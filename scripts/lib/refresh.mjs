@@ -86,12 +86,12 @@ export function validateSource(json, spec, previous = null) {
   }
   return table;
 }
-export async function fetchJson(url, { fetchImpl = fetch, attempts = 3, timeoutMs = 30000, pause = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+export async function fetchJson(url, { fetchImpl = fetch, headers = NBA_HEADERS, attempts = 3, timeoutMs = 30000, pause = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
   let failure;
   for (let n = 0; n < attempts; n++) {
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetchImpl(url, { headers: NBA_HEADERS, signal: controller.signal });
+      const response = await fetchImpl(url, { headers, signal: controller.signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (e) { failure = e; }
