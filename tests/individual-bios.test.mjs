@@ -33,6 +33,24 @@ try {
   await refreshIndividualBioCache({file:partial,people:new Map([[1,'Known height']]),wait:async()=>{},fetchBio:async()=>({...bio,height:null}),report:()=>{}});
   const preserved=JSON.parse(fs.readFileSync(partial))[1];assert.equal(preserved.height,'6-6');assert.equal(preserved.weight,'210');
   fs.writeFileSync(partial,'not json');await assert.rejects(refreshIndividualBioCache({...opts,file:partial}),/JSON/);assert.equal(fs.readFileSync(partial,'utf8'),'not json');
+  const batchFile=path.join(root,'batch.json'),stateFile=path.join(root,'batch-state.json');
+  let clock=0;const batchCalls=[];
+  const batchOptions={file:batchFile,stateFile,people:new Map([[10,'First'],[11,'Offline'],[12,'Last']]),
+    maxDurationMs:15,attempts:1,now:()=>clock,wait:async()=>{},report:()=>{},
+    fetchBio:async id=>{batchCalls.push(id);clock+=10;if(id===11)throw Error('offline');return bio;}};
+  const batch=await refreshIndividualBioCache(batchOptions);
+  assert.deepEqual(batchCalls,[10,11]);
+  assert.equal(batch.fetched,1);assert.equal(batch.failed,1);assert.equal(batch.deferred,1);
+  assert.equal(batch.nextPlayerId,12);
+  assert.equal(JSON.parse(fs.readFileSync(stateFile)).nextPlayerId,12);
+  assert.equal(JSON.parse(fs.readFileSync(batchFile))[11],undefined,'failed requests never become player facts');
+  batchCalls.length=0;
+  await refreshIndividualBioCache(batchOptions);
+  assert.deepEqual(batchCalls,[12,11],'the next batch resumes deferred players before retrying the earlier failure');
+  assert.equal(JSON.parse(fs.readFileSync(batchFile))[12].height,'6-6');
+  assert.equal(JSON.parse(fs.readFileSync(stateFile)).nextPlayerId,null);
+  fs.writeFileSync(stateFile,'{"version":1,"nextPlayerId":"bad"}');
+  await assert.rejects(refreshIndividualBioCache(batchOptions),/cursor/);
   fs.mkdirSync(path.join(root,'public'));fs.mkdirSync(path.join(root,'scripts/data/live'),{recursive:true});
   fs.writeFileSync(path.join(root,'public/data.json'),JSON.stringify({leagues:{NBA:[{nbaPersonId:1,name:'Existing',height:'6-6',weight:210},{nbaPersonId:null,name:'No official ID'}],GLEAGUE:[]}}));
   const columns=['PERSON_ID','PLAYER_FIRST_NAME','PLAYER_LAST_NAME','TEAM_ID','TEAM_ABBREVIATION','POSITION','HEIGHT','WEIGHT','COUNTRY','DRAFT_YEAR','DRAFT_ROUND','DRAFT_NUMBER','ROSTER_STATUS','FROM_YEAR','TO_YEAR'];
