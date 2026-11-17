@@ -54,11 +54,11 @@ export function readBioCache(file) {
   return store;
 }
 
-export async function fetchIndividualBio(id,{fetchImpl=fetch,wait=ms=>new Promise(r=>setTimeout(r,ms))}={}) {
+export async function fetchIndividualBio(id,{fetchImpl=fetch,timeoutMs=30000,wait=ms=>new Promise(r=>setTimeout(r,ms))}={}) {
   let failure;
   for(const league of ['', '20']) {
     try {
-      const response=await fetchImpl(`https://stats.nba.com/stats/commonplayerinfo?PlayerID=${id}&LeagueID=${league}`,{signal:AbortSignal.timeout(30000),headers:{'User-Agent':'Mozilla/5.0','Referer':'https://www.nba.com/','Origin':'https://www.nba.com','Accept':'application/json','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});
+      const response=await fetchImpl(`https://stats.nba.com/stats/commonplayerinfo?PlayerID=${id}&LeagueID=${league}`,{signal:AbortSignal.timeout(timeoutMs),headers:{'User-Agent':'Mozilla/5.0','Referer':'https://www.nba.com/','Origin':'https://www.nba.com','Accept':'application/json','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
       return parseIndividualBio(await response.json(),id);
     } catch(error) {failure=error;}
@@ -67,17 +67,25 @@ export async function fetchIndividualBio(id,{fetchImpl=fetch,wait=ms=>new Promis
   throw failure;
 }
 
-export async function refreshIndividualBioCache({file,people,birthdatesOnly=false,fetchBio=fetchIndividualBio,wait=ms=>new Promise(r=>setTimeout(r,ms)),report=console.log}={}) {
+export async function refreshIndividualBioCache({file,people,birthdatesOnly=false,fetchBio=fetchIndividualBio,wait=ms=>new Promise(r=>setTimeout(r,ms)),report=console.log,attempts=3,maxDurationMs=Infinity,stateFile=null,now=Date.now}={}) {
   const store=readBioCache(file);
-  let fetched=0,failed=0,unavailable=0;
-  for(const [id,name] of people) {
+  if(!Number.isSafeInteger(attempts)||attempts<1||!(maxDurationMs>0))throw new Error('Invalid bio batch limits');
+  const state=stateFile&&fs.existsSync(stateFile)?JSON.parse(fs.readFileSync(stateFile,'utf8')):null;
+  if(state&&(state.version!==1||(state.nextPlayerId!==null&&!personId(state.nextPlayerId))))throw new Error('Invalid bio batch cursor');
+  const pending=[...people].filter(([id])=>{const old=store[id];return !(birthdatesOnly?validBirthdate(old?.birthdate):old?.height&&old?.weight&&validBirthdate(old?.birthdate));});
+  if(pending.some(([id])=>!personId(id)))throw new Error('Invalid bio refresh identity');
+  const offset=Math.max(0,pending.findIndex(([id])=>id===state?.nextPlayerId));
+  const ordered=[...pending.slice(offset),...pending.slice(0,offset)],started=now();
+  let fetched=0,failed=0,unavailable=0,processed=0;
+  for(const [id,name] of ordered) {
+    if(now()-started>=maxDurationMs)break;
     if(!personId(id))throw new Error('Invalid bio refresh identity');
     const old=store[id];
     if(birthdatesOnly?validBirthdate(old?.birthdate):old?.height&&old?.weight&&validBirthdate(old?.birthdate))continue;
     let bio;
-    for(let attempt=0;attempt<3;attempt++) {
+    for(let attempt=0;attempt<attempts;attempt++) {
       try {bio=await fetchBio(id);break;}
-      catch(error){if(attempt===2){failed++;report(`Bio source unavailable for ${name} (${id}): ${error.message}; cached evidence retained`);}else await wait(1500*(attempt+1));}
+      catch(error){if(attempt===attempts-1){failed++;report(`Bio source unavailable for ${name} (${id}): ${error.message}; cached evidence retained`);}else await wait(1500*(attempt+1));}
     }
     if(bio) {
       const fields=birthdatesOnly?['birthdate']:Object.keys(bio),present=fields.filter(k=>bio[k]!==null&&bio[k]!==undefined);
@@ -85,8 +93,13 @@ export async function refreshIndividualBioCache({file,people,birthdatesOnly=fals
       if(present.length){store[id]={...old,name,...Object.fromEntries(present.map(k=>[k,bio[k]]))};fetched++;}
       if(birthdatesOnly?!validBirthdate(bio.birthdate):!bio.height||!bio.weight||!validBirthdate(bio.birthdate))unavailable++;
     }
+    processed++;
     await wait(450);
   }
   if(fetched)writeAtomicJson(file,store);
-  return {fetched,failed,unavailable,stored:Object.keys(store).length};
+  const nextPlayerId=ordered[processed]?.[0]??null;
+  // Cursor metadata is kept separately from measured player facts. Failed
+  // lookups stay retryable while later players get a turn on the next run.
+  if(stateFile)writeAtomicJson(stateFile,{version:1,nextPlayerId});
+  return {fetched,failed,unavailable,deferred:ordered.length-processed,nextPlayerId,stored:Object.keys(store).length};
 }

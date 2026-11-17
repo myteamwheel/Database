@@ -22,5 +22,11 @@
     "afterSha256": "b6d810d4be1412737ec6d463b589a80b3ff95270f93a6e8fb60b4453c4200091",
     "reviewedOn": "2026-10-26",
     "reason": "Official feed replaced the September 30 Portland waiver recorded as Lee Hyun-jung (1643876) with Hyunjung Lee (1631253). The same team, date and waiver action remain; this exact replacement applies only to the transaction ledger and does not alias player records."
+  },
+  {
+    "beforeSha256": "96ca43fd95ac15e01ba32d4ecc24a27f04279bc0255ac8ba1ead80f663f4aba0",
+    "afterSha256": "bb647d1f0fce2748b654b51c04844407abb7aea8d9b271f16ab5dcfab0b1e870",
+    "reviewedOn": "2026-11-16",
+    "reason": "Official feed expanded Niwa Tait-Jones to Aniwaniwa Tait-Jones in the description and player slug. Verified exact player ID 1643092, Lakers team ID, October 17 event date, waive action and all remaining source fields are unchanged."
   }
 ]
