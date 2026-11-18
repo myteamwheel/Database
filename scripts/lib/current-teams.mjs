@@ -1,4 +1,5 @@
 const COUNTS=['PTS','REB','AST','STL','BLK','TOV','FGM','FGA','FG3M','FG3A','FTM','FTA'];
+const SCORING_COUNTS=COUNTS.filter(k=>!['REB','AST','STL','BLK','TOV'].includes(k));
 export const CURRENT_SCOPES=[['00','Regular Season'],['20','Showcase'],['20','Regular Season']];
 function table(payload,name,columns){
  const t=payload?.resultSets?.find(t=>t.name===name);
@@ -18,7 +19,7 @@ export function parseCurrentTeams(snapshot){
   if(r.stats.parameters.PerMode!=='Totals'||r.stats.parameters.MeasureType!=='Base'||r.games.parameters.PlayerOrTeam!=='T')throw new Error('Current team/game measure mismatch');
   const teams=table(r.stats,'LeagueDashTeamStats',['TEAM_ID','TEAM_NAME','GP','W','L',...COUNTS]);
   const games=table(r.games,'LeagueGameLog',['TEAM_ID','GAME_ID','GAME_DATE','WL',...COUNTS]);
-  const ids=new Set(),seen=new Set(),byGame=new Map(),byTeam=new Map(),corrections=[];
+  const ids=new Set(),seen=new Set(),byGame=new Map(),byTeam=new Map(),corrections=[],gaps=new Map();
   for(const g of games){
    const id=String(g.GAME_ID).padStart(10,'0'),key=g.TEAM_ID+':'+id;
    if(!Number.isSafeInteger(g.TEAM_ID)||g.TEAM_ID<=0||!/^\d{10}$/.test(id)||seen.has(key)||!['W','L'].includes(g.WL)||!Number.isFinite(Date.parse(g.GAME_DATE))||COUNTS.some(k=>!Number.isSafeInteger(g[k])||g[k]<0))throw new Error('Invalid/duplicate current team game');
@@ -29,13 +30,26 @@ export function parseCurrentTeams(snapshot){
    if(!Number.isSafeInteger(t.TEAM_ID)||t.TEAM_ID<=0||ids.has(t.TEAM_ID)||!t.TEAM_NAME||!Number.isSafeInteger(t.GP)||t.GP<0||!Number.isSafeInteger(t.W)||!Number.isSafeInteger(t.L)||t.W<0||t.L<0||t.W+t.L!==t.GP||COUNTS.some(k=>!Number.isSafeInteger(t[k])||t[k]<0))throw new Error('Invalid/duplicate current team totals');ids.add(t.TEAM_ID);
    for(const [m,a] of [['FGM','FGA'],['FG3M','FG3A'],['FTM','FTA']])if(t[m]>t[a])throw new Error('Invalid current team shooting');
    const played=byTeam.get(t.TEAM_ID)||[];
-   if(played.length!==t.GP||played.filter(g=>g.WL==='W').length!==t.W)throw new Error('Current team exposure/game log disagree; retry after synchronization');
+   const wins=played.filter(g=>g.WL==='W').length;
+   if(played.length!==t.GP||wins!==t.W){
+    const matches=r.leagueId==='20'&&played.length===t.GP+1
+      ?played.filter(g=>wins-Number(g.WL==='W')===t.W&&SCORING_COUNTS.every(k=>played.reduce((sum,p)=>sum+p[k],0)-g[k]===t[k]))
+      :[];
+    if(matches.length!==1)throw new Error('Current team exposure/game log disagree; retry after synchronization');
+    const gameId=String(matches[0].GAME_ID).padStart(10,'0');
+    gaps.set(gameId,(gaps.get(gameId)||0)+1);
+    for(const [field,value] of [['GP',played.length],['W',wins],['L',played.length-wins]]){
+     if(t[field]!==value)corrections.push({teamId:t.TEAM_ID,field,dashboard:t[field],gameLog:value});
+     t[field]=value;
+    }
+   }
    // The official dashboard can lag corrections to individual game counts.
    // With identical game exposure, prefer summed game logs and retain every difference.
    for(const k of COUNTS){const value=played.reduce((sum,g)=>sum+g[k],0);if(value!==t[k])corrections.push({teamId:t.TEAM_ID,field:k,dashboard:t[k],gameLog:value});t[k]=value;}
 
    return {teamId:t.TEAM_ID,name:t.TEAM_NAME,gp:t.GP,wins:t.W,losses:t.L,latestGameDate:played.map(g=>g.GAME_DATE.slice(0,10)).sort().at(-1)||null,totals:Object.fromEntries(COUNTS.map(k=>[k.toLowerCase(),t[k]])),perGame:Object.fromEntries(COUNTS.map(k=>[k.toLowerCase(),t.GP?t[k]/t.GP:null]))};
   });
+  if([...gaps.values()].some(count=>count!==2))throw new Error('G League team dashboard gap is not a whole final game');
   if([...byTeam.keys()].some(id=>!ids.has(id)))throw new Error('Game-log team absent from current totals');
   scopes[key]={teams:rows,completedGames:byGame.size,latestGameDate:rows.map(t=>t.latestGameDate).filter(Boolean).sort().at(-1)||null,source:r.source,gamesSource:r.gamesSource,corrections};
  }

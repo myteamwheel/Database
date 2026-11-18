@@ -51,7 +51,7 @@
       `<button class="mode-tab${MODE === k ? ' active' : ''}" data-mode="${k}">${esc(label)}</button>`).join('');
     document.querySelectorAll('[data-season-mode]').forEach(b=>{b.onclick=()=>changeMode(b.dataset.seasonMode);b.classList.toggle('active',b.dataset.seasonMode===MODE);});
     document.querySelectorAll('[data-mode]').forEach((b) => {
-      b.onclick = () => changeMode(b.dataset.mode);
+      b.onclick = () => b.dataset.mode==='database'&&window.__wsOpenHistorical ? window.__wsOpenHistorical() : changeMode(b.dataset.mode);
     });
   }
 
@@ -86,8 +86,9 @@
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
-    $('nbaCount').textContent=(MODE==='current'&&seasonUi.year==='2026-27'?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
-    $('gCount').textContent=(MODE==='current'&&seasonUi.year==='2026-27'?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
+    const currentCounts=MODE==='seasonreview'||(MODE==='current'&&seasonUi.year==='2026-27');
+    $('nbaCount').textContent=(currentCounts?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
+    $('gCount').textContent=(currentCounts?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
     if(MODE==='current'){
       const scope=league()+':'+(league()==='NBA'?'Regular Season':seasonUi.phase);
       const checked=window.DATA.currentGradeMeta?.cohorts?.[scope]?.asOf?.slice(0,10)||'unavailable';
@@ -1464,6 +1465,7 @@
       const a=historical?{gp:p.gp,perGame:{...p,fg3m:p.fg3,fgm:p.fg,ftm:p.ft}}:league()==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase];
       const g=historical?{...p,reliability:p.reliabilityWeight}:p.currentGrades?.[phase]||{},pg=a?.perGame||{},t=p.tulipRotation;
       const row={...(historical?p:{playerId:p.playerId,name:p.name,position:p.position,currentTeam:p.currentTeam,currentGLeagueRosterTeam:p.currentGLeagueRosterTeam,tulipRotation:p.tulipRotation,...g}),...Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','fg3m','fgm','fga','fg3a','ftm','fta','tov','mpg'].map(k=>[k,pg[k]??null])),...Object.fromEntries(['ts','usg','pie','netRtg','fgPct','fg3Pct','ftPct'].map(k=>[k,g[k]??pg[k]??null])),gp:a?.gp,team:historical?p.seasonTeam||p.team:league()==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,planned:!historical&&t&&!t.abstain?t.recommendedMpg:null,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,reliability:g.reliability,reliabilityWeight:g.reliability,components:g.components||{},custom:historical?p.custom:g.custom||{},stats:historical?p.stats:g.stats||{},p36:historical?p.p36:g.p36||{},gradeCoverage:g.coverage?.pct??(historical?p.gradeCoverage:null),minutes:historical?p.minutes:a?.totals?.min??null,tulip:!historical&&t&&!t.abstain?t.tulip:null};
+      if(!historical)for(const k of ['usg','astPct','orebPct','drebPct','rebPct'])if(fin(row[k]))row[k]*=100;
       row.fg=row.fgm;row.fg3=row.fg3m;row.ft=row.ftm;row.fg2=fin(row.fgm)&&fin(row.fg3m)?row.fgm-row.fg3m:null;row.fg2a=fin(row.fga)&&fin(row.fg3a)?row.fga-row.fg3a:null;row.fg2Pct=row.fg2a>0?row.fg2/row.fg2a:null;row.fg3Ar=row.fga>0?row.fg3a/row.fga:null;row.ftr=row.fga>0?row.fta/row.fga:null;
       row.efg=row.fga>0&&fin(row.fgm)&&fin(row.fg3m)?(row.fgm+0.5*row.fg3m)/row.fga:null;
       row.astTo=row.tov>0?row.ast/row.tov:null;
@@ -1483,9 +1485,10 @@
   }
   function currentRefreshNote(){
     const phase=league()==='NBA'?'Regular Season':seasonUi.phase,scope=league()+':'+phase;
+    const roundedGames=league()==='GLEAGUE'?window.DATA.gLeagueSeasonProgress?.phases?.[phase]?.roundedMinutesGames?.length||0:0;
     const stamp=window.DATA.currentGradeMeta?.cohorts?.[scope]?.asOf,age=Date.now()-Date.parse(stamp);
     const time=Number.isFinite(age)?new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'America/New_York'}).format(new Date(stamp))+' ET':'not available';
-    return `<p class="season-refresh ${!Number.isFinite(age)||age>30*3600000?'season-stale':''}"><b>Last source check: ${esc(time)}.</b> ${window.DATA.currentGradeMeta?.completedThrough?'Completed games through '+esc(window.DATA.currentGradeMeta.completedThrough)+'. Live games are excluded. ':''} Automatic updates: 7:17 AM and 10:17 AM New York time. ${!Number.isFinite(age)||age>30*3600000?'Update overdue; this is the last validated snapshot. ':''}<a href="${esc(window.DATA.refreshSchedule?.workflowUrl||'https://github.com/myteamwheel/Database/actions/workflows/daily-season-refresh.yml')}" target="_blank" rel="noopener">Refresh status</a>. Late official statistics appear on the next successful update.${window.DATA.dailyRefresh?.retainedSources?.length?' '+window.DATA.dailyRefresh.retainedSources.map(r=>esc(r.source.replace('fetch-',''))).join(', ')+': previous verified context retained; see Refresh status.':''}</p>`;
+    return `<p class="season-refresh ${!Number.isFinite(age)||age>30*3600000?'season-stale':''}"><b>Last source check: ${esc(time)}.</b> ${window.DATA.currentGradeMeta?.completedThrough?'Completed games through '+esc(window.DATA.currentGradeMeta.completedThrough)+'. Live games are excluded. ':''} Automatic updates: 7:17 AM and 10:17 AM New York time. ${!Number.isFinite(age)||age>30*3600000?'Update overdue; this is the last validated snapshot. ':''}<a href="${esc(window.DATA.refreshSchedule?.workflowUrl||'https://github.com/myteamwheel/Database/actions/workflows/daily-season-refresh.yml')}" target="_blank" rel="noopener">Refresh status</a>.${roundedGames?' Rounded official game-log minutes are used for '+roundedGames+' completed '+(roundedGames===1?'game':'games')+' pending the full dashboard update. Some advanced rates are temporarily unavailable.':''}${window.DATA.dailyRefresh?.retainedSources?.length?' '+window.DATA.dailyRefresh.retainedSources.map(r=>esc(r.source.replace('fetch-',''))).join(', ')+': previous verified context retained; see Refresh status.':''}</p>`;
   }
   function currentTeamSummary(){
     const type=league()==='NBA'?'Regular Season':seasonUi.phase,scope=window.DATA.currentTeamStats?.scopes?.[league()+':'+type];

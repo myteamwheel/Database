@@ -1381,17 +1381,29 @@ function goTo(dest){
   if(dest==='proj'){
     if(![...sel.options].some(o=>o.value==='proj')) return;
     sel.value='proj'; sortKey='proj.pts'; sortDir=-1;
+    if($('rosterScope')){$('rosterScope').value='current';populateSelectors();}
   } else if(dest==='current'){
     if(league!=='NBA'){switchLeague(document.querySelector('.league-tab[data-league="NBA"]'));}
     if(![...sel.options].some(o=>o.value==='actual2627'))return;
     sel.value='actual2627';sortKey='sf.actual.pts';sortDir=-1;
   } else if(sel.value==='proj'||SEASON_VIEWS[sel.value]){
     sel.value='overall'; sortKey='grade'; sortDir=-1;
+    if($('rosterScope')){$('rosterScope').value='season';populateSelectors();}
   }
   render();
   writeUrlState('push');
   window.scrollTo({top:0});
 }
+
+window.__wsOpenHistorical=()=>{
+  $('viewPreset').value='overall';
+  $('rosterScope').value='season';
+  sortKey='grade'; sortDir=-1;
+  populateSelectors();
+  window.__wsSetMode('database',false);
+  writeUrlState('push');
+  window.scrollTo({top:0});
+};
 
 function render(){
   updateRosterScopeUi();
