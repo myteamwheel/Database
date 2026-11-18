@@ -1,3 +1,4 @@
+import {gameInWindow} from '../scripts/lib/completed-window.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=f=>JSON.parse(fs.readFileSync(new URL('../'+f,import.meta.url),'utf8'));
@@ -17,7 +18,7 @@ if(raw.gameLog){
     gameTotals.set(id,a);gameTeamPoints.set(teamKey,(gameTeamPoints.get(teamKey)||0)+row[gi.PTS]);
   }
   for(const day of raw.schedule.leagueSchedule.gameDates)for(const game of day.games){
-    if(game.gameStatus!==3||!String(game.gameId).startsWith('00226'))continue;
+    if(game.gameStatus!==3||!String(game.gameId).startsWith('00226')||!gameInWindow(game,raw.completedThrough))continue;
     for(const side of [game.homeTeam,game.awayTeam])assert.equal(gameTeamPoints.get(`${game.gameId}:${side.teamTricode}`),side.score);
   }
   assert.equal(gameTotals.size,table.rowSet.length);
