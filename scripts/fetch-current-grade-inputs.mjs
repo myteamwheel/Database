@@ -1,12 +1,15 @@
+import {reconcileDashboardSegments} from './lib/dashboard-segments.mjs';
+import {parseGLeagueProgress} from './lib/gleague-progress.mjs';
 import {fetchJson} from './lib/refresh.mjs';
 import {reconcileSpears} from './lib/gleague-spears.mjs';
 import fs from 'node:fs';import {advancedTable} from './lib/current-season-grades.mjs';
 const progress=JSON.parse(fs.readFileSync(new URL('./data/live/season-progress.json',import.meta.url))),baseUrl=progress.sourceUrls.stats;
-const records=[];
+const records=[],gLeague=parseGLeagueProgress(JSON.parse(fs.readFileSync(new URL('./data/live/gleague-progress.json',import.meta.url))));
 for(const [leagueId,seasonType] of [['00','Regular Season'],['20','Showcase'],['20','Regular Season']]){
  const url=new URL(baseUrl);url.searchParams.set('LeagueID',leagueId);url.searchParams.set('SeasonType',seasonType);url.searchParams.set('MeasureType','Advanced');
  const source=await fetchJson(url,{headers:{'User-Agent':'Mozilla/5.0',Referer:'https://stats.gleague.nba.com/',Origin:'https://stats.gleague.nba.com','x-nba-stats-origin':'stats','x-nba-stats-token':'true'}});
- const payload=reconcileSpears(source);const parsed=advancedTable(payload,{leagueId,seasonType});records.push({leagueId,seasonType,source:url.href,payload});console.log(leagueId,seasonType,parsed.size);
+ const expected=leagueId==='20'?new Map(Object.entries(gLeague.phases[seasonType].players).map(([id,p])=>[Number(id),{GP:p.gp}])):null;
+ const payload=reconcileDashboardSegments(reconcileSpears(source),expected);const parsed=advancedTable(payload,{leagueId,seasonType});records.push({leagueId,seasonType,source:url.href,payload});console.log(leagueId,seasonType,parsed.size);
 }
 // Reject cross-request snapshot races before atomically installing the new cache.
 const expected=new Map(progress.stats.resultSets[0].rowSet.map(r=>[r[progress.stats.resultSets[0].headers.indexOf('PLAYER_ID')],r[progress.stats.resultSets[0].headers.indexOf('GP')]]));

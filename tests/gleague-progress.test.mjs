@@ -1,3 +1,4 @@
+import './dashboard-segments.test.mjs';
 import assert from 'node:assert/strict';import fs from 'node:fs';
 import {parseGLeagueProgress} from '../scripts/lib/gleague-progress.mjs';
 const source=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-progress.json',import.meta.url)));

@@ -8,6 +8,17 @@ test('both seasons share ledgers with distinct statistics and grades',async({pag
  for(const ledger of ['overall','scoring','playmaking','rebounding','defense','components','per36']){await page.selectOption('#seasonLedger',ledger);const before=await page.locator('.season-table thead').innerText();await page.selectOption('#seasonYear','2026-27');expect((await page.locator('.season-table thead').innerText()).replaceAll('2026–27','YEAR')).toBe(before.replaceAll('2025–26','YEAR'));await page.selectOption('#seasonYear','2025-26');}
  expect(errors).toEqual([]);
 });
+test('current usage uses percentage points and historical navigation resets projections',async({page})=>{
+ const errors=await open(page);
+ const p=await page.evaluate(()=>DATA.leagues.NBA.find(p=>p.seasonActual?.gp>0&&Number.isFinite(p.currentGrades?.['Regular Season']?.usg)));
+ await page.fill('#seasonSearch',p.name);
+ const headings=await page.locator('.season-table > table > thead th').allTextContents();
+ const index=headings.findIndex(h=>h.includes('USG'));expect(index).toBeGreaterThan(-1);
+ await expect(page.locator('.season-table > table > tbody > tr').first().locator('td').nth(index)).toHaveText((p.currentGrades['Regular Season'].usg*100).toFixed(1)+'%');
+ await page.click('[data-goto="proj"]');await expect(page.locator('#rosterScope')).toHaveValue('current');
+ await page.click('#modeNav [data-mode="database"]');await expect(page.locator('#viewPreset')).toHaveValue('overall');await expect(page.locator('#rosterScope')).toHaveValue('season');
+ expect(errors).toEqual([]);
+});
 test('frozen 2026 forecasts compare with current results and sort accurate first',async({page})=>{
  const errors=await open(page);await page.click('#modeNav [data-mode="seasonreview"]');await expect(page.locator('.season-hero')).toContainText('2026-09-29');await expect(page.locator('#sourceLine')).toContainText('2026–27');
  const p=await page.evaluate(()=>DATA.leagues.NBA.find(p=>p.seasonActual.gp>0&&DATA.savedForecastReview.leagues.NBA.some(f=>f.playerId===String(p.playerId)&&f.projection)));

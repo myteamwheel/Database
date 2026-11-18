@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {reconcileDashboardSegments} from '../scripts/lib/dashboard-segments.mjs';
+const headers=['PLAYER_ID','PLAYER_NAME','TEAM_ID','TEAM_ABBREVIATION','AGE','GP','MIN','PTS','FGM','FGA','FG_PCT','USG_PCT','GP_RANK'];
+const body={parameters:{LeagueID:'20',PerMode:'Totals'},resultSets:[{headers,rowSet:[[7,'Player',9,'AUS',23,2,43.4,14,6,12,.5,.20,1],[7,'Player',9,'AUS',23,1,32.46,8,3,4,.75,.30,2]]}]};
+const expected=new Map([[7,{GP:3}]]),merged=reconcileDashboardSegments(body,expected),row=Object.fromEntries(headers.map((h,i)=>[h,merged.resultSets[0].rowSet[0][i]]));
+assert.equal(merged.resultSets[0].rowSet.length,1);assert.equal(row.GP,3);assert.equal(row.PTS,22);
+assert.equal(row.MIN,75.86);assert.equal(row.FG_PCT,9/16);assert.equal(row.USG_PCT,null);assert.equal(row.GP_RANK,null);
+assert.equal(body.resultSets[0].rowSet.length,2,'raw source is preserved');
+assert.equal(merged.segmentCorrections[0].sourceRows,2);
+assert.equal(reconcileDashboardSegments(merged,expected),merged,'normalization is idempotent');
+assert.throws(()=>reconcileDashboardSegments(body,new Map([[7,{GP:2}]])),/exposure/);
+const changed=structuredClone(body);changed.resultSets[0].rowSet[1][2]=10;
+assert.throws(()=>reconcileDashboardSegments(changed,expected),/identity/);
+assert.throws(()=>reconcileDashboardSegments({...body,parameters:{LeagueID:'20',PerMode:'PerGame'}},expected),/verify/);
+console.log('Dashboard segments: verified exposure, rates, overlap rejection, identity boundaries, source preservation and idempotence passed.');
