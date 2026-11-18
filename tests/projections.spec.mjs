@@ -219,6 +219,7 @@ test.describe('2026-27 projections', () => {
       const errors = await open(page);
       await page.click('.site-link[data-goto="proj"]');
       if (league !== 'NBA') await page.click('.league-tab[data-league="GLEAGUE"]');
+      await page.selectOption('#rosterScope', 'season');
       await page.locator('.more-filters > summary').click();
       await page.check('#includeRosterOnly');
       await page.selectOption('#rowLimit', '9999');
@@ -258,6 +259,8 @@ test.describe('2026-27 projections', () => {
       if (league !== 'NBA') await page.click('.league-tab[data-league="GLEAGUE"]');
       const cases = league === 'NBA' ? ['same','new','unsigned','rookie','historical',...(source.leagues.NBA.some(p=>p.currentRoster&&p.proj?.abstain)?['abstain']:[])] : ['gleague','nba-roster'];
       for (const status of cases) {
+        await page.click('.site-link[data-goto="proj"]');
+        await page.selectOption('#rosterScope', 'season');
         const p = source.leagues[league].find(p => status === 'abstain' ? p.currentRoster && p.proj?.abstain : p.proj?.status === status);
         expect(p, `required ${status} example`).toBeTruthy();
         await page.fill('#searchInput', p.name);

@@ -1388,13 +1388,22 @@ function goTo(dest){
     sel.value='actual2627';sortKey='sf.actual.pts';sortDir=-1;
   } else if(sel.value==='proj'||SEASON_VIEWS[sel.value]){
     sel.value='overall'; sortKey='grade'; sortDir=-1;
+    if($('rosterScope')){$('rosterScope').value='season';populateSelectors();}
   }
   render();
   writeUrlState('push');
   window.scrollTo({top:0});
 }
 
-window.__wsOpenHistorical=()=>{ $('viewPreset').value='overall'; $('rosterScope').value='season'; sortKey='grade'; sortDir=-1; populateSelectors(); window.__wsSetMode('database',false); writeUrlState('push'); window.scrollTo({top:0}); };
+window.__wsOpenHistorical=()=>{
+  $('viewPreset').value='overall';
+  $('rosterScope').value='season';
+  sortKey='grade'; sortDir=-1;
+  populateSelectors();
+  window.__wsSetMode('database',false);
+  writeUrlState('push');
+  window.scrollTo({top:0});
+};
 
 function render(){
   updateRosterScopeUi();
