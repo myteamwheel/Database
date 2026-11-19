@@ -1,13 +1,19 @@
-// Some official G League dashboards split one person's totals into multiple
+// Some official league dashboards split one person's totals into multiple
 // same-team rows. Only combine them when completed-game exposure reconciles.
 const additive=new Set('GP G W L MIN POSS FGM FGA FG3M FG3A FTM FTA OREB DREB REB AST TOV STL BLK BLKA PF PFD PTS PLUS_MINUS DD2 TD3 NBA_FANTASY_PTS WNBA_FANTASY_PTS'.split(' '));
 const identity=new Set('PLAYER_ID PLAYER_NAME NICKNAME TEAM_ID TEAM_ABBREVIATION TEAM_COUNT AGE'.split(' '));
+export function dashboardAppearances(payload){
+ const table=payload?.resultSets?.[0];
+ const id=table?.headers?.indexOf('PLAYER_ID'),gp=table?.headers?.indexOf('GP');
+ if(!(id>=0&&gp>=0)||!Array.isArray(table.rowSet))throw Error('Missing dashboard appearance columns');
+ return new Map(table.rowSet.map(row=>[row[id],{GP:row[gp]}]));
+}
 export function reconcileDashboardSegments(payload,logged){
  const table=payload?.resultSets?.[0],ix=Object.fromEntries((table?.headers||[]).map((k,i)=>[k,i]));
  if(!table?.rowSet||ix.PLAYER_ID==null)return payload;
  const groups=new Map();for(const row of table.rowSet){const id=row[ix.PLAYER_ID];groups.set(id,[...(groups.get(id)||[]),row]);}
  if([...groups.values()].every(rows=>rows.length===1))return payload;
- if(payload.parameters?.PerMode!=='Totals'||String(payload.parameters?.LeagueID)!=='20'||!logged)throw Error('Cannot verify split dashboard rows');
+ if(payload.parameters?.PerMode!=='Totals'||!['00','20'].includes(String(payload.parameters?.LeagueID))||!logged)throw Error('Cannot verify split dashboard rows');
  const corrections=[];
  const rows=[...groups].map(([id,parts])=>{
   if(parts.length===1)return parts[0];

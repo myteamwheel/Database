@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {reconcileDashboardSegments} from './lib/dashboard-segments.mjs';
 import {fetchJson} from './lib/refresh.mjs';
 import {parseSeasonProgress} from './lib/season-progress.mjs';
 import {completedDay,windowedUrl} from './lib/completed-window.mjs';
@@ -16,7 +17,14 @@ const candidate=completedDay({now,schedule});
 const glLogs=await Promise.all(['Showcase','Regular Season'].map(type=>{const u=new URL(sourceUrls.gameLog);u.searchParams.set('LeagueID','20');u.searchParams.set('PlayerOrTeam','T');u.searchParams.set('SeasonType',type);return fetchStats(windowedUrl(u.href,candidate));}));
 const completedThrough=completedDay({now,schedule,gameLogs:glLogs});
 sourceUrls.stats=windowedUrl(sourceUrls.stats,completedThrough);sourceUrls.gameLog=windowedUrl(sourceUrls.gameLog,completedThrough);
-const [stats,gameLog]=await Promise.all([fetchStats(sourceUrls.stats),fetchStats(sourceUrls.gameLog)]);
+const [dashboard,gameLog]=await Promise.all([fetchStats(sourceUrls.stats),fetchStats(sourceUrls.gameLog)]);
+const log=gameLog.resultSets[0],idIndex=log.headers.indexOf('PLAYER_ID');
+const appearances=new Map();
+for(const row of log.rowSet){
+ const id=row[idIndex];
+ appearances.set(id,{GP:(appearances.get(id)?.GP??0)+1});
+}
+const stats=reconcileDashboardSegments(dashboard,appearances);
 const fetchedAt=new Date().toISOString();
 const progress=parseSeasonProgress(schedule,stats,{season,fetchedAt,gameLog,sourceUrls,completedThrough});
 const file=path.join(root,'scripts/data/live/season-progress.json');

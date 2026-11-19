@@ -28,5 +28,35 @@
     "afterSha256": "bb647d1f0fce2748b654b51c04844407abb7aea8d9b271f16ab5dcfab0b1e870",
     "reviewedOn": "2026-11-16",
     "reason": "Official feed expanded Niwa Tait-Jones to Aniwaniwa Tait-Jones in the description and player slug. Verified exact player ID 1643092, Lakers team ID, October 17 event date, waive action and all remaining source fields are unchanged."
+  },
+  {
+    "beforeSha256": "d74824a26b124f80478d27843527634c96d33712f153997157322ae587bd4e24",
+    "afterSha256": "5dead1de4400b731bd042f811dbe47a311724200b5d60e9fa47db3935579a6c4",
+    "reviewedOn": "2026-11-19",
+    "reason": "Official feed revised Gabe Madsen to Gabriel Madsen in the description and slug. Player ID 1643019, team, date, action and all other fields are identical."
+  },
+  {
+    "beforeSha256": "077a3777f8640e466a907b04201e2427616886af3aef7e300cadc2cb41f9a1df",
+    "afterSha256": "c5cc1d48d8833f8a5a7a0e3c756369c388d9c55f90910179cd3abe94006318f2",
+    "reviewedOn": "2026-11-19",
+    "reason": "Official feed revised Ernest Udeh, Jr. to Ernest Udeh Jr. in the description and slug. Player ID 1643640, team, date, action and all other fields are identical."
+  },
+  {
+    "beforeSha256": "b593c4f54bdbf43946b7e269b1af15e2c735171ffd77f7a7761e2b9d30a939c7",
+    "afterSha256": "9c284bff9c2e9dbf4bddd540b3c71f4ca29ef5f3df1912b40bb94514874da5ab",
+    "reviewedOn": "2026-11-19",
+    "reason": "Official feed revised Ernest Udeh, Jr. to Ernest Udeh Jr. in the description and slug. Player ID 1643640, team, date, action and all other fields are identical."
+  },
+  {
+    "beforeSha256": "719f2d3673458ccfaae1262d6df8789a27d1ea8c85d9d329343a92ec171020c1",
+    "afterSha256": "91ddabebc715d59e7114d455bd26cbc0e205278d0242b8a4c70c5bd9657ecf2b",
+    "reviewedOn": "2026-11-19",
+    "reason": "Official feed revised Gabe Madsen to Gabriel Madsen in the description and slug. Player ID 1643019, team, date, action and all other fields are identical."
+  },
+  {
+    "beforeSha256": "bf4ccfaeb4a8f3e151da8d8ddf637520038e889a49aa0c3b7ede765c5812aee6",
+    "afterSha256": "ed05aea677dc068b57a2d5733f37777a64b5bb4600584fdcbbe81710f987c7a3",
+    "reviewedOn": "2026-11-19",
+    "reason": "Official feed revised Gabe Madsen to Gabriel Madsen in the description and slug. Player ID 1643019, team, date, action and all other fields are identical."
   }
 ]

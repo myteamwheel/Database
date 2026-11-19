@@ -12,4 +12,6 @@ assert.throws(()=>reconcileDashboardSegments(body,new Map([[7,{GP:2}]])),/exposu
 const changed=structuredClone(body);changed.resultSets[0].rowSet[1][2]=10;
 assert.throws(()=>reconcileDashboardSegments(changed,expected),/identity/);
 assert.throws(()=>reconcileDashboardSegments({...body,parameters:{LeagueID:'20',PerMode:'PerGame'}},expected),/verify/);
+const nba=structuredClone(body);nba.parameters.LeagueID='00';
+assert.equal(reconcileDashboardSegments(nba,expected).resultSets[0].rowSet[0][headers.indexOf('GP')],3);
 console.log('Dashboard segments: verified exposure, rates, overlap rejection, identity boundaries, source preservation and idempotence passed.');
