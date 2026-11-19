@@ -112,6 +112,8 @@ function restoreUrlState() {
     sortDir = params.get('dir') === '1' ? 1 : -1;
     window.__wsRestoreUrlState?.({
       mode: URL_ALLOWED_MODES.has(params.get('mode')) ? params.get('mode') : (location.hash === '#projections'||params.has('view')?'database':'current'),
+      seasonYear:params.get('seasonYear'),seasonLedger:params.get('seasonLedger'),seasonTeam:params.get('seasonTeam'),
+      seasonPhase:params.get('seasonPhase'),seasonGp:params.get('seasonGp'),seasonSort:params.get('seasonSort'),seasonDir:params.get('seasonDir'),
       player: params.get('player'), sim: params.get('sim'), simTeam: params.get('simTeam'),
       simPosition: params.get('simPosition'), teamfit: params.get('teamfit'), rolePlayer: params.get('rolePlayer'),
       target: params.get('target'), x: params.get('x'), y: params.get('y'), size: params.get('size'), color: params.get('color'),
@@ -2419,7 +2421,7 @@ window.__wsLabel=(k)=>colDef(k).label;
 window.__wsFormatCell=formatCell;
 window.__wsFmt=(v,k,type)=>fmt(v,type??colDef(k).type);
 window.__wsGradeClass=gradeClass;
-window.__seasonLedgerSchema=()=>Object.fromEntries(['overall','scoring','shooting','playmaking','rebounding','defense','impact','shotprofile','custom','customraw','components','splitsExplorer','splitsMonthly','splitsShooting','tracking','per36','bio'].map(name => {
+window.__seasonLedgerSchema=()=>Object.fromEntries(['overall','scoring','shooting','playmaking','rebounding','defense','impact','shotprofile','custom','customraw','components','splitsExplorer','splitsMonthly','splitsShooting','tracking','per36','bio','teams','splits'].map(name => {
   const aliases={'tr.tulip':'tulip','tr.recommendedMpg':'planned','tr.inputSupport':'support','tulip.leagueDelta':'roleValue'};
   return [name,PRESETS[name].filter(k=>!['select','viewRank','labScore'].includes(k)).map(k=>({key:aliases[k]??k,label:colDef(k).label,type:colDef(k).type}))];
 }));

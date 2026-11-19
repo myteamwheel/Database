@@ -42,6 +42,7 @@
 
   const changeMode = (mode, push = true) => {
     MODE = MODES.some(([key]) => key === mode) ? mode : 'database';
+    if(MODE==='current')seasonUi.year='2026-27';
     render();
     if (push) window.__siteUrlChanged?.('push');
   };
@@ -1432,7 +1433,7 @@
     seasonLedgers[name]=fields.map(f=>f.key);
     for (const f of fields) { seasonFields[f.key]=f.label; seasonTypes[f.key]=f.type; }
   }
-  const ledgerNames={overall:'Overall',per36:'Per 36 minutes',customraw:'Custom: adjusted vs raw',shotprofile:'Shot profile',splitsExplorer:'Situational splits',splitsMonthly:'Monthly splits',splitsShooting:'Shooting splits',components:'Grade components'};
+  const ledgerNames={overall:'Overall',per36:'Per 36 minutes',customraw:'Custom: adjusted vs raw',teams:'Team history',splits:'Competition splits',bio:'Player bio',shotprofile:'Shot profile',splitsExplorer:'Situational splits',splitsMonthly:'Monthly splits',splitsShooting:'Shooting splits',components:'Grade components'};
   const seasonSortValue=(p,key)=>key==='support'?({LOW:1,MEDIUM:2,HIGH:3})[p.support]:seasonCell(p,key);
   const seasonCell=(p,key)=>key.split('.').reduce((v,k)=>v?.[k],p);
   const seasonCellText=(p,key)=>{const v=seasonCell(p,key);if(v==null||v==='')return '—';return window.__wsFmt(v,key,seasonTypes[key]);};
@@ -1482,6 +1483,9 @@
         const bio=p.currentGLeagueBio;
         row.height=bio?.height??p.height; row.weight=bio?.weight??p.weight;
         row.jersey=bio?.jersey??null; row.toRatio=g.tovPct;
+        row.birthdate=bio?.birthdate??p.birthdate;row.college=bio?.school??p.college;
+        row.regularGP=p.league==='NBA'?a?.gp:p.gLeagueSeasonActual?.phases?.['Regular Season']?.gp;
+        row.showcaseGP=p.gLeagueSeasonActual?.phases?.Showcase?.gp;
       }
       if(!historical)for(const k of ['usg','astPct','orebPct','drebPct','rebPct'])if(fin(row[k]))row[k]*=100;
       row.fg=row.fgm;row.fg3=row.fg3m;row.ft=row.ftm;row.fg2=fin(row.fgm)&&fin(row.fg3m)?row.fgm-row.fg3m:null;row.fg2a=fin(row.fga)&&fin(row.fg3a)?row.fga-row.fg3a:null;row.fg2Pct=row.fg2a>0?row.fg2/row.fg2a:null;row.fg3Ar=row.fga>0?row.fg3a/row.fga:null;row.ftr=row.fga>0?row.fta/row.fga:null;
@@ -1602,6 +1606,10 @@
   window.__wsSetMode = (m, push = true) => changeMode(m, push);
   window.__wsRefresh = () => render();
   window.__wsUrlState = () => ({
+    ...(MODE==='current'?{seasonYear:seasonUi.year==='2025-26'?seasonUi.year:null,
+      seasonLedger:seasonUi.ledger!=='overall'?seasonUi.ledger:null,seasonTeam:seasonUi.team,
+      seasonPhase:league()==='GLEAGUE'&&seasonUi.year==='2026-27'?seasonUi.phase:null,
+      seasonGp:seasonUi.minGames||null,seasonSort:seasonUi.sort!=='grade'?seasonUi.sort:null,seasonDir:seasonUi.dir===1?1:null}:{}),
     ...(state.player ? { player: state.player } : {}),
     ...(state.simPlayer ? { sim: state.simPlayer } : {}),
     ...(state.simTeam ? { simTeam: state.simTeam } : {}),
@@ -1616,6 +1624,14 @@
   });
   window.__wsRestoreUrlState = (x = {}) => {
     MODE = MODES.some(([key]) => key === x.mode) ? x.mode : 'database';
+    if(MODE==='current'){
+      seasonUi.year=x.seasonYear==='2025-26'?'2025-26':'2026-27';
+      seasonUi.ledger=Object.hasOwn(seasonLedgers,x.seasonLedger)?x.seasonLedger:'overall';
+      seasonUi.sort=seasonLedgers[seasonUi.ledger].includes(x.seasonSort)?x.seasonSort:seasonLedgers[seasonUi.ledger].includes('grade')?'grade':seasonLedgers[seasonUi.ledger][0];
+      seasonUi.dir=x.seasonDir==='1'?1:-1;seasonUi.team=x.seasonTeam||'';
+      seasonUi.phase=['Showcase','Regular Season'].includes(x.seasonPhase)?x.seasonPhase:null;
+      seasonUi.minGames=Math.max(0,Math.floor(Number(x.seasonGp)||0));seasonUi.query=null;
+    }
     const valid = (id) => id != null && pickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
     const validSim = (id) => id != null && compPickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
     state.player = valid(x.player); state.simPlayer = validSim(x.sim);

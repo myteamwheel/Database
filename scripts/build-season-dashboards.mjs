@@ -1,3 +1,4 @@
+import {ageAt} from './lib/splits.mjs';
 import {attachGLeagueRotation} from './lib/gleague-rotation.mjs';
 import {parseCurrentTeams} from './lib/current-teams.mjs';
 import {DAILY_REFRESH_SCHEDULE} from './lib/refresh-schedule.mjs';
@@ -22,13 +23,37 @@ if(nbaRaw.completedThrough){
 }
 const records=new Map(input.records.map(r=>[r.leagueId+':'+r.seasonType,r]));if(records.size!==3)throw new Error('Duplicate current-grade source scope');
 const meta={};
+const openingDates={};
+function gameContext(payload){
+  const table=payload?.resultSets?.[0],teams=new Map();
+  if(!table)return {teams,first:null};
+  const player=table.headers.indexOf('PLAYER_ID'),team=table.headers.indexOf('TEAM_ID'),date=table.headers.indexOf('GAME_DATE');
+  if([player,team,date].includes(-1))throw Error('Invalid player game log columns');
+  let first=null;
+  for(const row of table.rowSet){
+    const id=row[player],day=row[date].slice(0,10);
+    if(!teams.has(id))teams.set(id,new Set());
+    teams.get(id).add(row[team]);if(!first||day<first)first=day;
+  }
+  return {teams,first};
+}
 for(const [leagueId,type] of [['00','Regular Season'],['20','Showcase'],['20','Regular Season']]){
  const r=records.get(leagueId+':'+type);const url=new URL(r?.source);if(url.protocol!=='https:'||!['stats.gleague.nba.com','stats.nba.com'].includes(url.hostname)||url.pathname!=='/stats/leaguedashplayerstats'||url.searchParams.get('LeagueID')!==leagueId||url.searchParams.get('MeasureType')!=='Advanced'||url.searchParams.get('Season')!=='2026-27'||url.searchParams.get('SeasonType')!==type)throw new Error('Current advanced source URL mismatch');const adv=advancedTable(r?.payload,{leagueId,seasonType:type});
  const league=leagueId==='00'?'NBA':'GLEAGUE',actual=league==='NBA'?nba.players:gl.phases[type].players;
  if([...adv.keys()].some(id=>!Object.hasOwn(actual,id))||(league==='NBA'&&adv.size!==Object.keys(actual).length))throw new Error('Current advanced/base coverage changed; refresh both snapshots together');
  const base=league==='NBA'?nbaRaw.stats.resultSets[0]:glRaw.phases.find(p=>p.apiSeasonType===type).stats.resultSets[0];
  const grades=gradeCurrentRows(data.leagues[league],actual,base,adv,{specialists:specialistMaps(specialist,leagueId,type,nbaRaw.completedThrough)});
- for(const p of data.leagues[league]){p.currentGrades??={};p.currentGrades[type]=grades.get(String(p.playerId))||{grade:null,rateGrade:null,magnitudeGrade:null,reliability:null,reason:'No measured appearance in this competition'};}
+ const logged=gameContext(league==='NBA'?nbaRaw.gameLog:glRaw.phases.find(p=>p.apiSeasonType===type).gameLog);
+ if(logged.first&&(!openingDates[league]||logged.first<openingDates[league]))openingDates[league]=logged.first;
+ for(const p of data.leagues[league]){
+   p.currentGrades??={};
+   const grade=grades.get(String(p.playerId))||{grade:null,rateGrade:null,magnitudeGrade:null,reliability:null,reason:'No measured appearance in this competition'};
+   const birth=p.currentGLeagueBio?.birthdate??p.birthdate;
+   grade.teamCount=logged.teams.get(Number(p.nbaPersonId??p.playerId))?.size??null;
+   grade.ageOpeningNight=openingDates[league]?ageAt(birth,openingDates[league]):null;
+   grade.ageFeb1=ageAt(birth,'2027-02-01');
+   p.currentGrades[type]=grade;
+ }
  meta[league+':'+type]={graded:grades.size,asOf:input.fetchedAt,source:r.source};
 }
 data.currentGradeMeta={season:'2026-27',version:'3.4-current-2',completedThrough:nbaRaw.completedThrough||null,cohorts:meta,note:'Full performance, per-36, magnitude and custom metrics use the selected current-season official inputs and a shared completed-game window. NBA and each G League phase rank separately. Ingredient coverage discloses missing specialist fields; nonappearers have no grade. Early samples shrink toward their league mean.',sourceSha256:crypto.createHash('sha256').update(fs.readFileSync(new URL('./data/live/current-grade-inputs.json',import.meta.url))).digest('hex')};
