@@ -1,3 +1,4 @@
+import {attachGLeagueRotation} from './lib/gleague-rotation.mjs';
 import {parseCurrentTeams} from './lib/current-teams.mjs';
 import {DAILY_REFRESH_SCHEDULE} from './lib/refresh-schedule.mjs';
 import {attachGLeagueTracker} from './lib/gleague-tracker.mjs';
@@ -37,6 +38,7 @@ data.currentTeamStats=parseCurrentTeams(read(teamPath),gl.phases);
 data.currentTeamStats.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(new URL('../'+teamPath,import.meta.url))).digest('hex');
 if(data.currentTeamStats.scopes['NBA:Regular Season'].completedGames!==data.seasonProgress.completedGames)throw new Error('NBA schedule and team game counts disagree; refresh together');
 for(const type of ['Showcase','Regular Season'])if(Boolean(data.currentTeamStats.scopes['GLEAGUE:'+type].completedGames)!==Boolean(Object.keys(gl.phases[type].players).length))throw new Error('G League player/team phase publication mismatch');
+attachGLeagueRotation(data,glRaw,read('scripts/data/gleague-rotation/model.json'));
 data.refreshSchedule=DAILY_REFRESH_SCHEDULE;
 const dailyFile=new URL('./data/live/daily-refresh.json',import.meta.url);
 if(fs.existsSync(dailyFile)){data.dailyRefresh=JSON.parse(fs.readFileSync(dailyFile));data.dailyRefresh.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(dailyFile)).digest('hex');}

@@ -56,8 +56,8 @@ export function buildRotationPlans(data,snapshot,{centerEvidence=[]}={}){
 export const ROTATION_TULIP_VERSION='rotation-tulip-v2';
 export function attachRotationRecommendations(data){
   const plans=data.rotationPlans||{};
-  for(const p of [...data.leagues.NBA,...data.leagues.GLEAGUE]){
-    if(p.league!=='NBA'||!p.currentRoster||!p.currentTeam){p.tulipRotation={abstain:true,reason:p.league!=='NBA'?'not_supported_for_gleague':'not_on_current_nba_roster'};continue;}
+  for(const p of data.leagues.NBA){
+    if(!p.currentRoster||!p.currentTeam){p.tulipRotation={abstain:true,reason:'not_on_current_nba_roster'};continue;}
     const plan=plans[p.currentTeam],row=plan?.players?.find(r=>r.id===String(p.playerId)),base=plan?.baselinePlayers?.find(r=>r.id===String(p.playerId));
     if(!plan||plan.status!=='feasible'||!row||!base){p.tulipRotation={abstain:true,reason:plan?.status==='infeasible'?'incomplete_positional_capacity':'unsupported_roster_plan',gameDate:plan?.gameDate||null};continue;}
     const gp=p.seasonActual?.gp||0,observed=gp>0?p.seasonActual.perGame?.mpg:null,legacy=p.tulipBeta&&!p.tulipBeta.abstain?p.tulipBeta:null;

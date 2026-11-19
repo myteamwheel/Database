@@ -524,3 +524,14 @@ tbody tr:hover td.player-cell{background:var(--row-hover)}
 th[aria-sort="ascending"]>.table-sort[data-row-sort]::after{content:" ↑"}
 th[aria-sort="descending"]>.table-sort[data-row-sort]::after{content:" ↓"}
 .season-controls{flex-wrap:wrap}
+
+/* Both season ledgers use the detailed database table's row density and colors. */
+.season-ledger .season-table table{min-width:100%;width:max-content}
+.season-ledger .season-table :is(th,td){padding:5px 8px}
+.season-ledger .table-sort{padding:0}
+.season-ledger .season-table th:has([data-season-sort="name"]){position:sticky;left:0;z-index:6;text-align:left}
+.season-ledger .season-controls{gap:8px 12px;margin:0 0 10px}
+.season-ledger .season-controls :is(input,select){min-height:32px;padding:5px 8px}
+.season-ledger #seasonMinGames{width:6ch}
+.season-ledger .grade:not(.elite,.strong,.mid,.low){color:var(--text)}
+@media(max-width:600px){.season-ledger .player-cell{min-width:112px;max-width:145px;white-space:normal}.season-ledger .season-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}

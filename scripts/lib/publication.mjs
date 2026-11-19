@@ -28,7 +28,7 @@ export const MODEL_OUTPUTS = Object.freeze({
   }),
   tulipBeta: Object.freeze({
     label: 'TULIP historical value and next-game rotation recommendations',
-    codeFiles: ['scripts/lib/tulip-beta.mjs','scripts/lib/tulip-beta-diagnostics.mjs','scripts/lib/rotation-plan.mjs','scripts/build-rotation-plan.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-v3.mjs'],
+    codeFiles: ['scripts/lib/tulip-beta.mjs','scripts/lib/tulip-beta-diagnostics.mjs','scripts/lib/gleague-rotation.mjs','scripts/lib/rotation-plan.mjs','scripts/build-rotation-plan.mjs','scripts/build-projections.mjs','scripts/build-season-progress.mjs','scripts/build-v3.mjs'],
     source: 'Historical value evidence plus current NBA rosters, college/observed-role workload forecasts, game-specific availability and position-constrained rotations',
   }),
   projectedRoleMpg: Object.freeze({
@@ -99,7 +99,7 @@ function semanticModelVersion(key, publicData) {
     return id && ctx ? `${id}+${ctx}` : id;
   }
   if (key === 'tulipEvidence') return publicData?.tulipMeta?.version || null;
-  if (key === 'tulipBeta') return [publicData?.tulipBetaMeta?.config?.version,publicData?.tulipRotationMeta?.version].filter(Boolean).join('+')||null;
+  if (key === 'tulipBeta') return [publicData?.tulipBetaMeta?.config?.version,publicData?.tulipRotationMeta?.version,publicData?.gLeagueRotationMeta?.version].filter(Boolean).join('+')||null;
   if (key === 'projectedRoleMpg') return publicData?.tulipCapacityMeta?.version || null;
   if (key === 'playerComparisons') return publicData?.analysis?.playerCompsMeta?.version || null;
   return null;
@@ -141,6 +141,9 @@ function inputVersionFor(key, publicData, root, sourceManifestSha256) {
     ...common,
     baselineSeason: publicData?.tulipBetaMeta?.baselineSeason || null,
     rotationVersion:publicData?.tulipRotationMeta?.version||null,
+    gLeagueRotationModelSha256:fileSha256(root,'scripts/data/gleague-rotation/model.json',{optional:!publicData?.gLeagueRotationMeta}),
+    gLeagueRotationLogsSha256:publicData?.gLeagueSeasonProgress?.sourceSha256||null,
+    gLeagueRotationRosterSha256:fileSha256(root,'scripts/data/live/gleague-rosters.json',{optional:true}),
     projectionRawInputsSha256:fileSha256(root,'scripts/data/projection/inputs.json'),
     birthdatesSha256:fileSha256(root,'scripts/data/birthdates.json'),
     individualBiosSha256:fileSha256(root,'scripts/data/player_bios.json',{optional:true}),

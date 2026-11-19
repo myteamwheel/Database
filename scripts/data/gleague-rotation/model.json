@@ -1,0 +1,34 @@
+{
+  "version": "gleague-rotation-v1",
+  "trainThrough": "2026-02-28",
+  "coefficients": [
+    0.21171313848259868,
+    0.5191847723589896,
+    0.147256969000758,
+    0.10834173019977858,
+    3.782502810551323,
+    -0.002035923886237997
+  ],
+  "newcomerPool": 9.211291702309666,
+  "sources": [
+    {
+      "phase": "Showcase",
+      "url": "https://stats.gleague.nba.com/stats/leaguegamelog?LeagueID=20&Season=2025-26&SeasonType=Showcase&PlayerOrTeam=P&Counter=0&Sorter=DATE&Direction=ASC&DateFrom=&DateTo=",
+      "sha256": "629171500d2f80c9065894f7ca9526747d4b69addc4b55d4a3c54575f8e5069a"
+    },
+    {
+      "phase": "Regular Season",
+      "url": "https://stats.gleague.nba.com/stats/leaguegamelog?LeagueID=20&Season=2025-26&SeasonType=Regular+Season&PlayerOrTeam=P&Counter=0&Sorter=DATE&Direction=ASC&DateFrom=&DateTo=",
+      "sha256": "2dcf22aa37e887ed136b6414fdd50e029a9bd28dd4e0acaa5593a6ea03c93c23"
+    }
+  ],
+  "validation": {
+    "start": "2026-03-01",
+    "end": "2026-03-28",
+    "teamGames": 350,
+    "playerGames": 4449,
+    "mae": 7.76,
+    "repeatMpgMae": 10.72,
+    "trainingPlayerGames": 14617
+  }
+}
