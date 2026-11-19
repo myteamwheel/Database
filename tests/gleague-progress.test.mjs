@@ -21,18 +21,22 @@ lagSnapshot.completedThrough='2026-11-16';
 for(const [team,wl] of [[1,'W'],[2,'L']]){
  for(const [game,date,counts] of [['2052600001','2026-11-15',oldCounts],['2052600002','2026-11-16',newCounts]]){
   teamRows.push([team,game,date,wl,counts[0]*5]);
-  for(let i=1;i<=5;i++)gameRows.push([10*team+i,team,game,date,wl,48,...counts]);
+  for(let i=1;i<=5;i++)gameRows.push([10*team+(i===5&&counts===oldCounts?6:i),team,game,date,wl,48,...counts]);
  }
- for(let i=1;i<=5;i++)dashboardRows.push([10*team+i,1,48,...oldCounts]);
+ for(let i=1;i<=5;i++)dashboardRows.push([10*team+(i===5?6:i),1,48,...oldCounts]);
 }
 const dashboard=collect(['PLAYER_ID','GP','MIN',...columns],dashboardRows);
 phase.stats=dashboard;
 phase.teamGameLog=collect(['TEAM_ID','GAME_ID','GAME_DATE','WL','PTS'],teamRows);
 phase.gameLog=collect(['PLAYER_ID','TEAM_ID','GAME_ID','GAME_DATE','WL','MIN',...columns],gameRows);
+// The dashboard also has a stale shot attempt count for a returning player.
+dashboardRows[0][3+columns.indexOf('FGA')]=4;
 const repaired=parseGLeagueProgress(lagSnapshot).phases.Showcase;
 assert.equal(repaired.players[11].gp,2);
 assert.equal(repaired.players[11].totals.pts,14);
 assert.equal(repaired.players[11].totals.min,96);
+assert.equal(repaired.players[15].totals.pts,8,'A debut missing from the dashboard is sourced from the final log');
+assert.equal(repaired.players[16].gp,1,'An unaffected player keeps the dashboard exposure');
 assert.deepEqual(repaired.roundedMinutesGames,['2052600002']);
 dashboardRows[0]=[11,2,96,...columns.map((k,i)=>oldCounts[i]+newCounts[i])];
 assert.throws(()=>parseGLeagueProgress(lagSnapshot),/whole final game/);

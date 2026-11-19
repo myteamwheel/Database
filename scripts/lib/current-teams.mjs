@@ -6,7 +6,7 @@ function table(payload,name,columns){
  if(!Array.isArray(t?.headers)||!Array.isArray(t?.rowSet)||new Set(t.headers).size!==t.headers.length||columns.some(k=>!t.headers.includes(k)))throw new Error('Current team/game schema mismatch');
  return t.rowSet.map(row=>{if(row.length!==t.headers.length)throw new Error('Current team/game row width mismatch');return Object.fromEntries(t.headers.map((k,i)=>[k,row[i]]));});
 }
-export function parseCurrentTeams(snapshot){
+export function parseCurrentTeams(snapshot,playerPhases){
  if(snapshot?.version!==1||snapshot.season!=='2026-27'||!Number.isFinite(Date.parse(snapshot.fetchedAt))||snapshot.records?.length!==3)throw new Error('Invalid current team snapshot');
  const scopes={};
  for(const r of snapshot.records){
@@ -26,18 +26,23 @@ export function parseCurrentTeams(snapshot){
    seen.add(key);(byGame.get(id)||byGame.set(id,[]).get(id)).push(g);(byTeam.get(g.TEAM_ID)||byTeam.set(g.TEAM_ID,[]).get(g.TEAM_ID)).push(g);
   }
   for(const pair of byGame.values())if(pair.length!==2||pair[0].TEAM_ID===pair[1].TEAM_ID||pair[0].WL===pair[1].WL)throw new Error('Incomplete current team game pair');
+  const playerGaps=new Set(r.leagueId==='20'?(playerPhases?.[r.seasonType]?.roundedMinutesGames??r.reconciledPlayerGames??[]):[]);
   const rows=teams.map(t=>{
    if(!Number.isSafeInteger(t.TEAM_ID)||t.TEAM_ID<=0||ids.has(t.TEAM_ID)||!t.TEAM_NAME||!Number.isSafeInteger(t.GP)||t.GP<0||!Number.isSafeInteger(t.W)||!Number.isSafeInteger(t.L)||t.W<0||t.L<0||t.W+t.L!==t.GP||COUNTS.some(k=>!Number.isSafeInteger(t[k])||t[k]<0))throw new Error('Invalid/duplicate current team totals');ids.add(t.TEAM_ID);
    for(const [m,a] of [['FGM','FGA'],['FG3M','FG3A'],['FTM','FTA']])if(t[m]>t[a])throw new Error('Invalid current team shooting');
    const played=byTeam.get(t.TEAM_ID)||[];
    const wins=played.filter(g=>g.WL==='W').length;
    if(played.length!==t.GP||wins!==t.W){
-    const matches=r.leagueId==='20'&&played.length===t.GP+1
-      ?played.filter(g=>wins-Number(g.WL==='W')===t.W&&SCORING_COUNTS.every(k=>played.reduce((sum,p)=>sum+p[k],0)-g[k]===t[k]))
-      :[];
-    if(matches.length!==1)throw new Error('Current team exposure/game log disagree; retry after synchronization');
-    const gameId=String(matches[0].GAME_ID).padStart(10,'0');
-    gaps.set(gameId,(gaps.get(gameId)||0)+1);
+    let missing=played.filter(game=>playerGaps.has(game.GAME_ID));
+    if(!missing.length&&r.leagueId==='20'&&played.length===t.GP+1){
+     const matches=played.filter(g=>wins-Number(g.WL==='W')===t.W&&SCORING_COUNTS.every(k=>played.reduce((sum,p)=>sum+p[k],0)-g[k]===t[k]));
+     if(matches.length===1)missing=matches;
+    }
+    if(!missing.length||played.length-missing.length!==t.GP||wins-missing.filter(g=>g.WL==='W').length!==t.W)throw new Error('Current team exposure/game log disagree; retry after synchronization');
+    for(const game of missing){
+     const gameId=String(game.GAME_ID).padStart(10,'0');
+     gaps.set(gameId,(gaps.get(gameId)||0)+1);
+    }
     for(const [field,value] of [['GP',played.length],['W',wins],['L',played.length-wins]]){
      if(t[field]!==value)corrections.push({teamId:t.TEAM_ID,field,dashboard:t[field],gameLog:value});
      t[field]=value;

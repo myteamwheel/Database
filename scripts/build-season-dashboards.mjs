@@ -24,7 +24,7 @@ const meta={};
 for(const [leagueId,type] of [['00','Regular Season'],['20','Showcase'],['20','Regular Season']]){
  const r=records.get(leagueId+':'+type);const url=new URL(r?.source);if(url.protocol!=='https:'||!['stats.gleague.nba.com','stats.nba.com'].includes(url.hostname)||url.pathname!=='/stats/leaguedashplayerstats'||url.searchParams.get('LeagueID')!==leagueId||url.searchParams.get('MeasureType')!=='Advanced'||url.searchParams.get('Season')!=='2026-27'||url.searchParams.get('SeasonType')!==type)throw new Error('Current advanced source URL mismatch');const adv=advancedTable(r?.payload,{leagueId,seasonType:type});
  const league=leagueId==='00'?'NBA':'GLEAGUE',actual=league==='NBA'?nba.players:gl.phases[type].players;
- if(adv.size!==Object.keys(actual).length)throw new Error('Current advanced/base coverage changed; refresh both snapshots together');
+ if([...adv.keys()].some(id=>!Object.hasOwn(actual,id))||(league==='NBA'&&adv.size!==Object.keys(actual).length))throw new Error('Current advanced/base coverage changed; refresh both snapshots together');
  const base=league==='NBA'?nbaRaw.stats.resultSets[0]:glRaw.phases.find(p=>p.apiSeasonType===type).stats.resultSets[0];
  const grades=gradeCurrentRows(data.leagues[league],actual,base,adv,{specialists:specialistMaps(specialist,leagueId,type,nbaRaw.completedThrough)});
  for(const p of data.leagues[league]){p.currentGrades??={};p.currentGrades[type]=grades.get(String(p.playerId))||{grade:null,rateGrade:null,magnitudeGrade:null,reliability:null,reason:'No measured appearance in this competition'};}
@@ -33,7 +33,7 @@ for(const [leagueId,type] of [['00','Regular Season'],['20','Showcase'],['20','R
 data.currentGradeMeta={season:'2026-27',version:'3.4-current-2',completedThrough:nbaRaw.completedThrough||null,cohorts:meta,note:'Full performance, per-36, magnitude and custom metrics use the selected current-season official inputs and a shared completed-game window. NBA and each G League phase rank separately. Ingredient coverage discloses missing specialist fields; nonappearers have no grade. Early samples shrink toward their league mean.',sourceSha256:crypto.createHash('sha256').update(fs.readFileSync(new URL('./data/live/current-grade-inputs.json',import.meta.url))).digest('hex')};
 if(specialist)data.currentSpecialistMeta={season:specialist.season,completedThrough:specialist.completedThrough,asOf:specialist.fetchedAt,sourceSha256:crypto.createHash('sha256').update(fs.readFileSync(specialistPath)).digest('hex'),sources:specialist.records.map(({payload,...r})=>({...r,players:payload?.resultSets?.[0]?.rowSet?.length??0}))};
 const teamPath='scripts/data/live/current-team-stats.json';
-data.currentTeamStats=parseCurrentTeams(read(teamPath));
+data.currentTeamStats=parseCurrentTeams(read(teamPath),gl.phases);
 data.currentTeamStats.sourceSha256=crypto.createHash('sha256').update(fs.readFileSync(new URL('../'+teamPath,import.meta.url))).digest('hex');
 if(data.currentTeamStats.scopes['NBA:Regular Season'].completedGames!==data.seasonProgress.completedGames)throw new Error('NBA schedule and team game counts disagree; refresh together');
 for(const type of ['Showcase','Regular Season'])if(Boolean(data.currentTeamStats.scopes['GLEAGUE:'+type].completedGames)!==Boolean(Object.keys(gl.phases[type].players).length))throw new Error('G League player/team phase publication mismatch');

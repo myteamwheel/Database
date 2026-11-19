@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import {CURRENT_SCOPES,parseCurrentTeams} from './lib/current-teams.mjs';
+import {parseGLeagueProgress} from './lib/gleague-progress.mjs';
 import {fetchJson} from './lib/refresh.mjs';
 const progress=JSON.parse(fs.readFileSync(new URL('./data/live/season-progress.json',import.meta.url))),records=[];
+const gl=parseGLeagueProgress(JSON.parse(fs.readFileSync(new URL('./data/live/gleague-progress.json',import.meta.url))));
 for(const [leagueId,seasonType] of CURRENT_SCOPES){
  const team=new URL(progress.sourceUrls.stats);team.pathname='/stats/leaguedashteamstats';team.searchParams.set('LeagueID',leagueId);team.searchParams.set('SeasonType',seasonType);
  const games=new URL(progress.sourceUrls.gameLog);games.searchParams.set('PlayerOrTeam','T');games.searchParams.set('LeagueID',leagueId);games.searchParams.set('SeasonType',seasonType);
  const [stats,log]=await Promise.all([fetchJson(team.href),fetchJson(games.href)]);
- records.push({leagueId,seasonType,source:team.href,gamesSource:games.href,stats,games:log});
+ records.push({leagueId,seasonType,source:team.href,gamesSource:games.href,stats,games:log,...(leagueId==='20'?{reconciledPlayerGames:gl.phases[seasonType].roundedMinutesGames}:{})});
 }
 const snapshot={version:1,season:'2026-27',fetchedAt:new Date().toISOString(),records},parsed=parseCurrentTeams(snapshot);
 const file=new URL('./data/live/current-team-stats.json',import.meta.url),tmp=new URL('./data/live/current-team-stats.json.tmp-'+process.pid,import.meta.url);
