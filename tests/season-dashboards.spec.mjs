@@ -41,6 +41,10 @@ test('G League rotation agrees across ledger, filters, player card and CSV',asyn
  expect(await schema()).toEqual(historical);
  const {p,phase}=await page.evaluate(()=>({p:DATA.leagues.GLEAGUE.find(p=>Number.isFinite(p.tulipRotation?.tulip)),phase:DATA.gLeagueRotationMeta.phase}));
  if(!p){expect(await page.evaluate(()=>DATA.gLeagueRotationMeta.scores)).toBe(0);return;}
+ await page.click('#tulipAllocBtn');const dialog=page.locator('#teamAllocationDialog');
+ await expect(dialog.locator('[data-rotation-team]')).toHaveCount(31);
+ await dialog.locator('[data-rotation-team="'+p.currentGLeagueRosterTeam+'"]').click();
+ await expect(dialog).toContainText('240 minutes allocated');await dialog.locator('[data-ta-close]').click();
  await page.selectOption('#seasonPhase',phase);await page.selectOption('#seasonTeam',p.currentGLeagueRosterTeam);
  const keys=await schema(),col=keys.indexOf('tulip'),row=page.locator('.season-table > table > tbody > tr').filter({has:page.locator('[data-season-player="'+p.playerId+'"]')});
  expect(Number(await row.locator('td').nth(col).textContent())).toBe(p.tulipRotation.tulip);

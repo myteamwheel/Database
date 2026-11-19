@@ -1611,13 +1611,31 @@ function rotationPlanHtml(team){
     ${plan.unmodeled?.length?`<p class="tiny">Without a workload forecast: ${plan.unmodeled.map(p=>esc(p.name)).join(', ')}. They receive no invented minute estimate.</p>`:''}
     <p class="tiny">Roster and schedule snapshot: ${esc(plan.asOf)}. Eligibility uses listed positions and any secondary evidence shown above. Actual lineups and availability may differ.</p></details>`;
 }
-function openRotationAllocation(team){
+function gLeagueTeamAllocation(team) {
+  const teams=DATA.gLeagueTracker?.teams||[];
+  const selected=teams.find(t=>t.team===team);
+  if(!selected)return teamAllocationHeader('G League rotation plans')+
+    `<div class="raw-grid">${teams.map(t=>`<button type="button" class="button" data-rotation-team="${esc(t.team)}" data-rotation-league="GLEAGUE">${esc(t.name)}</button>`).join('')}</div>`;
+  const roster=DATA.leagues.GLEAGUE.filter(p=>p.currentGLeagueRosterTeam===team);
+  const plan=roster.filter(p=>!p.tulipRotation?.abstain&&finite(p.tulipRotation?.recommendedMpg))
+    .sort((a,b)=>b.tulipRotation.recommendedMpg-a.tulipRotation.recommendedMpg||a.name.localeCompare(b.name));
+  const total=plan.reduce((sum,p)=>sum+Math.round(10*p.tulipRotation.recommendedMpg),0)/10;
+  const columns=['Player','Pos','GP','Actual MPG','Planned MPG','Rotation TULIP','Input support'];
+  return teamAllocationHeader(esc(selected.name)+' · rotation plan')+
+    (plan.length?`<p><strong>${num(total,0)} minutes allocated</strong> · ${plan.length} listed players · ${esc(DATA.gLeagueRotationMeta.phase)} through ${esc(DATA.gLeagueRotationMeta.completedThrough)}</p>
+    <div class="table-wrap"><table><thead><tr>${columns.map((label,i)=>`<th ${i===4?'aria-sort="descending"':''}><button class="table-sort" data-row-sort="${i}" data-sort-kind="${i<2?'text':'number'}">${label}</button></th>`).join('')}</tr></thead>
+    <tbody>${plan.map(p=>{const t=p.tulipRotation;return `<tr><td class="left">${esc(p.name)}</td><td>${esc(p.position||'—')}</td><td>${t.observedGames}</td><td>${num(t.currentMpg)}</td><td>${num(t.recommendedMpg)}</td><td data-sort-value="${t.tulip??''}">${signed(t.tulip)}</td><td data-sort-value="${t.inputSupport==='MEDIUM'?2:1}">${esc(t.inputSupport)}</td></tr>`;}).join('')}</tbody></table></div>
+    <p class="tiny">Actual MPG uses appearances in this competition. Planned minutes use recent team games and the current roster. Game-day availability and assignments are unconfirmed.</p>`:'<p>A team plan requires completed games and a roster that can cover 240 minutes.</p>')+
+    '<button type="button" class="button" data-rotation-team="" data-rotation-league="GLEAGUE">Another G League team</button>';
+}
+function openRotationAllocation(team,planLeague=league){
   if(!teamAllocDlg){teamAllocDlg=document.createElement('dialog');teamAllocDlg.id='teamAllocationDialog';teamAllocDlg.className='modal wide';document.body.appendChild(teamAllocDlg);teamAllocDlg.addEventListener('click',e=>{if(e.target.dataset?.taClose!==undefined)teamAllocDlg.close();});}
-  if(!team){teamAllocDlg.innerHTML=`${teamAllocationHeader('Next-game rotation plans')}<p class="tiny">Choose a current NBA team. Positional shortages and pending availability reports remain visible.</p><details><summary>Historical workload model</summary><p>The older TULIP Beta ledger redistributes historical workloads; it is separate from the current next-game plan.</p><button class="button" data-teamalloc="">Open historical TULIP ledger</button></details><div class="raw-grid">${Object.keys(DATA.rotationPlans||{}).sort().map(t=>`<button type="button" class="button" data-rotation-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;}
+  if(planLeague==='GLEAGUE'){teamAllocDlg.innerHTML=gLeagueTeamAllocation(team);}
+  else if(!team){teamAllocDlg.innerHTML=`${teamAllocationHeader('Next-game rotation plans')}<p class="tiny">Choose a current NBA team. Positional shortages and pending availability reports remain visible.</p><details><summary>Historical workload model</summary><p>The older TULIP Beta ledger redistributes historical workloads; it is separate from the current next-game plan.</p><button class="button" data-teamalloc="">Open historical TULIP ledger</button></details><div class="raw-grid">${Object.keys(DATA.rotationPlans||{}).sort().map(t=>`<button type="button" class="button" data-rotation-team="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;}
   else{teamAllocDlg.innerHTML=`${teamAllocationHeader(`Next-game rotation — ${esc(team)}`)}<p class="tiny">${esc(DATA.tulipRotationMeta?.method||'')} ${esc(DATA.tulipRotationMeta?.boundary||'')}</p>${rotationPlanHtml(team)}<div class="modal-actions"><button type="button" class="button" data-rotation-team="">Another team</button><button type="button" class="button" data-ta-close>Close</button></div>`;const details=teamAllocDlg.querySelector('details');if(details)details.open=true;}
   if(!teamAllocDlg.open)teamAllocDlg.showModal();
 }
-document.addEventListener('click',e=>{const b=e.target.closest?.('[data-rotation-team]');if(b){e.preventDefault();openRotationAllocation(b.dataset.rotationTeam||null);}});
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-rotation-team]');if(b){e.preventDefault();openRotationAllocation(b.dataset.rotationTeam||null,b.dataset.rotationLeague||league);}});
 function openTeamAllocation(team,{preserveState=false}={}){
   if(!teamAllocDlg){
     teamAllocDlg=document.createElement('dialog');
@@ -1764,7 +1782,7 @@ const pctChange = (x, d=1) => finite(x) ? `${x > 0 ? '+' : ''}${(x * 100).toFixe
 /** The player-card section: last season beside the projection, and how the projection was built. */
 function rotationRecommendationCard(p){
   const c=p.tulipRotation;if(!c)return '';
-  if(p.league==='GLEAGUE')return `<section class="rotation-card"><div class="section-bar">G League rotation TULIP · 2026–27</div>${c.abstain?`<p>${esc(get(p,'tr.availability'))}</p>`:`<p><b>${signed(c.tulip)}</b> rotation TULIP · ${num(c.recommendedMpg)} planned minutes · ${num(c.currentMpg)} MPG in ${esc(c.phase)}.</p><p class="tiny">Estimate for a regulation game on the listed roster. Game-day assignments and injuries are unconfirmed. Input support: ${esc(c.inputSupport)}.</p>`}</section>`;
+  if(p.league==='GLEAGUE')return `<section class="rotation-card"><div class="section-bar">G League rotation TULIP · 2026–27</div>${c.abstain?`<p>${esc(get(p,'tr.availability'))}</p>`:`<p><b>${signed(c.tulip)}</b> rotation TULIP · ${num(c.recommendedMpg)} planned minutes · ${num(c.currentMpg)} MPG in ${esc(c.phase)}.</p><p class="tiny">Estimate for a regulation game on the listed roster. Game-day assignments and injuries are unconfirmed. Input support: ${esc(c.inputSupport)}.</p><button type="button" class="button" data-rotation-team="${esc(p.currentGLeagueRosterTeam)}" data-rotation-league="GLEAGUE">View team rotation</button>`}</section>`;
   if(c.abstain)return `<section class="rotation-card"><div class="section-bar">Next-game rotation unavailable</div><p>${esc(get(p,'tr.availability'))}. ${p.currentTeam?`<button type="button" class="text-button" data-rotation-team="${esc(p.currentTeam)}">Review team constraints</button>`:''}</p></section>`;
   return `<section class="rotation-card"><div class="section-bar">Next-game Rotation TULIP · ${esc(c.gameDate)}</div><div class="player-grid"><div class="detail-card"><div class="k">Measured 2026-27 MPG</div><div class="v">${num(c.currentMpg)}</div></div><div class="detail-card"><div class="k">Planned MPG</div><div class="v">${num(c.recommendedMpg,0)}</div></div><div class="detail-card"><div class="k">Rotation TULIP</div><div class="v">${signed(c.tulip)}</div></div></div><p class="tiny">${esc(c.interpretation)} ${esc(c.matchup)} · ${esc(c.availability)} · input support ${esc(c.inputSupport)}.</p><details><summary>Workload and value inputs</summary><p class="tiny">Workload/value target: ${num(c.targetMpg)} MPG. Workload-only baseline allocation: ${num(c.baselineAllocationMpg,0)}; transfer in the feasible rotation: ${signed(c.allocationDelta)}. ${esc(DATA.tulipRotationMeta?.boundary||'')}</p></details><button type="button" class="text-button" data-rotation-team="${esc(p.currentTeam)}">Review the full team rotation</button></section>`;
 }
