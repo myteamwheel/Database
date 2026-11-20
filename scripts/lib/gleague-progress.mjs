@@ -16,9 +16,10 @@ export function reconcileGLeagueLogs(phase,cutoff){
 
 // Identify games absent from the dashboard by matching every player's appearance
 // deficit. Shooting revisions must not change which complete games are included.
-function dashboardGameGaps(dashboard, logged){
+function dashboardGameGaps(dashboard, logged, teamLog){
  const gaps=new Map();
  if(!logged)return gaps;
+ const finalMinutes=new Map(rows(teamLog,['TEAM_ID','GAME_ID','MIN']).map(t=>[t.GAME_ID+':'+t.TEAM_ID,t.MIN]));
  const deficits=new Map(),byGame=new Map();
  for(const id of dashboard.keys())if(!logged.has(id))throw Error('G League dashboard contains a player absent from the final game logs: '+id);
  for(const [id,record] of logged){
@@ -34,10 +35,13 @@ function dashboardGameGaps(dashboard, logged){
   if(!games.every(game=>deficits.get(game.PLAYER_ID)>0))continue;
   const teams=Map.groupBy(games,g=>g.TEAM_ID);
   if(teams.size!==2)throw Error('G League dashboard gap is not a whole final game: '+id);
-  if(games.some(g=>!Number.isInteger(g.MIN)||g.MIN<0||g.MIN>48))throw Error('Invalid G League rounded minutes for missing dashboard game: '+id);
+  const teamTotals=[...teams.keys()].map(team=>finalMinutes.get(id+':'+team));
+  if(!Number.isInteger(teamTotals[0])||teamTotals[0]<240||teamTotals[0]!==teamTotals[1])throw Error('Invalid final team minutes for '+id);
+  const teamMinutes=teamTotals[0];
   for(const group of teams.values()){
+   if(group.some(g=>!Number.isInteger(g.MIN)||g.MIN<0||g.MIN>Math.ceil(teamMinutes/5)))throw Error('Invalid G League rounded player minutes for '+id);
    const minutes=group.reduce((total,g)=>total+g.MIN,0);
-   if(Math.abs(minutes-240)>group.length/2)throw Error('G League rounded minutes do not reconcile to regulation: '+id);
+   if(Math.abs(minutes-teamMinutes)>(group.length+1)/2)throw Error('G League rounded minutes do not reconcile to the final team total: '+id);
   }
   for(const game of games){
    if(!gaps.has(game.PLAYER_ID))gaps.set(game.PLAYER_ID,[]);
@@ -66,7 +70,7 @@ export function parseGLeagueProgress(snapshot){
       if(row.length!==table.headers.length||!Number.isSafeInteger(id)||id<=0||dashboard.has(id)||!Number.isSafeInteger(gp)||gp<=0||!Number.isFinite(min)||min<0)throw new Error('Invalid G League current-stat identity/exposure');
       dashboard.set(id,{row,gp,min});
     }
-    const gaps=dashboardGameGaps(dashboard,reconciled);
+    const gaps=dashboardGameGaps(dashboard,reconciled,phase.teamGameLog);
     for(const id of reconciled?.keys()??dashboard.keys()){
       const original=dashboard.get(id),row=original?.row??[];
       const missing=gaps.get(id)??[],log=reconciled?.get(id);

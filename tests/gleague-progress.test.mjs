@@ -21,14 +21,14 @@ const teamRows=[],gameRows=[],dashboardRows=[];
 lagSnapshot.completedThrough='2026-11-16';
 for(const [team,wl] of [[1,'W'],[2,'L']]){
  for(const [game,date,counts] of [['2052600001','2026-11-15',oldCounts],['2052600002','2026-11-16',newCounts]]){
-  teamRows.push([team,game,date,wl,counts[0]*5]);
+  teamRows.push([team,game,date,wl,counts[0]*5,240]);
   for(let i=1;i<=5;i++)gameRows.push([10*team+(i===5&&counts===oldCounts?6:i),team,game,date,wl,48,...counts]);
  }
  for(let i=1;i<=5;i++)dashboardRows.push([10*team+(i===5?6:i),1,48,...oldCounts]);
 }
 const dashboard=collect(['PLAYER_ID','GP','MIN',...columns],dashboardRows);
 phase.stats=dashboard;
-phase.teamGameLog=collect(['TEAM_ID','GAME_ID','GAME_DATE','WL','PTS'],teamRows);
+phase.teamGameLog=collect(['TEAM_ID','GAME_ID','GAME_DATE','WL','PTS','MIN'],teamRows);
 phase.gameLog=collect(['PLAYER_ID','TEAM_ID','GAME_ID','GAME_DATE','WL','MIN',...columns],gameRows);
 // The dashboard also has a stale shot attempt count for a returning player.
 dashboardRows[0][3+columns.indexOf('FGA')]=4;
@@ -39,6 +39,13 @@ assert.equal(repaired.players[11].totals.min,96);
 assert.equal(repaired.players[15].totals.pts,8,'A debut missing from the dashboard is sourced from the final log');
 assert.equal(repaired.players[16].gp,1,'An unaffected player keeps the dashboard exposure');
 assert.deepEqual(repaired.roundedMinutesGames,['2052600002']);
+// Overtime can change the combined playing time on both final team lines.
+for(const row of teamRows)if(row[1]==='2052600002')row[5]=250;
+for(const row of gameRows)if(row[2]==='2052600002')row[5]=50;
+assert.equal(parseGLeagueProgress(lagSnapshot).phases.Showcase.players[11].totals.min,98);
+teamRows[1][5]=251;
+assert.throws(()=>parseGLeagueProgress(lagSnapshot),/final team minutes/);
+teamRows[1][5]=250;
 dashboardRows[0]=[11,2,96,...columns.map((k,i)=>oldCounts[i]+newCounts[i])];
 assert.throws(()=>parseGLeagueProgress(lagSnapshot),/whole final game/);
 console.log('Separate competition phases, source emptiness and 1/2/3-point G League free-throw scoring passed.');
