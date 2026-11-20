@@ -16,7 +16,7 @@ export function gradeCurrentRows(players,actualById,baseTable,advanced,{speciali
  const eligible=players.filter(p=>actualById[p.nbaPersonId||p.playerId]?.gp>0),norm=[],official=[],incomplete=new Set();
  for(const p of eligible){
   const id=Number(p.nbaPersonId||p.playerId),a=actualById[id],b=base.get(id),source=advanced.get(id);
-  const lagging=p.league==='GLEAGUE'&&a.roundedMinutesGame&&(!source||source.GP<a.gp);
+  const lagging=p.league==='GLEAGUE'&&((a.roundedMinutesGame&&(!source||source.GP<a.gp))||(a.revisedDashboardExposure&&source?.GP!==a.gp));
   if((!b&&!a.roundedMinutesGame)||(!lagging&&source?.GP!==a.gp))throw new Error('Current grade base/advanced exposure mismatch: '+id);
   const v=lagging?{}:source;
   if(lagging)incomplete.add(id);

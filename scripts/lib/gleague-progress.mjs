@@ -59,6 +59,7 @@ export function parseGLeagueProgress(snapshot){
     const table=phase.stats?.resultSets?.find(t=>t.name==='LeagueDashPlayerStats')||phase.stats?.resultSets?.[0];
     if(!Array.isArray(table?.headers)||!Array.isArray(table?.rowSet)||new Set(table.headers).size!==table.headers.length||['PLAYER_ID','GP','MIN',...Object.values(COUNTS)].some(k=>!table.headers.includes(k)))throw new Error('Invalid G League current-stat schema');
     const ix=Object.fromEntries(table.headers.map((k,i)=>[k,i])),players={},reconciled=reconcileGLeagueLogs(phase,snapshot.completedThrough),corrections=[];
+    const revised=new Set((phase.stats.exposureCorrections??[]).map(c=>c.playerId));
     const dashboard=new Map();
     for(const row of table.rowSet){
       const id=row[ix.PLAYER_ID],gp=row[ix.GP],min=row[ix.MIN];
@@ -78,7 +79,7 @@ export function parseGLeagueProgress(snapshot){
       // A made G League free throw can be worth 1, 2 or 3 points. Never apply NBA's
       // one-point-per-make identity or fabricate a free-throw-trip conversion.
       if(freeThrowPoints<totals.ftm||freeThrowPoints>3*totals.ftm)throw new Error('Invalid G League free-throw scoring');
-      players[id]={gp,...(missing.length?{roundedMinutesGame:missing[0].GAME_ID}:{}),totals:{min,...totals,freeThrowPoints},perGame:{mpg:min/gp,...Object.fromEntries(Object.entries(totals).map(([k,v])=>[k,v/gp]))}};
+      players[id]={gp,...(revised.has(id)?{revisedDashboardExposure:true}:{}),...(missing.length?{roundedMinutesGame:missing[0].GAME_ID}:{}),totals:{min,...totals,freeThrowPoints},perGame:{mpg:min/gp,...Object.fromEntries(Object.entries(totals).map(([k,v])=>[k,v/gp]))}};
     }
     phases[phase.apiSeasonType]={label:phase.apiSeasonType==='Showcase'?'Tip-Off Tournament / Showcase':'Regular season',status:Object.keys(players).length?'results-available':'no-published-player-results',source:phase.source,gameLogSource:phase.gameLogSource||null,sourceCorrections:corrections,roundedMinutesGames:[...new Set([...gaps.values()].flatMap(list=>list.map(g=>g.GAME_ID)))],players};
   }

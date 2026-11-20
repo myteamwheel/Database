@@ -1,3 +1,4 @@
+import './gleague-exposure.test.mjs';
 import './dashboard-segments.test.mjs';
 import assert from 'node:assert/strict';import fs from 'node:fs';
 import {parseGLeagueProgress} from '../scripts/lib/gleague-progress.mjs';
