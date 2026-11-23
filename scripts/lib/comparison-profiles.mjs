@@ -103,6 +103,37 @@ export function historicalFallback(playerId, rows, minimumMinutes = 300, targetS
   return result;
 }
 
+// Positional context is a soft preference. A hybrid shares either adjacent role.
+const positionMasks = new Map();
+function positionMask(value) {
+  if (!positionMasks.has(value)) {
+    const label = String(value ?? '').toUpperCase();
+    positionMasks.set(value, (label.includes('G') ? 1 : 0) | (label.includes('F') ? 2 : 0) | (label.includes('C') ? 4 : 0));
+  }
+  return positionMasks.get(value);
+}
+export function positionGap(a, b) {
+  const left = positionMask(a), right = positionMask(b);
+  if (!left || !right || (left & right)) return 0;
+  return left === 1 && right === 4 || left === 4 && right === 1 ? 2 : 1;
+}
+
+const identityAxes = Object.entries({
+  threeRate: .17, ftRate: .23, ast36: 2.5, reb36: 3.4, pts36: 7, usg: .08,
+});
+
+export function styleDistance(target, candidate) {
+  let sum = 0, shared = 0;
+  for (const [key, scale] of identityAxes) {
+    const a = target.features[key], b = candidate.features[key];
+    if (finite(a) && finite(b)) {
+      sum += Math.min(4, Math.abs(a - b) / scale) ** 2;
+      shared++;
+    }
+  }
+  return shared ? Math.sqrt(sum / shared) : 0;
+}
+
 const TRAITS = {
   physical: { label: 'Size', axes: { height: 2.5, weight: 20, wingspan: 3, standingReach: 3 }, minimumAxes: 2 },
   role: { label: 'Passing and role', axes: { ast36: 2, astPct: 0.075, usg: 0.07, tov36: 1.5 }, minimumAxes: 3 },
@@ -126,12 +157,13 @@ function traitDescription(block, target, candidate, evidence) {
   if (block === 'physical') return close('height', 'weight') ? 'size and build' : null;
   if (block === 'role') {
     if (atLeast('ast36', 6) && (close('astPct') || close('usg'))) return 'lead playmaking';
-    if (atLeast('ast36', 3.5) && t.ast36 < 6 && c.ast36 < 6) return 'secondary playmaking';
+    if (atLeast('ast36', 3.2) && t.ast36 < 6 && c.ast36 < 6) return 'secondary playmaking';
     if (atLeast('usg', 0.27)) return 'heavy scoring workload';
     if (below('usg', 0.19)) return 'low-usage offensive role';
     return null;
   }
   if (block === 'scoring') {
+    if (atLeast('threeRate', .65)) return 'three-first shot selection';
     if (atLeast('threeRate', .50)) return 'three-point-heavy shot selection';
     if (below('threeRate', .18) && atLeast('ftRate', .35)) return 'two-point attack and frequent free throws';
     if (below('threeRate', .18)) return 'two-point-heavy shot selection';
@@ -140,7 +172,7 @@ function traitDescription(block, target, candidate, evidence) {
     return null;
   }
   if (atLeast('blk36', 1.5)) return 'shot blocking';
-  if (atLeast('dreb36', 7)) return 'defensive rebounding';
+  if (atLeast('dreb36', 6.5)) return 'defensive rebounding';
   if (atLeast('oreb36', 2.5)) return 'offensive rebounding';
   if (atLeast('stl36', 1.5)) return 'steal production';
   return null;
@@ -148,6 +180,7 @@ function traitDescription(block, target, candidate, evidence) {
 
 export function independentStyleRead(target, profiles, blend = []) {
   const references = {};
+  const contextByPlayer = new Map();
   for (const [block, spec] of Object.entries(TRAITS)) {
     const physical = block === 'physical';
     const targetValues = physical ? target.physical : target.features;
@@ -160,11 +193,14 @@ export function independentStyleRead(target, profiles, blend = []) {
       const evidence = axes.map(([key, scale]) => ({ key, target: targetValues[key], reference: values[key], gap: Math.abs(targetValues[key] - values[key]) / scale }));
       const meanError = evidence.reduce((s, axis) => s + axis.gap ** 2, 0) / evidence.length;
       const coveragePenalty = 0.15 * (1 - axes.length / Object.keys(spec.axes).length);
-      const heightGap = finite(target.physical?.height) && finite(cand.physical?.height)
-        ? Math.abs(target.physical.height - cand.physical.height) : 0;
-      // A rate can match across positions. Prefer a similarly sized role when the evidence is close.
-      const roleContext = block === 'role' ? .09 * Math.max(0, heightGap - 2) : 0;
-      const distance = Math.sqrt(meanError) + coveragePenalty + roleContext;
+      if (!physical && !contextByPlayer.has(cand.playerId)) {
+        const heightGap = finite(target.physical?.height) && finite(cand.physical?.height)
+          ? Math.abs(target.physical.height - cand.physical.height) : 0;
+        contextByPlayer.set(cand.playerId, .16 * positionGap(target.position, cand.position)
+          + .08 * Math.max(0, heightGap - 2) + .13 * styleDistance(target, cand));
+      }
+      const context = physical ? 0 : contextByPlayer.get(cand.playerId);
+      const distance = Math.sqrt(meanError) + coveragePenalty + context;
       const fit = 100 * Math.exp(-0.72 * distance ** 1.55);
       if (fit < 55 || evidence.some((axis) => axis.gap > 2.5)) continue;
       const phrase = traitDescription(block, target, cand, evidence);
@@ -199,13 +235,23 @@ export function independentStyleRead(target, profiles, blend = []) {
   const components = [...selected.values()].map(({ phrases, ...item }) => ({ ...item, phrase: join(phrases) }));
   const position = positionLabel(target);
   const f = target.features;
+  const descriptor = finite(target.physical?.height) && target.physical.height >= 80 && position === 'wing'
+    ? 'tall wing' : position;
+  const threeShare = finite(f.threeRate) ? Math.round(100 * f.threeRate) : null;
   let introduction;
-  if (finite(f.ast36) && f.ast36 >= 6) introduction = `${target.name} is a ${position} who sets up teammates as well as scoring.`;
-  else if (finite(f.threeRate) && f.threeRate >= 0.5) introduction = `${target.name} is a ${position} whose scoring leans heavily on threes.`;
-  else if (finite(f.threeRate) && f.threeRate < 0.15 && finite(f.reb36) && f.reb36 >= 9) introduction = `${target.name} is a ${position} focused on two-point scoring and rebounding.`;
-  else if (finite(f.usg) && f.usg >= 0.27) introduction = `${target.name} is a ${position} with a large scoring workload.`;
-  else if (finite(f.usg) && f.usg < 0.19) introduction = `${target.name} fills a supporting role as a ${position}.`;
-  else introduction = `${target.name} is a ${position}${finite(f.ast36) && f.ast36 >= 3.5 ? ' who can share the playmaking' : finite(f.dreb36) && f.dreb36 >= 7 ? ' who contributes on the defensive glass' : ''}.`;
+  if (finite(f.ast36) && f.ast36 >= 6) {
+    introduction = `${target.name} is a ${descriptor} who takes on a lead playmaking role.`;
+  } else if ((position === 'forward' || position === 'big man') && finite(f.ast36) && f.ast36 >= 3.2) {
+    introduction = `${target.name} is a ${descriptor} who helps set up teammates${finite(f.reb36) && f.reb36 >= 7 ? ' and contributes on the glass' : ''}.`;
+  } else if (threeShare >= 50) {
+    introduction = `${target.name} is a ${descriptor} who takes most of his shots from three.`;
+  } else if (finite(f.usg) && f.usg >= .27) {
+    introduction = `${target.name} is a ${descriptor} with a heavy scoring workload.`;
+  } else if (finite(f.reb36) && f.reb36 >= 9) {
+    introduction = `${target.name} is a ${descriptor} whose role includes rebounding.`;
+  } else {
+    introduction = `${target.name} plays as a ${descriptor}${finite(f.usg) && f.usg < .19 ? ' in a supporting offensive role' : ''}.`;
+  }
   const analogies = components.map((item) => `${possessive(item.name)} ${item.phrase}`);
   const lead = analogies.shift();
   const example = analogies.length ? `${lead}, with ${join(analogies)}` : lead;

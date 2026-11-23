@@ -142,7 +142,7 @@
     }</select></label>${playerOrderControl()}`;
 
   const playerOrderControl=()=>`<label>Player order<select data-player-order><option value="1" ${state.playerDir===1?'selected':''}>A–Z</option><option value="-1" ${state.playerDir===-1?'selected':''}>Z–A</option></select></label>`;
-  const compPlayerLabel = (p) => `${p.name} — ${teamOf(p)}`;
+  const compPlayerLabel = (p) => `${p.name} — ${p.compTarget ? 'Brooklyn / Long Island source profile' : teamOf(p)}`;
   const compPool = () => compPickerPlayers().filter((p) =>
     (!state.simTeam || teamOf(p) === state.simTeam)
     && (!state.simPosition || p.position === state.simPosition || p.positionFamily === state.simPosition));
@@ -206,7 +206,7 @@
     }
     box.innerHTML = list.length ? `<div class="comp-suggestion-count" aria-live="polite">${list.length.toLocaleString()} ${q ? 'matching' : 'available'} players · scroll to browse${q ? '' : ' or type to narrow'}</div>`
       + list.map((p, i) => `<button id="simOption-${esc(p.playerId)}" class="${i === state.simActiveIndex ? 'is-active' : ''}" type="button" role="option" aria-selected="${i === state.simActiveIndex}" data-sim-pick="${esc(p.playerId)}">
-      <b>${esc(p.name)}</b><span>${esc(p.compTarget ? 'Brooklyn / Long Island source profile' : rosterLabel(p))} · ${esc(p.position || '—')}</span></button>`).join('')
+      <b>${esc(p.name)}</b><span>${esc(p.compTarget ? 'Brooklyn / Long Island source profile' : (p.league === 'GLEAGUE' ? 'G League · ' : 'NBA · ') + rosterLabel(p))} · ${esc(p.position || '—')}</span></button>`).join('')
       : `<div class="comp-suggestion-count" role="status">No matching players. Try a different name, team, or position.</div>`;
   }
 
@@ -907,16 +907,22 @@
     const latest = window.DATA?.analysis?.playerCompsCurrent?.[lg + ':' + competitionFor(lg)]?.[String(p.playerId)]
       || (archive?.targetSeason === '2026-27' ? archive : null);
     const year = state.compYear || (latest || !archive ? '2026-27' : '2025-26');
-    const period = isTargeted ? '' : periodControls('compYear', year);
     const sameLeagueSet = isTargeted ? null : year === '2026-27' ? latest : archive?.targetSeason === '2025-26' ? archive : null;
     const nbaEquivalentSet = isTargeted ? null : (window.DATA?.analysis?.playerCompsNbaEquivalent?.[lg]?.[String(p.playerId)] || null);
     const useNbaEquivalent = isTargeted || (!!nbaEquivalentSet && (state.simCompScope === 'nba'));
     const set = targetedSet || (useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet);
+    const period = useNbaEquivalent ? '' : periodControls('compYear', year);
+    const currentSample = lg === 'GLEAGUE' ? p.gLeagueSeasonActual?.phases?.[competitionFor(lg)] : p.seasonActual;
+    const archivedDefault = !isTargeted && !useNbaEquivalent && !latest && year === '2025-26' && currentSample?.gp > 0;
+    const related = isTargeted ? pickerPlayers().find(row => p.nbaPersonId
+      ? String(row.nbaPersonId ?? row.playerId) === String(p.nbaPersonId)
+      : fold(row.name) === fold(p.name)) : null;
+    const actualProfileLink = related ? `<button type="button" class="button secondary small" id="simActualProfile" data-player="${esc(related.playerId)}">Compare recorded ${esc(related.league === 'GLEAGUE' ? 'G League' : 'NBA')} play</button>` : '';
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
       const rookie = rookieCohortComparison(p);
-      if (rookie) return rookie + period;
+      if (rookie && !currentSample?.gp) return rookie + period;
       const reason = year === '2026-27'
         ? 'Current comparisons require three games and 100 minutes in the selected competition.'
         : 'This player has no usable 2025–26 sample.';
@@ -955,6 +961,11 @@
         ${compReferenceEvidence(q.referenceProfile)}
       </article>`).join('');
 
+    const shotShare = rate => Number.isFinite(rate) ? Math.round(100*rate)+'% of shots were threes' : '';
+    const comparisonLine = stat => [
+      shotShare(stat.threeRate), Number.isFinite(stat.ast36) ? num(stat.ast36,1)+' AST per 36' : '',
+      Number.isFinite(stat.reb36) ? num(stat.reb36,1)+' REB per 36' : '',
+    ].filter(Boolean).join(' · ');
     const heroes = shown.map((q, i) => {
       const b = shareById.get(String(q.playerId)) || { share: Math.round(100 / Math.max(1, shown.length)), matchScore: q.similarity };
       const blendLabel = shown.length === 1 ? 'OF THE PLAYER COMP' : 'OF THE PLAYER BLEND';
@@ -965,6 +976,7 @@
         <div class="comp-hero-strength">${blendLabel}</div>
         <h3>${esc(q.name)}</h3>
         <p class="comp-season">${esc(q.season)} · ${esc(q.team || '—')} · ${esc(q.position || '—')}</p>
+        <p class="tiny">${esc(comparisonLine(q))}</p>
         ${compReferenceEvidence(q.referenceProfile)}
         <p class="tiny">Match quality: <b>${num(q.similarity, 1)}/100</b> · ${esc(compStrength(q.similarity))}</p>
         <div class="comp-block-pills">
@@ -1011,15 +1023,14 @@
         : `This dedicated target uses ${esc(p.name)}'s ${esc(set.targetSeason)} pre-NBA production from ${esc(set.sourceTeam || 'his prior team/league')}. Per-40 volume is conservatively translated toward NBA rates, noisy shooting percentages are regressed toward NBA norms, and source exposure controls shrinkage. This is a playing-style analogy, not a rookie performance forecast. NBA statistics are not target inputs.`)
       : useNbaEquivalent
         ? `The target starts with ${esc(p.name)}'s recorded G League production (${esc(set.targetSeason)}), then each supported comparison axis is translated into NBA statistical space using same-player, same-season crossover samples through ${esc(set.translationEvidence?.trainingThrough || '2024-25')}. The translated target is then standardized against the 2025-26 NBA distribution and matched to NBA historical references. Listed body measurements are unchanged. G League MPG is excluded because it is not an NBA role forecast.`
-        : 'Similarity uses player-season rates per 100 possessions where pace is available, then centers and scales each feature within the same league and season. Low-exposure lines are shrunk toward that season’s median (240-minute prior; MPG uses 20 games) before scoring. This reduces short-sample and era/tempo effects; it does not remove all uncertainty. The side-by-side table continues to show raw recorded statistics. Physical profiles use the available listed measurements, which may not be contemporaneous with the season.';
+        : 'Overall matches use both era-adjusted statistics and direct checks on shot selection, usage, and production. The model favors compatible roles and builds, and shrinks small samples using minutes, games, or attempts. Side-by-side tables show the observed rates. Where pace is missing, comparisons use a 100-possession pace for scaling.';
 
     return `<div class="comp-page">
       <div class="comp-page-title">
         <div><div class="eyebrow">${esc(pageEyebrow)}</div><p class="tiny">A concise statistical blueprint, followed by the supporting evidence.</p></div>
         <div class="comp-confidence"><span>STATISTICAL BLEND FIT</span><b>${fin(confidence) ? num(confidence, 1) + '/100' : '—'}</b></div>
       </div>
-      <p class="tiny">The large percentage${shown.length === 1 ? ' is' : 's are'} the <b>blend composition</b> and always total 100%.
-      Statistical blend fit is a heuristic reconstruction score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
+      <p class="tiny">Blend shares show how much each reference contributes to the statistical fit. Fit is a heuristic score, not a probability, calibrated confidence, scouting verdict, or career forecast.</p>
       <details class="comp-method-note"><summary>How historical rates are compared</summary>
         <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${referenceMinimum} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
         <p class="tiny">${methodSecondParagraph}</p>
@@ -1027,6 +1038,8 @@
       ${compPlayerSearch(p)}
       ${period}
       ${scopeToggle}
+      ${actualProfileLink}
+      ${archivedDefault ? `<p class="tiny">Showing the 2025–26 profile. The selected 2026–27 competition has ${cval(currentSample.gp,'0')} games and ${cval(currentSample.totals?.min,'0')} minutes for this player. Current comparisons start at three games and 100 minutes.</p>` : ''}
       ${!useNbaEquivalent && year === '2026-27' ? currentRefreshNote() : ''}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
@@ -1038,7 +1051,8 @@
       ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can materially change the comparison.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
-          <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
+          <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p>
+          <p>${esc(comparisonLine(set.targetStats || {}))}</p></div>
         <div class="comp-pool-note">${esc(poolLabel)}<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
@@ -1058,8 +1072,7 @@
       <p class="tiny comp-method"><b>Blend method:</b> from a balanced shortlist of 18 historical player candidates, the engine chooses one to three
       players and their non-negative percentages together. It minimizes the error between the target and the weighted blend across
         listed physical dimensions, role, creation, production, shot diet and defensive activity; all shares sum to 100%. Missing source
-      fields and an unnecessary extra player are explicit penalties. Team ratings and plus-minus stay visible but do not steer the
-      composition. <b>Statistical blend fit</b> combines reconstruction quality, individual match quality and feature coverage, so a
+      fields and an unnecessary extra player are explicit penalties. The fit also charges each contributor for differences in role and shot selection before combining them. <b>Statistical blend fit</b> combines reconstruction quality, individual match quality and feature coverage, so a
       unique player can still receive honest reference points without pretending the historical fit is strong.
       ${esc((meta.limitations || []).join(' '))}</p>
     </div>`;
@@ -1449,6 +1462,10 @@
     });
     on('simTeam', 'change', (e) => { state.simTeam = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('simPosition', 'change', (e) => { state.simPosition = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    on('simActualProfile','click',e => {
+      state.compYear = ''; state.simCompScope = 'same';
+      selectCompPlayer(compById(e.currentTarget.dataset.player));
+    });
     on('simScopeSame', 'click', () => { state.simCompScope = 'same'; render(); window.__siteUrlChanged?.('push'); });
     on('simScopeNba', 'click', () => { state.simCompScope = 'nba'; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {

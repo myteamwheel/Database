@@ -25,7 +25,7 @@ const meta = data.analysis.playerCompsMeta;
 const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/inputs.json', import.meta.url), 'utf8'));
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
-assert.equal(meta.version, '4.3.0');
+assert.equal(meta.version, '4.4.0');
 assert.match(meta.targetEligibility, /2025-26 targets use recorded appearances/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
@@ -240,3 +240,27 @@ const setFor = (name) => {
 assert.notEqual(setFor('Reed Sheppard').blend[0].name, 'Patrick Beverley');
 
 console.log(`player comps passed: ${checked} players, ${sparse} sparse blends, ${patterns.size} share patterns`);
+
+
+// Regression for mixing adjusted and unadjusted volume in the named pre-NBA profiles.
+// Use basketball ranges and role, so the check does not freeze the winning names.
+for (const [id, maxAssists, maxPoints] of [
+  ['target:jonathan-pierre', 6, 22],
+  ['target:joshua-jefferson', 7, 24],
+]) {
+  const set = data.analysis.playerCompsTargeted[id];
+  assert.ok(set.top3.every(ref => ref.ast36 < maxAssists && ref.pts36 < maxPoints),
+    `${id}: a high-volume primary creator cannot stand in for this source profile`);
+}
+const pierre = data.analysis.playerComps.GLEAGUE['1642952'];
+assert.ok(pierre.nearestOverall[0].threeRate >= .65,
+  'Pierre’s best G League match must reflect his three-point-heavy role');
+const jefferson = data.analysis.playerCompsCurrent['GLEAGUE:Showcase']?.['1643538']
+  ?? data.analysis.playerCompsCurrent['GLEAGUE:Regular Season']?.['1643538'];
+if (jefferson) {
+  const row = data.leagues.GLEAGUE.find(p => p.playerId === '1643538');
+  const { fg3a, fg3m } = row.gLeagueSeasonActual.phases[jefferson.targetSeasonType].totals;
+  if (row.currentGLeagueBio?.height === '6-8') assert.equal(jefferson.targetPhysical.height, `6'8"`);
+  if (Number(row.currentGLeagueBio?.weight) > 0) assert.equal(jefferson.targetPhysical.weight, Number(row.currentGLeagueBio.weight));
+  if (fg3a >= 15) assert.ok(Math.abs(jefferson.targetStats.fg3Pct - fg3m / fg3a) <= .000501);
+}

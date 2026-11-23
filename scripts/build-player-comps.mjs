@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stableReferenceProfiles, independentStyleRead } from './lib/comparison-profiles.mjs';
+import { stableReferenceProfiles, independentStyleRead, positionGap, styleDistance } from './lib/comparison-profiles.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.json');
@@ -25,6 +25,7 @@ const TARGET_COMPS_PATH = path.join(ROOT, 'scripts/data/player_comp_targets.json
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const n = (v) => fin(v) ? Number(v) : null;
+const fromPercentagePoints = (value) => fin(value) ? Number(value) / 100 : null;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const r1 = (v) => fin(v) ? Math.round(Number(v) * 10) / 10 : null;
 const r2 = (v) => fin(v) ? Math.round(Number(v) * 100) / 100 : null;
@@ -256,7 +257,7 @@ const BLOCKS = {
 // pace, then centered/scaled within league-season so comparisons reflect a player's role relative
 // to that era rather than rule/tempo inflation. Reliability shrinkage pulls short samples toward
 // their own league-season median before standardizing; it never fills a missing feature.
-const MATCH_PRIOR = { mpg: 20, default: 240 };
+const MATCH_PRIOR = { mpg: 10, threeRate: 25, ftRate: 40, fg3Pct: 100, ftPct: 60, default: 180 };
 const PACE_RATE_AXES = new Set(['pts36', 'fga36', 'threeA36', 'fta36', 'reb36', 'ast36', 'stl36', 'blk36', 'tov36', 'pf36', 'plusMinus36', 'oreb36', 'dreb36']);
 const MATCH_AXES = Object.entries(BLOCKS).filter(([block]) => block !== 'physical')
   .flatMap(([, spec]) => Object.entries(spec.axes).map(([key, axis]) => ({ key, axis })));
@@ -268,12 +269,22 @@ const weightedMedian = (values) => {
   for (const x of rows) { n += x.weight; if (n >= total / 2) return x.value; }
   return rows[rows.length - 1]?.value ?? null;
 };
-const featureExposure = (row, key) => key === 'mpg' ? Number(row.gp || 0) : Number(row.minutes || 0);
+const shotExposure = { threeRate: ['FGA','fga36'], ftRate: ['FGA','fga36'], fg3Pct: ['FG3A','threeA36'], ftPct: ['FTA','fta36'] };
+function featureExposure(row, key) {
+  if (key === 'mpg') return Number(row.gp || 0);
+  if (!shotExposure[key]) return Number(row.minutes || 0);
+  const [stat, per36Key] = shotExposure[key];
+  if (fin(row.totals?.[stat])) return Number(row.totals[stat]);
+  const rate = row.features?.[per36Key];
+  return fin(rate) ? Number(rate) * Number(row.minutes || 0) / 36 : 0;
+}
 function matchRawValue(row, key) {
   const value = row.features?.[key];
   if (!fin(value)) return null;
-  if (PACE_RATE_AXES.has(key) && fin(row.features?.pace) && Number(row.features.pace) > 0) {
-    return Number(value) * 48 / Number(row.features.pace);
+  if (PACE_RATE_AXES.has(key)) {
+    // Per-36 rates must stay in the same units when the source has no pace.
+    const pace = fin(row.features?.pace) && Number(row.features.pace) > 0 ? Number(row.features.pace) : 100;
+    return Number(value) * (100 / 36) * (48 / pace);
   }
   return Number(value);
 }
@@ -466,7 +477,8 @@ function preNbaEquivalentTarget(spec, profile, nbaSeasonStats) {
     const center = nbaSeasonStats?.[key]?.median, scale = nbaSeasonStats?.[key]?.scale;
     if (!fin(value) || !fin(center) || !fin(scale) || scale <= 0) { out[key] = null; continue; }
     const prior = MATCH_PRIOR[key] ?? MATCH_PRIOR.default;
-    const reliability = exposureMinutes / (exposureMinutes + prior);
+    const exposure = featureExposure(target, key);
+    const reliability = exposure / (exposure + prior);
     const shrunk = center + reliability * (Number(value) - center);
     out[key] = clamp((shrunk - center) / scale, -4, 4) * axis.scale;
   }
@@ -578,7 +590,11 @@ function compare(target, cand) {
     const values = name === 'physical' ? target.physical : target.matchFeatures || target.features;
     return sum + spec.weight * Number(Object.keys(spec.axes).some(key => fin(values[key])));
   }, 0);
-  let distance = Math.sqrt(total / totalW) + .30 * Math.max(0, expectedWeight - totalW);
+  const absoluteStyle = styleDistance(target, cand);
+  const positionCost = .19 * positionGap(target.position, cand.position);
+  let distance = Math.hypot(.86 * Math.sqrt(total / totalW), .58 * absoluteStyle)
+    + positionCost + .30 * Math.max(0, expectedWeight - totalW);
+  if (cand.referenceProfile?.limited) distance += .05;
 
   // Size-first guardrails. These are penalties, not position rules: cross-position comps still work.
   const dh = fin(target.physical.height) && fin(cand.physical.height)
@@ -592,12 +608,19 @@ function compare(target, cand) {
   if (fin(dws) && dws > 5) distance += (dws - 5) * 0.18;
 
   const physical = parts.find((x) => x.name === 'physical');
+  // Explain the raw side-by-side line, even though the main distance uses era-adjusted rates.
+  const observed = Object.entries(BLOCKS).flatMap(([name, spec]) => {
+    const a = name === 'physical' ? target.physical : target.features;
+    const b = name === 'physical' ? cand.physical : cand.features;
+    return blockDistance(a, b, spec).detail.map(axis => ({ ...axis, block: name }));
+  });
   const coverage = totalW > 0 ? parts.reduce((a, x) => a + x.weight * (x.coverage ?? 1), 0) / totalW : 0;
   const score = similarityFromDistance(distance);
-  const details = parts.flatMap((x) => x.detail.map((d) => ({ ...d, block: x.name })));
+  const details = observed;
   details.sort((a, b) => a.z - b.z);
   return {
     score, distance, coverage,
+    styleCost: .18 * absoluteStyle ** 2 + .06 * positionCost,
     physicalCoverage: physical?.coverage ?? 0,
     blockScores: Object.fromEntries(parts.map((x) => [x.name, r1(similarityFromDistance(x.distance))])),
     blockDetails: Object.fromEntries(parts.map((x) => [x.name,
@@ -634,8 +657,8 @@ function currentHistoricalTarget(p, leagueHist) {
       threeRate: fin(p.fg3a) && fin(p.fga) && p.fga > 0 ? p.fg3a / p.fga : null,
       ftRate: fin(p.fta) && fin(p.fga) && p.fga > 0 ? p.fta / p.fga : null,
       fg3Pct: p.fg3Pct, fgPct: p.fgPct, ftPct: p.ftPct, ts: p.ts,
-      astPct: p.astPct, astTo: p.astTo, astRatio: p.astRatio,
-      orebPct: p.orebPct, drebPct: p.drebPct, rebPct: p.rebPct,
+      astPct: fromPercentagePoints(p.astPct), astTo: p.astTo, astRatio: p.astRatio,
+      orebPct: fromPercentagePoints(p.orebPct), drebPct: fromPercentagePoints(p.drebPct), rebPct: fromPercentagePoints(p.rebPct),
       offRtg: p.offRtg, defRtg: p.defRtg, netRtg: p.netRtg, tmTovPct: p.tmTovPct,
       pie: p.pie, pace: p.pace,
     },
@@ -667,8 +690,8 @@ function currentSiteTarget(p) {
       threeRate: fin(p.fg3a) && fin(p.fga) && p.fga > 0 ? p.fg3a / p.fga : null,
       ftRate: fin(p.fta) && fin(p.fga) && p.fga > 0 ? p.fta / p.fga : null,
       fg3Pct: p.fg3Pct, fgPct: p.fgPct, ftPct: p.ftPct, ts: p.ts, efgPct: p.efg,
-      astPct: p.astPct, astTo: p.astTo, astRatio: p.astRatio,
-      orebPct: p.orebPct, drebPct: p.drebPct, rebPct: p.rebPct,
+      astPct: fromPercentagePoints(p.astPct), astTo: p.astTo, astRatio: p.astRatio,
+      orebPct: fromPercentagePoints(p.orebPct), drebPct: fromPercentagePoints(p.drebPct), rebPct: fromPercentagePoints(p.rebPct),
       offRtg: p.offRtg, defRtg: p.defRtg, netRtg: p.netRtg, tmTovPct: p.tmTovPct,
       pie: p.pie, pace: p.pace,
     },
@@ -684,15 +707,19 @@ function measuredCurrentTarget(p, phase = 'Regular Season') {
   const a=actual.perGame,t=actual.totals,g=p.currentGrades?.[phase] ?? {};
   const target=currentSiteTarget({
     ...p,team:p.currentTeam,age:null,gp:actual.gp,minutes:t.min,
+    heightInches: inches(p.currentGLeagueBio?.height) ?? p.heightInches,
+    weight: n(p.currentGLeagueBio?.weight) ?? p.weight,
     mpg:a.mpg,pts:a.pts,reb:a.reb,oreb:a.oreb,dreb:a.dreb,
     ast:a.ast,stl:a.stl,blk:a.blk,tov:a.tov,fga:a.fga,fg3a:a.fg3a,
-    fta:a.fta,fg3Pct:t.fg3a>=15?a.fg3Pct:null,
-    fgPct:a.fgPct,ftPct:t.fta>=10?a.ftPct:null,ts:g.ts ?? a.ts,
+    fta:a.fta,fg3Pct:t.fg3a>=15?t.fg3m/t.fg3a:null,
+    fgPct:t.fga>0?t.fgm/t.fga:null,ftPct:t.fta>=10?t.ftm/t.fta:null,ts:g.ts ?? a.ts,
     efg:t.fga>0?(t.fgm+0.5*t.fg3m)/t.fga:null,
-    usg:g.usg,pf:null,plusMinus:null,astPct:g.astPct,astRatio:g.astRatio,
-    orebPct:g.orebPct,drebPct:g.drebPct,rebPct:g.rebPct,offRtg:null,defRtg:null,
+    usg:g.usg,pf:null,plusMinus:null,astPct:fin(g.astPct)?100*g.astPct:null,astTo:t.tov>0?t.ast/t.tov:null,astRatio:g.astRatio,
+    orebPct:fin(g.orebPct)?100*g.orebPct:null,drebPct:fin(g.drebPct)?100*g.drebPct:null,
+    rebPct:fin(g.rebPct)?100*g.rebPct:null,offRtg:null,defRtg:null,
     netRtg:null,tmTovPct:null,pie:null,pace:g.pace,
   });
+  target.totals = { FGA:t.fga, FG3A:t.fg3a, FTA:t.fta };
   target.season='2026-27';target.seasonType=phase;
   target.targetBasis='measured-2026-27-provisional';
   target.targetSourceSeasons=['2026-27'];
@@ -797,7 +824,7 @@ function serializeNbaEquivalentComp(target, cand, m) {
 function serializeNbaEquivalentOverall(cand, m) {
   return {
     playerId: cand.playerId, league: cand.league, name: cand.name, season: cand.season,
-    similarity: r1(m.score),
+    similarity: r1(m.score), position: cand.position,
     referenceProfile: compactReferenceProfile(cand.referenceProfile),
   };
 }
@@ -885,7 +912,7 @@ function optimizeBlend(target, shortlist) {
   const costs = shortlist.map((x, i) => {
     const physical = Number(x.m.blockScores?.physical ?? x.m.score ?? 0) / 100;
     const match = Number(x.m.score || 0) / 100;
-    return 0.05 * (1 - physical) ** 2 + 0.08 * (1 - coverage[i]) + 0.04 * (1 - match) ** 2;
+    return .05 * (1 - physical) ** 2 + .08 * (1 - coverage[i]) + .04 * (1 - match) ** 2 + (x.m.styleCost ?? 0);
   });
 
   const consider = (indices, weights) => {
@@ -893,19 +920,9 @@ function optimizeBlend(target, shortlist) {
       const predicted = indices.reduce((v, idx, j) => v + weights[j] * vectors[idx][k], 0);
       return sum + (t - predicted) ** 2;
     }, 0) / axisWeight;
-    const physicalPenalty = indices.reduce((sum, idx, j) => {
-      const physical = Number(shortlist[idx].m.blockScores?.physical ?? shortlist[idx].m.score ?? 0) / 100;
-      return sum + weights[j] * (1 - physical) ** 2;
-    }, 0);
-    const missingPenalty = indices.reduce((sum, idx, j) => sum + weights[j] * (1 - coverage[idx]), 0);
-    const individualPenalty = indices.reduce((sum, idx, j) => {
-      const match = Number(shortlist[idx].m.score || 0) / 100;
-      return sum + weights[j] * (1 - match) ** 2;
-    }, 0);
-    // A very small complexity cost makes a two-player explanation beat a three-player one when the
-    // third player adds no material reconstruction value. It does not force sparse blends.
-    const objective = styleError + 0.05 * physicalPenalty + 0.08 * missingPenalty
-      + 0.04 * individualPenalty + 0.003 * (indices.length - 1);
+    // Charge each contributor's role and shot-diet differences before averaging them.
+    const contributorCost = indices.reduce((sum, idx, j) => sum + weights[j] * costs[idx], 0);
+    const objective = styleError + contributorCost + .024 * (indices.length - 1);
     if (!best || objective < best.objective) {
       best = { indices, weights, objective, styleError, coverage: indices.reduce((s, idx, j) => s + weights[j] * coverage[idx], 0) };
     }
@@ -953,7 +970,7 @@ function optimizeBlend(target, shortlist) {
   const shares = integerShares(pairs.map((x) => x.weight));
   const weightedMatch = pairs.reduce((sum, x) => sum + x.weight * Number(x.item.m.score || 0), 0);
   const reconstructionScore = similarityFromDistance(Math.sqrt(best.styleError));
-  const confidence = r1(clamp((0.72 * reconstructionScore + 0.28 * weightedMatch)
+  const confidence = r1(clamp((0.45 * reconstructionScore + 0.55 * weightedMatch)
     * (0.88 + 0.12 * best.coverage), 0, 100));
   return {
     selected: pairs.map((x) => x.item),
@@ -1418,7 +1435,7 @@ data.analysis.playerCompsNbaEquivalent = { GLEAGUE: {...historicalGLeagueNbaEqui
 data.analysis.playerCompTargets = targetedPlayerCatalog;
 data.analysis.playerCompsTargeted = targetedPlayerComps;
 data.analysis.playerCompsMeta = {
-  version: '4.3.0',
+  version: '4.4.0',
   generatedAt: process.env.BUILD_GENERATED_AT || new Date().toISOString(),
   sameLeagueOnly: true,
   sameLeagueDefault: true,
@@ -1447,14 +1464,14 @@ data.analysis.playerCompsMeta = {
   targetEligibility: '2025-26 targets use recorded appearances; 2026-27 targets require at least three games and 100 minutes within the selected competition',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
-  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties; nearestOverall is ranked independently and style references search the full stable pool',
+  blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; each contributor’s direct style distance, missing evidence, and unnecessary extra players are penalized; nearestOverall is ranked independently and style references search the full stable pool',
   matchAdjustments: {
-    pace: 'Per-36 volume axes are converted to per-100 possessions using the player-season pace when available.',
+    pace: 'Per-36 volume axes are converted to per-100 possessions using the player-season pace when available and a neutral 100-possession pace otherwise.',
     era: 'Each feature is centered on its weighted median and scaled by weighted median absolute deviation within league and season; this compares historical players relative to their same-era peers.',
-    shrinkage: 'Before standardizing, each feature is pulled toward its league-season median by exposure/(exposure+prior): minutes with a 240-minute prior, MPG with a 20-game prior.',
+    shrinkage: 'Before standardizing, each feature is pulled toward its league-season median by exposure/(exposure+prior): minutes with a 180-minute prior, MPG with a 10-game prior, and shot ratios with attempt-based priors.',
     rawDisplay: 'These adjustments affect similarity and blend weights only. Multi-year side-by-side references show pooled actual rates and pooled shooting attempts, with the exact source periods disclosed.',
   },
-  blendConfidence: '72% reconstructed-profile similarity plus 28% blend-weighted individual match quality, adjusted for feature coverage',
+  blendConfidence: '45% reconstructed-profile similarity plus 55% blend-weighted individual match quality, adjusted for feature coverage',
   scoreDistribution,
   blendDistribution,
   positionGate: false,
