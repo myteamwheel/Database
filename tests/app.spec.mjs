@@ -599,10 +599,9 @@ test.describe('analysis workspace', () => {
     expect(await page.$$eval('#workspace .comp-hero-card', (x) => x.length)).toBeLessThanOrEqual(3);
     expect(await page.$$eval('#workspace .comp-card', (x) => x.length)).toBeGreaterThanOrEqual(1);
     const txt = await page.$eval('#workspace', (e) => e.textContent);
-    expect(txt).toContain('blend composition');
+    expect(txt).toContain('Blend shares show how much each reference contributes');
     expect(txt).toContain('STATISTICAL BLEND FIT');
     expect(txt).toContain('PLAYER STYLE BLUEPRINT');
-    expect(txt).toContain('The large percentages are the blend composition');
     expect(txt).toContain('not a probability, calibrated confidence');
     expect(await page.$$eval('#workspace .comp-blueprint-player', (x) => x.length)).toBeGreaterThan(0);
     const composition = await page.evaluate(() => {
