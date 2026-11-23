@@ -51,3 +51,42 @@ test('a missing independent trait reference never becomes a mislabeled blend ref
   await expect(page.locator('.comp-style-copy')).toContainText('not enough shared evidence');
   expect(await page.locator('.comp-hero-card').count()).toBeGreaterThan(0);
 });
+
+test('Long Island NBA comparisons include past participants and preserve the selected season', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(String(error)));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(`${PAGE}?mode=similarity&league=GLEAGUE&simScope=nba10&chartYear=2025-26&sim=1642849`);
+  const picker = page.locator('#linCompPlayer');
+  const season = page.locator('#compYear');
+  const sets = data.analysis.longIslandNbaComps.seasons;
+  await expect(picker.locator('option')).toHaveCount(Object.keys(sets['2025-26']).length);
+  await expect(picker).toHaveValue('1642849');
+  await expect(page.locator('#workspace')).toContainText('14 games');
+  await expect(page.locator('#workspace')).toContainText('Showcase 13');
+  await expect(page.locator('#workspace')).toContainText('Regular Season 1');
+  await expect(page.locator('.comp-overall-card h4').first()).toHaveText(sets['2025-26']['1642849'].nearestOverall[0].name);
+  await season.selectOption('2026-27');
+  await expect(picker.locator('option')).toHaveCount(Object.keys(sets['2026-27']).length);
+  await picker.selectOption('1642952');
+  await expect(page.locator('#comp-style-heading')).toHaveText('Jonathan Pierre');
+  await expect(page.locator('#chartPhase')).toHaveCount(0);
+  await expect(page.locator('.comp-pool-note')).toContainText('2017-18 to 2026-27');
+  // The downloadable file deliberately never writes browser history. Exercise
+  // URL persistence when served over HTTP, as it is on GitHub Pages.
+  if (new URL(PAGE).protocol === 'file:') {
+    await page.goto(`${PAGE}?mode=similarity&league=GLEAGUE&simScope=nba10&chartYear=2026-27&sim=1642952`);
+  } else {
+    await expect(page).toHaveURL(/chartYear=2026-27/);
+    await expect(page).toHaveURL(/sim=1642952/);
+    await page.reload();
+  }
+  await expect(picker).toHaveValue('1642952');
+  await expect(season).toHaveValue('2026-27');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.locator('#simScopeSame').click();
+  await expect(picker).toHaveCount(0);
+  await page.locator('#simScopeRecentNba').click();
+  await expect(picker).toHaveValue('1642952');
+  expect(errors).toEqual([]);
+});

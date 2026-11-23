@@ -552,11 +552,11 @@
     return lg === 'NBA' ? 'Regular Season' : seasonUi.phase;
   }
 
-  function periodControls(id, year) {
+  function periodControls(id, year, showCompetition = true) {
     return `<div class="ws-controls"><label>Season<select id="${id}">
       <option value="2026-27" ${year === '2026-27' ? 'selected' : ''}>2026–27</option>
       <option value="2025-26" ${year === '2025-26' ? 'selected' : ''}>2025–26</option>
-      </select></label>${year === '2026-27' && league() === 'GLEAGUE'
+      </select></label>${showCompetition && year === '2026-27' && league() === 'GLEAGUE'
       ? `<label>G League competition<select id="chartPhase">
         <option value="Showcase" ${seasonUi.phase === 'Showcase' ? 'selected' : ''}>Tip-Off Tournament / Showcase</option>
         <option value="Regular Season" ${seasonUi.phase === 'Regular Season' ? 'selected' : ''}>Regular season</option>
@@ -850,7 +850,7 @@
     if (deep.length) rows.push(['DEEP STYLE (COMMON COVERAGE)', null, null, 'section'], ...deep);
 
     return `<div class="comp-side-table-wrap"><table class="comp-side-table">
-      <thead><tr><th class="left">Comparison axis</th><th>${esc(set?.targetBasis === 'gleague-to-nba-equivalent' ? p.name + ' (NBA eq.)' : p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
+      <thead><tr><th class="left">Comparison axis</th><th>${esc(['gleague-to-nba-equivalent','long-island-to-recent-nba'].includes(set?.targetBasis) ? p.name + ' (NBA eq.)' : p.name)}</th><th>${esc(q.name)} · ${esc(q.season)}</th></tr></thead>
       <tbody>${rows.map(([label, a, b, type]) => type === 'section'
         ? `<tr class="comp-section-row"><th colspan="3">${esc(label)}</th></tr>`
         : `<tr><th class="left">${esc(label)}</th><td>${type === 'text' ? esc(a) : cval(a, type)}</td><td>${type === 'text' ? esc(b) : cval(b, type)}</td></tr>`).join('')}
@@ -897,7 +897,18 @@
   }
 
   function viewSimilarity() {
-    const p = compById(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
+    const longIsland = league() === 'GLEAGUE' ? window.DATA?.analysis?.longIslandNbaComps : null;
+    const useRecentNba = Boolean(longIsland && state.simCompScope === 'nba10');
+    const recentYear = state.compYear || '2026-27';
+    const recentSets = longIsland?.seasons[recentYear] ?? {};
+    const recentPlayers = useRecentNba ? compPickerPlayers().filter(row => recentSets[row.playerId])
+      .sort((a,b) => a.name.localeCompare(b.name)) : [];
+    const recentPlayer = recentPlayers.find(row => String(row.playerId) === String(state.simPlayer)) ?? recentPlayers[0];
+    const p = useRecentNba ? recentPlayer
+      : compById(state.simPlayer) || byId(state.player) || players().find((x) => x.appeared) || players()[0];
+    if (useRecentNba && !p) return `<h2>Long Island · NBA comps</h2>${periodControls('compYear', recentYear, false)}
+      <p>No measured Long Island minutes in this season snapshot.</p>
+      <button id="simScopeSame" type="button" class="button secondary">G League comparisons</button>`;
     if (!p) return '<p class="loading">No players.</p>';
     state.simPlayer = p.playerId;
     const targetedSet = window.DATA?.analysis?.playerCompsTargeted?.[String(p.playerId)] || null;
@@ -906,19 +917,25 @@
     const archive = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)];
     const latest = window.DATA?.analysis?.playerCompsCurrent?.[lg + ':' + competitionFor(lg)]?.[String(p.playerId)]
       || (archive?.targetSeason === '2026-27' ? archive : null);
-    const year = state.compYear || (latest || !archive ? '2026-27' : '2025-26');
+    const year = useRecentNba ? recentYear : state.compYear || (latest || !archive ? '2026-27' : '2025-26');
     const sameLeagueSet = isTargeted ? null : year === '2026-27' ? latest : archive?.targetSeason === '2025-26' ? archive : null;
     const nbaEquivalentSet = isTargeted ? null : (window.DATA?.analysis?.playerCompsNbaEquivalent?.[lg]?.[String(p.playerId)] || null);
     const useNbaEquivalent = isTargeted || (!!nbaEquivalentSet && (state.simCompScope === 'nba'));
-    const set = targetedSet || (useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet);
-    const period = useNbaEquivalent ? '' : periodControls('compYear', year);
+    const set = useRecentNba ? recentSets[p.playerId] : targetedSet || (useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet);
+    const period = useNbaEquivalent ? '' : periodControls('compYear', year, !useRecentNba);
     const currentSample = lg === 'GLEAGUE' ? p.gLeagueSeasonActual?.phases?.[competitionFor(lg)] : p.seasonActual;
-    const archivedDefault = !isTargeted && !useNbaEquivalent && !latest && year === '2025-26' && currentSample?.gp > 0;
+    const archivedDefault = !useRecentNba && !isTargeted && !useNbaEquivalent && !latest && year === '2025-26' && currentSample?.gp > 0;
     const related = isTargeted ? pickerPlayers().find(row => p.nbaPersonId
       ? String(row.nbaPersonId ?? row.playerId) === String(p.nbaPersonId)
       : fold(row.name) === fold(p.name)) : null;
     const actualProfileLink = related ? `<button type="button" class="button secondary small" id="simActualProfile" data-player="${esc(related.playerId)}">Compare recorded ${esc(related.league === 'GLEAGUE' ? 'G League' : 'NBA')} play</button>` : '';
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
+    const recentNbaButton = longIsland ? `<button id="simScopeRecentNba" class="button secondary${useRecentNba ? ' active' : ''}" type="button">Long Island · NBA last 10 seasons</button>` : '';
+    const playerSearch = useRecentNba
+      ? `<div class="ws-controls"><label>Long Island player<select id="linCompPlayer">
+        ${recentPlayers.map(row => `<option value="${esc(row.playerId)}" ${row.playerId===p.playerId?'selected':''}>${esc(row.name)}</option>`).join('')}
+        </select></label></div>`
+      : compPlayerSearch(p);
 
     if (!set) {
       const rookie = rookieCohortComparison(p);
@@ -926,7 +943,7 @@
       const reason = year === '2026-27'
         ? 'Current comparisons require three games and 100 minutes in the selected competition.'
         : 'This player has no usable 2025–26 sample.';
-      return `<h2>Player Comps</h2>${compPlayerSearch(p)}${period}
+      return `<h2>Player Comps</h2>${playerSearch}${period}${recentNbaButton}
         ${nbaEquivalentSet ? '<button class="button" id="simScopeNba" type="button">View historical NBA-equivalent comp</button>' : ''}
         <div class="ws-card wide"><div class="eyebrow">COMPARISON UNAVAILABLE</div><p><b>${esc(reason)}</b></p>${p.currentRoster ? `<p>${esc(p.name)} is on the current ${esc(teamOf(p))} roster.</p>` : ''}</div>`;
 
@@ -1006,18 +1023,21 @@
       </section>`;
     }).join('');
 
-    const scopeToggle = !isTargeted && nbaEquivalentSet ? `
+    const scopeToggle = (!isTargeted && (nbaEquivalentSet || longIsland)) || useRecentNba ? `
       <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
-        <button id="simScopeSame" class="${useNbaEquivalent ? '' : 'active'}" type="button">Same-league history</button>
-        <button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>
-      </div>` : '';
-    const referenceMinimum = useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
-    const pageEyebrow = isTargeted
+        <button id="simScopeSame" class="${useNbaEquivalent || useRecentNba ? '' : 'active'}" type="button">Same-league history</button>
+        ${nbaEquivalentSet ? `<button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>` : ''}
+        ${recentNbaButton}
+      </div>` : recentNbaButton;
+    const referenceMinimum = useRecentNba || useNbaEquivalent ? 300 : (lg === 'NBA' ? 300 : 200);
+    const pageEyebrow = useRecentNba ? 'LONG ISLAND · RECENT NBA COMPARISONS' : isTargeted
       ? (set.sourceMode === 'gleague' ? 'G LEAGUE → NBA HISTORICAL BLEND' : 'PRE-NBA → NBA HISTORICAL BLEND')
       : useNbaEquivalent ? 'NBA-EQUIVALENT HISTORICAL BLEND' : 'HISTORICAL PLAYER-SEASON BLEND';
-    const poolLabel = isTargeted ? 'NBA historical comparison pool'
+    const poolLabel = useRecentNba ? `NBA regular season · ${longIsland.referenceFrom} to ${longIsland.referenceThrough}` : isTargeted ? 'NBA historical comparison pool'
       : useNbaEquivalent ? 'NBA-equivalent history' : `${p.leagueLabel || (lg === 'NBA' ? 'NBA' : 'G League')} history`;
-    const methodSecondParagraph = isTargeted
+    const methodSecondParagraph = useRecentNba
+      ? 'Reference rates come from measured NBA regular-season play within the ten-season window. Long Island box scores are translated using historical NBA and G League crossover rates. When two comparisons fit about as well, the model favors the NBA player with more minutes. Target rates in the details use the translated scale.'
+      : isTargeted
       ? (set.sourceMode === 'gleague'
         ? `This dedicated target uses ${esc(p.name)}'s recorded G League production from ${esc(set.targetSeason)} and translates it into NBA statistical space with the historical G League→NBA crossover model. His NBA statistics are not target inputs, and his own NBA identity is excluded from the candidate pool. Small G League samples are automatically shrunk toward league norms before matching.`
         : `This dedicated target uses ${esc(p.name)}'s ${esc(set.targetSeason)} pre-NBA production from ${esc(set.sourceTeam || 'his prior team/league')}. Per-40 volume is conservatively translated toward NBA rates, noisy shooting percentages are regressed toward NBA norms, and source exposure controls shrinkage. This is a playing-style analogy, not a rookie performance forecast. NBA statistics are not target inputs.`)
@@ -1035,24 +1055,25 @@
         <p class="tiny">Each reference uses the same career stretch for every target: the highest-minute three-calendar-year window, preferring at least two qualifying seasons. Each season needs ${referenceMinimum} minutes. Ties favor the more recent window. A single qualifying season is allowed only as a visibly limited overall match or blend contributor—not as a style analogy. Open Reference evidence on a card for its exact seasons and sample.</p>
         <p class="tiny">${methodSecondParagraph}</p>
       </details>
-      ${compPlayerSearch(p)}
+      ${playerSearch}
       ${period}
       ${scopeToggle}
       ${actualProfileLink}
       ${archivedDefault ? `<p class="tiny">Showing the 2025–26 profile. The selected 2026–27 competition has ${cval(currentSample.gp,'0')} games and ${cval(currentSample.totals?.min,'0')} minutes for this player. Current comparisons start at three games and 100 minutes.</p>` : ''}
-      ${!useNbaEquivalent && year === '2026-27' ? currentRefreshNote() : ''}
+      ${!useRecentNba && !useNbaEquivalent && year === '2026-27' ? currentRefreshNote() : ''}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
       ${isTargeted && set.sourceTeam ? ' Source: ' + esc(set.sourceTeam) + '.' : ''}
       ${isTargeted ? ' Source type: ' + (set.sourceMode === 'pre-nba' ? 'pre-NBA production' : 'G League production') + '.' : ''}
       ${isTargeted && set.sourceConfidence ? ' Source confidence: ' + esc(set.sourceConfidence) + '.' : ''}
-      ${lg === 'GLEAGUE' && !useNbaEquivalent && year === '2025-26' ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
+      ${lg === 'GLEAGUE' && !useRecentNba && !useNbaEquivalent && year === '2025-26' ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
+      ${useRecentNba ? `<p class="tiny">${Object.entries(set.phaseGames).map(([phase,games])=>esc(phase)+' '+games).join(' · ')}.${year === '2026-27' && longIsland.completedThrough ? ' Completed games through ' + esc(longIsland.completedThrough) + '.' : ''}${set.roundedMinutes ? ' Some team minutes use rounded game-log values.' : ''}</p>` : ''}
       ${isTargeted ? '<p class="tiny comp-source-rule"><b>Source rule:</b> NBA statistics are not target inputs for this comparison, and the target player is excluded from the NBA reference pool.</p>' : ''}
       ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can materially change the comparison.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
-          <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p>
-          <p>${esc(comparisonLine(set.targetStats || {}))}</p></div>
+          <p>${useRecentNba ? 'Long Island Nets' : esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p>
+          <p>${esc(comparisonLine(set.observedStats || set.targetStats || {}))}</p></div>
         <div class="comp-pool-note">${esc(poolLabel)}<br>
           <span>${esc(meta.priority || '')}</span></div>
       </div>
@@ -1466,6 +1487,10 @@
       state.compYear = ''; state.simCompScope = 'same';
       selectCompPlayer(compById(e.currentTarget.dataset.player));
     });
+    on('linCompPlayer','change',e => selectCompPlayer(compById(e.target.value)));
+    on('simScopeRecentNba','click',() => {
+      state.simCompScope = 'nba10'; render(); window.__siteUrlChanged?.('push');
+    });
     on('simScopeSame', 'click', () => { state.simCompScope = 'same'; render(); window.__siteUrlChanged?.('push'); });
     on('simScopeNba', 'click', () => { state.simCompScope = 'nba'; render(); window.__siteUrlChanged?.('push'); });
     on('simSuggestions', 'click', (e) => {
@@ -1680,7 +1705,7 @@
       seasonPhase:league()==='GLEAGUE'&&seasonUi.year==='2026-27'?seasonUi.phase:null,
       seasonGp:seasonUi.minGames||null,seasonSort:seasonUi.sort!=='grade'?seasonUi.sort:null,seasonDir:seasonUi.dir===1?1:null}:{}),
     ...(['compare','scatter','similarity'].includes(MODE) ? { chartYear:MODE==='similarity'?state.compYear:state.chartYear,
-      seasonPhase:league()==='GLEAGUE'?seasonUi.phase:null, simScope:MODE==='similarity'&&state.simCompScope==='nba'?'nba':null } : {}),
+      seasonPhase:league()==='GLEAGUE'?seasonUi.phase:null, simScope:MODE==='similarity'&&state.simCompScope!=='same'?state.simCompScope:null } : {}),
     ...(state.player ? { player: state.player } : {}),
     ...(state.simPlayer ? { sim: state.simPlayer } : {}),
     ...(state.simTeam ? { simTeam: state.simTeam } : {}),
@@ -1707,7 +1732,7 @@
       if (MODE === 'similarity') state.compYear = ['2025-26','2026-27'].includes(x.chartYear) ? x.chartYear : '';
       else state.chartYear = x.chartYear === '2026-27' ? '2026-27' : '2025-26';
       seasonUi.phase = ['Showcase','Regular Season'].includes(x.seasonPhase) ? x.seasonPhase : window.DATA?.gLeagueRotationMeta?.phase || 'Showcase';
-      state.simCompScope = x.simScope === 'nba' ? 'nba' : 'same';
+      state.simCompScope = ['nba','nba10'].includes(x.simScope) ? x.simScope : 'same';
     }
     const valid = (id) => id != null && pickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
     const validSim = (id) => id != null && compPickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;

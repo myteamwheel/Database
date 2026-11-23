@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stableReferenceProfiles, independentStyleRead, positionGap, styleDistance } from './lib/comparison-profiles.mjs';
+import {longIslandCurrentStints, longIslandTeamId} from './lib/long-island-comparison-stints.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_PATH = process.env.COMPS_DATA_PATH || path.join(ROOT, 'public/data.json');
@@ -494,7 +495,13 @@ function buildNbaTargetedSet(target, spec, referencePool, sourceMeta = {}) {
     if (!m) continue;
     let score = m.score;
     if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < .45) score *= .82;
-    bestByPlayer.set(cand.playerId, { cand, m: { ...m, score } });
+    // Prefer a proven NBA sample when two Long Island style matches are close.
+    const samplePenalty = target.targetBasis === 'long-island-to-recent-nba'
+      ? Math.max(0, 1 - cand.minutes / 1500)
+      : 0;
+    bestByPlayer.set(cand.playerId, {
+      cand, m: { ...m, score: score - 5 * samplePenalty, styleCost: (m.styleCost ?? 0) + .025 * samplePenalty },
+    });
   }
   const shortlist = [...bestByPlayer.values()].sort((a,b)=>b.m.score-a.m.score).slice(0,18);
   if (!shortlist.length) return null;
@@ -719,7 +726,10 @@ function measuredCurrentTarget(p, phase = 'Regular Season') {
     rebPct:fin(g.rebPct)?100*g.rebPct:null,offRtg:null,defRtg:null,
     netRtg:null,tmTovPct:null,pie:null,pace:g.pace,
   });
-  target.totals = { FGA:t.fga, FG3A:t.fg3a, FTA:t.fta };
+  target.totals = {
+    PTS:t.pts, FGM:t.fgm, FGA:t.fga, FG3M:t.fg3m, FG3A:t.fg3a,
+    FTM:t.ftm, FTA:t.fta, AST:t.ast, TOV:t.tov,
+  };
   target.season='2026-27';target.seasonType=phase;
   target.targetBasis='measured-2026-27-provisional';
   target.targetSourceSeasons=['2026-27'];
@@ -1237,6 +1247,77 @@ const historicalGLeagueNbaEquivalent = { NBA: {}, GLEAGUE: {} };
 
 
 
+// Translate measured LIN box scores into NBA comparison space, with the original
+// team sample retained alongside the translated rates. The player never supplies
+// their own reference line, including when they also played in the NBA.
+function buildLongIslandNbaComps() {
+  const read = file => JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/data', file), 'utf8'));
+  const archive = read('long-island-comparison-stints.json');
+  const current = read('live/gleague-progress.json');
+  if (archive.teamId !== longIslandTeamId || archive.season !== '2025-26'
+      || current.completedThrough !== data.gLeagueSeasonProgress.completedThrough) {
+    throw new Error('Long Island comparison source does not match the published seasons');
+  }
+  const lastYear = Number(current.season.slice(0, 4));
+  const firstYear = lastYear - 9;
+  const nbaRows = histories.NBA.filter(row => Number(row.season.slice(0, 4)) >= firstYear);
+  const distributions = prepareMatchProfiles(nbaRows);
+  const nbaStats = distributions.get('NBA|2025-26');
+  // Current NBA production adds recent players and can update a representative
+  // multi-year stretch once there is enough exposure for a qualifying season.
+  const currentNba = data.leagues.NBA.map(p => measuredCurrentTarget(p)).filter(row => row && row.minutes >= 300);
+  for (const row of currentNba) row.matchFeatures = normalizeMatchFeatures(row, nbaStats);
+  const referencePool = stableReferenceProfiles([...nbaRows, ...currentNba], 300);
+  const players = data.leagues.GLEAGUE;
+  const byId = new Map(players.map(player => [String(player.nbaPersonId ?? player.playerId), player]));
+  const seasons = {};
+  for (const [season, lines] of [[archive.season, archive.players], [current.season, longIslandCurrentStints(current, players)]]) {
+    const sets = {};
+    for (const [id, line] of Object.entries(lines)) {
+      const p = byId.get(id);
+      const gp = Object.values(line.games).reduce((sum, games) => sum + games, 0);
+      if (!p || !(line.MIN >= 1) || !(gp >= 1)) throw new Error('Invalid Long Island comparison input for ' + id);
+      const perGame = key => n(line[key]) === null ? null : line[key] / gp;
+      const source = currentSiteTarget({
+        ...p, team: 'LIN', gp, minutes: line.MIN, mpg: perGame('MIN'),
+        heightInches: season === current.season ? inches(p.currentGLeagueBio?.height) ?? p.heightInches : p.heightInches,
+        weight: season === current.season ? n(p.currentGLeagueBio?.weight) ?? p.weight : p.weight,
+        pts: perGame('PTS'), fga: perGame('FGA'), fg3a: perGame('FG3A'), fta: perGame('FTA'),
+        reb: perGame('REB'), oreb: perGame('OREB'), dreb: perGame('DREB'), ast: perGame('AST'),
+        stl: perGame('STL'), blk: perGame('BLK'), tov: perGame('TOV'), pf: perGame('PF'),
+        fg3Pct: line.FG3A >= 15 ? line.FG3M / line.FG3A : null,
+        fgPct: line.FGA ? line.FGM / line.FGA : null,
+        ftPct: line.FTA >= 10 ? line.FTM / line.FTA : null,
+        efg: line.FGA ? (line.FGM + 0.5 * line.FG3M) / line.FGA : null,
+        astTo: line.TOV ? line.AST / line.TOV : null,
+        ts: null, usg: null, astPct: null, astRatio: null, pace: null, plusMinus: null,
+        orebPct: null, drebPct: null, rebPct: null,
+      });
+      source.season = season;
+      source.totals = line;
+      const target = nbaEquivalentTarget(p, source, nbaEquivalentTranslation, nbaStats);
+      target.targetBasis = 'long-island-to-recent-nba';
+      target.seasonType = 'Long Island Nets stint';
+      target.targetHistoryNote = 'Team-only box scores across the competition phases shown. The model scales G League production for an NBA style comparison using historical crossover rates.';
+      const stint = buildNbaTargetedSet(target, { nbaPersonId: id, sourceMode: 'gleague' }, referencePool);
+      if (!stint) throw new Error('No recent NBA reference for Long Island player ' + id);
+      sets[String(p.playerId)] = {
+        ...stint, phaseGames: line.games, roundedMinutes: Boolean(line.roundedMinutes),
+        observedStats: {
+          pts36: r1(source.features.pts36), ast36: r1(source.features.ast36),
+          reb36: r1(source.features.reb36), threeRate: r3(source.features.threeRate),
+          fg3Pct: r3(source.features.fg3Pct),
+        },
+      };
+    }
+    seasons[season] = sets;
+  }
+  return {
+    seasons, completedThrough: current.completedThrough,
+    referenceFrom: `${firstYear}-${String(firstYear + 1).slice(-2)}`, referenceThrough: current.season,
+  };
+}
+
 // Requested Brooklyn / Long Island comparison targets. These are deliberately independent of
 // current league-table membership so camp, G League and pre-NBA players remain searchable here.
 const targetedPlayerComps = {};
@@ -1429,6 +1510,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 }
 
 data.analysis = data.analysis || {};
+data.analysis.longIslandNbaComps = buildLongIslandNbaComps();
 data.analysis.playerComps = result;
 data.analysis.playerCompsCurrent = currentResults;
 data.analysis.playerCompsNbaEquivalent = { GLEAGUE: {...historicalGLeagueNbaEquivalent.GLEAGUE,...nbaEquivalentResult}, NBA: historicalGLeagueNbaEquivalent.NBA };

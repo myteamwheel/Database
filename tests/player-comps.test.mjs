@@ -264,3 +264,49 @@ if (jefferson) {
   if (Number(row.currentGLeagueBio?.weight) > 0) assert.equal(jefferson.targetPhysical.weight, Number(row.currentGLeagueBio.weight));
   if (fg3a >= 15) assert.ok(Math.abs(jefferson.targetStats.fg3Pct - fg3m / fg3a) <= .000501);
 }
+
+const lin = data.analysis.longIslandNbaComps;
+const linArchive = JSON.parse(fs.readFileSync(new URL('../scripts/data/long-island-comparison-stints.json', import.meta.url)));
+assert.deepEqual(Object.keys(lin.seasons['2025-26']).sort(), Object.keys(linArchive.players).sort());
+assert.equal(Object.keys(linArchive.players).length, 23);
+assert.equal(lin.seasons['2025-26']['1642849'].targetGames, 14, 'Traoré’s NBA comparisons need all Long Island games');
+assert.equal(lin.seasons['2025-26']['1641879'].targetGames, 16, 'Collins’s NBA comparisons need both competition phases');
+const linCurrentSource = JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-progress.json', import.meta.url)));
+assert.equal(lin.completedThrough, linCurrentSource.completedThrough);
+const linLogMinutes = new Map();
+for (const phase of linCurrentSource.phases) {
+  const { headers, rowSet } = phase.gameLog.resultSets[0];
+  const [team, player, minutes] = ['TEAM_ID', 'PLAYER_ID', 'MIN'].map(key => headers.indexOf(key));
+  for (const row of rowSet) {
+    if (row[team] === linArchive.teamId) {
+      const id = String(row[player]);
+      linLogMinutes.set(id, (linLogMinutes.get(id) ?? 0) + row[minutes]);
+    }
+  }
+}
+const linCurrentSets = lin.seasons[linCurrentSource.season];
+for (const [id, minutes] of linLogMinutes) {
+  if (minutes >= 2) assert.ok(linCurrentSets[id], 'Current Long Island players with recorded team minutes must be included');
+}
+assert.ok(Object.keys(linCurrentSets).every(id => linLogMinutes.has(id)));
+assert.ok(linCurrentSets['1631209'], 'Wong’s 1+ minute stint must be included');
+const nbaParticipants = new Set();
+for (const [season, tables] of Object.entries(inputs.nba)) {
+  if (season < lin.referenceFrom || season > lin.referenceThrough) continue;
+  const table = tables.base;
+  const id = table.headers.indexOf('PLAYER_ID'), min = table.headers.indexOf('MIN');
+  for (const row of table.rows) if (Number(row[min]) >= 1) nbaParticipants.add(String(row[id]));
+}
+for (const player of data.leagues.NBA) {
+  if (player.seasonActual?.totals?.min >= 1) nbaParticipants.add(String(player.nbaPersonId ?? player.playerId));
+}
+for (const sets of Object.values(lin.seasons)) {
+  for (const [id, set] of Object.entries(sets)) {
+    assert.ok(set.targetMinutes >= 1 && set.targetGames >= 1);
+    assert.equal(set.blend.reduce((sum, ref) => sum + ref.share, 0), 100);
+    for (const ref of [...set.top3, ...set.nearestOverall, ...set.profileRead.components]) {
+      assert.ok(nbaParticipants.has(ref.playerId) && ref.playerId !== id, 'All reference and style names must have real NBA minutes');
+      assert.ok((ref.referenceProfile ?? ref.referencePeriod).seasons.every(s => s >= lin.referenceFrom && s <= lin.referenceThrough));
+    }
+  }
+}
