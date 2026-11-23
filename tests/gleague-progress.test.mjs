@@ -6,7 +6,7 @@ const source=JSON.parse(fs.readFileSync(new URL('../scripts/data/live/gleague-pr
 const result=parseGLeagueProgress(source);assert.equal(Object.keys(result.phases).length,2);
 for(const p of Object.values(result.phases))assert.equal(p.status,Object.keys(p.players).length?'results-available':'no-published-player-results');
 const fixture=structuredClone(source),t=fixture.phases[0].stats.resultSets[0],ix=Object.fromEntries(t.headers.map((k,i)=>[k,i]));
-delete fixture.phases[0].gameLog;delete fixture.phases[0].teamGameLog; // Isolate the free-throw fixture from real final-game evidence.
+delete fixture.phases[0].gameLog;delete fixture.phases[0].teamGameLog;delete fixture.phases[0].verifiedBoxMinutes; // Isolate the free-throw fixture from real final-game evidence.
 const row=Array(t.headers.length).fill(0);for(const [k,v] of Object.entries({PLAYER_ID:12345,GP:1,MIN:20,PTS:12,FGM:3,FGA:7,FG3M:1,FG3A:3,FTM:3,FTA:4,OREB:1,DREB:2,REB:3}))row[ix[k]]=v;
 t.rowSet=[row]; // Seven field-goal points + five free-throw points from three makes.
 assert.equal(parseGLeagueProgress(fixture).phases.Showcase.players[12345].totals.freeThrowPoints,5);
@@ -14,6 +14,7 @@ row[ix.PTS]=8;assert.throws(()=>parseGLeagueProgress(fixture),/free-throw/);
 assert.throws(()=>parseGLeagueProgress({...source,phases:source.phases.slice(0,1)}),/snapshot/);
 // Two fully logged finals. The dashboard still reflects the first one only.
 const lagSnapshot=structuredClone(source),phase=lagSnapshot.phases.find(p=>p.apiSeasonType==='Showcase');
+delete phase.verifiedBoxMinutes; // The synthetic game logs replace the source evidence.
 const columns=['PTS','OREB','DREB','REB','AST','STL','BLK','TOV','FGM','FGA','FG3M','FG3A','FTM','FTA'];
 const oldCounts=[6,0,1,1,0,0,0,0,3,3,0,0,0,0],newCounts=[8,0,2,2,0,0,0,0,4,4,0,0,0,0];
 const collect=(headers,rowSet)=>({parameters:phase.stats.parameters,resultSets:[{headers,rowSet}]});
