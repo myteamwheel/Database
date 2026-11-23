@@ -105,7 +105,7 @@ function historyRows(src, league) {
       const fga = n(x.FGA), fg3a = n(x.FG3A), fta = n(x.FTA), fg3m = n(x.FG3M), fgm = n(x.FGM);
       const ftm = n(x.FTM), pts = n(x.PTS), poss = n(a.POSS);
       const ts = fin(a.TS_PCT) ? Number(a.TS_PCT)
-        : fin(pts) && fin(fga) && fin(fta) && (fga + 0.44 * fta) > 0 ? pts / (2 * (fga + 0.44 * fta)) : null;
+        : league === 'NBA' && fin(pts) && fin(fga) && fin(fta) && (fga + 0.44 * fta) > 0 ? pts / (2 * (fga + 0.44 * fta)) : null;
       out.push({
         league, season, seasonType: 'Regular Season', playerId: String(pid), nbaPersonId: pid, name: x.PLAYER_NAME || b.name || null,
         team: x.TEAM_ABBREVIATION || null, teamId: n(x.TEAM_ID), position: b.position || null,
@@ -574,7 +574,11 @@ function compare(target, cand) {
     parts.push({ name, weight: spec.weight, ...d });
   }
   if (!totalW) return null;
-  let distance = Math.sqrt(total / totalW);
+  const expectedWeight = Object.entries(BLOCKS).reduce((sum, [name, spec]) => {
+    const values = name === 'physical' ? target.physical : target.matchFeatures || target.features;
+    return sum + spec.weight * Number(Object.keys(spec.axes).some(key => fin(values[key])));
+  }, 0);
+  let distance = Math.sqrt(total / totalW) + .30 * Math.max(0, expectedWeight - totalW);
 
   // Size-first guardrails. These are penalties, not position rules: cross-position comps still work.
   const dh = fin(target.physical.height) && fin(cand.physical.height)
@@ -674,25 +678,25 @@ function currentSiteTarget(p) {
 // A player without a 2025-26 line can acquire a measured 2026-27 profile.
 // Use only this season's recorded counting/shooting values; old site fields and
 // projected rates must never leak into a current-season comparison target.
-function measuredCurrentTarget(p) {
-  const actual=p.league==='NBA'?p.seasonActual:null;
+function measuredCurrentTarget(p, phase = 'Regular Season') {
+  const actual = p.league === 'NBA' ? p.seasonActual : p.gLeagueSeasonActual?.phases?.[phase];
   if (!actual || actual.gp<3 || actual.totals?.min<100) return null;
-  const a=actual.perGame,t=actual.totals;
+  const a=actual.perGame,t=actual.totals,g=p.currentGrades?.[phase] ?? {};
   const target=currentSiteTarget({
     ...p,team:p.currentTeam,age:null,gp:actual.gp,minutes:t.min,
     mpg:a.mpg,pts:a.pts,reb:a.reb,oreb:a.oreb,dreb:a.dreb,
     ast:a.ast,stl:a.stl,blk:a.blk,tov:a.tov,fga:a.fga,fg3a:a.fg3a,
     fta:a.fta,fg3Pct:t.fg3a>=15?a.fg3Pct:null,
-    fgPct:a.fgPct,ftPct:t.fta>=10?a.ftPct:null,ts:a.ts,
+    fgPct:a.fgPct,ftPct:t.fta>=10?a.ftPct:null,ts:g.ts ?? a.ts,
     efg:t.fga>0?(t.fgm+0.5*t.fg3m)/t.fga:null,
-    usg:null,pf:null,plusMinus:null,astPct:null,astRatio:null,
-    orebPct:null,drebPct:null,rebPct:null,offRtg:null,defRtg:null,
-    netRtg:null,tmTovPct:null,pie:null,pace:null,
+    usg:g.usg,pf:null,plusMinus:null,astPct:g.astPct,astRatio:g.astRatio,
+    orebPct:g.orebPct,drebPct:g.drebPct,rebPct:g.rebPct,offRtg:null,defRtg:null,
+    netRtg:null,tmTovPct:null,pie:null,pace:g.pace,
   });
-  target.season='2026-27';target.seasonType='Regular Season';
+  target.season='2026-27';target.seasonType=phase;
   target.targetBasis='measured-2026-27-provisional';
   target.targetSourceSeasons=['2026-27'];
-  target.targetHistoryNote=`Uses ${actual.gp} measured 2026-27 NBA games and ${Math.round(t.min)} minutes. Early-season rates are shrunk before matching; unmeasured role and defense fields are omitted. Historical references are descriptive, not forecasts.`;
+  target.targetHistoryNote=`Uses ${actual.gp} measured 2026-27 ${p.league === 'NBA' ? 'NBA' : 'G League'} games and ${Math.round(t.min)} minutes. Smaller samples are pulled toward league averages before matching.`;
   return target;
 }
 
@@ -965,6 +969,7 @@ function optimizeBlend(target, shortlist) {
 }
 
 const result = { NBA: {}, GLEAGUE: {} };
+const currentResults = {};
 for (const lg of ['NBA', 'GLEAGUE']) {
   const pool = histories[lg];
   const matchDistributions = prepareMatchProfiles(pool);
@@ -973,84 +978,99 @@ for (const lg of ['NBA', 'GLEAGUE']) {
   for (const p of data.leagues?.[lg] || []) {
     // A roster listing alone is not a statistical target. A new measured
     // current-season sample may become one once it reaches three games/100 minutes.
-    const target = p.appeared && p.minutes > 0 ? currentHistoricalTarget(p, pool) : measuredCurrentTarget(p);
-    if (!target) continue;
-    // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
-    target.name = p.name;
-    if (!target.matchFeatures) {
-      // The historical reference pool ends in 2025-26. Anchor provisional
-      // current rates to the most recent same-league season's distribution.
-      target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.targetBasis==='measured-2026-27-provisional'?'2025-26':target.season}`));
+    const historical = p.appeared && p.minutes > 0 ? currentHistoricalTarget(p, pool) : null;
+    const phases = lg === 'NBA' ? ['Regular Season'] : ['Showcase', 'Regular Season'];
+    const targets = [historical, ...phases.map(phase => measuredCurrentTarget(p, phase))].filter(Boolean);
+    for (const target of targets) {
+      // Prefer the site's canonical display spelling (e.g. RJ rather than source-specific R.J.).
+      target.name = p.name;
+      if (!target.matchFeatures) {
+        // The historical reference pool ends in 2025-26. Anchor provisional
+        // current rates to the most recent same-league season's distribution.
+        target.matchFeatures = normalizeMatchFeatures(target, matchDistributions.get(`${lg}|${target.targetBasis==='measured-2026-27-provisional'?'2025-26':target.season}`));
+      }
+      const targetDeep = deepOverlay(['historical-fallback','measured-2026-27-provisional'].includes(target.targetBasis) ? null : p);
+      // Every target sees exactly the same representative identity for each historical player.
+      // The nearest overall players and the reconstruction blend are separate outputs.
+      const bestByPlayer = new Map();
+      for (const cand of referencePool) {
+        // A source row with no resolved person name is not an interpretable historical reference.
+        // Excluding it is more honest than displaying its raw numeric identifier as a player comp.
+        if (cand.playerId === target.playerId || cand.minutes < minMinutes || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
+        const m = compare(target, cand);
+        if (!m) continue;
+        // Prefer known body matches when target body is known. This is a soft penalty, not exclusion.
+        let score = m.score;
+        if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
+        const item = { cand, m: { ...m, score } };
+        bestByPlayer.set(cand.playerId, item);
+      }
+      // The nearest-neighbour score forms a defensible shortlist. The final one-to-three players and
+      // their percentages are then chosen together by convex reconstruction of the target profile.
+      // This is the important distinction between a real player blend and three ranked comps whose
+      // percentages were assigned after the fact.
+      const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
+      if (!shortlist.length) continue;
+      const optimized = optimizeBlend(target, shortlist);
+      const best = optimized.selected.map((x) => serializeComp(target, x.cand, x.m));
+      const blend = optimized.blend;
+      const confidence = optimized.confidence;
+      const primary = best[0], rel = primary.relation || [];
+      const profileRead = independentStyleRead(target, referencePool, blend);
+      const set = {
+        top3: best,
+        nearestOverall: shortlist.slice(0, 3).map((item) => serializeComp(target, item.cand, item.m)),
+        blend,
+        blendConfidence: confidence,
+        blendReconstructionScore: optimized.reconstructionScore,
+        blendAxesUsed: optimized.axesUsed,
+        profileRead,
+        targetSeason: target.season,
+        targetSeasonType: target.seasonType,
+        targetBasis: target.targetBasis || 'current-season',
+        targetSourceSeasons: target.targetSourceSeasons || [target.season],
+        targetHistoryNote: target.targetHistoryNote || null,
+        matchMethod: 'pace-adjusted, league-season robust z-scores after exposure-weighted median shrinkage',
+        targetGames: target.gp,
+        targetMinutes: r1(target.minutes),
+        matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
+        shorthand: rel.length
+          ? `A ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
+          : `Historical blend led by ${primary.name} (${primary.season}).`,
+        targetPhysical: {
+          heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
+          weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
+          wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
+        },
+        targetStats: {
+          mpg: r1(target.features.mpg), usg: r3(target.features.usg),
+          pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
+          fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
+          tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: r1(target.features.plusMinus36),
+          oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
+          fgPct: r3(target.features.fgPct), efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
+          ftPct: r3(target.features.ftPct), ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
+          ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
+          astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
+          orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
+          offRtg: r1(target.features.offRtg), defRtg: r1(target.features.defRtg), netRtg: r1(target.features.netRtg),
+          tmTovPct: r3(target.features.tmTovPct), pie: r3(target.features.pie), stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
+        },
+        targetStyle: targetDeep,
+      };
+      const id = String(p.playerId);
+      if (target === historical || (!historical && lg === 'NBA')) {
+        result[lg][id] = set;
+      } else {
+        // Live rows retain the full comparison metrics; repeated explanatory detail is kept on the historical records.
+        for (const ref of [...set.top3, ...set.nearestOverall]) {
+          delete ref.blockDetails;
+          for (const key of Object.keys(ref)) if (ref[key] == null) delete ref[key];
+        }
+        set.profileRead = compactProfileRead(profileRead);
+        (currentResults[lg + ':' + target.seasonType] ??= {})[id] = set;
+      }
     }
-    const targetDeep = deepOverlay(['historical-fallback','measured-2026-27-provisional'].includes(target.targetBasis) ? null : p);
-    // Every target sees exactly the same representative identity for each historical player.
-    // The nearest overall players and the reconstruction blend are separate outputs.
-    const bestByPlayer = new Map();
-    for (const cand of referencePool) {
-      // A source row with no resolved person name is not an interpretable historical reference.
-      // Excluding it is more honest than displaying its raw numeric identifier as a player comp.
-      if (cand.playerId === target.playerId || cand.minutes < minMinutes || !/[A-Za-z]/.test(String(cand.name || ''))) continue;
-      const m = compare(target, cand);
-      if (!m) continue;
-      // Prefer known body matches when target body is known. This is a soft penalty, not exclusion.
-      let score = m.score;
-      if ((fin(target.physical.height) || fin(target.physical.weight)) && m.physicalCoverage < 0.45) score *= 0.82;
-      const item = { cand, m: { ...m, score } };
-      bestByPlayer.set(cand.playerId, item);
-    }
-    // The nearest-neighbour score forms a defensible shortlist. The final one-to-three players and
-    // their percentages are then chosen together by convex reconstruction of the target profile.
-    // This is the important distinction between a real player blend and three ranked comps whose
-    // percentages were assigned after the fact.
-    const shortlist = [...bestByPlayer.values()].sort((a, b) => b.m.score - a.m.score).slice(0, 18);
-    if (!shortlist.length) continue;
-    const optimized = optimizeBlend(target, shortlist);
-    const best = optimized.selected.map((x) => serializeComp(target, x.cand, x.m));
-    const blend = optimized.blend;
-    const confidence = optimized.confidence;
-    const primary = best[0], rel = primary.relation || [];
-    const profileRead = independentStyleRead(target, referencePool, blend);
-    result[lg][String(p.playerId)] = {
-      top3: best,
-      nearestOverall: shortlist.slice(0, 3).map((item) => serializeComp(target, item.cand, item.m)),
-      blend,
-      blendConfidence: confidence,
-      blendReconstructionScore: optimized.reconstructionScore,
-      blendAxesUsed: optimized.axesUsed,
-      profileRead,
-      targetSeason: target.season,
-      targetSeasonType: target.seasonType,
-      targetBasis: target.targetBasis || 'current-season',
-      targetSourceSeasons: target.targetSourceSeasons || [target.season],
-      targetHistoryNote: target.targetHistoryNote || null,
-      matchMethod: 'pace-adjusted, league-season robust z-scores after exposure-weighted median shrinkage',
-      targetGames: target.gp,
-      targetMinutes: r1(target.minutes),
-      matchSummary: blend.map((x) => ({ name: x.name, season: x.season, share: x.share, matchScore: x.matchScore })),
-      shorthand: rel.length
-        ? `A ${rel.join(', ')} blend led by ${primary.name} (${primary.season}).`
-        : `Historical blend led by ${primary.name} (${primary.season}).`,
-      targetPhysical: {
-        heightInches: r1(target.physical.height), height: fmtSize(target.physical.height),
-        weight: r1(target.physical.weight), wingspanInches: r1(target.physical.wingspan),
-        wingspan: fmtSize(target.physical.wingspan), standingReach: fmtSize(target.physical.standingReach),
-      },
-      targetStats: {
-        mpg: r1(target.features.mpg), usg: r3(target.features.usg),
-        pts36: r1(target.features.pts36), fga36: r1(target.features.fga36), threeA36: r1(target.features.threeA36),
-        fta36: r1(target.features.fta36), reb36: r1(target.features.reb36), ast36: r1(target.features.ast36),
-        tov36: r1(target.features.tov36), pf36: r1(target.features.pf36), plusMinus36: r1(target.features.plusMinus36),
-        oreb36: r1(target.features.oreb36), dreb36: r1(target.features.dreb36),
-        fgPct: r3(target.features.fgPct), efgPct: r3(target.features.efgPct), fg3Pct: r3(target.features.fg3Pct),
-        ftPct: r3(target.features.ftPct), ts: r3(target.features.ts), threeRate: r3(target.features.threeRate),
-        ftRate: r3(target.features.ftRate), astPct: r3(target.features.astPct),
-        astTo: r2(target.features.astTo), astRatio: r2(target.features.astRatio),
-        orebPct: r3(target.features.orebPct), drebPct: r3(target.features.drebPct), rebPct: r3(target.features.rebPct),
-        offRtg: r1(target.features.offRtg), defRtg: r1(target.features.defRtg), netRtg: r1(target.features.netRtg),
-        tmTovPct: r3(target.features.tmTovPct), pie: r3(target.features.pie), stl36: r1(target.features.stl36), blk36: r1(target.features.blk36),
-      },
-      targetStyle: targetDeep,
-    };
   }
 }
 
@@ -1393,6 +1413,7 @@ for (const lg of ['NBA', 'GLEAGUE']) {
 
 data.analysis = data.analysis || {};
 data.analysis.playerComps = result;
+data.analysis.playerCompsCurrent = currentResults;
 data.analysis.playerCompsNbaEquivalent = { GLEAGUE: {...historicalGLeagueNbaEquivalent.GLEAGUE,...nbaEquivalentResult}, NBA: historicalGLeagueNbaEquivalent.NBA };
 data.analysis.playerCompTargets = targetedPlayerCatalog;
 data.analysis.playerCompsTargeted = targetedPlayerComps;
@@ -1423,7 +1444,7 @@ data.analysis.playerCompsMeta = {
   priority: 'overall comparisons, statistical blend shares, and independent style references answer different questions; reference periods are chosen before matching',
   referenceMethod: 'one fixed representative profile per player: the highest-minute three-year calendar window with at least two meaningful seasons when available; pooled shooting attempts and minutes-weighted rate/era coordinates',
   styleMethod: 'independent trait-specific search across the full same-league multi-year reference pool; at least two observed seasons, sufficient shared axes, fit >=55, no selected axis beyond 2.5 scale units; style cards have no blend percentages',
-  targetEligibility: 'only players with a 2025-26 appearance and positive minutes receive a player-comparison target; roster-only players remain searchable but have no invented historical fallback comparison',
+  targetEligibility: '2025-26 targets use recorded appearances; 2026-27 targets require at least three games and 100 minutes within the selected competition',
   physicalWeight: 0.20,
   similarityScale: 'internal absolute match score: 100*exp(-0.72*distance^1.55)',
   blendMethod: 'one to three distinct players chosen jointly from the 18 nearest representative historical profiles by non-negative convex reconstruction of available listed physical dimensions plus pace-adjusted, league-season standardized role, production, shot-diet and defensive-activity axes after sample-size shrinkage; weights sum to 100; missingness and unnecessary complexity remain explicit penalties; nearestOverall is ranked independently and style references search the full stable pool',

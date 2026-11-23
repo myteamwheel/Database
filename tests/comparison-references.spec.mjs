@@ -12,7 +12,7 @@ for(const league of ['NBA','GLEAGUE']) {
     await page.setViewportSize({width:390,height:844});
     const [id,set]=Object.entries(data.analysis.playerComps[league]).find(([,s])=>s.nearestOverall.some(r=>r.referenceProfile.limited)&&s.top3.some(r=>r.referenceProfile.limited));
     expect(id).toBeTruthy();
-    await page.goto(`${PAGE}?mode=similarity&league=${league}&sim=${id}`);
+    await page.goto(`${PAGE}?mode=similarity&league=${league}&sim=${id}&chartYear=2025-26`);
     await expect(page.locator('.comp-overall-card')).toHaveCount(set.nearestOverall.length);
     await expect(page.locator('.comp-overall-card .comp-reference-limited')).toHaveCount(set.nearestOverall.filter(r=>r.referenceProfile.limited).length);
     await expect(page.locator('.comp-hero-card .comp-reference-limited')).toHaveCount(set.top3.filter(r=>r.referenceProfile.limited).length);
@@ -44,7 +44,7 @@ test('a missing independent trait reference never becomes a mislabeled blend ref
     set.profileRead.components=[];
     set.profileRead.references={};
     set.profileRead.text='There is not enough shared evidence for a useful named style reference.';
-    window.__wsRestoreUrlState({sim:id});
+    window.__wsRestoreUrlState({mode:'similarity',sim:id,chartYear:'2025-26'});
     window.__wsSetMode('similarity',false);
   });
   await expect(page.locator('.comp-blueprint-player')).toHaveCount(0);

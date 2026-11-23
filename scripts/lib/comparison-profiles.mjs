@@ -118,30 +118,31 @@ function positionLabel(target) {
     : pos.includes('G') ? (pos.includes('F') ? 'wing' : 'guard') : pos.includes('F') ? 'forward' : 'player';
 }
 
-function traitDescription(block, target, candidate) {
+function traitDescription(block, target, candidate, evidence) {
   const t = target.features, c = candidate.features;
-  const both = (key, threshold) => [t, c].every((x) => finite(x[key]) && x[key] >= threshold);
-  const below = (key, threshold) => [t, c].every((x) => finite(x[key]) && x[key] < threshold);
-  if (block === 'physical') return 'size and build';
+  const close = (...keys) => keys.every(key => evidence.some(axis => axis.key === key && axis.gap <= .85));
+  const atLeast = (key, n) => close(key) && t[key] >= n && c[key] >= n;
+  const below = (key, n) => close(key) && t[key] < n && c[key] < n;
+  if (block === 'physical') return close('height', 'weight') ? 'size and build' : null;
   if (block === 'role') {
-    if (both('ast36', 6)) return 'offense-running passing role';
-    if (both('ast36', 3.5)) return 'secondary playmaking';
-    if (below('usg', 0.19)) return 'supporting role on offense';
-    if (both('usg', 0.27)) return 'heavy scoring responsibility';
-    return 'mix of scoring and passing responsibilities';
+    if (atLeast('ast36', 6) && (close('astPct') || close('usg'))) return 'lead playmaking';
+    if (atLeast('ast36', 3.5) && t.ast36 < 6 && c.ast36 < 6) return 'secondary playmaking';
+    if (atLeast('usg', 0.27)) return 'heavy scoring workload';
+    if (below('usg', 0.19)) return 'low-usage offensive role';
+    return null;
   }
   if (block === 'scoring') {
-    if (both('threeRate', 0.50)) return 'three-point-heavy shot selection';
-    if (both('threeRate', 0.38)) return 'perimeter-oriented scoring mix';
-    if (both('ftRate', 0.4)) return 'frequent trips to the foul line';
-    if (below('threeRate', 0.15)) return 'two-point-focused scoring';
-    return 'balance of two-point and three-point attempts';
+    if (atLeast('threeRate', .50)) return 'three-point-heavy shot selection';
+    if (below('threeRate', .18) && atLeast('ftRate', .35)) return 'two-point attack and frequent free throws';
+    if (below('threeRate', .18)) return 'two-point-heavy shot selection';
+    if (atLeast('ftRate', .40)) return 'frequent trips to the line';
+    if (atLeast('threeRate', .38)) return 'perimeter-oriented shot selection';
+    return null;
   }
-  if (both('blk36', 1.5)) return 'shot-blocking presence';
-  if (both('dreb36', 7)) return 'work on the defensive glass';
-  if (both('oreb36', 2.5)) return 'offensive rebounding';
-  if (both('stl36', 1.5)) return 'knack for collecting steals';
-  // A similarly low steals/blocks line is not a recognizable defensive skill.
+  if (atLeast('blk36', 1.5)) return 'shot blocking';
+  if (atLeast('dreb36', 7)) return 'defensive rebounding';
+  if (atLeast('oreb36', 2.5)) return 'offensive rebounding';
+  if (atLeast('stl36', 1.5)) return 'steal production';
   return null;
 }
 
@@ -159,10 +160,14 @@ export function independentStyleRead(target, profiles, blend = []) {
       const evidence = axes.map(([key, scale]) => ({ key, target: targetValues[key], reference: values[key], gap: Math.abs(targetValues[key] - values[key]) / scale }));
       const meanError = evidence.reduce((s, axis) => s + axis.gap ** 2, 0) / evidence.length;
       const coveragePenalty = 0.15 * (1 - axes.length / Object.keys(spec.axes).length);
-      const distance = Math.sqrt(meanError) + coveragePenalty;
+      const heightGap = finite(target.physical?.height) && finite(cand.physical?.height)
+        ? Math.abs(target.physical.height - cand.physical.height) : 0;
+      // A rate can match across positions. Prefer a similarly sized role when the evidence is close.
+      const roleContext = block === 'role' ? .09 * Math.max(0, heightGap - 2) : 0;
+      const distance = Math.sqrt(meanError) + coveragePenalty + roleContext;
       const fit = 100 * Math.exp(-0.72 * distance ** 1.55);
       if (fit < 55 || evidence.some((axis) => axis.gap > 2.5)) continue;
-      const phrase = traitDescription(block, target, cand);
+      const phrase = traitDescription(block, target, cand, evidence);
       if (!phrase) continue;
       options.push({ cand, fit, phrase, evidence });
     }
@@ -178,7 +183,7 @@ export function independentStyleRead(target, profiles, blend = []) {
   // Passing and scoring describe the job; size/rebounding provide a third recognizable anchor.
   // References are selected independently, then grouped by person for concise prose/cards.
   const selected = new Map();
-  const order = ['role', 'scoring', 'physical', 'defense'];
+  const order = ['role', 'scoring', 'defense', 'physical'];
   for (const key of order) {
     const ref = references[key];
     if (!ref) continue;
@@ -200,10 +205,12 @@ export function independentStyleRead(target, profiles, blend = []) {
   else if (finite(f.threeRate) && f.threeRate < 0.15 && finite(f.reb36) && f.reb36 >= 9) introduction = `${target.name} is a ${position} focused on two-point scoring and rebounding.`;
   else if (finite(f.usg) && f.usg >= 0.27) introduction = `${target.name} is a ${position} with a large scoring workload.`;
   else if (finite(f.usg) && f.usg < 0.19) introduction = `${target.name} fills a supporting role as a ${position}.`;
-  else introduction = `${target.name} is a ${position} with a balanced offensive role.`;
+  else introduction = `${target.name} is a ${position}${finite(f.ast36) && f.ast36 >= 3.5 ? ' who can share the playmaking' : finite(f.dreb36) && f.dreb36 >= 7 ? ' who contributes on the defensive glass' : ''}.`;
   const analogies = components.map((item) => `${possessive(item.name)} ${item.phrase}`);
-  const text = analogies.length ? `${introduction} Think ${join(analogies)}.`
-    : `${introduction} There is not enough shared evidence for a useful named style reference.`;
+  const lead = analogies.shift();
+  const example = analogies.length ? `${lead}, with ${join(analogies)}` : lead;
+  const text = example ? `${introduction} Think ${example}.`
+    : introduction;
   return {
     text, references, components, position,
     selectionMethod: 'independent trait search across stable same-league historical profiles; unrelated to blend shares',

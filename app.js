@@ -112,7 +112,7 @@ function restoreUrlState() {
     sortDir = params.get('dir') === '1' ? 1 : -1;
     window.__wsRestoreUrlState?.({
       mode: URL_ALLOWED_MODES.has(params.get('mode')) ? params.get('mode') : (location.hash === '#projections'||params.has('view')?'database':'current'),
-      seasonYear:params.get('seasonYear'),seasonLedger:params.get('seasonLedger'),seasonTeam:params.get('seasonTeam'),
+      chartYear:params.get('chartYear'),simScope:params.get('simScope'),seasonYear:params.get('seasonYear'),seasonLedger:params.get('seasonLedger'),seasonTeam:params.get('seasonTeam'),
       seasonPhase:params.get('seasonPhase'),seasonGp:params.get('seasonGp'),seasonSort:params.get('seasonSort'),seasonDir:params.get('seasonDir'),
       player: params.get('player'), sim: params.get('sim'), simTeam: params.get('simTeam'),
       simPosition: params.get('simPosition'), teamfit: params.get('teamfit'), rolePlayer: params.get('rolePlayer'),

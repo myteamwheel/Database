@@ -16,7 +16,7 @@ export function reconcileGLeagueLogs(phase,cutoff){
 
 // Identify games absent from the dashboard by matching every player's appearance
 // deficit. Shooting revisions must not change which complete games are included.
-function dashboardGameGaps(dashboard, logged, teamLog){
+function dashboardGameGaps(dashboard, logged, teamLog, unresolved = new Set()){
  const gaps=new Map();
  if(!logged)return gaps;
  const finalMinutes=new Map(rows(teamLog,['TEAM_ID','GAME_ID','MIN']).map(t=>[t.GAME_ID+':'+t.TEAM_ID,t.MIN]));
@@ -49,9 +49,17 @@ function dashboardGameGaps(dashboard, logged, teamLog){
   }
  }
  for(const [id,count] of deficits){
-  if((gaps.get(id)?.length??0)!==count)throw Error('G League dashboard gap is not a whole final game for player '+id);
+  if((gaps.get(id)?.length??0)!==count)unresolved.add(id);
  }
  return gaps;
+}
+
+export function incompleteDashboardPlayers(phase, logged) {
+  const table = phase.stats.resultSets[0], id = table.headers.indexOf('PLAYER_ID'), gp = table.headers.indexOf('GP');
+  const dashboard = new Map(table.rowSet.map(row => [row[id], { gp: row[gp] }]));
+  const unresolved = new Set();
+  dashboardGameGaps(dashboard, logged, phase.teamGameLog, unresolved);
+  return unresolved;
 }
 
 export function parseGLeagueProgress(snapshot){
@@ -70,20 +78,35 @@ export function parseGLeagueProgress(snapshot){
       if(row.length!==table.headers.length||!Number.isSafeInteger(id)||id<=0||dashboard.has(id)||!Number.isSafeInteger(gp)||gp<=0||!Number.isFinite(min)||min<0)throw new Error('Invalid G League current-stat identity/exposure');
       dashboard.set(id,{row,gp,min});
     }
-    const gaps=dashboardGameGaps(dashboard,reconciled,phase.teamGameLog);
+    const unresolved = new Set();
+    const gaps=dashboardGameGaps(dashboard,reconciled,phase.teamGameLog,unresolved);
+    const verified = new Map();
+    for (const entry of phase.verifiedBoxMinutes ?? []) {
+      const { playerId, games } = entry, log = reconciled?.get(playerId);
+      const removed = entry.excluded ?? [];
+      const verifiedRemoval = removed.length > 0 && removed.every(gameId =>
+        !log?.games.some(r => r.GAME_ID === gameId) && phase.teamGameLog.resultSets[0].rowSet.some(r => r.includes(gameId)));
+      if ((!unresolved.has(playerId) && !verifiedRemoval) || verified.has(playerId) || games.length !== log?.GP
+        || new Set(games.map(g => g.gameId)).size !== games.length
+        || !games.every(g => Number.isSafeInteger(g.seconds) && g.seconds > 0 && log.games.some(r => r.GAME_ID === g.gameId))) {
+        throw Error('Invalid verified G League box minutes for ' + playerId);
+      }
+      verified.set(playerId, games.reduce((seconds, game) => seconds + game.seconds, 0) / 60);
+    }
+    for (const id of unresolved) if (!verified.has(id)) throw Error('G League dashboard gap is not a whole final game for player '+id);
     for(const id of reconciled?.keys()??dashboard.keys()){
       const original=dashboard.get(id),row=original?.row??[];
       const missing=gaps.get(id)??[],log=reconciled?.get(id);
       const gp=log?.GP??original.gp;
-      const min=(original?.min??0)+missing.reduce((total,game)=>total+game.MIN,0);
-      if(missing.length)corrections.push({playerId:id,field:'GP',dashboard:original?.gp??0,gameLog:gp});
+      const min=verified.get(id) ?? ((original?.min??0)+missing.reduce((total,game)=>total+game.MIN,0));
+      if(missing.length || verified.has(id))corrections.push({playerId:id,field:'GP',dashboard:original?.gp??0,gameLog:gp});
       const totals=Object.fromEntries(Object.entries(COUNTS).map(([k,c])=>{if(log&&log[c]!==row[ix[c]])corrections.push({playerId:id,field:c,dashboard:row[ix[c]]??null,gameLog:log[c]});return [k,log?log[c]:row[ix[c]]];}));
       if(Object.values(totals).some(v=>!Number.isSafeInteger(v)||v<0)||totals.fgm>totals.fga||totals.fg3m>totals.fg3a||totals.ftm>totals.fta||totals.fg3a>totals.fga||totals.fg3m>totals.fgm||totals.reb!==totals.oreb+totals.dreb)throw new Error('Invalid G League current count accounting');
       const freeThrowPoints=totals.pts-2*totals.fgm-totals.fg3m;
       // A made G League free throw can be worth 1, 2 or 3 points. Never apply NBA's
       // one-point-per-make identity or fabricate a free-throw-trip conversion.
       if(freeThrowPoints<totals.ftm||freeThrowPoints>3*totals.ftm)throw new Error('Invalid G League free-throw scoring');
-      players[id]={gp,...(revised.has(id)?{revisedDashboardExposure:true}:{}),...(missing.length?{roundedMinutesGame:missing[0].GAME_ID}:{}),totals:{min,...totals,freeThrowPoints},perGame:{mpg:min/gp,...Object.fromEntries(Object.entries(totals).map(([k,v])=>[k,v/gp]))}};
+      players[id]={gp,...((revised.has(id)||verified.has(id))?{revisedDashboardExposure:true}:{}),...(missing.length&&!verified.has(id)?{roundedMinutesGame:missing[0].GAME_ID}:{}),totals:{min,...totals,freeThrowPoints},perGame:{mpg:min/gp,...Object.fromEntries(Object.entries(totals).map(([k,v])=>[k,v/gp]))}};
     }
     phases[phase.apiSeasonType]={label:phase.apiSeasonType==='Showcase'?'Tip-Off Tournament / Showcase':'Regular season',status:Object.keys(players).length?'results-available':'no-published-player-results',source:phase.source,gameLogSource:phase.gameLogSource||null,sourceCorrections:corrections,roundedMinutesGames:[...new Set([...gaps.values()].flatMap(list=>list.map(g=>g.GAME_ID)))],players};
   }

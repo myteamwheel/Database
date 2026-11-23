@@ -14,22 +14,21 @@
   let HISTORY_GAMES = null;
   let HISTORY_GAMES_PROMISE = null;
   const state = { player: null, scatterX: 'usg', scatterY: 'ts', scatterSize: '', scatterColor: 'positionFamily',
-                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, simCompScope: 'same', team: null,
+                  simPlayer: null, simTeam: '', simPosition: '', simQuery: '', simActiveIndex: -1, simSuggestionsOpen: false, simCompScope: 'same', compYear: '', chartYear: '2025-26', team: null,
                   tulipPlayer: null, tulipTarget: null, fitSort: 'score', fitDir: -1, playerDir: 1 };
 
   const league = () => window.__wsLeague();
   // Charts and rankings need a played season, while the Player and Player Comps pickers also
   // need current-roster rookies and signings who have no 2025-26 NBA line yet.
   const players = () => (window.DATA?.leagues?.[league()] || []).filter((p) => p.appeared);
-  const pickerPlayers = () => league() === 'NBA'
-    ? (window.DATA?.leagues?.NBA || []).filter((p) => p.appeared || p.currentRoster)
-    : (window.DATA?.leagues?.GLEAGUE || []).filter(p => p.appeared || p.currentGLeagueRosterTeam);
+  const pickerPlayers = () => (window.DATA?.leagues?.[league()] || []).filter(p =>
+    p.appeared || p.currentRoster || p.currentGLeagueRosterTeam || p.seasonActual?.gp > 0
+    || Object.values(p.gLeagueSeasonActual?.phases || {}).some(a => a.gp > 0));
   const byId = (id) => pickerPlayers().find((p) => String(p.playerId) === String(id));
   const compTargets = () => window.DATA?.analysis?.playerCompTargets || [];
   const compPickerPlayers = () => {
     const targets = compTargets();
-    const targetNames = new Set(targets.map((p) => fold(p.name)));
-    return [...targets, ...pickerPlayers().filter((p) => !targetNames.has(fold(p.name)))];
+    return [...pickerPlayers(), ...targets];
   };
   const compById = (id) => compPickerPlayers().find((p) => String(p.playerId) === String(id));
 
@@ -41,6 +40,7 @@
   ];
 
   const changeMode = (mode, push = true) => {
+    if (MODE === 'current' && ['scatter','compare'].includes(mode)) state.chartYear = seasonUi.year;
     MODE = MODES.some(([key]) => key === mode) ? mode : 'database';
     if(MODE==='current')seasonUi.year='2026-27';
     render();
@@ -81,20 +81,24 @@
         : MODE === 'teamfit' ? 'Team Fit'
         : MODE === 'tulip' ? 'Role Value' : (labels[MODE] || 'Analysis');
       if ($('pageTitle')) $('pageTitle').textContent = `${lg} ${title}`;
-      const period = MODE==='current'?seasonUi.year:MODE==='seasonreview'?'2026-27':MODE === 'compare' && $('viewPreset')?.value === 'proj' ? '2026-27 projections' : '2025-26';
+      const period = MODE==='current'?seasonUi.year:MODE==='seasonreview'?'2026-27'
+        : MODE === 'compare' && state.chartYear==='2025-26' && $('viewPreset')?.value === 'proj' ? '2026-27 projections'
+        : ['scatter','compare'].includes(MODE) ? state.chartYear : '2025-26';
       if ($('crumbs')) $('crumbs').textContent = `${lg} › ${period} › ${title}`;
-      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = MODE==='current'?seasonUi.year+' measured results':MODE==='seasonreview'?'2026-27 saved forecast comparison':'2025-26 analysis workspace';
+      if ($('seasonEyebrow')) $('seasonEyebrow').textContent = MODE==='current'?seasonUi.year+' measured results':MODE==='seasonreview'?'2026-27 saved forecast comparison':period+' analysis workspace';
     }
     document.querySelectorAll('.db-only').forEach((e) => { e.style.display = isDb ? '' : 'none'; });
     $('workspace').style.display = isDb ? 'none' : '';
     if (isDb) { window.__wsRender(); return; }
-    const currentCounts=MODE==='seasonreview'||(MODE==='current'&&seasonUi.year==='2026-27');
+    const currentCounts=MODE==='seasonreview'||(MODE==='current'&&seasonUi.year==='2026-27')||(['compare','scatter'].includes(MODE)&&state.chartYear==='2026-27');
     $('nbaCount').textContent=(currentCounts?window.DATA.leagues.NBA.filter(p=>p.seasonActual?.gp>0).length:window.DATA.counts.NBA).toLocaleString();
     $('gCount').textContent=(currentCounts?window.DATA.leagues.GLEAGUE.filter(p=>p.gLeagueSeasonActual?.phases?.[seasonUi.phase]?.gp>0).length:window.DATA.counts.GLEAGUE).toLocaleString();
     if(MODE==='current'){
       const scope=league()+':'+(league()==='NBA'?'Regular Season':seasonUi.phase);
       const checked=window.DATA.currentGradeMeta?.cohorts?.[scope]?.asOf?.slice(0,10)||'unavailable';
       $('sourceLine').textContent=seasonUi.year==='2025-26'?`2025–26 ${lg} completed-season statistics and grades. Team reflects the performance-season affiliation.`:`2026–27 ${lg} results and advanced statistics. Sources checked ${checked}. Grades reflect this season; planned minutes remain estimates.`;
+    }else if(['compare','scatter'].includes(MODE)&&state.chartYear==='2026-27'){
+      $('sourceLine').textContent='2026–27 observed results from the published daily snapshot.';
     }else if(MODE==='seasonreview'){
       $('sourceLine').textContent='Frozen September 29 forecasts compared with current 2026–27 results. Errors are provisional; each league is evaluated separately.';
     }else if($('sourceLine').dataset.historicalText){
@@ -202,19 +206,20 @@
     }
     box.innerHTML = list.length ? `<div class="comp-suggestion-count" aria-live="polite">${list.length.toLocaleString()} ${q ? 'matching' : 'available'} players · scroll to browse${q ? '' : ' or type to narrow'}</div>`
       + list.map((p, i) => `<button id="simOption-${esc(p.playerId)}" class="${i === state.simActiveIndex ? 'is-active' : ''}" type="button" role="option" aria-selected="${i === state.simActiveIndex}" data-sim-pick="${esc(p.playerId)}">
-      <b>${esc(p.name)}</b><span>${esc(rosterLabel(p))} · ${esc(p.position || '—')}</span></button>`).join('')
+      <b>${esc(p.name)}</b><span>${esc(p.compTarget ? 'Brooklyn / Long Island source profile' : rosterLabel(p))} · ${esc(p.position || '—')}</span></button>`).join('')
       : `<div class="comp-suggestion-count" role="status">No matching players. Try a different name, team, or position.</div>`;
   }
 
   /** Numeric fields for scatter axes, taken from the catalog rather than a hand-kept list. */
   function numericFields() {
     const out = [];
-    const sample = players()[0] || {};
+    const cohort = MODE === 'scatter' && state.chartYear === '2026-27' ? currentSeasonRows({ historical: false, unfiltered: true }) : players();
+    const sample = cohort[0] || {};
     for (const k of ['grade', 'rateGrade', 'magnitudeGrade', 'reliabilityWeight', 'gradeCoverage',
       'gp', 'mpg', 'minutes', 'pts', 'reb', 'oreb', 'dreb', 'ast', 'stl', 'blk', 'tov',
       'ts', 'efg', 'fgPct', 'fg3Pct', 'ftPct', 'usg', 'astPct', 'astTo', 'orebPct', 'drebPct',
       'rebPct', 'offRtg', 'defRtg', 'netRtg', 'pie', 'pace', 'age', 'ageOpeningNight', 'heightInches', 'weight']) {
-      if (fin(sample[k]) || players().some((p) => fin(p[k]))) out.push({ key: k, label: window.__wsLabel(k) });
+      if (fin(sample[k]) || cohort.some((p) => fin(p[k]))) out.push({ key: k, label: window.__wsLabel(k) });
     }
     for (const [k, v] of Object.entries(sample.components || {})) out.push({ key: 'components.' + k, label: 'Component: ' + k });
     for (const [k] of Object.entries(sample.skillProfile || {})) out.push({ key: 'skill.' + k, label: 'Skill: ' + k });
@@ -543,12 +548,39 @@
   }
 
   /* --------------------------------------------------------- COMPARE MODE */
+  function competitionFor(lg) {
+    return lg === 'NBA' ? 'Regular Season' : seasonUi.phase;
+  }
+
+  function periodControls(id, year) {
+    return `<div class="ws-controls"><label>Season<select id="${id}">
+      <option value="2026-27" ${year === '2026-27' ? 'selected' : ''}>2026–27</option>
+      <option value="2025-26" ${year === '2025-26' ? 'selected' : ''}>2025–26</option>
+      </select></label>${year === '2026-27' && league() === 'GLEAGUE'
+      ? `<label>G League competition<select id="chartPhase">
+        <option value="Showcase" ${seasonUi.phase === 'Showcase' ? 'selected' : ''}>Tip-Off Tournament / Showcase</option>
+        <option value="Regular Season" ${seasonUi.phase === 'Regular Season' ? 'selected' : ''}>Regular season</option>
+        </select></label>` : ''}</div>`;
+  }
+
   function viewCompare() {
     const sel = window.__wsCompared();
     const ps = sel.map(byId).filter(Boolean);
     if (ps.length < 2) return `<section class="empty-state"><div class="eyebrow">PLAYER COMPARISON</div>
       <h2>Choose two to five players</h2><p>Start in Player Stats, tick the comparison box beside each player, then return here. Your selected players stay checked while you browse.</p>
       <div class="ws-actions"><button class="button" type="button" id="wsChooseCompare">Choose players in Player Stats</button></div></section>`;
+    if (state.chartYear === '2026-27') {
+      const liveRows = new Map([...new Set(ps.map(p => p.league))].flatMap(lg =>
+        currentSeasonRows({ historical: false, unfiltered: true, lg })).map(row => [String(row.playerId), row]));
+      const keys = ['gp','mpg','grade','rateGrade','magnitudeGrade','tulip','pts','reb','ast','stl','blk','tov','ts','efg','usg','netRtg'];
+      return `<h2>Compare · 2026–27 actuals</h2>${periodControls('chartYear', state.chartYear)}${currentRefreshNote()}
+        <div class="table-wrap"><table class="compare-table"><thead><tr><th>Metric</th>
+        ${ps.map(p => `<th>${esc(p.name)}<span class="tiny">${esc(p.league === 'NBA' ? 'NBA · Regular season' : 'G League · ' + competitionFor(p.league))}</span></th>`).join('')}</tr></thead><tbody>
+        ${keys.map(k => `<tr><th>${esc(seasonFields[k] || window.__wsLabel(k))}</th>${ps.map(p => {
+          const row = liveRows.get(String(p.playerId));
+          return `<td>${row ? seasonCellText(row,k) : '—'}</td>`;
+        }).join('')}</tr>`).join('')}</tbody></table></div>`;
+    }
     const metrics = ['grade', 'rateGrade', 'magnitudeGrade', 'gp', 'mpg', 'pts', 'reb', 'ast', 'stl', 'blk', 'tov',
       'ts', 'efg', 'usg', 'astPct', 'orebPct', 'drebPct', 'offRtg', 'defRtg', 'netRtg', 'pie'];
     const cross = new Set(ps.map((p) => p.league)).size > 1;
@@ -561,10 +593,10 @@
     const projectionMode = $('viewPreset')?.value === 'proj';
     if (projectionMode) {
       const keys = ['gp','mpg','pts','reb','ast','stl','blk','tov','fg3m','fgPct','fg3Pct','ftPct','ts'];
-      return `<h2>Compare — 2026–27 projections</h2><p class="tiny">Forecasts, not observed results. Ranges and assumptions are available in each player's projection card.</p>
+      return `<h2>Compare — 2026–27 projections</h2>${periodControls('chartYear', state.chartYear)}<p class="tiny">Forecasts, not observed results. Ranges and assumptions are available in each player's projection card.</p>
         <div class="table-wrap"><table class="compare-table"><thead><tr><th>Metric</th>${ps.map(p=>`<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${keys.map(k=>`<tr><th>${esc(window.__wsLabel('proj.'+k))}</th>${ps.map(p=>`<td>${p.proj?.abstain?'—':window.__wsFmt(p.proj?.[k], 'proj.'+k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     }
-    return `<h2>Compare — 2025–26 actuals</h2>
+    return `<h2>Compare — 2025–26 actuals</h2>${periodControls('chartYear', state.chartYear)}
       ${cross ? '<p class="tiny"><b>Cross-league comparison.</b> Each league is graded against its own population, so grades are not on a shared scale.</p>' : ''}
       <div class="table-wrap"><table class="compare-table"><thead><tr><th class="left">Metric</th>
         ${ps.map((p) => `<th>${esc(p.name)}<span class="tiny">${esc(teamContext(p))} · ${esc(p.position || '')}</span></th>`).join('')}</tr></thead>
@@ -585,12 +617,18 @@
 
   /* --------------------------------------------------------- SCATTER MODE */
   function viewScatter() {
+    const live = state.chartYear === '2026-27';
     const f = numericFields();
+    if (!f.some(x => x.key === state.scatterX)) state.scatterX = f.find(x => x.key === 'pts')?.key || f[0]?.key || 'pts';
+    if (!f.some(x => x.key === state.scatterY)) state.scatterY = f.find(x => x.key === 'grade')?.key || f[1]?.key || 'grade';
+    if (!f.some(x => x.key === state.scatterSize)) state.scatterSize = '';
+
     const opt = (sel) => f.map((x) => `<option value="${esc(x.key)}"${x.key === sel ? ' selected' : ''}>${esc(x.label)}</option>`).join('');
     const presets = [['usg', 'ts', 'Usage vs efficiency'], ['pts', 'ts', 'Scoring vs efficiency'],
       ['astPct', 'tov', 'Assist rate vs turnovers'], ['ageOpeningNight', 'grade', 'Age vs grade'],
       ['reliabilityWeight', 'grade', 'Reliability vs grade'], ['grade', 'magnitudeGrade', 'Grade vs magnitude']];
-    return `<h2>Scatter &amp; correlation</h2>
+    return `<h2>Scatter &amp; correlation · ${state.chartYear}</h2>
+      ${periodControls('chartYear', state.chartYear)}${live ? currentRefreshNote() : ''}
       <div class="ws-controls">
         <label>X<select id="scX">${opt(state.scatterX)}</select></label>
         <label>Y<select id="scY">${opt(state.scatterY)}</select></label>
@@ -599,13 +637,13 @@
           ${[['positionFamily', 'Position group'], ['team', 'Team'], ['ageBand', 'Age band'], ['primaryArchetype', 'Primary archetype']].map(([k, label]) => `<option value="${k}"${k === state.scatterColor ? ' selected' : ''}>${label}</option>`).join('')}
         </select></label>
       </div>
-      <div class="ws-controls">${presets.map(([x, y, l]) => `<button class="button secondary small" data-preset="${x}|${y}">${esc(l)}</button>`).join('')}</div>
-      <section class="scatter-scope" aria-label="Active Database filters">
+      <div class="ws-controls">${presets.filter(([x,y]) => f.some(q => q.key === x) && f.some(q => q.key === y)).map(([x, y, l]) => `<button class="button secondary small" data-preset="${x}|${y}">${esc(l)}</button>`).join('')}</div>
+      ${live ? '<p class="tiny">All measured players in the selected league and competition.</p>' : `<section class="scatter-scope" aria-label="Active Database filters">
         <div><b>Database filter scope</b> <span class="tiny">The plot uses the same filters as Database.</span></div>
         <div id="scFilterChips" class="scatter-filter-chips"></div>
         <div class="ws-actions"><button type="button" class="button secondary small" id="scEditFilters">Edit filters in Database</button>
           <button type="button" class="button secondary small" id="scClearFilters">Clear all filters</button></div>
-      </section>
+      </section>`}
       <div id="scStats" class="tiny"></div>
       <canvas id="scCanvas" width="1100" height="560" style="width:100%;max-width:1100px" role="img" tabindex="0" aria-describedby="scChartHint"></canvas>
       <p id="scChartHint" class="tiny">Point the cursor at a dot to identify it, select a dot to open that player, or use the accessible data table below.</p>
@@ -617,17 +655,20 @@
   function drawScatter() {
     const cv = $('scCanvas'); if (!cv) return;
     const ctx = cv.getContext('2d');
-    const list = window.__wsFiltered().filter((p) => p.appeared);
+    const live = state.chartYear === '2026-27';
+    const list = live ? currentSeasonRows({ historical: false, unfiltered: true }).filter(p => p.gp > 0) : window.__wsFiltered().filter(p => p.appeared);
     const pts = list.filter((p) => fin(valueOf(p, state.scatterX)) && fin(valueOf(p, state.scatterY)))
       .map((p) => ({ p, x: Number(valueOf(p, state.scatterX)), y: Number(valueOf(p, state.scatterY)),
         s: state.scatterSize && fin(valueOf(p, state.scatterSize)) ? Number(valueOf(p, state.scatterSize)) : null }));
     cv.setAttribute('aria-label', `Scatter plot of ${window.__wsLabel(state.scatterY)} versus ${window.__wsLabel(state.scatterX)} for ${pts.length} players. Open Accessible chart data for a keyboard-readable table.`);
     ctx.clearRect(0, 0, cv.width, cv.height);
     const activeFilters = window.__siteFilterSummary?.() || [];
+    if (!live) {
     $('scFilterChips').innerHTML = activeFilters.length
       ? activeFilters.map((f) => `<button type="button" class="scatter-filter-chip" data-filter-clear="${esc(f.key)}" aria-label="Remove ${esc(f.label)} filter"><b>${esc(f.label)}:</b> ${esc(f.value)} <span aria-hidden="true">×</span></button>`).join('')
       : '<span class="tiny">No Database filters are active.</span>';
     $('scClearFilters').disabled = activeFilters.length === 0;
+    }
     $('scData').innerHTML = `<table><thead><tr><th>Player</th><th>${esc(window.__wsLabel(state.scatterX))}</th><th>${esc(window.__wsLabel(state.scatterY))}</th></tr></thead><tbody>${pts.map(q=>`<tr><td>${esc(q.p.name)}</td><td>${window.__wsFmt(q.x,state.scatterX)}</td><td>${window.__wsFmt(q.y,state.scatterY)}</td></tr>`).join('')}</tbody></table>`;
     if (pts.length < 2) {
       $('scStats').textContent = `n = ${pts.length} · At least two measured players are needed for this chart. ${list.length - pts.length} missing-coordinate rows excluded.`;
@@ -638,7 +679,7 @@
     const mean = (a) => a.reduce((m, v) => m + v, 0) / a.length;
     const mx = mean(xs), my = mean(ys);
     const sx = Math.sqrt(mean(xs.map((v) => (v - mx) ** 2))), sy = Math.sqrt(mean(ys.map((v) => (v - my) ** 2)));
-    const r = sx && sy ? mean(pts.map((q) => (q.x - mx) * (q.y - my))) / (sx * sy) : 0;
+    const r = sx && sy ? mean(pts.map((q) => (q.x - mx) * (q.y - my))) / (sx * sy) : null;
 
     const pad = 54, W = cv.width, H = cv.height;
     const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
@@ -680,7 +721,7 @@
     const countsByGroup = new Map();
     for (const q of pts) countsByGroup.set(groupOf(q.p), (countsByGroup.get(groupOf(q.p)) || 0) + 1);
     $('scLegendItems').innerHTML = groups.map((g) => `<span class="scatter-legend-item"><i style="--swatch:${hue(g)}"></i>${esc(g)} <small>${countsByGroup.get(g)}</small></span>`).join('');
-    $('scStats').innerHTML = `<b>r = ${r.toFixed(3)}</b> · n = ${pts.length} · trend y = ${b.toFixed(3)}x + ${a.toFixed(2)}
+    $('scStats').innerHTML = `<b>r = ${r === null ? '—' : r.toFixed(3)}</b> · n = ${pts.length} · trend y = ${b.toFixed(3)}x + ${a.toFixed(2)}
       · ${list.length - pts.length} missing-coordinate rows excluded
       · ${list.length} appeared players after filters`;
 
@@ -862,23 +903,27 @@
     const targetedSet = window.DATA?.analysis?.playerCompsTargeted?.[String(p.playerId)] || null;
     const isTargeted = !!targetedSet;
     const lg = isTargeted ? 'NBA' : (p.league === 'NBA' ? 'NBA' : 'GLEAGUE');
-    const sameLeagueSet = isTargeted ? null : (window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)] || null);
+    const archive = window.DATA?.analysis?.playerComps?.[lg]?.[String(p.playerId)];
+    const latest = window.DATA?.analysis?.playerCompsCurrent?.[lg + ':' + competitionFor(lg)]?.[String(p.playerId)]
+      || (archive?.targetSeason === '2026-27' ? archive : null);
+    const year = state.compYear || (latest || !archive ? '2026-27' : '2025-26');
+    const period = isTargeted ? '' : periodControls('compYear', year);
+    const sameLeagueSet = isTargeted ? null : year === '2026-27' ? latest : archive?.targetSeason === '2025-26' ? archive : null;
     const nbaEquivalentSet = isTargeted ? null : (window.DATA?.analysis?.playerCompsNbaEquivalent?.[lg]?.[String(p.playerId)] || null);
-    const useNbaEquivalent = isTargeted || (!!nbaEquivalentSet && (state.simCompScope === 'nba' || !sameLeagueSet));
+    const useNbaEquivalent = isTargeted || (!!nbaEquivalentSet && (state.simCompScope === 'nba'));
     const set = targetedSet || (useNbaEquivalent ? nbaEquivalentSet : sameLeagueSet);
     const meta = window.DATA?.analysis?.playerCompsMeta || {};
 
     if (!set) {
       const rookie = rookieCohortComparison(p);
-      if (rookie) return rookie;
-      const reason = p.currentRoster&&!p.appeared
-        ? `${p.name} is on the current ${teamOf(p)} roster but has no 2025-26 NBA appearance, so the comparison engine has no target stat profile to match.`
-        : `${p.name} has no usable 2025-26 professional sample for this comparison.`;
-      return `<h2>Player Comps</h2>
-        ${compPlayerSearch(p)}
-        <div class="ws-card wide"><div class="eyebrow">COMPARISON UNAVAILABLE</div><p><b>${esc(reason)}</b></p>
-        <p class="tiny">The site keeps the player searchable and shows his roster status, but it does not invent a player comp from no current-season stat line.</p></div>
-        <p class="tiny">Comparisons never invent production or body measurements for players without data.</p>`;
+      if (rookie) return rookie + period;
+      const reason = year === '2026-27'
+        ? 'Current comparisons require three games and 100 minutes in the selected competition.'
+        : 'This player has no usable 2025–26 sample.';
+      return `<h2>Player Comps</h2>${compPlayerSearch(p)}${period}
+        ${nbaEquivalentSet ? '<button class="button" id="simScopeNba" type="button">View historical NBA-equivalent comp</button>' : ''}
+        <div class="ws-card wide"><div class="eyebrow">COMPARISON UNAVAILABLE</div><p><b>${esc(reason)}</b></p>${p.currentRoster ? `<p>${esc(p.name)} is on the current ${esc(teamOf(p))} roster.</p>` : ''}</div>`;
+
     }
 
     const targetPhysical = set.targetPhysical || {};
@@ -949,7 +994,7 @@
       </section>`;
     }).join('');
 
-    const scopeToggle = !isTargeted && sameLeagueSet && nbaEquivalentSet ? `
+    const scopeToggle = !isTargeted && nbaEquivalentSet ? `
       <div class="comp-pool-toggle" role="group" aria-label="Historical comparison pool">
         <button id="simScopeSame" class="${useNbaEquivalent ? '' : 'active'}" type="button">Same-league history</button>
         <button id="simScopeNba" class="${useNbaEquivalent ? 'active' : ''}" type="button">NBA-equivalent history</button>
@@ -980,15 +1025,17 @@
         <p class="tiny">${methodSecondParagraph}</p>
       </details>
       ${compPlayerSearch(p)}
+      ${period}
       ${scopeToggle}
+      ${!useNbaEquivalent && year === '2026-27' ? currentRefreshNote() : ''}
       <p class="tiny">Target: ${esc(set.targetSeason || '2025-26')} ${esc(set.targetSeasonType || 'Regular Season')}
       · ${cval(set.targetGames, '0')} games · ${cval(isTargeted && fin(set.sourceOriginalMinutes) ? set.sourceOriginalMinutes : set.targetMinutes, '0')} source minutes.
       ${isTargeted && set.sourceTeam ? ' Source: ' + esc(set.sourceTeam) + '.' : ''}
       ${isTargeted ? ' Source type: ' + (set.sourceMode === 'pre-nba' ? 'pre-NBA production' : 'G League production') + '.' : ''}
       ${isTargeted && set.sourceConfidence ? ' Source confidence: ' + esc(set.sourceConfidence) + '.' : ''}
-      ${lg === 'GLEAGUE' && !useNbaEquivalent ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
+      ${lg === 'GLEAGUE' && !useNbaEquivalent && year === '2025-26' ? 'The main database combines Regular Season and Showcase Cup; this same-league historical comparison may use a different season scope.' : ''}</p>
       ${isTargeted ? '<p class="tiny comp-source-rule"><b>Source rule:</b> NBA statistics are not target inputs for this comparison, and the target player is excluded from the NBA reference pool.</p>' : ''}
-      ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can substantially change the translated profile.</p>' : ''}
+      ${fin(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) && Number(isTargeted ? set.sourceOriginalMinutes : set.targetMinutes) < 300 ? '<p class="comp-outlier-note">Small source sample: fewer than 300 minutes. Treat the blend as provisional; additional games can materially change the comparison.</p>' : ''}
       <div class="comp-target-strip">
         <div><span class="eyebrow">TARGET</span><h3>${esc(p.name)}</h3>
           <p>${esc(teamContext(p))} · ${esc(p.position || '—')} · ${esc(physicalLine(targetPhysical))}</p></div>
@@ -1340,6 +1387,10 @@
   /* ------------------------------------------------------------- wiring */
   function wire() {
     const on = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
+    for (const [id,key] of [['chartYear','chartYear'],['compYear','compYear']]) {
+      on(id,'change',e => { state[key] = e.target.value; render(); window.__siteUrlChanged?.('push'); });
+    }
+    on('chartPhase','change',e => { seasonUi.phase = e.target.value; render(); window.__siteUrlChanged?.('push'); });
     on('scEditFilters', 'click', () => changeMode('database'));
     on('wsChooseCompare', 'click', () => changeMode('database'));
     on('scClearFilters', 'click', () => window.__siteClearAllFilters?.());
@@ -1470,14 +1521,14 @@
     const t=p.tulipRotation;
     return p.league==='GLEAGUE' && !t?.abstain && t?.phase!==phase ? null : t;
   }
-  function currentSeasonRows(){
-    const historical=seasonUi.year==='2025-26',phase=league()==='NBA'?'Regular Season':seasonUi.phase;
-    const cohort=window.DATA.leagues[league()].filter(p=>historical?p.appeared:league()==='NBA'?(p.currentRoster||p.seasonActual?.gp>0):(p.currentGLeagueRosterTeam||p.gLeagueSeasonActual?.phases?.[phase]?.gp>0));
+  function currentSeasonRows({ historical = seasonUi.year === '2025-26', unfiltered = false, lg = league() } = {}) {
+    const phase = competitionFor(lg);
+    const cohort=window.DATA.leagues[lg].filter(p=>historical?p.appeared:lg==='NBA'?(p.currentRoster||p.seasonActual?.gp>0):(p.currentGLeagueRosterTeam||p.gLeagueSeasonActual?.phases?.[phase]?.gp>0));
     const ranks=new Map(cohort.filter(p=>fin(p.currentGrades?.[phase]?.grade)).sort((a,b)=>b.currentGrades[phase].grade-a.currentGrades[phase].grade||a.name.localeCompare(b.name)).map((p,i)=>[p.playerId,i+1]));
     const rows=cohort.map(p=>{
-      const a=historical?{gp:p.gp,perGame:{...p,fg3m:p.fg3,fgm:p.fg,ftm:p.ft}}:league()==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase];
+      const a=historical?{gp:p.gp,perGame:{...p,fg3m:p.fg3,fgm:p.fg,ftm:p.ft}}:lg==='NBA'?p.seasonActual:p.gLeagueSeasonActual?.phases?.[phase];
       const g=historical?{...p,reliability:p.reliabilityWeight}:p.currentGrades?.[phase]||{},pg=a?.perGame||{},t=historical?null:seasonRotation(p,phase);
-      const row={...(historical?p:{playerId:p.playerId,name:p.name,position:p.position,currentTeam:p.currentTeam,currentGLeagueRosterTeam:p.currentGLeagueRosterTeam,tulipRotation:t,...g}),...Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','fg3m','fgm','fga','fg3a','ftm','fta','tov','mpg'].map(k=>[k,pg[k]??null])),...Object.fromEntries(['ts','usg','pie','netRtg','fgPct','fg3Pct','ftPct'].map(k=>[k,g[k]??pg[k]??null])),gp:a?.gp,team:historical?p.seasonTeam||p.team:league()==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,rank:historical?p.rank:ranks.get(p.playerId),planned:t&&!t.abstain?t.recommendedMpg:null,support:t&&!t.abstain?t.inputSupport:null,roleValue:historical&&!p.tulip?.card?.abstain&&!p.tulip?.card?.rotation?.abstain?p.tulip?.card?.rotation?.leagueReferencedDelta:null,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,reliability:g.reliability,reliabilityWeight:g.reliability,components:g.components||{},custom:historical?p.custom:g.custom||{},stats:historical?p.stats:g.stats||{},p36:historical?p.per36:g.p36||{},gradeCoverage:g.coverage?.pct??(historical?p.gradeCoverage:null),minutes:historical?p.minutes:a?.totals?.min??null,tulip:!historical&&t&&!t.abstain?t.tulip:null};
+      const row={...(historical?p:{playerId:p.playerId,name:p.name,position:p.position,currentTeam:p.currentTeam,currentGLeagueRosterTeam:p.currentGLeagueRosterTeam,tulipRotation:t,...g}),...Object.fromEntries(['pts','reb','oreb','dreb','ast','stl','blk','fg3m','fgm','fga','fg3a','ftm','fta','tov','mpg'].map(k=>[k,pg[k]??null])),...Object.fromEntries(['ts','usg','pie','netRtg','fgPct','fg3Pct','ftPct'].map(k=>[k,g[k]??pg[k]??null])),gp:a?.gp,team:historical?p.seasonTeam||p.team:lg==='NBA'?p.currentTeam:p.currentGLeagueRosterTeam,rank:historical?p.rank:ranks.get(p.playerId),planned:t&&!t.abstain?t.recommendedMpg:null,support:t&&!t.abstain?t.inputSupport:null,roleValue:historical&&!p.tulip?.card?.abstain&&!p.tulip?.card?.rotation?.abstain?p.tulip?.card?.rotation?.leagueReferencedDelta:null,seasonActualView:a,currentGradeView:g,grade:g.grade,rateGrade:g.rateGrade,magnitudeGrade:g.magnitudeGrade,reliability:g.reliability,reliabilityWeight:g.reliability,components:g.components||{},custom:historical?p.custom:g.custom||{},stats:historical?p.stats:g.stats||{},p36:historical?p.per36:g.p36||{},gradeCoverage:g.coverage?.pct??(historical?p.gradeCoverage:null),minutes:historical?p.minutes:a?.totals?.min??null,tulip:!historical&&t&&!t.abstain?t.tulip:null};
       if(!historical){
         for(const k of ['birthdate','country','college','draftYear','draftRound','draftNumber','draftStatus','positionFamily','positionSource'])row[k]=p[k];
         const bio=p.currentGLeagueBio;
@@ -1494,6 +1545,7 @@
       for(const k of ['pts','reb','ast','stl','blk','tov'])row[k+'36']=row.mpg>0&&fin(row[k])?row[k]*36/row.mpg:null;
       return row;
     });
+    if (unfiltered) return rows;
     return seasonFiltered(rows).filter(p=>(!seasonUi.team||p.team===seasonUi.team)&&(!seasonUi.minGames||(p.gp??0)>=seasonUi.minGames)).sort((a,b)=>compareValues(seasonSortValue(a,seasonUi.sort),seasonSortValue(b,seasonUi.sort),seasonUi.dir)||a.name.localeCompare(b.name));
   }
   function currentScoreStatus(p){
@@ -1610,6 +1662,8 @@
       seasonLedger:seasonUi.ledger!=='overall'?seasonUi.ledger:null,seasonTeam:seasonUi.team,
       seasonPhase:league()==='GLEAGUE'&&seasonUi.year==='2026-27'?seasonUi.phase:null,
       seasonGp:seasonUi.minGames||null,seasonSort:seasonUi.sort!=='grade'?seasonUi.sort:null,seasonDir:seasonUi.dir===1?1:null}:{}),
+    ...(['compare','scatter','similarity'].includes(MODE) ? { chartYear:MODE==='similarity'?state.compYear:state.chartYear,
+      seasonPhase:league()==='GLEAGUE'?seasonUi.phase:null, simScope:MODE==='similarity'&&state.simCompScope==='nba'?'nba':null } : {}),
     ...(state.player ? { player: state.player } : {}),
     ...(state.simPlayer ? { sim: state.simPlayer } : {}),
     ...(state.simTeam ? { simTeam: state.simTeam } : {}),
@@ -1631,6 +1685,12 @@
       seasonUi.dir=x.seasonDir==='1'?1:-1;seasonUi.team=x.seasonTeam||'';
       seasonUi.phase=['Showcase','Regular Season'].includes(x.seasonPhase)?x.seasonPhase:null;
       seasonUi.minGames=Math.max(0,Math.floor(Number(x.seasonGp)||0));seasonUi.query=null;
+    }
+    if (['compare','scatter','similarity'].includes(MODE)) {
+      if (MODE === 'similarity') state.compYear = ['2025-26','2026-27'].includes(x.chartYear) ? x.chartYear : '';
+      else state.chartYear = x.chartYear === '2026-27' ? '2026-27' : '2025-26';
+      seasonUi.phase = ['Showcase','Regular Season'].includes(x.seasonPhase) ? x.seasonPhase : window.DATA?.gLeagueRotationMeta?.phase || 'Showcase';
+      state.simCompScope = x.simScope === 'nba' ? 'nba' : 'same';
     }
     const valid = (id) => id != null && pickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;
     const validSim = (id) => id != null && compPickerPlayers().some((p) => String(p.playerId) === String(id)) ? String(id) : null;

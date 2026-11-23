@@ -16,12 +16,12 @@ export function gradeCurrentRows(players,actualById,baseTable,advanced,{speciali
  const eligible=players.filter(p=>actualById[p.nbaPersonId||p.playerId]?.gp>0),norm=[],official=[],incomplete=new Set();
  for(const p of eligible){
   const id=Number(p.nbaPersonId||p.playerId),a=actualById[id],b=base.get(id),source=advanced.get(id);
-  const lagging=p.league==='GLEAGUE'&&((a.roundedMinutesGame&&(!source||source.GP<a.gp))||(a.revisedDashboardExposure&&source?.GP!==a.gp));
-  if((!b&&!a.roundedMinutesGame)||(!lagging&&source?.GP!==a.gp))throw new Error('Current grade base/advanced exposure mismatch: '+id);
+  const lagging=p.league==='GLEAGUE'&&((a.roundedMinutesGame&&(!source||source.GP<a.gp))||(a.revisedDashboardExposure&&(!source||source.GP!==a.gp||Math.abs(source.MIN-a.totals.min)>0.05)));
+  if((!b&&!a.roundedMinutesGame&&!a.revisedDashboardExposure)||(!lagging&&source?.GP!==a.gp))throw new Error('Current grade base/advanced exposure mismatch: '+id);
   const v=lagging?{}:source;
   if(lagging)incomplete.add(id);
   const t={...b,...Object.fromEntries(Object.entries(a.totals).map(([k,v])=>[{min:'MIN',pts:'PTS',oreb:'OREB',dreb:'DREB',reb:'REB',ast:'AST',stl:'STL',blk:'BLK',tov:'TOV',fgm:'FGM',fga:'FGA',fg3m:'FG3M',fg3a:'FG3A',ftm:'FTM',fta:'FTA'}[k]||k,v])),GP:a.gp};
-  if(a.roundedMinutesGame)for(const k of ['PLUS_MINUS','PF','PFD','BLKA'])t[k]=null;
+  if(a.roundedMinutesGame||a.revisedDashboardExposure)for(const k of ['PLUS_MINUS','PF','PFD','BLKA'])t[k]=null;
   const ratio=(n,d)=>d>0?n/d:null;
   const ex={FG2M:t.FGM-t.FG3M,FG2A:t.FGA-t.FG3A,TS_PCT:p.league==='GLEAGUE'?v.TS_PCT:ratio(t.PTS,2*(t.FGA+0.44*t.FTA)),EFG_PCT:ratio(t.FGM+0.5*t.FG3M,t.FGA),FG_PCT:ratio(t.FGM,t.FGA),FG3_PCT:ratio(t.FG3M,t.FG3A),FT_PCT:ratio(t.FTM,t.FTA),AST_TO:ratio(t.AST,t.TOV)};
   ex.FT_POINTS=a.totals.freeThrowPoints??t.FTM;

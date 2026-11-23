@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { reconcileDashboardExposure } from '../scripts/lib/gleague-exposure.mjs';
+import { reconcileDashboardExposure, verifyMissingDashboardMinutes } from '../scripts/lib/gleague-exposure.mjs';
 const table = (name, records) => {
   const headers = Object.keys(records[0]);
   return { name, headers, rowSet: records.map(row => headers.map(k => row[k])) };
@@ -28,3 +28,19 @@ await assert.rejects(reconcileDashboardExposure(phase, log, id => id === 'B' ? b
 await assert.rejects(reconcileDashboardExposure(phase, log, id => {
   const b = load(id); b.resultSets[0].rowSet[0][2]++; return b;
 }), /team result disagree/);
+
+const zeroMinute = { ...game, GAME_ID: 'B', MIN: 0, REB: 1 };
+const partialLog = new Map([[7, { GP: 2, games: [game, zeroMinute] }]]);
+const absent = id => {
+  if (id === 'A') return load(id);
+  const b = load(id);
+  b.resultSets[1].rowSet[0][2] = 8;
+  return b;
+};
+const alternate = playerIds => () => ({boxScoreTraditional:{gameId:'B',homeTeam:{
+  teamId:1,statistics:{points:100},players:playerIds.map(personId=>({personId}))
+}}});
+assert.deepEqual(await verifyMissingDashboardMinutes(phase, partialLog, [7], absent, alternate([8,9,10,11,12])),
+  [{playerId:7,games:[{gameId:'A',seconds:3}],excluded:['B']}]);
+await assert.rejects(verifyMissingDashboardMinutes(phase, partialLog, [7], absent, alternate([7,8,9,10,11])),
+  /Cannot verify/);

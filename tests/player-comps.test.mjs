@@ -26,7 +26,7 @@ const inputs = JSON.parse(fs.readFileSync(new URL('../scripts/data/projection/in
 const finite = (v) => v !== null && v !== undefined && Number.isFinite(Number(v));
 
 assert.equal(meta.version, '4.3.0');
-assert.match(meta.targetEligibility, /only players with a 2025-26 appearance/i);
+assert.match(meta.targetEligibility, /2025-26 targets use recorded appearances/i);
 assert.equal(meta.physicalWeight, 0.20);
 assert.match(meta.blendMethod, /one to three distinct players/i);
 assert.match(meta.blendMethod, /non-negative convex reconstruction/i);

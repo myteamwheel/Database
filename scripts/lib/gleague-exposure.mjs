@@ -12,6 +12,42 @@ function records(table) {
   });
 }
 
+export async function verifyMissingDashboardMinutes(phase, logged, playerIds, loadBox, loadBoxV3) {
+  const teamLog = new Map(records(phase.teamGameLog.resultSets[0]).map(row => [row.GAME_ID+':'+row.TEAM_ID,row]));
+  const result = [];
+  for (const playerId of playerIds) {
+    const games = [], excluded = [];
+    for (const entry of logged.get(playerId).games) {
+      const gameId = entry.GAME_ID;
+      const box = await loadBox(gameId);
+      const team = records(box.resultSets?.find(t => t.name === 'TeamStats'))
+        .find(t => t.TEAM_ID === entry.TEAM_ID && t.GAME_ID === gameId);
+      const matches = records(box.resultSets?.find(t => t.name === 'PlayerStats')).filter(p => p.PLAYER_ID === playerId);
+      const line = matches[0], time = /^(\d+):([0-5]\d)$/.exec(line?.MIN ?? '');
+      const teamPoints = teamLog.get(gameId+':'+entry.TEAM_ID)?.PTS;
+      if (box.parameters?.GameID === gameId && team?.PTS === teamPoints && !matches.length && entry.MIN === 0 && entry.PTS === 0) {
+        const alternate = (await loadBoxV3(gameId)).boxScoreTraditional;
+        const side = [alternate?.homeTeam, alternate?.awayTeam].find(t => t?.teamId === entry.TEAM_ID);
+        if (alternate?.gameId === gameId && side?.statistics?.points === teamPoints
+          && Array.isArray(side.players) && side.players.length >= 5 && !side.players.some(p => p.personId === playerId)) {
+          excluded.push(gameId);
+          continue;
+        }
+      }
+      if (box.parameters?.GameID !== gameId || !team || team.PTS !== teamLog.get(gameId+':'+entry.TEAM_ID)?.PTS
+        || matches.length !== 1 || line.GAME_ID !== gameId || line.TEAM_ID !== entry.TEAM_ID || line.COMMENT || !time
+        || countingFields.some(k => !Number.isFinite(entry[k]) || line[k === 'TOV' ? 'TO' : k] !== entry[k])) {
+        throw Error('Cannot verify missing G League dashboard minutes for ' + playerId + ' in ' + gameId);
+      }
+      const seconds = Number(time[1]) * 60 + Number(time[2]);
+      if (!seconds) throw Error('Missing positive G League playing time in ' + gameId);
+      games.push({ gameId, seconds });
+    }
+    result.push({ playerId, games, excluded });
+  }
+  return result;
+}
+
 export async function reconcileDashboardExposure(phase, logged, loadBox) {
   const table = phase.stats.resultSets[0];
   const ix = Object.fromEntries(table.headers.map((key, i) => [key, i]));

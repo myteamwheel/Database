@@ -80,7 +80,7 @@ for (const league of ['NBA','GLEAGUE']) {
     for (const [key,field] of Object.entries(advanced)) stats[key]=mean(best,r=>n(r.advanced[field]));
     for (const [key,[num,den,min]] of Object.entries(ratios)) stats[key]=best.every(r=>valid(r[num])&&valid(r[den])) && total(best,den)>=min ? total(best,num)/total(best,den) : null;
     stats.efgPct=best.every(r=>['FGM','FGA','FG3M'].every(k=>valid(r[k]))) && total(best,'FGA')>0 ? (total(best,'FGM')+0.5*total(best,'FG3M'))/total(best,'FGA') : null;
-    stats.ts=mean(best,r=>valid(r.advanced.TS_PCT) ? Number(r.advanced.TS_PCT) : ['PTS','FGA','FTA'].every(k=>valid(r[k])) && r.FGA+0.44*r.FTA>0 ? r.PTS/(2*(r.FGA+0.44*r.FTA)) : null);
+    stats.ts=mean(best,r=>valid(r.advanced.TS_PCT) ? Number(r.advanced.TS_PCT) : league === 'NBA' && ['PTS','FGA','FTA'].every(k=>valid(r[k])) && r.FGA+0.44*r.FTA>0 ? r.PTS/(2*(r.FGA+0.44*r.FTA)) : null);
     const b=bio.get(id)||{},c=measurements.get(id)||{};
     expected.set(id,{anchor,rows:best,stats,physical:{height:b.height??c.height??null,weight:b.weight??c.weight??null,wingspan:c.wingspan??null,standingReach:c.standingReach??null}});
   }
