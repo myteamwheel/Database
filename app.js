@@ -1460,14 +1460,6 @@ function render(){
     if (button?.dataset.player) openPlayer(button.dataset.player);
     if (button?.dataset.profile) window.__wsOpenPlayer?.(button.dataset.profile);
   };
-  body.onchange = event => {
-    const checkbox = event.target.closest('[data-compare]');
-    if (!checkbox) return;
-    if (checkbox.checked && compared.size >= 5) { checkbox.checked = false; return; }
-    if (checkbox.checked) compared.add(checkbox.dataset.compare);
-    else compared.delete(checkbox.dataset.compare);
-    updateCompare();
-  };
   renderRules(); updateCompare();
 }
 
@@ -1502,6 +1494,15 @@ function cell(p,key){
     return `<td class="${cls}">${fmt(v,def.type)}</td>`;
   }
   return `<td class="${key==='viewRank'||key==='rank'?'rank':''}">${formatCell(p,key)}</td>`;
+}
+
+function handleCompareSelection(event) {
+  const checkbox = event.target.closest('[data-compare]');
+  if (!checkbox) return;
+  if (checkbox.checked && compared.size >= 5) { checkbox.checked = false; return; }
+  if (checkbox.checked) compared.add(checkbox.dataset.compare);
+  else compared.delete(checkbox.dataset.compare);
+  updateCompare();
 }
 
 function updateCompare(){
@@ -2432,6 +2433,7 @@ function bind(){
     if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA') return;
     e.preventDefault(); openStatGuide();
   });
+  $('tableBody').addEventListener('change', handleCompareSelection, true);
   $('compareBtn').onclick=openCompare;$('clearCompareBtn').onclick=()=>{compared.clear();render();writeUrlState('push');};
   $('addRuleBtn').onclick=()=>{
     $('ruleUnitHint').textContent='';
