@@ -24,7 +24,7 @@ test('frozen 2026 forecasts compare with current results and sort accurate first
  const p=await page.evaluate(()=>DATA.leagues.NBA.find(p=>p.seasonActual.gp>0&&DATA.savedForecastReview.leagues.NBA.some(f=>f.playerId===String(p.playerId)&&f.projection)));
  const f=await page.evaluate(id=>DATA.savedForecastReview.leagues.NBA.find(f=>f.playerId===String(id)),p.playerId);
  await page.fill('#seasonSearch',p.name);const row=page.locator('.season-table > table > tbody > tr').first();await expect(row.locator('td').nth(2)).toHaveText(f.projection.pts.toFixed(1));await expect(row.locator('td').nth(3)).toHaveText(p.seasonActual.perGame.pts.toFixed(1));
- await page.fill('#seasonSearch','');await page.selectOption('#seasonLimit','1000');const vals=(await page.locator('.season-table > table > tbody > tr > td:nth-child(6)').allTextContents()).filter(s=>s!=='—').map(Number);expect(vals.every((v,i)=>!i||v>=vals[i-1])).toBe(true);
+ await page.fill('#seasonSearch','');await expect(page.locator('#seasonLimit option:checked')).toHaveText('All');const vals=(await page.locator('.season-table > table > tbody > tr > td:nth-child(6)').allTextContents()).filter(s=>s!=='—').map(Number);expect(vals.every((v,i)=>!i||v>=vals[i-1])).toBe(true);
  const pending=page.waitForEvent('download');await page.click('#seasonExport');expect((await pending).suggestedFilename()).toContain('2026-27_saved-forecast-accuracy');expect(errors).toEqual([]);
 });
 test('G League phases stay separate and phone layout fits',async({page})=>{

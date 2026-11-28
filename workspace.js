@@ -474,7 +474,7 @@
       </div></div></details>`;
   }
 
-  function renderHistoryGames(p, product, seasonFilter = 'all', limit = 50) {
+  function renderHistoryGames(p, product, seasonFilter = 'all', limit = 0) {
     const target = $('historyGameLog');
     if (!target) return;
     const all = decodeGameRows(product, p).slice().sort((a, b) => String(b.gameDate).localeCompare(String(a.gameDate)) || String(b.gameId).localeCompare(String(a.gameId)));
@@ -496,7 +496,7 @@
 
   function onHistoryControls(p, product) {
     const season = $('histGameSeason'), limit = $('histGameLimit');
-    const rerender = () => renderHistoryGames(p, product, season?.value || 'all', Number(limit?.value ?? 50));
+    const rerender = () => renderHistoryGames(p, product, season?.value || 'all', Number(limit?.value ?? 0));
     if (season) season.onchange = rerender;
     if (limit) limit.onchange = rerender;
   }
@@ -1520,7 +1520,7 @@
     });
   }
 
-  const seasonUi={year:'2026-27',ledger:'overall',phase:null,metric:'pts',sort:'grade',dir:-1,reviewSort:'absolute',reviewDir:1,limit:50,query:null};
+  const seasonUi={year:'2026-27',ledger:'overall',phase:null,metric:'pts',sort:'grade',dir:-1,reviewSort:'absolute',reviewDir:1,limit:Infinity,query:null};
   const seasonFields={}, seasonTypes={}, seasonLedgers={};
   for (const [name,fields] of Object.entries(window.__seasonLedgerSchema())) {
     seasonLedgers[name]=fields.map(f=>f.key);
@@ -1556,7 +1556,7 @@
       ${review?`<label>Compare metric<select id="reviewMetric">${options(seasonMetrics,seasonUi.metric)}</select></label>`:''}
       <label>Sort by<select id="${review?'reviewSort':'seasonSort'}">${options(review?reviewFields:Object.fromEntries(seasonLedgers[seasonUi.ledger].map(k=>[k,seasonFields[k]])),seasonUi[review?'reviewSort':'sort'])}</select></label>
       <label>Order<select id="seasonDir"><option value="-1" ${dir===-1?'selected':''}>High to low / Z–A</option><option value="1" ${dir===1?'selected':''}>Low to high / A–Z</option></select></label>
-      <label>Rows<select id="seasonLimit">${[50,100,1000].map(n=>`<option value="${n}" ${seasonUi.limit===n?'selected':''}>${n===1000?'All':n}</option>`).join('')}</select></label><button class="button" type="button" id="seasonExport">Export this view</button></div>`;
+      <label>Rows<select id="seasonLimit">${[50,100,Infinity].map(n=>`<option value="${n}" ${seasonUi.limit===n?'selected':''}>${n===Infinity?'All':n}</option>`).join('')}</select></label><button class="button" type="button" id="seasonExport">Export this view</button></div>`;
   }
   function seasonFiltered(rows){const q=fold(seasonUi.query??$('searchInput')?.value??'');return rows.filter(p=>!q||fold(p.name+' '+(p.team??p.currentTeam??'')+' '+(p.team===undefined?p.currentGLeagueRosterTeam||'':'')).includes(q));}
   function seasonRotation(p,phase){

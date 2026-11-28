@@ -28,7 +28,7 @@ function writeUrlState(kind = 'replace') {
     const el = $(id);
     if (!el) continue;
     const value = el.type === 'checkbox' ? (el.checked ? '1' : '') : String(el.value || '');
-    const defaults = { rosterScope: 'season', teamMode: 'season', view: 'overall', sort: 'grade', dir: '-1', rows: '50', gp: '0', mpg: '0', min: '0', grade: '0', reliability: '0' };
+    const defaults = { rosterScope: 'season', teamMode: 'season', view: 'overall', sort: 'grade', dir: '-1', rows: '9999', gp: '0', mpg: '0', min: '0', grade: '0', reliability: '0' };
     if (value && value !== (defaults[key] ?? '')) params.set(key, value);
   }
   if ($('bothOnly')?.checked) params.set('both', '1');
@@ -60,7 +60,7 @@ function restoreUrlState() {
     populateSelectors(); fillMetricSelects();
     for (const [id, value] of Object.entries({ searchInput: '', teamFilter: '', positionFilter: '', countryFilter: '',
       minGp: '0', minMpg: '0', minMin: '0', minGrade: '0', minReliability: '0', rosterScope: 'season', teamMode: 'season',
-      viewPreset: 'overall', rowLimit: '50', sortOrder: '-1' })) if ($(id)) $(id).value = value;
+      viewPreset: 'overall', rowLimit: '9999', sortOrder: '-1' })) if ($(id)) $(id).value = value;
     sortKey = 'grade'; sortDir = -1;
     for (const [key, id] of Object.entries(URL_FILTER_FIELDS)) {
       if (!params.has(key)) continue;
@@ -1416,21 +1416,10 @@ function render(){
   // Resolve a preset's fallback sort before sorting rows or deriving displayed ranks.
   syncSortControls(cols);
   const list=filteredPlayers();
-  let limit=Number($('rowLimit').value)||50;
+  const limit = $('rowLimit').value;
+  const shown = limit === '9999' ? list : list.slice(0, Number(limit));
   viewRankOf=new Map(list.map((p,i)=>[p.playerId,i+1]));
-  // A wide view times the row count gives the real cost. All Raw Stats at 1,075 columns x 582
-  // rows is 625,000 cells and took 6.1s to lay out, so very wide views cap their rows and say so.
-  const CELL_BUDGET=30000;
-  let capped=0;
-  if(cols.length*Math.min(limit,list.length)>CELL_BUDGET){
-    const maxRows=Math.max(10,Math.floor(CELL_BUDGET/cols.length));
-    if(maxRows<Math.min(limit,list.length)){ capped=maxRows; limit=maxRows; }
-  }
-  const shown=list.slice(0,limit);
   $('resultCount').textContent=list.length.toLocaleString();
-  $('rowCapNote').textContent=capped
-    ? `Showing ${capped} rows — ${cols.length} columns x more rows exceeds the render budget. Narrow the view or filter to see others.`
-    : '';
   const scoped=shown.filter(p=>p.teamScopedTo).length;
   $('sortLabel').textContent=`· ${SEASON_VIEWS[$('viewPreset').value]?PRESET_LABELS[$('viewPreset').value]:$('viewPreset').value==='proj'?'2026-27 projections':isCurrentRosterView()?'current-roster view':'2025-26 performance'} · sorted by ${colDef(sortKey).label} ${sortDir<0?'↓':'↑'}`
     +(scoped?` · ${scoped} multi-team ${scoped===1?'player is':'players are'} showing ${$('teamFilter').value}-only stint lines`:'');
@@ -1446,13 +1435,39 @@ function render(){
     const label=key==='team'&&league==='NBA'?(isCurrentRosterView()?'Current team':'Current status'):d.label;
     return `<th class="${key==='name'?'left':''}${hasTip?' has-tip':''}" data-sort="${esc(key)}" tabindex="0" role="columnheader" aria-sort="${aria}">${esc(label)}${sortKey===key?(sortDir<0?' ↓':' ↑'):''}</th>`;
   }).join('');
-  $('tableBody').innerHTML=shown.map(p=>`<tr>${cols.map(key=>cell(p,key)).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
+  const body = $('tableBody');
+  const viewport = body.closest('.table-wrap');
+  const batchSize = Math.max(25, Math.floor(30000 / cols.length));
+  let rendered = 0;
+  function appendRows() {
+    const batch = shown.slice(rendered, rendered + batchSize);
+    body.insertAdjacentHTML('beforeend', batch.map(p => `<tr>${cols.map(key => cell(p,key)).join('')}</tr>`).join(''));
+    rendered += batch.length;
+    $('rowCapNote').textContent = rendered < shown.length ? ` · Scroll for all ${shown.length} selected rows` : '';
+    if (rendered >= shown.length) viewport.onscroll = null;
+  }
+  viewport.onscroll = () => {
+    if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 150) appendRows();
+  };
+  viewport.scrollTop = 0;
+  body.innerHTML = shown.length ? '' : `<tr><td colspan="${cols.length}" class="loading">No players match these filters.</td></tr>`;
+  appendRows();
   document.querySelectorAll('#tableHead [data-sort]').forEach(th=>wireHeader(th, th.dataset.sort, ()=>{
     const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}render();writeUrlState('push');
   }));
-  document.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>openPlayer(b.dataset.player));
-  document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>window.__wsOpenPlayer?.(b.dataset.profile));
-  document.querySelectorAll('[data-compare]').forEach(c=>c.onchange=()=>{if(c.checked){if(compared.size>=5){c.checked=false;return}compared.add(c.dataset.compare)}else compared.delete(c.dataset.compare);updateCompare();});
+  body.onclick = event => {
+    const button = event.target.closest('[data-player], [data-profile]');
+    if (button?.dataset.player) openPlayer(button.dataset.player);
+    if (button?.dataset.profile) window.__wsOpenPlayer?.(button.dataset.profile);
+  };
+  body.onchange = event => {
+    const checkbox = event.target.closest('[data-compare]');
+    if (!checkbox) return;
+    if (checkbox.checked && compared.size >= 5) { checkbox.checked = false; return; }
+    if (checkbox.checked) compared.add(checkbox.dataset.compare);
+    else compared.delete(checkbox.dataset.compare);
+    updateCompare();
+  };
   renderRules(); updateCompare();
 }
 

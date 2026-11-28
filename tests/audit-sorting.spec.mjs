@@ -6,7 +6,7 @@ test('season and review sort the complete matching set in both directions, with 
   await page.click(`#modeNav [data-mode="${mode}"]`);
   const select=mode==='current'?'#seasonSort':'#reviewSort';
   const keys=await page.locator(select+' option').evaluateAll(els=>els.map(e=>e.value));
-  await page.selectOption('#seasonLimit','1000');
+  await expect(page.locator('#seasonLimit option:checked')).toHaveText('All');
   for(const key of keys){await page.selectOption(select,key);
    for(const dir of ['1','-1']){await page.selectOption('#seasonDir',dir);
     const result=await page.locator('.season-table > table').evaluate((table,{key,dir})=>{

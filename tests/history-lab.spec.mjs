@@ -45,6 +45,10 @@ test.describe('History Lab', () => {
   test('player results are paginated without truncation and minimum games scopes summary and raw rows', async ({page}) => {
     await openLab(page);
     const expected=await page.evaluate(()=>window.__historyLab.playerResults);
+    await expect(page.locator('#hPlayerTable tbody tr')).toHaveCount(expected);
+    await page.click('.history-advanced > summary');
+    await page.selectOption('#hRawLimit','50');
+    await page.click('.history-advanced > summary');
     await expect(page.locator('#hPlayerTable tbody tr')).toHaveCount(Math.min(50, expected));
     await expect(page.locator('#hPlayerPage')).toHaveText(`Players 1–50 of ${expected.toLocaleString()}`);
     const firstPage = await page.locator('#hPlayerTable tbody tr').first().innerText();

@@ -13,7 +13,6 @@
   let AGG = [];
   let PAGE = 0;
   let PLAYER_PAGE = 0;
-  const PLAYER_PAGE_SIZE = 50;
   let IX = {};
   let IDENTITY_SOURCE = 'unknown';
 
@@ -121,7 +120,7 @@
       team: $('hTeam').value, opponent: $('hOpponent').value, started: $('hStarted').value,
       from: $('hFrom').value, to: $('hTo').value,
       minMinutes: Number($('hMinMinutes').value) || 0, minGames: Math.max(1, Number($('hMinGames').value) || 1),
-      sort: $('hSort').value, dir:Number($('hOrder').value), gameDir:Number($('hGameOrder').value), rawLimit: Math.max(1, Number($('hRawLimit').value) || 100),
+      sort: $('hSort').value, dir:Number($('hOrder').value), gameDir:Number($('hGameOrder').value), rawLimit: Number($('hRawLimit').value),
     };
   }
 
@@ -212,9 +211,10 @@
       $('hPlayerNext').disabled = true;
       return;
     }
-    const pages = Math.max(1, Math.ceil(AGG.length / PLAYER_PAGE_SIZE));
+    const playerPageSize = filters().rawLimit || AGG.length;
+    const pages = Math.ceil(AGG.length / playerPageSize);
     PLAYER_PAGE = Math.min(PLAYER_PAGE, pages - 1);
-    const chunk = AGG.slice(PLAYER_PAGE * PLAYER_PAGE_SIZE, (PLAYER_PAGE + 1) * PLAYER_PAGE_SIZE);
+    const chunk = AGG.slice(PLAYER_PAGE * playerPageSize, (PLAYER_PAGE + 1) * playerPageSize);
     body.innerHTML = chunk.map((a) => {
       const meta = META.get(String(a.playerId));
       const sub = `${[...a.teams].sort().join('/')} · ${[...a.seasons].sort().join(', ')}${meta?.leagues?.size ? ` · current: ${[...meta.leagues].join('/')}` : ''}`;
@@ -222,7 +222,7 @@
         <td>${a.games}</td><td>${a.knownStarts ? `${a.starts}/${a.knownStarts}` : '—'}</td><td>${a.startPct === null ? '—' : `${(a.startPct * 100).toFixed(1)}%`}</td>
         <td>${num(a.minutesPg)}</td><td><b>${num(a.ptsPg)}</b></td><td>${num(a.rebPg)}</td><td>${num(a.astPg)}</td><td>${num(a.stlPg)}</td><td>${num(a.blkPg)}</td><td>${num(a.tovPg)}</td><td>${num(a.plusMinusPg)}</td></tr>`;
     }).join('');
-    $('hPlayerPage').textContent = `Players ${PLAYER_PAGE * PLAYER_PAGE_SIZE + 1}–${Math.min((PLAYER_PAGE + 1) * PLAYER_PAGE_SIZE, AGG.length)} of ${AGG.length.toLocaleString()}`;
+    $('hPlayerPage').textContent = `Players ${PLAYER_PAGE * playerPageSize + 1}–${Math.min((PLAYER_PAGE + 1) * playerPageSize, AGG.length)} of ${AGG.length.toLocaleString()}`;
     $('hPlayerPrev').disabled = PLAYER_PAGE <= 0;
     $('hPlayerNext').disabled = PLAYER_PAGE >= pages - 1;
   }
@@ -231,16 +231,31 @@
   function renderGames() {
     const f = filters();
     const sorted = sortedGames();
-    const pages = Math.max(1, Math.ceil(sorted.length / f.rawLimit));
+    const pageSize = f.rawLimit || sorted.length || 1;
+    const pages = Math.max(1, Math.ceil(sorted.length / pageSize));
     PAGE = Math.min(PAGE, pages - 1);
-    const chunk = sorted.slice(PAGE * f.rawLimit, (PAGE + 1) * f.rawLimit);
+    const chunk = f.rawLimit ? sorted.slice(PAGE * pageSize, (PAGE + 1) * pageSize) : sorted;
     const body = $('hGameTable').querySelector('tbody');
-    body.innerHTML = chunk.length ? chunk.map((e) => {
+    const gameRow = (e) => {
       const st = val(e, 'started');
       return `<tr><td class="history-raw-name"><span class="history-player">${esc(playerName(e.playerId))}</span></td><td>${esc(val(e, 'gameDate'))}</td><td>${esc(val(e, 'season'))}</td>
         <td>${val(e, 'seasonType') === 'Playoffs' ? 'PO' : 'RS'}</td><td>${esc(val(e, 'team'))}</td><td>${esc(val(e, 'opponent'))}</td>
         <td>${st === true ? 'Yes' : st === false ? 'No' : '—'}</td><td>${num(val(e, 'minutes'))}</td><td>${int(val(e, 'pts'))}</td><td>${int(val(e, 'reb'))}</td><td>${int(val(e, 'ast'))}</td><td>${int(val(e, 'stl'))}</td><td>${int(val(e, 'blk'))}</td><td>${int(val(e, 'tov'))}</td><td>${int(val(e, 'plusMinus'))}</td></tr>`;
-    }).join('') : '<tr><td colspan="15" class="history-empty">No game rows match this slice.</td></tr>';
+    };
+    const viewport = body.closest('.table-wrap');
+    viewport.scrollTop = 0;
+    let rendered = 0;
+    function appendRows() {
+      const batch = chunk.slice(rendered, rendered + 500);
+      body.insertAdjacentHTML('beforeend', batch.map(gameRow).join(''));
+      rendered += batch.length;
+      if (rendered >= chunk.length) viewport.onscroll = null;
+    }
+    viewport.onscroll = () => {
+      if (viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 150) appendRows();
+    };
+    body.innerHTML = chunk.length ? '' : '<tr><td colspan="15" class="history-empty">No game rows match this slice.</td></tr>';
+    appendRows();
     $('hPage').textContent = sorted.length ? `Page ${PAGE + 1} of ${pages} · ${sorted.length.toLocaleString()} matching player-games` : '0 matching player-games';
     $('hPrev').disabled = PAGE <= 0;
     $('hNext').disabled = PAGE >= pages - 1;
@@ -264,7 +279,7 @@
 
   function reset() {
     for (const id of ['hPlayer','hSeason','hPhase','hTeam','hOpponent','hStarted','hFrom','hTo']) $(id).value = '';
-    $('hMinMinutes').value = '0'; $('hMinGames').value = '1'; $('hSort').value = 'pts'; $('hOrder').value='-1'; $('hGameOrder').value='-1'; $('hRawLimit').value = '100'; apply();
+    $('hMinMinutes').value = '0'; $('hMinGames').value = '1'; $('hSort').value = 'pts'; $('hOrder').value='-1'; $('hGameOrder').value='-1'; $('hRawLimit').value = '0'; apply();
   }
 
   function bind() {
